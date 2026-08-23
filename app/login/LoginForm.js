@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import GoogleButton from "@/components/GoogleButton";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function LoginForm() {
   const [fullName, setFullName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(params.get("error") || "");
   const [notice, setNotice] = useState("");
 
   async function onSubmit(e) {
@@ -68,6 +69,30 @@ export default function LoginForm() {
 
   return (
     <div className="card p-5">
+      {error && (
+        <p className="mb-4 rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="mb-4 rounded-lg bg-teal-soft px-3 py-2 text-sm text-teal">
+          {notice}
+        </p>
+      )}
+
+      <GoogleButton next={next} onError={setError} />
+      <p className="mt-2 text-center text-xs text-ink-soft">
+        Fastest way in — no password to remember.
+      </p>
+
+      <div className="my-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-sand-deep" />
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          or use email
+        </span>
+        <span className="h-px flex-1 bg-sand-deep" />
+      </div>
+
       <div className="mb-5 flex rounded-xl bg-sand p-1 text-sm font-semibold">
         <button
           type="button"
@@ -158,17 +183,6 @@ export default function LoginForm() {
               This links your account to the family&apos;s shared trips.
             </span>
           </label>
-        )}
-
-        {error && (
-          <p className="rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="rounded-lg bg-teal-soft px-3 py-2 text-sm text-teal">
-            {notice}
-          </p>
         )}
 
         <button className="btn btn-primary w-full" disabled={busy}>
