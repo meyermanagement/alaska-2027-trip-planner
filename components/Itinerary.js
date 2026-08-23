@@ -21,20 +21,134 @@ const CATEGORIES = [
 ];
 const STATUSES = ["confirmed", "planned", "optional", "needs_booking", "cancelled"];
 
+const EMPTY = {
+  title: "",
+  item_date: "",
+  start_time: "",
+  category: "activity",
+  status: "planned",
+  location: "",
+  notes: "",
+  confirmation_number: "",
+};
+
+function toDraft(item) {
+  return {
+    title: item.title || "",
+    item_date: item.item_date || "",
+    start_time: item.start_time ? item.start_time.slice(0, 5) : "",
+    category: item.category || "activity",
+    status: item.status || "planned",
+    location: item.location || "",
+    notes: item.notes || "",
+    confirmation_number: item.confirmation_number || "",
+  };
+}
+
+function ItemFields({ draft, setDraft }) {
+  const set = (patch) => setDraft({ ...draft, ...patch });
+  return (
+    <>
+      <input
+        className="field"
+        placeholder="What is happening?"
+        value={draft.title}
+        onChange={(e) => set({ title: e.target.value })}
+        required
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">Date</span>
+          <input
+            className="field"
+            type="date"
+            value={draft.item_date}
+            onChange={(e) => set({ item_date: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">Time</span>
+          <input
+            className="field"
+            type="time"
+            value={draft.start_time}
+            onChange={(e) => set({ start_time: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">Type</span>
+          <select
+            className="field"
+            value={draft.category}
+            onChange={(e) => set({ category: e.target.value })}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_ICONS[c]} {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">Status</span>
+          <select
+            className="field"
+            value={draft.status}
+            onChange={(e) => set({ status: e.target.value })}
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_STYLES[s].label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <input
+          className="field"
+          placeholder="Location"
+          value={draft.location}
+          onChange={(e) => set({ location: e.target.value })}
+        />
+        <input
+          className="field"
+          placeholder="Confirmation number"
+          value={draft.confirmation_number}
+          onChange={(e) => set({ confirmation_number: e.target.value })}
+        />
+      </div>
+      <textarea
+        className="field"
+        rows={3}
+        placeholder="Notes"
+        value={draft.notes}
+        onChange={(e) => set({ notes: e.target.value })}
+      />
+    </>
+  );
+}
+
+function payload(draft) {
+  return {
+    title: draft.title.trim(),
+    item_date: draft.item_date || null,
+    start_time: draft.start_time || null,
+    category: draft.category,
+    status: draft.status,
+    location: draft.location.trim() || null,
+    notes: draft.notes.trim() || null,
+    confirmation_number: draft.confirmation_number.trim() || null,
+  };
+}
+
 export default function Itinerary({ items, tripId, onChange }) {
   const supabase = useMemo(() => createClient(), []);
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({
-    title: "",
-    item_date: "",
-    start_time: "",
-    category: "activity",
-    status: "planned",
-    location: "",
-    notes: "",
-    confirmation_number: "",
-  });
+  const [draft, setDraft] = useState(EMPTY);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState(EMPTY);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   const visible = items.filter((i) =>
     filter === "all"
@@ -54,40 +168,61 @@ export default function Itinerary({ items, tripId, onChange }) {
     return Array.from(map.entries());
   }, [visible]);
 
+  function startEdit(item) {
+    setAdding(false);
+    setError("");
+    setEditingId(item.id);
+    setEditDraft(toDraft(item));
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft(EMPTY);
+    setError("");
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (!editDraft.title.trim()) return;
+    setBusy(true);
+    setError("");
+    const { error: err } = await supabase
+      .from("itinerary_items")
+      .update(payload(editDraft))
+      .eq("id", editingId);
+    setBusy(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    cancelEdit();
+    onChange();
+  }
+
   async function updateStatus(item, status) {
     await supabase.from("itinerary_items").update({ status }).eq("id", item.id);
     onChange();
   }
 
   async function remove(item) {
+    if (!window.confirm(`Delete “${item.title}” from the itinerary?`)) return;
     await supabase.from("itinerary_items").delete().eq("id", item.id);
     onChange();
   }
 
   async function addItem(e) {
     e.preventDefault();
-    await supabase.from("itinerary_items").insert({
-      trip_id: tripId,
-      title: draft.title.trim(),
-      item_date: draft.item_date || null,
-      start_time: draft.start_time || null,
-      category: draft.category,
-      status: draft.status,
-      location: draft.location.trim() || null,
-      notes: draft.notes.trim() || null,
-      confirmation_number: draft.confirmation_number.trim() || null,
-      sort_order: 99,
-    });
-    setDraft({
-      title: "",
-      item_date: "",
-      start_time: "",
-      category: "activity",
-      status: "planned",
-      location: "",
-      notes: "",
-      confirmation_number: "",
-    });
+    setBusy(true);
+    setError("");
+    const { error: err } = await supabase
+      .from("itinerary_items")
+      .insert({ trip_id: tripId, ...payload(draft), sort_order: 99 });
+    setBusy(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setDraft(EMPTY);
     setAdding(false);
     onChange();
   }
@@ -113,89 +248,32 @@ export default function Itinerary({ items, tripId, onChange }) {
           ))}
         </div>
         <div className="flex gap-2">
-          <button
-            className="btn btn-ghost"
-            onClick={() => window.print()}
-            type="button"
-          >
+          <button className="btn btn-ghost" onClick={() => window.print()} type="button">
             Print
           </button>
-          <button className="btn btn-primary" onClick={() => setAdding(!adding)}>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              cancelEdit();
+              setAdding(!adding);
+            }}
+          >
             {adding ? "Close" : "+ Add"}
           </button>
         </div>
       </div>
 
+      {error && (
+        <p className="mb-4 rounded-xl bg-rose/10 px-4 py-3 text-sm font-medium text-rose">
+          {error}
+        </p>
+      )}
+
       {adding && (
         <form onSubmit={addItem} className="card mb-5 space-y-3 p-4">
-          <input
-            className="field"
-            placeholder="What is happening?"
-            value={draft.title}
-            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            required
-          />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input
-              className="field"
-              type="date"
-              value={draft.item_date}
-              onChange={(e) => setDraft({ ...draft, item_date: e.target.value })}
-            />
-            <input
-              className="field"
-              type="time"
-              value={draft.start_time}
-              onChange={(e) =>
-                setDraft({ ...draft, start_time: e.target.value })
-              }
-            />
-            <select
-              className="field"
-              value={draft.category}
-              onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_ICONS[c]} {c}
-                </option>
-              ))}
-            </select>
-            <select
-              className="field"
-              value={draft.status}
-              onChange={(e) => setDraft({ ...draft, status: e.target.value })}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_STYLES[s].label}
-                </option>
-              ))}
-            </select>
-            <input
-              className="field"
-              placeholder="Location"
-              value={draft.location}
-              onChange={(e) => setDraft({ ...draft, location: e.target.value })}
-            />
-            <input
-              className="field"
-              placeholder="Confirmation number"
-              value={draft.confirmation_number}
-              onChange={(e) =>
-                setDraft({ ...draft, confirmation_number: e.target.value })
-              }
-            />
-          </div>
-          <textarea
-            className="field"
-            rows={2}
-            placeholder="Notes"
-            value={draft.notes}
-            onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-          />
-          <button className="btn btn-primary w-full sm:w-auto">
-            Add to itinerary
+          <ItemFields draft={draft} setDraft={setDraft} />
+          <button className="btn btn-primary w-full sm:w-auto" disabled={busy}>
+            {busy ? "Saving…" : "Add to itinerary"}
           </button>
         </form>
       )}
@@ -209,6 +287,34 @@ export default function Itinerary({ items, tripId, onChange }) {
             <div className="space-y-2">
               {dayItems.map((item) => {
                 const status = STATUS_STYLES[item.status];
+
+                if (editingId === item.id) {
+                  return (
+                    <form
+                      key={item.id}
+                      onSubmit={saveEdit}
+                      className="card space-y-3 border-teal/40 p-4 ring-1 ring-teal/30"
+                    >
+                      <p className="font-display text-sm font-semibold text-teal">
+                        Editing this item
+                      </p>
+                      <ItemFields draft={editDraft} setDraft={setEditDraft} />
+                      <div className="flex flex-wrap gap-2">
+                        <button className="btn btn-primary" disabled={busy}>
+                          {busy ? "Saving…" : "Save changes"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={cancelEdit}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  );
+                }
+
                 return (
                   <article key={item.id} className="card p-4">
                     <div className="flex items-start gap-3">
@@ -222,17 +328,11 @@ export default function Itinerary({ items, tripId, onChange }) {
                               {formatTime(item.start_time)}
                             </span>
                           )}
-                          <h4 className="font-semibold leading-snug">
-                            {item.title}
-                          </h4>
-                          <span className={`chip ${status.cls}`}>
-                            {status.label}
-                          </span>
+                          <h4 className="font-semibold leading-snug">{item.title}</h4>
+                          <span className={`chip ${status.cls}`}>{status.label}</span>
                         </div>
                         {item.location && (
-                          <p className="mt-0.5 text-sm text-ink-soft">
-                            {item.location}
-                          </p>
+                          <p className="mt-0.5 text-sm text-ink-soft">{item.location}</p>
                         )}
                         {item.confirmation_number && (
                           <p className="mt-1 font-mono text-xs text-ink-soft">
@@ -240,11 +340,18 @@ export default function Itinerary({ items, tripId, onChange }) {
                           </p>
                         )}
                         {item.notes && (
-                          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
                             {item.notes}
                           </p>
                         )}
-                        <div className="no-print mt-3 flex flex-wrap gap-1.5">
+                        <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">
+                          <button
+                            onClick={() => startEdit(item)}
+                            className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
+                          >
+                            Edit
+                          </button>
+                          <span className="mx-1 h-4 w-px bg-sand-deep" aria-hidden />
                           {STATUSES.filter((s) => s !== item.status).map((s) => (
                             <button
                               key={s}
@@ -256,7 +363,7 @@ export default function Itinerary({ items, tripId, onChange }) {
                           ))}
                           <button
                             onClick={() => remove(item)}
-                            className="rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
+                            className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
                           >
                             Delete
                           </button>

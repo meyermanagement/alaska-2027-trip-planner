@@ -11,6 +11,14 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState({
+    item: "",
+    category: "",
+    assignee: "Shared",
+    quantity: "",
+    notes: "",
+  });
 
   const people = travelers.length
     ? travelers
@@ -50,7 +58,36 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
   }
 
   async function remove(item) {
+    if (!window.confirm(`Remove “${item.item}” from the list?`)) return;
     await supabase.from("packing_items").delete().eq("id", item.id);
+    onChange();
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditDraft({
+      item: item.item || "",
+      category: item.category || "",
+      assignee: item.assignee || "Shared",
+      quantity: item.quantity || "",
+      notes: item.notes || "",
+    });
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (!editDraft.item.trim()) return;
+    await supabase
+      .from("packing_items")
+      .update({
+        item: editDraft.item.trim(),
+        category: (editDraft.category || "General").trim(),
+        assignee: editDraft.assignee,
+        quantity: editDraft.quantity.trim() || null,
+        notes: editDraft.notes.trim() || null,
+      })
+      .eq("id", editingId);
+    setEditingId(null);
     onChange();
   }
 
@@ -168,7 +205,80 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
               </span>
             </div>
             <ul>
-              {rows.map((item) => (
+              {rows.map((item) =>
+                editingId === item.id ? (
+                  <li
+                    key={item.id}
+                    className="border-b border-sand/80 bg-teal/5 px-4 py-3 last:border-0"
+                  >
+                    <form onSubmit={saveEdit} className="space-y-2">
+                      <input
+                        className="field"
+                        placeholder="Item"
+                        value={editDraft.item}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, item: e.target.value })
+                        }
+                        required
+                      />
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <input
+                          className="field"
+                          placeholder="Category"
+                          list="packing-categories"
+                          value={editDraft.category}
+                          onChange={(e) =>
+                            setEditDraft({ ...editDraft, category: e.target.value })
+                          }
+                        />
+                        <select
+                          className="field"
+                          value={editDraft.assignee}
+                          onChange={(e) =>
+                            setEditDraft({ ...editDraft, assignee: e.target.value })
+                          }
+                        >
+                          {people.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                          {!people.includes(editDraft.assignee) && (
+                            <option value={editDraft.assignee}>
+                              {editDraft.assignee}
+                            </option>
+                          )}
+                        </select>
+                        <input
+                          className="field"
+                          placeholder="Quantity"
+                          value={editDraft.quantity}
+                          onChange={(e) =>
+                            setEditDraft({ ...editDraft, quantity: e.target.value })
+                          }
+                        />
+                      </div>
+                      <input
+                        className="field"
+                        placeholder="Notes"
+                        value={editDraft.notes}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, notes: e.target.value })
+                        }
+                      />
+                      <div className="flex gap-2">
+                        <button className="btn btn-primary">Save</button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => setEditingId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </li>
+                ) : (
                 <li
                   key={item.id}
                   className="group flex items-start gap-3 border-b border-sand/80 px-4 py-2.5 last:border-0"
@@ -198,15 +308,25 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
                       <p className="mt-0.5 text-xs text-ink-soft">{item.notes}</p>
                     )}
                   </div>
-                  <button
-                    onClick={() => remove(item)}
-                    className="no-print shrink-0 text-xs font-semibold text-ink-soft/60 opacity-0 transition group-hover:opacity-100 hover:text-rose"
-                    aria-label={`Remove ${item.item}`}
-                  >
-                    ✕
-                  </button>
+                  <div className="no-print flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={() => startEdit(item)}
+                      className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                      aria-label={`Edit ${item.item}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => remove(item)}
+                      className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                      aria-label={`Remove ${item.item}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </li>
-              ))}
+                )
+              )}
             </ul>
           </div>
         ))}

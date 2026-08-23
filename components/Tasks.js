@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { TIMING_LABELS, TIMING_ORDER, assigneeColor } from "@/lib/format";
+import { TIMING_LABELS, TIMING_ORDER, assigneeColor, formatShortDay } from "@/lib/format";
 
 export default function Tasks({ items, tripId, travelers, userId, onChange }) {
   const supabase = useMemo(() => createClient(), []);
@@ -10,6 +10,14 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
   const [newTiming, setNewTiming] = useState("now");
   const [newAssignee, setNewAssignee] = useState("Shared");
   const [hideDone, setHideDone] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState({
+    title: "",
+    detail: "",
+    assignee: "Shared",
+    timing: "now",
+    due_date: "",
+  });
 
   const people = travelers.length
     ? travelers
@@ -39,7 +47,36 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
   }
 
   async function remove(task) {
+    if (!window.confirm(`Delete the task “${task.title}”?`)) return;
     await supabase.from("predeparture_tasks").delete().eq("id", task.id);
+    onChange();
+  }
+
+  function startEdit(task) {
+    setEditingId(task.id);
+    setEditDraft({
+      title: task.title || "",
+      detail: task.detail || "",
+      assignee: task.assignee || "Shared",
+      timing: task.timing || "now",
+      due_date: task.due_date || "",
+    });
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (!editDraft.title.trim()) return;
+    await supabase
+      .from("predeparture_tasks")
+      .update({
+        title: editDraft.title.trim(),
+        detail: editDraft.detail.trim() || null,
+        assignee: editDraft.assignee,
+        timing: editDraft.timing,
+        due_date: editDraft.due_date || null,
+      })
+      .eq("id", editingId);
+    setEditingId(null);
     onChange();
   }
 
@@ -123,7 +160,85 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
               </span>
             </div>
             <ul>
-              {rows.map((task) => (
+              {rows.map((task) =>
+                editingId === task.id ? (
+                  <li
+                    key={task.id}
+                    className="border-b border-sand/80 bg-teal/5 px-4 py-3 last:border-0"
+                  >
+                    <form onSubmit={saveEdit} className="space-y-2">
+                      <input
+                        className="field"
+                        placeholder="Task"
+                        value={editDraft.title}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, title: e.target.value })
+                        }
+                        required
+                      />
+                      <textarea
+                        className="field"
+                        rows={2}
+                        placeholder="Detail"
+                        value={editDraft.detail}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, detail: e.target.value })
+                        }
+                      />
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <select
+                          className="field"
+                          value={editDraft.timing}
+                          onChange={(e) =>
+                            setEditDraft({ ...editDraft, timing: e.target.value })
+                          }
+                        >
+                          {TIMING_ORDER.map((t) => (
+                            <option key={t} value={t}>
+                              {TIMING_LABELS[t]}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="field"
+                          value={editDraft.assignee}
+                          onChange={(e) =>
+                            setEditDraft({ ...editDraft, assignee: e.target.value })
+                          }
+                        >
+                          {people.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                          {!people.includes(editDraft.assignee) && (
+                            <option value={editDraft.assignee}>
+                              {editDraft.assignee}
+                            </option>
+                          )}
+                        </select>
+                        <input
+                          className="field"
+                          type="date"
+                          value={editDraft.due_date}
+                          onChange={(e) =>
+                            setEditDraft({ ...editDraft, due_date: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="btn btn-primary">Save</button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => setEditingId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </li>
+                ) : (
                 <li
                   key={task.id}
                   className="group flex items-start gap-3 border-b border-sand/80 px-4 py-3 last:border-0"
@@ -147,6 +262,11 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                       <span className={`chip ${assigneeColor(task.assignee)}`}>
                         {task.assignee}
                       </span>
+                      {task.due_date && (
+                        <span className="chip bg-amber/15 text-amber">
+                          Due {formatShortDay(task.due_date)}
+                        </span>
+                      )}
                     </div>
                     {task.detail && (
                       <p className="mt-1 text-sm leading-relaxed text-ink-soft">
@@ -154,15 +274,25 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => remove(task)}
-                    className="no-print shrink-0 text-xs font-semibold text-ink-soft/60 opacity-0 transition group-hover:opacity-100 hover:text-rose"
-                    aria-label={`Remove ${task.title}`}
-                  >
-                    ✕
-                  </button>
+                  <div className="no-print flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={() => startEdit(task)}
+                      className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                      aria-label={`Edit ${task.title}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => remove(task)}
+                      className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                      aria-label={`Remove ${task.title}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </li>
-              ))}
+                )
+              )}
             </ul>
           </div>
         ))}
