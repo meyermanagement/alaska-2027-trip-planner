@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #16211f;
+  --color-ink-soft: #4b5b57;
+  --color-sand: #f7f4ee;
+  --color-sand-deep: #ece6db;
+  --color-teal: #0f5f57;
+  --color-teal-soft: #e2efec;
+  --color-glacier: #2b6ea8;
+  --color-amber: #b4711d;
+  --color-rose: #a4405c;
+  --font-display: "Georgia", "Iowan Old Style", serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-sand);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Subtle paper texture behind the whole app */
+.app-shell {
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(15, 95, 87, 0.07), transparent 42%),
+    radial-gradient(circle at 88% 4%, rgba(43, 110, 168, 0.07), transparent 38%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--color-sand-deep);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(22, 33, 31, 0.04);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.65rem;
+  border: 1px solid var(--color-sand-deep);
+  background: #fff;
+  padding: 0.6rem 0.75rem;
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--color-teal);
+  box-shadow: 0 0 0 3px rgba(15, 95, 87, 0.12);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.65rem;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+  cursor: pointer;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--color-teal);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #0c4e47;
+}
+
+.btn-ghost {
+  background: #fff;
+  border: 1px solid var(--color-sand-deep);
+  color: var(--color-ink);
+}
+
+.btn-ghost:hover {
+  background: var(--color-sand);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.strike-done {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  opacity: 0.5;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .app-shell {
+    background: #fff;
+  }
+  .card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
