@@ -7,12 +7,14 @@ import Itinerary from "./Itinerary";
 import Packing from "./Packing";
 import Tasks from "./Tasks";
 import Notes from "./Notes";
+import ChatPanel from "./ChatPanel";
 
 const TABS = [
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
+  { id: "assistant", label: "Assistant" },
 ];
 
 export default function TripView({
@@ -191,6 +193,17 @@ export default function TripView({
             travelers={travelers}
             userId={userId}
             onChange={() => refetch("predeparture_tasks")}
+          />
+        )}
+        {tab === "assistant" && (
+          <ChatPanel
+            trip={trip}
+            onApplied={() => {
+              refetch("itinerary_items");
+              refetch("packing_items");
+              refetch("predeparture_tasks");
+              refetch("trip_notes");
+            }}
           />
         )}
         {tab === "notes" && (
