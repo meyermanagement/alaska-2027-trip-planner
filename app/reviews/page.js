@@ -4,6 +4,7 @@ import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
+import Preferences from "./Preferences";
 import { isPastTrip } from "@/lib/format";
 
 export const metadata = { title: "Reviews · Alyeska" };
@@ -37,11 +38,32 @@ export default async function HistoryPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: memberships } = await supabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", user.id);
+  if (!memberships || memberships.length === 0) redirect("/join");
+  const familyId = memberships[0].family_id;
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("display_name")
     .eq("id", user.id)
     .maybeSingle();
+
+  const [{ data: preferences }, { data: people }] = await Promise.all([
+    supabase
+      .from("travel_preferences")
+      .select("*")
+      .order("topic", { ascending: true, nullsFirst: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("travelers")
+      .select("id, name, sort_order")
+      .eq("is_person", true)
+      .order("sort_order", { ascending: true }),
+  ]);
 
   const { data: trips } = await supabase
     .from("trips")
@@ -100,9 +122,22 @@ export default async function HistoryPage() {
           <p className="mt-1 text-sm text-ink-soft">
             Our own reviews of everywhere we have stayed and everything we have
             done on past trips. Rate a place and leave a line about it, and it
-            will be here the next time we are deciding.
+            will be here the next time we are deciding, along with how we like
+            to travel in general.
           </p>
         </div>
+
+        <div className="mb-6">
+          <Preferences
+            familyId={familyId}
+            travelers={people || []}
+            preferences={preferences || []}
+          />
+        </div>
+
+        <h2 className="font-display mb-3 text-xl font-semibold">
+          Places we have been
+        </h2>
 
         {pastTrips.length === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">

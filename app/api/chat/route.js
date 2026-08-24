@@ -58,8 +58,16 @@ export async function POST(request) {
   let tools;
 
   if (!tripId) {
-    const [trips, itinerary, packing, tasks, notes, travelers, rosters] =
-      await Promise.all([
+    const [
+      trips,
+      itinerary,
+      packing,
+      tasks,
+      notes,
+      travelers,
+      rosters,
+      preferences,
+    ] = await Promise.all([
         supabase
           .from("trips")
           .select(
@@ -75,6 +83,11 @@ export async function POST(request) {
           .select("id, name, is_person")
           .order("sort_order"),
         supabase.from("trip_travelers").select("trip_id, traveler_id"),
+        supabase
+          .from("travel_preferences")
+          .select("topic, body, traveler_id")
+          .order("topic", { ascending: true, nullsFirst: false })
+          .order("created_at", { ascending: true }),
       ]);
 
     ctx = buildGlobalContext({
@@ -85,6 +98,7 @@ export async function POST(request) {
       notes: notes.data || [],
       travelers: travelers.data || [],
       rosters: rosters.data || [],
+      preferences: preferences.data || [],
       userName,
     });
     system = buildGlobalSystemPrompt(ctx.text);
@@ -152,7 +166,8 @@ async function tripScope(supabase, tripId, userName) {
     .maybeSingle();
   if (!trip) return null;
 
-  const [itinerary, packing, tasks, notes, travelers, roster] = await Promise.all(
+  const [itinerary, packing, tasks, notes, travelers, roster, preferences] =
+    await Promise.all(
     [
       supabase
         .from("itinerary_items")
@@ -176,11 +191,16 @@ async function tripScope(supabase, tripId, userName) {
         .select("*")
         .eq("trip_id", tripId)
         .order("created_at", { ascending: false }),
-      supabase.from("travelers").select("name").order("sort_order"),
+      supabase.from("travelers").select("id, name").order("sort_order"),
       supabase
         .from("trip_travelers")
         .select("travelers(name, sort_order)")
         .eq("trip_id", tripId),
+      supabase
+        .from("travel_preferences")
+        .select("topic, body, traveler_id")
+        .order("topic", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true }),
     ]
   );
 
@@ -196,6 +216,7 @@ async function tripScope(supabase, tripId, userName) {
       .filter(Boolean)
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
       .map((t) => t.name),
+    preferences: preferences.data || [],
     userName,
   });
 }
