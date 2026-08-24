@@ -44,12 +44,28 @@ export default async function TripsPage() {
   const { data: taskRows } = await supabase
     .from("predeparture_tasks")
     .select("trip_id, is_done");
+  const { data: itineraryRows } = await supabase
+    .from("itinerary_items")
+    .select("trip_id");
 
   function progress(rows, tripId, doneKey) {
     const mine = (rows || []).filter((r) => r.trip_id === tripId);
     const done = mine.filter((r) => r[doneKey]).length;
     return { done, total: mine.length };
   }
+
+  // A trip is finished once its last day has passed, or once someone marks it
+  // complete or archived by hand.
+  const today = new Date().toISOString().slice(0, 10);
+  const isPast = (trip) =>
+    ["complete", "archived"].includes(trip.status) ||
+    (trip.end_date || trip.start_date || "9999") < today;
+
+  const upcoming = (trips || []).filter((t) => !isPast(t));
+  // Most recently finished first, so the last trip is the one you see.
+  const past = (trips || [])
+    .filter(isPast)
+    .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
 
   return (
     <>
@@ -67,7 +83,7 @@ export default async function TripsPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {(trips || []).map((trip) => {
+          {upcoming.map((trip) => {
             const packing = progress(counts, trip.id, "is_packed");
             const tasks = progress(taskRows, trip.id, "is_done");
             const countdown = daysUntil(trip.start_date);
@@ -114,6 +130,76 @@ export default async function TripsPage() {
             );
           })}
         </div>
+
+        {upcoming.length === 0 && (
+          <p className="card p-5 text-sm text-ink-soft">
+            No trips coming up. Start one whenever you are ready.
+          </p>
+        )}
+
+        {past.length > 0 && (
+          <section className="mt-12">
+            <div className="flex items-center gap-3">
+              <h2 className="font-display text-lg font-semibold text-ink-soft">
+                Past trips
+              </h2>
+              <span className="h-px flex-1 bg-sand-deep" aria-hidden="true" />
+              <span className="text-xs font-semibold text-ink-soft">
+                {past.length}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-ink-soft">
+              Kept for the record — itineraries, packing lists and notes are all
+              still here.
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {past.map((trip) => {
+                const stops = (itineraryRows || []).filter(
+                  (r) => r.trip_id === trip.id,
+                ).length;
+                const packing = progress(counts, trip.id, "is_packed");
+                return (
+                  <Link
+                    key={trip.id}
+                    href={`/trips/${trip.slug}`}
+                    className="card group flex flex-col bg-sand/50 p-4 transition hover:border-teal/40 hover:bg-white hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-2xl opacity-80">
+                        {trip.cover_emoji}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="font-display truncate text-base font-semibold group-hover:text-teal">
+                          {trip.name}
+                        </h3>
+                        <p className="text-xs font-medium text-ink-soft">
+                          {formatRange(trip.start_date, trip.end_date)}
+                        </p>
+                      </div>
+                    </div>
+                    {trip.destination && (
+                      <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-ink-soft">
+                        {trip.destination}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-sand-deep pt-2.5 text-[0.7rem] font-semibold text-ink-soft">
+                      <span>
+                        {stops} {stops === 1 ? "stop" : "stops"}
+                      </span>
+                      {packing.total > 0 && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span>{packing.total} things packed</span>
+                        </>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </main>
       <AskAlyGeneral />
       <FooterBar displayName={profile?.display_name} />
