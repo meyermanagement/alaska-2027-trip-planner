@@ -7,10 +7,10 @@ import {
   DOC_TYPES,
   docType,
   formatDayYear,
+  formatRange,
   isPastTrip,
   monthsUntil,
 } from "@/lib/format";
-import MembershipChips from "@/components/MembershipChips";
 
 export default function People({
   familyId,
@@ -28,19 +28,19 @@ export default function People({
   const [addingPerson, setAddingPerson] = useState(false);
   const [revealed, setRevealed] = useState({});
   const [rosterBusy, setRosterBusy] = useState(null);
+  const [editingTripsFor, setEditingTripsFor] = useState(null);
   // Local copy so a tapped trip chip reacts immediately.
   const [roster, setRoster] = useState(rosters);
 
   const docsFor = (id) => documents.filter((d) => d.traveler_id === id);
 
-  // Upcoming trips first, then the ones that already happened.
-  const orderedTrips = [...trips].sort((a, b) => {
-    const pa = isPastTrip(a);
-    const pb = isPastTrip(b);
-    if (pa !== pb) return pa ? 1 : -1;
-    const cmp = (a.start_date || "").localeCompare(b.start_date || "");
-    return pa ? -cmp : cmp;
-  });
+  // Soonest first for what is ahead, most recent first for what is done.
+  const upcomingTrips = trips
+    .filter((t) => !isPastTrip(t))
+    .sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
+  const pastTrips = trips
+    .filter((t) => isPastTrip(t))
+    .sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
 
   const tripIdsFor = (travelerId) =>
     roster.filter((r) => r.traveler_id === travelerId).map((r) => r.trip_id);
@@ -216,28 +216,102 @@ export default function People({
               />
             )}
 
-            {orderedTrips.length > 0 && (
-              <div className="mt-4">
-                <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
-                  Trips
-                  <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
-                    — tap a trip to say whether {person.name} is on it
-                  </span>
-                </p>
-                <div className="mt-1.5">
-                  <MembershipChips
-                    items={orderedTrips.map((t) => ({
-                      id: t.id,
-                      label: t.name,
-                      emoji: t.cover_emoji,
-                    }))}
-                    activeIds={tripIdsFor(person.id)}
-                    busyId={rosterBusy}
-                    onToggle={(item, nowOn) =>
-                      toggleTrip(person.id, item.id, nowOn)
+            {trips.length > 0 && (
+              <div className="mt-4 border-t border-sand-deep pt-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+                    Trips
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditingTripsFor(
+                        editingTripsFor === person.id ? null : person.id,
+                      )
                     }
-                  />
+                    className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                  >
+                    {editingTripsFor === person.id ? "Done" : "Change trips"}
+                  </button>
                 </div>
+
+                {editingTripsFor === person.id ? (
+                  <div className="no-print mt-2 space-y-3">
+                    <p className="text-xs text-ink-soft">
+                      Check every trip {person.name} is on.
+                    </p>
+                    {[
+                      ["Coming up", upcomingTrips],
+                      ["Already done", pastTrips],
+                    ].map(([heading, list]) =>
+                      list.length === 0 ? null : (
+                        <div key={heading}>
+                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft/70">
+                            {heading}
+                          </p>
+                          <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-sand-deep bg-white">
+                            {list.map((trip) => {
+                              const on = tripIdsFor(person.id).includes(trip.id);
+                              return (
+                                <li key={trip.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      toggleTrip(person.id, trip.id, !on)
+                                    }
+                                    disabled={rosterBusy === trip.id}
+                                    aria-pressed={on}
+                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-sand/60 disabled:opacity-50"
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
+                                        on
+                                          ? "border-teal bg-teal text-white"
+                                          : "border-sand-deep bg-white text-transparent"
+                                      }`}
+                                    >
+                                      ✓
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block truncate text-sm font-semibold text-ink">
+                                        {trip.cover_emoji && (
+                                          <span
+                                            aria-hidden="true"
+                                            className="mr-1.5"
+                                          >
+                                            {trip.cover_emoji}
+                                          </span>
+                                        )}
+                                        {trip.name}
+                                      </span>
+                                      <span className="block text-xs text-ink-soft">
+                                        {formatRange(
+                                          trip.start_date,
+                                          trip.end_date,
+                                        )}
+                                      </span>
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <PersonTripList
+                    name={person.name}
+                    upcoming={upcomingTrips.filter((t) =>
+                      tripIdsFor(person.id).includes(t.id),
+                    )}
+                    past={pastTrips.filter((t) =>
+                      tripIdsFor(person.id).includes(t.id),
+                    )}
+                  />
+                )}
               </div>
             )}
 
@@ -568,5 +642,52 @@ function PersonForm({ person, onCancel, onSave }) {
         </button>
       </div>
     </form>
+  );
+}
+
+// A person's trips, newest plans first and finished trips underneath, so the
+// list stays readable as trips pile up.
+function PersonTripList({ name, upcoming, past }) {
+  if (upcoming.length === 0 && past.length === 0) {
+    return (
+      <p className="mt-1.5 text-sm text-ink-soft">
+        {name} is not on any trips yet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-3">
+      {[
+        ["Coming up", upcoming],
+        ["Already done", past],
+      ].map(([heading, list]) =>
+        list.length === 0 ? null : (
+          <div key={heading}>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft/70">
+              {heading}
+            </p>
+            <ul className="mt-1 space-y-1.5">
+              {list.map((trip) => (
+                <li
+                  key={trip.id}
+                  className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2"
+                >
+                  <span className="flex min-w-0 items-baseline gap-2 text-sm font-semibold text-ink sm:flex-1">
+                    <span aria-hidden="true" className="shrink-0">
+                      {trip.cover_emoji || "•"}
+                    </span>
+                    <span className="truncate">{trip.name}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-ink-soft">
+                    {formatRange(trip.start_date, trip.end_date)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+      )}
+    </div>
   );
 }
