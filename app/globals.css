@@ -282,6 +282,150 @@ select {
   opacity: 0.5;
 }
 
+/* ---- Day carousel on the itinerary --------------------------------- */
+.day-tile {
+  position: relative;
+  flex: 0 0 auto;
+  width: 3.5rem;
+  padding: 0.5rem 0.25rem 0.4rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+.day-tile:hover {
+  border-color: color-mix(in srgb, var(--color-teal) 45%, transparent);
+  transform: translateY(-1px);
+}
+.day-tile-on,
+.day-tile-on:hover {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-teal) 88%, white) 0%,
+    var(--color-teal) 100%
+  );
+  border-color: var(--color-teal);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 2px 8px -2px color-mix(in srgb, var(--color-teal) 45%, transparent);
+  transform: none;
+}
+.day-tile-top,
+.day-tile-foot {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  line-height: 1.1;
+}
+.day-tile-num {
+  font-family: var(--font-sans);
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 1.15;
+  color: var(--color-ink);
+}
+.day-tile-on .day-tile-top,
+.day-tile-on .day-tile-foot {
+  color: rgba(255, 255, 255, 0.72);
+}
+.day-tile-on .day-tile-num {
+  color: #fff;
+}
+.day-tile-wide {
+  width: 4.25rem;
+  justify-content: center;
+}
+.day-tile-loose {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  line-height: 1.2;
+  padding-block: 0.35rem;
+}
+.day-tile-on .day-tile-loose {
+  color: #fff;
+}
+.day-tile-dots {
+  display: flex;
+  gap: 0.15rem;
+  height: 0.5rem;
+  align-items: center;
+}
+.day-tile-dot {
+  width: 0.22rem;
+  height: 0.22rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-teal) 55%, transparent);
+}
+.day-tile-on .day-tile-dot {
+  background: rgba(255, 255, 255, 0.8);
+}
+.day-tile-empty {
+  width: 0.55rem;
+  height: 1px;
+  background: var(--line-strong);
+}
+.day-tile-today {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: var(--color-amber);
+}
+.day-tile-on .day-tile-today {
+  background: #fff;
+}
+.day-arrow {
+  flex: 0 0 auto;
+  width: 1.85rem;
+  height: 2.1rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--color-ink-soft);
+  font-size: 1.15rem;
+  line-height: 1;
+  box-shadow: var(--shadow-card);
+}
+.day-arrow:hover:not(:disabled) {
+  border-color: var(--color-teal);
+  color: var(--color-teal);
+}
+.day-arrow:disabled {
+  opacity: 0.35;
+}
+.day-panel {
+  animation: day-in 0.18s ease-out;
+}
+@keyframes day-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-panel {
+    animation: none;
+  }
+}
+
 @media print {
   .no-print {
     display: none !important;

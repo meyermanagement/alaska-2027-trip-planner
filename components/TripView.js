@@ -320,6 +320,8 @@ export default function TripView({
           <Itinerary
             items={itinerary}
             tripId={trip.id}
+            tripStart={info.start_date}
+            tripEnd={info.end_date}
             onChange={() => refetch("itinerary_items")}
           />
         )}

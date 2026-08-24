@@ -1,13 +1,39 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CATEGORY_ICONS,
   STATUS_STYLES,
   formatDay,
   formatTime,
+  parseDate,
 } from "@/lib/format";
+
+const UNSCHEDULED = "unscheduled";
+const DAY_MS = 86400000;
+
+/** Every calendar day of the trip, so empty days can still be reached. */
+function buildDayKeys(start, end, itemDates) {
+  const keys = [];
+  if (start && end) {
+    const [ys, ms, ds] = start.split("-").map(Number);
+    const [ye, me, de] = end.split("-").map(Number);
+    let cursor = Date.UTC(ys, ms - 1, ds);
+    const last = Date.UTC(ye, me - 1, de);
+    // A guard so a bad pair of dates can never spin forever.
+    for (let n = 0; cursor <= last && n < 400; n += 1) {
+      keys.push(new Date(cursor).toISOString().slice(0, 10));
+      cursor += DAY_MS;
+    }
+  }
+  // Anything scheduled outside the trip window still deserves a day.
+  itemDates.forEach((d) => {
+    if (d && !keys.includes(d)) keys.push(d);
+  });
+  keys.sort();
+  return keys;
+}
 
 const CATEGORIES = [
   "activity",
@@ -154,7 +180,13 @@ function payload(draft) {
   };
 }
 
-export default function Itinerary({ items, tripId, onChange }) {
+export default function Itinerary({
+  items,
+  tripId,
+  onChange,
+  tripStart,
+  tripEnd,
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
@@ -172,15 +204,88 @@ export default function Itinerary({ items, tripId, onChange }) {
         : i.status === "confirmed",
   );
 
-  const days = useMemo(() => {
+  // The rail is built from the trip window, not from what happens to be
+  // booked, so a quiet day is still somewhere you can go and add to.
+  const dayKeys = useMemo(
+    () => buildDayKeys(tripStart, tripEnd, items.map((i) => i.item_date)),
+    [tripStart, tripEnd, items],
+  );
+  const hasUnscheduled = items.some((i) => !i.item_date);
+  const railKeys = useMemo(
+    () => (hasUnscheduled ? [...dayKeys, UNSCHEDULED] : dayKeys),
+    [dayKeys, hasUnscheduled],
+  );
+
+  const byDay = useMemo(() => {
     const map = new Map();
     visible.forEach((item) => {
-      const key = item.item_date || "unscheduled";
+      const key = item.item_date || UNSCHEDULED;
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(item);
     });
-    return Array.from(map.entries());
+    return map;
   }, [visible]);
+
+  const today = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+  }, []);
+
+  // Open on today when the trip is happening, otherwise on the first day.
+  const [selected, setSelected] = useState(() =>
+    dayKeys.includes(today) ? today : (dayKeys[0] ?? UNSCHEDULED),
+  );
+
+  useEffect(() => {
+    if (railKeys.length && !railKeys.includes(selected)) {
+      setSelected(railKeys.includes(today) ? today : railKeys[0]);
+    }
+  }, [railKeys, selected, today]);
+
+  const railRef = useRef(null);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail || typeof ResizeObserver === "undefined") return;
+    const measure = () =>
+      setOverflowing(rail.scrollWidth > rail.clientWidth + 4);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(rail);
+    return () => ro.disconnect();
+  }, [railKeys.length]);
+  useEffect(() => {
+    const tile = railRef.current?.querySelector('[data-active="true"]');
+    tile?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [selected]);
+
+  const index = railKeys.indexOf(selected);
+  const step = useCallback(
+    (delta) => {
+      const next = index + delta;
+      if (next >= 0 && next < railKeys.length) setSelected(railKeys[next]);
+    },
+    [index, railKeys],
+  );
+
+  const touchX = useRef(null);
+  function onTouchStart(e) {
+    touchX.current = e.touches[0]?.clientX ?? null;
+  }
+  function onTouchEnd(e) {
+    if (touchX.current === null) return;
+    const dx = (e.changedTouches[0]?.clientX ?? 0) - touchX.current;
+    touchX.current = null;
+    if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
+  }
+
+  function addToDay(key) {
+    cancelEdit();
+    setDraft({ ...EMPTY, item_date: key === UNSCHEDULED ? "" : key });
+    setAdding(true);
+  }
 
   function startEdit(item) {
     setAdding(false);
@@ -272,8 +377,11 @@ export default function Itinerary({ items, tripId, onChange }) {
           <button
             className="btn btn-primary"
             onClick={() => {
-              cancelEdit();
-              setAdding(!adding);
+              if (adding) {
+                setAdding(false);
+                return;
+              }
+              addToDay(selected);
             }}
           >
             {adding ? "Close" : "+ Add"}
@@ -296,12 +404,120 @@ export default function Itinerary({ items, tripId, onChange }) {
         </form>
       )}
 
-      <div className="space-y-5">
-        {days.map(([date, dayItems]) => (
-          <div key={date}>
-            <h3 className="mb-2 text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
-              {date === "unscheduled" ? "Unscheduled" : formatDay(date)}
-            </h3>
+      {railKeys.length > 1 && (
+        <div className="no-print mb-4 flex items-center gap-2">
+          {overflowing && (
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              disabled={index <= 0}
+              aria-label="Previous day"
+              className="day-arrow"
+            >
+              ‹
+            </button>
+          )}
+          <div
+            ref={railRef}
+            role="tablist"
+            aria-label="Days of this trip"
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight") {
+                e.preventDefault();
+                step(1);
+              }
+              if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                step(-1);
+              }
+            }}
+            className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1"
+          >
+            {railKeys.map((key, i) => {
+              const count = byDay.get(key)?.length ?? 0;
+              const active = key === selected;
+              const date = key === UNSCHEDULED ? null : parseDate(key);
+              return (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={active}
+                  data-active={active}
+                  onClick={() => setSelected(key)}
+                  className={`day-tile ${date ? "" : "day-tile-wide"} ${
+                    active ? "day-tile-on" : ""
+                  }`}
+                >
+                  {date ? (
+                    <>
+                      <span className="day-tile-top">
+                        {date.toLocaleDateString("en-US", { weekday: "short" })}
+                      </span>
+                      <span className="day-tile-num">{date.getDate()}</span>
+                      <span className="day-tile-foot">
+                        {date.toLocaleDateString("en-US", { month: "short" })}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="day-tile-loose">No date</span>
+                  )}
+                  <span className="day-tile-dots" aria-hidden="true">
+                    {count === 0 ? (
+                      <span className="day-tile-empty" />
+                    ) : (
+                      Array.from({ length: Math.min(count, 4) }).map((_, d) => (
+                        <span key={d} className="day-tile-dot" />
+                      ))
+                    )}
+                  </span>
+                  <span className="sr-only">
+                    {key === UNSCHEDULED
+                      ? "Not scheduled yet"
+                      : `Day ${i + 1}`}
+                    , {count} {count === 1 ? "item" : "items"}
+                    {key === today ? ", today" : ""}
+                  </span>
+                  {key === today && (
+                    <span className="day-tile-today" aria-hidden="true" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {overflowing && (
+            <button
+              type="button"
+              onClick={() => step(1)}
+              disabled={index >= railKeys.length - 1}
+              aria-label="Next day"
+              className="day-arrow"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      )}
+
+      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {railKeys.map((date, i) => {
+          const dayItems = byDay.get(date) ?? [];
+          const active = date === selected;
+          return (
+          <div
+            key={date}
+            className={`day-panel ${active ? "" : "hidden print:block"} print:mb-5`}
+            role="tabpanel"
+          >
+            <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                {date === UNSCHEDULED ? "Not scheduled yet" : formatDay(date)}
+              </h3>
+              {date !== UNSCHEDULED && dayKeys.length > 1 && (
+                <span className="text-[0.72rem] text-ink-faint">
+                  Day {i + 1} of {dayKeys.length}
+                </span>
+              )}
+            </div>
             <div className="space-y-2">
               {dayItems.map((item) => {
                 const status = STATUS_STYLES[item.status];
@@ -402,12 +618,29 @@ export default function Itinerary({ items, tripId, onChange }) {
                   </article>
                 );
               })}
+              {dayItems.length === 0 && (
+                <div className="card p-6 text-center">
+                  <p className="text-sm text-ink-soft">
+                    {filter === "all"
+                      ? "Nothing planned for this day."
+                      : "Nothing on this day matches the filter."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => addToDay(date)}
+                    className="no-print mt-3 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+                  >
+                    Add something to this day
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        ))}
-        {days.length === 0 && (
+          );
+        })}
+        {railKeys.length === 0 && (
           <p className="card p-6 text-center text-sm text-ink-soft">
-            Nothing matches this filter yet.
+            Nothing on the itinerary yet.
           </p>
         )}
       </div>
