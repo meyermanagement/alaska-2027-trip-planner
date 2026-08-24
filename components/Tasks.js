@@ -283,6 +283,11 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                             Due {formatShortDay(task.due_date)}
                           </span>
                         )}
+                        {task.itinerary_item_id && (
+                          <span className="chip bg-teal-soft text-teal">
+                            From the itinerary
+                          </span>
+                        )}
                       </div>
                       {task.detail && (
                         <p className="mt-1 text-sm leading-relaxed text-ink-soft">

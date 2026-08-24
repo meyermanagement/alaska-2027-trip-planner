@@ -167,6 +167,32 @@ function ItemFields({ draft, setDraft }) {
   );
 }
 
+/** "Flights to Curacao - not booked" becomes "Book flights to Curacao". */
+function bookingTaskTitle(title) {
+  let t = (title || "").trim();
+  t = t.replace(/[\s—-]*\(?not\s+booked\)?\.?$/i, "").trim();
+  t = t.replace(/^book\s+/i, "").trim();
+  if (!t) return "Book this";
+  // Leave acronyms like "STL to CUR" alone; lowercase an ordinary first word.
+  const firstWord = t.split(/\s+/)[0];
+  const body =
+    firstWord.length > 1 && firstWord === firstWord.toUpperCase()
+      ? t
+      : t[0].toLowerCase() + t.slice(1);
+  return `Book ${body}`;
+}
+
+/** How soon a booking task ought to sit, judged by the trip's own dates. */
+function bookingTiming(itemDate) {
+  if (!itemDate) return "now";
+  const days = Math.round(
+    (parseDate(itemDate) - new Date()) / 86400000,
+  );
+  if (days <= 7) return "week_before";
+  if (days <= 45) return "month_before";
+  return "now";
+}
+
 function payload(draft) {
   return {
     title: draft.title.trim(),
@@ -186,6 +212,9 @@ export default function Itinerary({
   onChange,
   tripStart,
   tripEnd,
+  tasks = [],
+  onTaskChange = () => {},
+  onOpenTasks = () => {},
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [filter, setFilter] = useState("all");
@@ -269,6 +298,79 @@ export default function Itinerary({
     },
     [index, railKeys],
   );
+
+  // Tasks made from an itinerary item keep a link back to it, so the button
+  // can show what has already been handed off to the Tasks tab.
+  const taskByItem = useMemo(() => {
+    const map = new Map();
+    tasks.forEach((t) => {
+      if (t.itinerary_item_id) map.set(t.itinerary_item_id, t);
+    });
+    return map;
+  }, [tasks]);
+  const [taskBusyId, setTaskBusyId] = useState(null);
+
+  async function makeBookingTask(item) {
+    setTaskBusyId(item.id);
+    setError("");
+    const bits = [
+      item.item_date ? `On the itinerary for ${formatDay(item.item_date)}` : null,
+      item.location || null,
+    ].filter(Boolean);
+    const { error: err } = await supabase.from("predeparture_tasks").insert({
+      trip_id: tripId,
+      itinerary_item_id: item.id,
+      title: bookingTaskTitle(item.title),
+      detail: bits.length ? bits.join(" · ") : null,
+      assignee: "Shared",
+      timing: bookingTiming(item.item_date),
+      sort_order: 99,
+    });
+    setTaskBusyId(null);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    onTaskChange();
+  }
+
+  const untracked = useMemo(
+    () =>
+      items.filter(
+        (i) => i.status === "needs_booking" && !taskByItem.has(i.id),
+      ),
+    [items, taskByItem],
+  );
+
+  async function makeAllBookingTasks() {
+    setTaskBusyId("all");
+    setError("");
+    const rows = untracked.map((item) => ({
+      trip_id: tripId,
+      itinerary_item_id: item.id,
+      title: bookingTaskTitle(item.title),
+      detail: [
+        item.item_date
+          ? `On the itinerary for ${formatDay(item.item_date)}`
+          : null,
+        item.location || null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || null,
+      assignee: "Shared",
+      timing: bookingTiming(item.item_date),
+      sort_order: 99,
+    }));
+    const { error: err } = await supabase
+      .from("predeparture_tasks")
+      .insert(rows);
+    setTaskBusyId(null);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    onTaskChange();
+  }
 
   const touchX = useRef(null);
   function onTouchStart(e) {
@@ -402,6 +504,27 @@ export default function Itinerary({
             {busy ? "Saving…" : "Add to itinerary"}
           </button>
         </form>
+      )}
+
+      {untracked.length > 1 && (
+        <div className="no-print card mb-4 flex flex-wrap items-center justify-between gap-3 border-amber/30 bg-amber/5 p-3.5">
+          <p className="text-sm text-ink-soft">
+            <span className="font-semibold text-ink">
+              {untracked.length} things still need booking
+            </span>{" "}
+            and are not on the task list yet.
+          </p>
+          <button
+            type="button"
+            onClick={makeAllBookingTasks}
+            disabled={taskBusyId === "all"}
+            className="btn btn-ghost text-[0.8rem]"
+          >
+            {taskBusyId === "all"
+              ? "Adding…"
+              : `Make ${untracked.length} tasks`}
+          </button>
+        </div>
       )}
 
       {railKeys.length > 1 && (
@@ -584,6 +707,33 @@ export default function Itinerary({
                             {item.notes}
                           </p>
                         )}
+                        {item.status === "needs_booking" &&
+                          (taskByItem.has(item.id) ? (
+                            <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">
+                              <span aria-hidden="true">✓</span>
+                              {taskByItem.get(item.id).is_done
+                                ? "Booking task is done"
+                                : "On the task list"}
+                              <button
+                                type="button"
+                                onClick={onOpenTasks}
+                                className="font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+                              >
+                                Open Tasks
+                              </button>
+                            </p>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => makeBookingTask(item)}
+                              disabled={taskBusyId === item.id}
+                              className="no-print mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-[0.72rem] font-semibold text-amber hover:border-amber hover:bg-amber/15 disabled:opacity-60"
+                            >
+                              {taskBusyId === item.id
+                                ? "Adding…"
+                                : "Make this a task"}
+                            </button>
+                          ))}
                         <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">
                           <button
                             onClick={() => startEdit(item)}

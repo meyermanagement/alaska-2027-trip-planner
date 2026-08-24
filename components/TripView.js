@@ -322,6 +322,9 @@ export default function TripView({
             tripId={trip.id}
             tripStart={info.start_date}
             tripEnd={info.end_date}
+            tasks={tasks}
+            onTaskChange={() => refetch("predeparture_tasks")}
+            onOpenTasks={() => setTab("tasks")}
             onChange={() => refetch("itinerary_items")}
           />
         )}
