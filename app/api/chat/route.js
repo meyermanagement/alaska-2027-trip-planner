@@ -11,8 +11,12 @@ import {
 import {
   TOOL_DECLARATIONS,
   TRIP_TOOL_DECLARATIONS,
+  SHARED_TOOL_DECLARATIONS,
   validateAction,
 } from "@/lib/agent/tools";
+
+// Categories the Reviews tab keeps a record of.
+const REVIEWABLE = ["lodging", "excursion", "activity", "dining"];
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -85,10 +89,35 @@ export async function POST(request) {
         supabase.from("trip_travelers").select("trip_id, traveler_id"),
         supabase
           .from("travel_preferences")
-          .select("topic, body, traveler_id")
+          .select("id, topic, body, traveler_id")
           .order("topic", { ascending: true, nullsFirst: false })
           .order("created_at", { ascending: true }),
       ]);
+
+    // The places the Reviews tab shows: reviewable items from finished trips.
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const pastIds = (trips.data || [])
+      .filter(
+        (t) =>
+          ["complete", "archived"].includes(t.status) ||
+          (t.end_date || t.start_date || "9999-12-31") < today
+      )
+      .map((t) => t.id);
+    const places = pastIds.length
+      ? await supabase
+          .from("itinerary_items")
+          .select(
+            "id, trip_id, item_date, title, category, location, rating, review"
+          )
+          .in("trip_id", pastIds)
+          .in("category", REVIEWABLE)
+          .order("item_date", { ascending: false })
+      : { data: [] };
 
     ctx = buildGlobalContext({
       trips: trips.data || [],
@@ -99,17 +128,18 @@ export async function POST(request) {
       travelers: travelers.data || [],
       rosters: rosters.data || [],
       preferences: preferences.data || [],
+      places: places.data || [],
       userName,
     });
     system = buildGlobalSystemPrompt(ctx.text);
-    tools = TRIP_TOOL_DECLARATIONS;
+    tools = [...TRIP_TOOL_DECLARATIONS, ...SHARED_TOOL_DECLARATIONS];
   } else {
     ctx = await tripScope(supabase, tripId, userName);
     if (!ctx) {
       return NextResponse.json({ error: "Trip not found." }, { status: 404 });
     }
     system = buildSystemPrompt(ctx.text, focus);
-    tools = TOOL_DECLARATIONS;
+    tools = [...TOOL_DECLARATIONS, ...SHARED_TOOL_DECLARATIONS];
   }
 
   const contents = history
@@ -140,6 +170,7 @@ export async function POST(request) {
   for (const call of result.calls) {
     const { action, error } = validateAction(call, {
       travelerNames: ctx.travelerNames,
+      travelerIds: ctx.travelerIds,
       known: ctx.known,
     });
     if (action) actions.push(action);
@@ -198,7 +229,7 @@ async function tripScope(supabase, tripId, userName) {
         .eq("trip_id", tripId),
       supabase
         .from("travel_preferences")
-        .select("topic, body, traveler_id")
+        .select("id, topic, body, traveler_id")
         .order("topic", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true }),
     ]

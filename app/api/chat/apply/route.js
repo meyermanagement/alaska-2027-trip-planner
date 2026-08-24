@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { validateAction } from "@/lib/agent/tools";
+import {
+  validateAction,
+  FAMILY_TABLES,
+  REVIEW_TOOLS,
+} from "@/lib/agent/tools";
 
 export const runtime = "nodejs";
 
@@ -53,10 +57,12 @@ export async function POST(request) {
   }
 
   // Re-derive which ids the user may touch. The client is never trusted.
-  const [itin, pack, task, travelers, trips] = await Promise.all([
+  const [itin, pack, task, travelers, trips, prefs] = await Promise.all([
+    // With no trip in scope the only itinerary write allowed is a review, so
+    // every item the family can see is fair game; RLS scopes it to them.
     tripId
       ? supabase.from("itinerary_items").select("id, title").eq("trip_id", tripId)
-      : { data: [] },
+      : supabase.from("itinerary_items").select("id, title"),
     tripId
       ? supabase.from("packing_items").select("id, item").eq("trip_id", tripId)
       : { data: [] },
@@ -66,8 +72,9 @@ export async function POST(request) {
           .select("id, title")
           .eq("trip_id", tripId)
       : { data: [] },
-    supabase.from("travelers").select("name").order("sort_order"),
+    supabase.from("travelers").select("id, name").order("sort_order"),
     tripId ? { data: [] } : supabase.from("trips").select("id, name"),
+    supabase.from("travel_preferences").select("id, body"),
   ]);
 
   const known = {
@@ -76,9 +83,15 @@ export async function POST(request) {
     predeparture_tasks: new Map((task.data || []).map((r) => [r.id, r.title])),
     trip_notes: new Map(),
     trips: new Map((trips.data || []).map((r) => [r.id, r.name])),
+    travel_preferences: new Map(
+      (prefs.data || []).map((r) => [r.id, (r.body || "").slice(0, 60)])
+    ),
   };
   const travelerNames = Array.from(
     new Set([...(travelers.data || []).map((t) => t.name), "Shared"])
+  );
+  const travelerIds = new Map(
+    (travelers.data || []).filter((t) => t.id && t.name).map((t) => [t.name, t.id])
   );
 
   const { data: profile } = await supabase
@@ -95,7 +108,7 @@ export async function POST(request) {
     // Revalidate from scratch rather than trusting the client's patch.
     const { action, error } = validateAction(
       { name: raw?.tool, args: { ...(raw?.patch || {}), id: raw?.id } },
-      { travelerNames, known }
+      { travelerNames, travelerIds, known }
     );
 
     if (!action) {
@@ -116,7 +129,9 @@ export async function POST(request) {
       });
       continue;
     }
-    if (table !== "trips" && !tripId) {
+    // Travel preferences and reviews are family-level, so they need no trip.
+    const familyLevel = FAMILY_TABLES.has(table) || REVIEW_TOOLS.has(tool);
+    if (table !== "trips" && !tripId && !familyLevel) {
       results.push({
         ok: false,
         summary: action.summary,
@@ -136,6 +151,35 @@ export async function POST(request) {
         });
         dbError = outcome.error;
         if (outcome.slug) createdSlug = outcome.slug;
+      } else if (FAMILY_TABLES.has(table)) {
+        // Family-wide rows: keyed by id only, with RLS keeping them in family.
+        if (tool.startsWith("delete_")) {
+          const { error: e } = await supabase.from(table).delete().eq("id", id);
+          dbError = e;
+        } else if (tool.startsWith("update_")) {
+          const { error: e } = await supabase
+            .from(table)
+            .update({ ...patch, updated_at: new Date().toISOString() })
+            .eq("id", id);
+          dbError = e;
+        } else {
+          const { error: e } = await supabase
+            .from(table)
+            .insert({ ...patch, family_id: familyId });
+          dbError = e;
+        }
+      } else if (REVIEW_TOOLS.has(tool)) {
+        // Rating and review only, on one itinerary item.
+        let query = supabase
+          .from("itinerary_items")
+          .update({
+            ...(patch.rating !== undefined ? { rating: patch.rating } : {}),
+            ...(patch.review !== undefined ? { review: patch.review } : {}),
+          })
+          .eq("id", id);
+        if (tripId) query = query.eq("trip_id", tripId);
+        const { error: e } = await query;
+        dbError = e;
       } else if (tool.startsWith("delete_")) {
         const { error: e } = await supabase
           .from(table)
