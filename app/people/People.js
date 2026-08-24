@@ -216,6 +216,38 @@ export default function People({
               />
             )}
 
+            <div className="mt-4 space-y-2.5">
+              {docs.length === 0 && addingFor !== person.id && (
+                <p className="text-sm text-ink-soft">
+                  Nothing saved for {person.name} yet.
+                </p>
+              )}
+              {docs.map((doc) =>
+                editingDoc === doc.id ? (
+                  <DocForm
+                    key={doc.id}
+                    doc={doc}
+                    onCancel={() => setEditingDoc(null)}
+                    onSave={(values) => saveDoc(person.id, doc.id, values)}
+                  />
+                ) : (
+                  <DocRow
+                    key={doc.id}
+                    doc={doc}
+                    shown={!!revealed[doc.id]}
+                    onToggle={() =>
+                      setRevealed((r) => ({ ...r, [doc.id]: !r[doc.id] }))
+                    }
+                    onEdit={() => {
+                      setAddingFor(null);
+                      setEditingDoc(doc.id);
+                    }}
+                    onDelete={() => removeDoc(doc)}
+                  />
+                ),
+              )}
+            </div>
+
             {trips.length > 0 && (
               <div className="mt-4 border-t border-sand-deep pt-3">
                 <div className="flex items-baseline justify-between gap-3">
@@ -314,38 +346,6 @@ export default function People({
                 )}
               </div>
             )}
-
-            <div className="mt-4 space-y-2.5">
-              {docs.length === 0 && addingFor !== person.id && (
-                <p className="text-sm text-ink-soft">
-                  Nothing saved for {person.name} yet.
-                </p>
-              )}
-              {docs.map((doc) =>
-                editingDoc === doc.id ? (
-                  <DocForm
-                    key={doc.id}
-                    doc={doc}
-                    onCancel={() => setEditingDoc(null)}
-                    onSave={(values) => saveDoc(person.id, doc.id, values)}
-                  />
-                ) : (
-                  <DocRow
-                    key={doc.id}
-                    doc={doc}
-                    shown={!!revealed[doc.id]}
-                    onToggle={() =>
-                      setRevealed((r) => ({ ...r, [doc.id]: !r[doc.id] }))
-                    }
-                    onEdit={() => {
-                      setAddingFor(null);
-                      setEditingDoc(doc.id);
-                    }}
-                    onDelete={() => removeDoc(doc)}
-                  />
-                ),
-              )}
-            </div>
           </section>
         );
       })}

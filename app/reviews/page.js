@@ -6,7 +6,7 @@ import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
 import { isPastTrip } from "@/lib/format";
 
-export const metadata = { title: "Been there · Alyeska" };
+export const metadata = { title: "Reviews · Alyeska" };
 
 // The groups we keep a record of, in the order they show up on the page.
 const GROUPS = [
@@ -96,11 +96,11 @@ export default async function HistoryPage() {
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
         <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">Been there</h1>
+          <h1 className="font-display text-3xl font-semibold">Reviews</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Everywhere we have stayed and everything we have done on past trips.
-            Rate a place and leave a line about it, and it will be here the next
-            time we are deciding.
+            Our own reviews of everywhere we have stayed and everything we have
+            done on past trips. Rate a place and leave a line about it, and it
+            will be here the next time we are deciding.
           </p>
         </div>
 
