@@ -3,14 +3,43 @@
 import { useEffect, useRef, useState } from "react";
 import AlyeskaMark from "./AlyeskaMark";
 
-const SUGGESTIONS = [
-  "What's on the schedule the first day?",
-  "Add sunscreen and bug spray to the shared packing list",
-  "Remind me to do online check-in the day before we fly",
-  "What still needs to be booked?",
-];
+// Prompts follow whichever section the user was looking at.
+const SUGGESTIONS = {
+  itinerary: [
+    "What's on the schedule the first day?",
+    "What still needs to be booked?",
+    "Add dinner Thursday at 7",
+  ],
+  packing: [
+    "What's left to pack for Veda?",
+    "Add sunscreen and bug spray for everyone",
+    "I packed the swimsuits",
+  ],
+  tasks: [
+    "What still isn't done?",
+    "Remind me to do online check-in the day before we fly",
+    "Add a task to refill prescriptions a week before",
+  ],
+  notes: [
+    "What notes do we have?",
+    "Save a note that Veda wants Space Mountain first",
+  ],
+};
 
-export default function ChatPanel({ trip, onApplied, onClose, fill = false }) {
+const SECTION_LABELS = {
+  itinerary: "Itinerary",
+  packing: "Packing",
+  tasks: "Tasks",
+  notes: "Notes",
+};
+
+export default function ChatPanel({
+  trip,
+  onApplied,
+  onClose,
+  focus,
+  fill = false,
+}) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,7 +68,7 @@ export default function ChatPanel({ trip, onApplied, onClose, fill = false }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tripId: trip.id, messages: next }),
+        body: JSON.stringify({ tripId: trip.id, focus, messages: next }),
       });
       const data = await res.json();
 
@@ -129,7 +158,10 @@ export default function ChatPanel({ trip, onApplied, onClose, fill = false }) {
             <h2 className="font-display text-base font-semibold leading-none">
               Ask Aly
             </h2>
-            <p className="mt-1 truncate text-xs text-ink-soft">{trip.name}</p>
+            <p className="mt-1 truncate text-xs text-ink-soft">
+              {trip.name}
+              {SECTION_LABELS[focus] ? ` · ${SECTION_LABELS[focus]}` : ""}
+            </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -176,11 +208,15 @@ export default function ChatPanel({ trip, onApplied, onClose, fill = false }) {
         {messages.length === 0 && !busy && (
           <div className="space-y-3">
             <p className="text-sm text-ink-soft">
-              Aly can add or change itinerary items, packing, tasks and notes
-              for this trip. You approve every change before it saves.
+              Aly is working on{" "}
+              <span className="font-semibold text-ink">{trip.name}</span>
+              {SECTION_LABELS[focus]
+                ? `, and assumes you mean the ${SECTION_LABELS[focus].toLowerCase()} unless you say otherwise.`
+                : "."}{" "}
+              You approve every change before it saves.
             </p>
             <div className="flex flex-wrap gap-2">
-              {SUGGESTIONS.map((s) => (
+              {(SUGGESTIONS[focus] || SUGGESTIONS.itinerary).map((s) => (
                 <button
                   key={s}
                   type="button"

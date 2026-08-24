@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 
-export default function AskAlyDrawer({ trip, onApplied }) {
+export default function AskAlyDrawer({ trip, onApplied, focus }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
 
@@ -52,7 +52,13 @@ export default function AskAlyDrawer({ trip, onApplied }) {
         className="aly-veil absolute inset-0 cursor-default bg-ink/40"
       />
       <aside className="aly-panel relative flex h-full w-full max-w-md flex-col border-l border-sand-deep bg-white shadow-2xl">
-        <ChatPanel trip={trip} onApplied={onApplied} onClose={close} fill />
+        <ChatPanel
+          trip={trip}
+          onApplied={onApplied}
+          onClose={close}
+          focus={focus}
+          fill
+        />
       </aside>
     </div>
   );

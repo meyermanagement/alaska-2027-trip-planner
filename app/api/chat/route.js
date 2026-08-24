@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generate, GeminiError } from "@/lib/agent/gemini";
-import { buildTripContext, buildSystemPrompt } from "@/lib/agent/context";
+import {
+  buildTripContext,
+  buildSystemPrompt,
+  FOCUS_LABELS,
+} from "@/lib/agent/context";
 import { TOOL_DECLARATIONS, validateAction } from "@/lib/agent/tools";
 
 export const runtime = "nodejs";
@@ -18,6 +22,9 @@ export async function POST(request) {
   }
 
   const tripId = payload?.tripId;
+  // Which section of the trip the user was looking at. Whitelisted so it can
+  // only ever be one of our known tabs.
+  const focus = FOCUS_LABELS[payload?.focus] ? payload.focus : null;
   const history = Array.isArray(payload?.messages) ? payload.messages : [];
   if (!tripId || history.length === 0) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
@@ -98,7 +105,7 @@ export async function POST(request) {
   let result;
   try {
     result = await generate({
-      system: buildSystemPrompt(ctx.text),
+      system: buildSystemPrompt(ctx.text, focus),
       contents,
       tools: TOOL_DECLARATIONS,
     });

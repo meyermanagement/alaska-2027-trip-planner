@@ -209,6 +209,7 @@ export default function TripView({
 
       <AskAlyDrawer
         trip={trip}
+        focus={tab}
         onApplied={() => {
           refetch("itinerary_items");
           refetch("packing_items");
