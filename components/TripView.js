@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { daysUntil, formatRange, isPastTrip } from "@/lib/format";
 import MembershipChips from "./MembershipChips";
+import TripForm from "./TripForm";
 import Itinerary from "./Itinerary";
 import Packing from "./Packing";
 import Tasks from "./Tasks";
@@ -37,10 +38,21 @@ export default function TripView({
   const [notes, setNotes] = useState(initialNotes);
   const [going, setGoing] = useState(initialGoing);
   const [rosterBusy, setRosterBusy] = useState(null);
+  // The trip row itself can change under us: the database keeps the dates in
+  // step with the itinerary, and anyone in the family can edit the details.
+  const [info, setInfo] = useState(trip);
+  const [editing, setEditing] = useState(false);
 
   const refetch = useCallback(
     async (table) => {
-      if (table === "itinerary_items") {
+      if (table === "trips") {
+        const { data } = await supabase
+          .from("trips")
+          .select("*")
+          .eq("id", trip.id)
+          .maybeSingle();
+        if (data) setInfo(data);
+      } else if (table === "itinerary_items") {
         const { data } = await supabase
           .from("itinerary_items")
           .select("*")
@@ -48,6 +60,13 @@ export default function TripView({
           .order("item_date", { ascending: true })
           .order("sort_order", { ascending: true });
         if (data) setItinerary(data);
+        // A new first or last day shifts the trip's own dates.
+        const { data: row } = await supabase
+          .from("trips")
+          .select("*")
+          .eq("id", trip.id)
+          .maybeSingle();
+        if (row) setInfo(row);
       } else if (table === "packing_items") {
         const { data } = await supabase
           .from("packing_items")
@@ -104,6 +123,16 @@ export default function TripView({
         () => refetch(table),
       );
     });
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "trips",
+        filter: `id=eq.${trip.id}`,
+      },
+      () => refetch("trips"),
+    );
     channel.subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -130,12 +159,33 @@ export default function TripView({
     setRosterBusy(null);
   }
 
-  const past = isPastTrip(trip);
+  async function saveTrip(values) {
+    const { data, error } = await supabase
+      .from("trips")
+      .update(values)
+      .eq("id", trip.id)
+      .select("*")
+      .maybeSingle();
+    if (error) return error.message;
+    if (data) setInfo(data);
+    setEditing(false);
+    return null;
+  }
+
+  // What the dates would be if they follow the itinerary.
+  const dated = itinerary
+    .map((i) => i.item_date)
+    .filter(Boolean)
+    .sort();
+  const autoStart = dated[0] || null;
+  const autoEnd = dated[dated.length - 1] || null;
+
+  const past = isPastTrip(info);
   const goingNames = people
     .filter((p) => going.includes(p.id))
     .map((p) => p.name);
 
-  const countdown = daysUntil(trip.start_date);
+  const countdown = daysUntil(info.start_date);
   const packedCount = packing.filter((p) => p.is_packed).length;
   const taskCount = tasks.filter((t) => t.is_done).length;
   const openBookings = itinerary.filter(
@@ -151,28 +201,54 @@ export default function TripView({
   return (
     <main className="mx-auto max-w-5xl px-5 pb-20 pt-6">
       <section className="card overflow-hidden">
+        {editing ? (
+          <div className="p-5">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 className="font-display text-lg font-semibold">Trip details</h2>
+            </div>
+            <TripForm
+              trip={info}
+              autoStart={autoStart}
+              autoEnd={autoEnd}
+              onCancel={() => setEditing(false)}
+              onSave={saveTrip}
+            />
+          </div>
+        ) : (
         <div className="flex flex-wrap items-start justify-between gap-4 p-5">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-3xl">{trip.cover_emoji}</span>
+              <span className="text-3xl">{info.cover_emoji}</span>
               {countdown !== null && countdown >= 0 && (
                 <span className="chip bg-teal-soft text-teal">
                   {countdown} days away
                 </span>
               )}
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+              >
+                Edit trip
+              </button>
             </div>
             <h1 className="font-display mt-2 text-3xl font-semibold leading-tight">
-              {trip.name}
+              {info.name}
             </h1>
             <p className="mt-1 text-sm font-semibold text-ink-soft">
-              {formatRange(trip.start_date, trip.end_date)}
+              {formatRange(info.start_date, info.end_date)}
+              {info.dates_auto !== false && (
+                <span className="no-print ml-1.5 font-normal text-ink-soft/80">
+                  · from the itinerary
+                </span>
+              )}
             </p>
-            {trip.destination && (
-              <p className="mt-1 text-sm text-ink-soft">{trip.destination}</p>
+            {info.destination && (
+              <p className="mt-1 text-sm text-ink-soft">{info.destination}</p>
             )}
-            {trip.summary && (
+            {info.summary && (
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-                {trip.summary}
+                {info.summary}
               </p>
             )}
 
@@ -215,6 +291,7 @@ export default function TripView({
             ))}
           </dl>
         </div>
+        )}
 
         <nav className="no-print flex gap-1 overflow-x-auto border-t border-sand-deep bg-sand/60 px-3 py-2">
           {TABS.map((t) => (
