@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { daysUntil, formatRange } from "@/lib/format";
+import { daysUntil, formatRange, isPastTrip } from "@/lib/format";
+import MembershipChips from "./MembershipChips";
 import Itinerary from "./Itinerary";
 import Packing from "./Packing";
 import Tasks from "./Tasks";
@@ -23,6 +24,8 @@ export default function TripView({
   initialTasks,
   initialNotes,
   travelers,
+  people = [],
+  initialGoing = [],
   userId,
   userName,
 }) {
@@ -32,6 +35,8 @@ export default function TripView({
   const [packing, setPacking] = useState(initialPacking);
   const [tasks, setTasks] = useState(initialTasks);
   const [notes, setNotes] = useState(initialNotes);
+  const [going, setGoing] = useState(initialGoing);
+  const [rosterBusy, setRosterBusy] = useState(null);
 
   const refetch = useCallback(
     async (table) => {
@@ -58,6 +63,12 @@ export default function TripView({
           .eq("trip_id", trip.id)
           .order("sort_order", { ascending: true });
         if (data) setTasks(data);
+      } else if (table === "trip_travelers") {
+        const { data } = await supabase
+          .from("trip_travelers")
+          .select("traveler_id")
+          .eq("trip_id", trip.id);
+        if (data) setGoing(data.map((r) => r.traveler_id));
       } else if (table === "trip_notes") {
         const { data } = await supabase
           .from("trip_notes")
@@ -78,6 +89,7 @@ export default function TripView({
       "packing_items",
       "predeparture_tasks",
       "trip_notes",
+      "trip_travelers",
     ];
     const channel = supabase.channel(`trip-${trip.id}`);
     tables.forEach((table) => {
@@ -97,6 +109,31 @@ export default function TripView({
       supabase.removeChannel(channel);
     };
   }, [supabase, trip.id, refetch]);
+
+  // Who is on the trip. Tapping a name saves straight away.
+  async function toggleTraveler(person, nowGoing) {
+    setRosterBusy(person.id);
+    setGoing((prev) =>
+      nowGoing ? [...prev, person.id] : prev.filter((id) => id !== person.id),
+    );
+    if (nowGoing) {
+      await supabase
+        .from("trip_travelers")
+        .insert({ trip_id: trip.id, traveler_id: person.id });
+    } else {
+      await supabase
+        .from("trip_travelers")
+        .delete()
+        .eq("trip_id", trip.id)
+        .eq("traveler_id", person.id);
+    }
+    setRosterBusy(null);
+  }
+
+  const past = isPastTrip(trip);
+  const goingNames = people
+    .filter((p) => going.includes(p.id))
+    .map((p) => p.name);
 
   const countdown = daysUntil(trip.start_date);
   const packedCount = packing.filter((p) => p.is_packed).length;
@@ -137,6 +174,32 @@ export default function TripView({
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
                 {trip.summary}
               </p>
+            )}
+
+            {people.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+                  {past ? "Who went" : "Who is going"}
+                  <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
+                    — tap a name to change it
+                  </span>
+                </p>
+                <div className="mt-1.5">
+                  <MembershipChips
+                    items={people.map((p) => ({
+                      id: p.id,
+                      label: p.name,
+                      color: p.color,
+                    }))}
+                    activeIds={going}
+                    busyId={rosterBusy}
+                    onToggle={toggleTraveler}
+                  />
+                </div>
+                <p className="mt-1.5 hidden text-sm text-ink-soft print:block">
+                  {goingNames.length ? goingNames.join(", ") : "Nobody yet"}
+                </p>
+              </div>
             )}
           </div>
           <dl className="grid grid-cols-3 gap-3 text-center sm:gap-4">

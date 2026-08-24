@@ -47,6 +47,14 @@ export default async function TripsPage() {
   const { data: itineraryRows } = await supabase
     .from("itinerary_items")
     .select("trip_id");
+  const { data: people } = await supabase
+    .from("travelers")
+    .select("id, name, sort_order, is_person")
+    .eq("is_person", true)
+    .order("sort_order", { ascending: true });
+  const { data: rosters } = await supabase
+    .from("trip_travelers")
+    .select("trip_id, traveler_id");
 
   function progress(rows, tripId, doneKey) {
     const mine = (rows || []).filter((r) => r.trip_id === tripId);
@@ -55,6 +63,14 @@ export default async function TripsPage() {
   }
 
   const isPast = (trip) => isPastTrip(trip);
+
+  // Who is on each trip, in the family's usual order.
+  function travelerNames(tripId) {
+    const ids = (rosters || [])
+      .filter((r) => r.trip_id === tripId)
+      .map((r) => r.traveler_id);
+    return (people || []).filter((p) => ids.includes(p.id)).map((p) => p.name);
+  }
 
   const upcoming = (trips || []).filter((t) => !isPast(t));
   // Most recently finished first, so the last trip is the one you see.
@@ -112,14 +128,21 @@ export default async function TripsPage() {
                     {trip.summary}
                   </p>
                 )}
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-sand-deep pt-3 text-xs font-semibold text-ink-soft">
-                  <span>
-                    Packing {packing.done}/{packing.total}
-                  </span>
-                  <span aria-hidden>·</span>
-                  <span>
-                    Tasks {tasks.done}/{tasks.total}
-                  </span>
+                <div className="mt-4 border-t border-sand-deep pt-3 text-xs font-semibold text-ink-soft">
+                  <div className="flex flex-wrap gap-2">
+                    <span>
+                      Packing {packing.done}/{packing.total}
+                    </span>
+                    <span aria-hidden>·</span>
+                    <span>
+                      Tasks {tasks.done}/{tasks.total}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 font-normal">
+                    {travelerNames(trip.id).length
+                      ? `Going: ${travelerNames(trip.id).join(", ")}`
+                      : "Nobody added yet"}
+                  </p>
                 </div>
               </Link>
             );
@@ -178,15 +201,22 @@ export default async function TripsPage() {
                         {trip.destination}
                       </p>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-sand-deep pt-2.5 text-[0.7rem] font-semibold text-ink-soft">
-                      <span>
-                        {stops} {stops === 1 ? "stop" : "stops"}
-                      </span>
-                      {packing.total > 0 && (
-                        <>
-                          <span aria-hidden>·</span>
-                          <span>{packing.total} things packed</span>
-                        </>
+                    <div className="mt-3 border-t border-sand-deep pt-2.5 text-[0.7rem] font-semibold text-ink-soft">
+                      <div className="flex flex-wrap gap-2">
+                        <span>
+                          {stops} {stops === 1 ? "stop" : "stops"}
+                        </span>
+                        {packing.total > 0 && (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span>{packing.total} things packed</span>
+                          </>
+                        )}
+                      </div>
+                      {travelerNames(trip.id).length > 0 && (
+                        <p className="mt-1 font-normal">
+                          Went: {travelerNames(trip.id).join(", ")}
+                        </p>
                       )}
                     </div>
                   </Link>

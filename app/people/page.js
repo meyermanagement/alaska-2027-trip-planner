@@ -33,6 +33,15 @@ export default async function PeoplePage() {
     .eq("is_person", true)
     .order("sort_order", { ascending: true });
 
+  const { data: trips } = await supabase
+    .from("trips")
+    .select("id, name, cover_emoji, start_date, end_date, status")
+    .order("start_date", { ascending: false });
+
+  const { data: rosters } = await supabase
+    .from("trip_travelers")
+    .select("trip_id, traveler_id");
+
   const { data: documents } = await supabase
     .from("traveler_documents")
     .select(
@@ -57,6 +66,8 @@ export default async function PeoplePage() {
           familyId={familyId}
           travelers={travelers || []}
           documents={documents || []}
+          trips={trips || []}
+          rosters={rosters || []}
         />
       </main>
       <AskAlyGeneral />

@@ -38,7 +38,7 @@ export default async function TripPage({ params }) {
     .eq("id", user.id)
     .maybeSingle();
 
-  const [itinerary, packing, tasks, notes, travelers] = await Promise.all([
+  const [itinerary, packing, tasks, notes, travelers, roster] = await Promise.all([
     supabase
       .from("itinerary_items")
       .select("*")
@@ -64,9 +64,10 @@ export default async function TripPage({ params }) {
       .order("created_at", { ascending: false }),
     supabase
       .from("travelers")
-      .select("name")
+      .select("id, name, color, is_person, sort_order")
       .eq("family_id", trip.family_id)
       .order("sort_order", { ascending: true }),
+    supabase.from("trip_travelers").select("traveler_id").eq("trip_id", trip.id),
   ]);
 
   return (
@@ -79,6 +80,8 @@ export default async function TripPage({ params }) {
         initialTasks={tasks.data || []}
         initialNotes={notes.data || []}
         travelers={(travelers.data || []).map((t) => t.name)}
+        people={(travelers.data || []).filter((t) => t.is_person)}
+        initialGoing={(roster.data || []).map((r) => r.traveler_id)}
         userId={user.id}
         userName={profile?.display_name || "Family member"}
       />

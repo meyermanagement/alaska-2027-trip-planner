@@ -3,9 +3,22 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { DOC_TYPES, docType, formatDayYear, monthsUntil } from "@/lib/format";
+import {
+  DOC_TYPES,
+  docType,
+  formatDayYear,
+  isPastTrip,
+  monthsUntil,
+} from "@/lib/format";
+import MembershipChips from "@/components/MembershipChips";
 
-export default function People({ familyId, travelers, documents }) {
+export default function People({
+  familyId,
+  travelers,
+  documents,
+  trips = [],
+  rosters = [],
+}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -14,8 +27,47 @@ export default function People({ familyId, travelers, documents }) {
   const [editingPerson, setEditingPerson] = useState(null); // traveler id
   const [addingPerson, setAddingPerson] = useState(false);
   const [revealed, setRevealed] = useState({});
+  const [rosterBusy, setRosterBusy] = useState(null);
+  // Local copy so a tapped trip chip reacts immediately.
+  const [roster, setRoster] = useState(rosters);
 
   const docsFor = (id) => documents.filter((d) => d.traveler_id === id);
+
+  // Upcoming trips first, then the ones that already happened.
+  const orderedTrips = [...trips].sort((a, b) => {
+    const pa = isPastTrip(a);
+    const pb = isPastTrip(b);
+    if (pa !== pb) return pa ? 1 : -1;
+    const cmp = (a.start_date || "").localeCompare(b.start_date || "");
+    return pa ? -cmp : cmp;
+  });
+
+  const tripIdsFor = (travelerId) =>
+    roster.filter((r) => r.traveler_id === travelerId).map((r) => r.trip_id);
+
+  async function toggleTrip(travelerId, tripId, nowOn) {
+    setRosterBusy(tripId);
+    setRoster((prev) =>
+      nowOn
+        ? [...prev, { trip_id: tripId, traveler_id: travelerId }]
+        : prev.filter(
+            (r) => !(r.trip_id === tripId && r.traveler_id === travelerId),
+          ),
+    );
+    if (nowOn) {
+      await supabase
+        .from("trip_travelers")
+        .insert({ trip_id: tripId, traveler_id: travelerId });
+    } else {
+      await supabase
+        .from("trip_travelers")
+        .delete()
+        .eq("trip_id", tripId)
+        .eq("traveler_id", travelerId);
+    }
+    setRosterBusy(null);
+    router.refresh();
+  }
 
   // Anything expiring in the next year, so it is impossible to miss.
   const expiring = documents
@@ -162,6 +214,31 @@ export default function People({ familyId, travelers, documents }) {
                 onCancel={() => setAddingFor(null)}
                 onSave={(values) => saveDoc(person.id, null, values)}
               />
+            )}
+
+            {orderedTrips.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+                  Trips
+                  <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
+                    — tap a trip to say whether {person.name} is on it
+                  </span>
+                </p>
+                <div className="mt-1.5">
+                  <MembershipChips
+                    items={orderedTrips.map((t) => ({
+                      id: t.id,
+                      label: t.name,
+                      emoji: t.cover_emoji,
+                    }))}
+                    activeIds={tripIdsFor(person.id)}
+                    busyId={rosterBusy}
+                    onToggle={(item, nowOn) =>
+                      toggleTrip(person.id, item.id, nowOn)
+                    }
+                  />
+                </div>
+              </div>
             )}
 
             <div className="mt-4 space-y-2.5">

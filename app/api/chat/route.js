@@ -58,7 +58,7 @@ export async function POST(request) {
   let tools;
 
   if (!tripId) {
-    const [trips, itinerary, packing, tasks, notes, travelers] =
+    const [trips, itinerary, packing, tasks, notes, travelers, rosters] =
       await Promise.all([
         supabase
           .from("trips")
@@ -70,7 +70,11 @@ export async function POST(request) {
         supabase.from("packing_items").select("trip_id, is_packed"),
         supabase.from("predeparture_tasks").select("trip_id, is_done"),
         supabase.from("trip_notes").select("trip_id"),
-        supabase.from("travelers").select("name").order("sort_order"),
+        supabase
+          .from("travelers")
+          .select("id, name, is_person")
+          .order("sort_order"),
+        supabase.from("trip_travelers").select("trip_id, traveler_id"),
       ]);
 
     ctx = buildGlobalContext({
@@ -80,6 +84,7 @@ export async function POST(request) {
       tasks: tasks.data || [],
       notes: notes.data || [],
       travelers: travelers.data || [],
+      rosters: rosters.data || [],
       userName,
     });
     system = buildGlobalSystemPrompt(ctx.text);
@@ -147,7 +152,7 @@ async function tripScope(supabase, tripId, userName) {
     .maybeSingle();
   if (!trip) return null;
 
-  const [itinerary, packing, tasks, notes, travelers] = await Promise.all(
+  const [itinerary, packing, tasks, notes, travelers, roster] = await Promise.all(
     [
       supabase
         .from("itinerary_items")
@@ -172,6 +177,10 @@ async function tripScope(supabase, tripId, userName) {
         .eq("trip_id", tripId)
         .order("created_at", { ascending: false }),
       supabase.from("travelers").select("name").order("sort_order"),
+      supabase
+        .from("trip_travelers")
+        .select("travelers(name, sort_order)")
+        .eq("trip_id", tripId),
     ]
   );
 
@@ -182,6 +191,11 @@ async function tripScope(supabase, tripId, userName) {
     tasks: tasks.data || [],
     notes: notes.data || [],
     travelers: travelers.data || [],
+    going: (roster.data || [])
+      .map((r) => r.travelers)
+      .filter(Boolean)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      .map((t) => t.name),
     userName,
   });
 }
