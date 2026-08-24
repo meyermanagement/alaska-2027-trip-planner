@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
-import { formatRange, daysUntil } from "@/lib/format";
+import { formatRange, daysUntil, isPastTrip } from "@/lib/format";
 import NewTripButton from "./NewTripButton";
-import AskAlyGeneral from "./AskAlyGeneral";
+import AskAlyGeneral from "@/components/AskAlyGeneral";
 
 export const metadata = { title: "Trips · Alyeska" };
 
@@ -54,12 +54,7 @@ export default async function TripsPage() {
     return { done, total: mine.length };
   }
 
-  // A trip is finished once its last day has passed, or once someone marks it
-  // complete or archived by hand.
-  const today = new Date().toISOString().slice(0, 10);
-  const isPast = (trip) =>
-    ["complete", "archived"].includes(trip.status) ||
-    (trip.end_date || trip.start_date || "9999") < today;
+  const isPast = (trip) => isPastTrip(trip);
 
   const upcoming = (trips || []).filter((t) => !isPast(t));
   // Most recently finished first, so the last trip is the one you see.
@@ -163,7 +158,7 @@ export default async function TripsPage() {
                   <Link
                     key={trip.id}
                     href={`/trips/${trip.slug}`}
-                    className="card group flex flex-col bg-sand/50 p-4 transition hover:border-teal/40 hover:bg-white hover:shadow-md"
+                    className="group flex flex-col rounded-2xl border border-sand-deep bg-sand/60 p-4 transition hover:border-teal/40 hover:bg-white hover:shadow-md"
                   >
                     <div className="flex items-center gap-2.5">
                       <span className="text-2xl opacity-80">
