@@ -5,6 +5,7 @@ import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import { formatRange, daysUntil } from "@/lib/format";
 import NewTripButton from "./NewTripButton";
+import AskAlyGeneral from "./AskAlyGeneral";
 
 export const metadata = { title: "Trips · Alyeska" };
 
@@ -30,8 +31,6 @@ export default async function TripsPage() {
     .eq("id", user.id)
     .maybeSingle();
 
-  const today = new Date().toISOString().slice(0, 10);
-
   const { data: trips } = await supabase
     .from("trips")
     .select(
@@ -52,18 +51,10 @@ export default async function TripsPage() {
     return { done, total: mine.length };
   }
 
-  // Ask Aly needs a trip to talk about, so point it at the next trip that
-  // hasn't finished yet (falling back to the most recent one).
-  const askTrip =
-    (trips || []).find((t) => (t.end_date || t.start_date) >= today) ||
-    (trips || [])[trips?.length - 1];
-
   return (
     <>
-      <TopBar
-        askHref={askTrip ? `/trips/${askTrip.slug}?ask=1` : undefined}
-        showAsk={Boolean(askTrip)}
-      />
+      {/* No askHref: the button opens the drawer here, in general context. */}
+      <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -124,6 +115,7 @@ export default async function TripsPage() {
           })}
         </div>
       </main>
+      <AskAlyGeneral />
       <FooterBar displayName={profile?.display_name} />
     </>
   );

@@ -24,6 +24,12 @@ const SUGGESTIONS = {
     "What notes do we have?",
     "Save a note that Veda wants Space Mountain first",
   ],
+  // No trip open: Aly works across all of them.
+  general: [
+    "Which trip is next and how far away is it?",
+    "How is packing coming along across our trips?",
+    "Start a new trip for Italy in spring 2028",
+  ],
 };
 
 const SECTION_LABELS = {
@@ -68,7 +74,11 @@ export default function ChatPanel({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tripId: trip.id, focus, messages: next }),
+        body: JSON.stringify({
+          tripId: trip?.id || null,
+          focus,
+          messages: next,
+        }),
       });
       const data = await res.json();
 
@@ -109,7 +119,10 @@ export default function ChatPanel({
       const res = await fetch("/api/chat/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tripId: trip.id, actions: pending.actions }),
+        body: JSON.stringify({
+          tripId: trip?.id || null,
+          actions: pending.actions,
+        }),
       });
       const data = await res.json();
 
@@ -159,8 +172,10 @@ export default function ChatPanel({
               Ask Aly
             </h2>
             <p className="mt-1 truncate text-xs text-ink-soft">
-              {trip.name}
-              {SECTION_LABELS[focus] ? ` · ${SECTION_LABELS[focus]}` : ""}
+              {trip ? trip.name : "All trips"}
+              {trip && SECTION_LABELS[focus]
+                ? ` · ${SECTION_LABELS[focus]}`
+                : ""}
             </p>
           </div>
         </div>
@@ -208,15 +223,29 @@ export default function ChatPanel({
         {messages.length === 0 && !busy && (
           <div className="space-y-3">
             <p className="text-sm text-ink-soft">
-              Aly is working on{" "}
-              <span className="font-semibold text-ink">{trip.name}</span>
-              {SECTION_LABELS[focus]
-                ? `, and assumes you mean the ${SECTION_LABELS[focus].toLowerCase()} unless you say otherwise.`
-                : "."}{" "}
+              {trip ? (
+                <>
+                  Aly is working on{" "}
+                  <span className="font-semibold text-ink">{trip.name}</span>
+                  {SECTION_LABELS[focus]
+                    ? `, and assumes you mean the ${SECTION_LABELS[focus].toLowerCase()} unless you say otherwise.`
+                    : "."}
+                </>
+              ) : (
+                <>
+                  Aly is looking across{" "}
+                  <span className="font-semibold text-ink">all your trips</span>
+                  . She can start a new one or remove one from here — open a trip
+                  to work on what is inside it.
+                </>
+              )}{" "}
               You approve every change before it saves.
             </p>
             <div className="flex flex-wrap gap-2">
-              {(SUGGESTIONS[focus] || SUGGESTIONS.itinerary).map((s) => (
+              {(trip
+                ? SUGGESTIONS[focus] || SUGGESTIONS.itinerary
+                : SUGGESTIONS.general
+              ).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -260,7 +289,13 @@ export default function ChatPanel({
         )}
 
         {pending && (
-          <div className="rounded-2xl border border-teal/40 bg-white p-4 ring-1 ring-teal/20">
+          <div
+            className={`rounded-2xl border bg-white p-4 ring-1 ${
+              pending.actions.some((a) => a.destructive)
+                ? "border-rose/50 ring-rose/20"
+                : "border-teal/40 ring-teal/20"
+            }`}
+          >
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
               {pending.actions.length === 1
                 ? "Proposed change"
@@ -269,7 +304,10 @@ export default function ChatPanel({
             <ul className="mt-2 space-y-1.5">
               {pending.actions.map((a, i) => (
                 <li key={i} className="flex gap-2 text-sm text-ink">
-                  <span aria-hidden="true" className="text-teal">
+                  <span
+                    aria-hidden="true"
+                    className={a.destructive ? "text-rose" : "text-teal"}
+                  >
                     •
                   </span>
                   <span>{a.summary}</span>
@@ -281,9 +319,17 @@ export default function ChatPanel({
                 type="button"
                 onClick={apply}
                 disabled={applying}
-                className="btn btn-primary px-4 py-1.5 text-sm"
+                className={`btn px-4 py-1.5 text-sm ${
+                  pending.actions.some((a) => a.destructive)
+                    ? "bg-rose text-white hover:bg-[#8c364e]"
+                    : "btn-primary"
+                }`}
               >
-                {applying ? "Saving…" : "Apply"}
+                {applying
+                  ? "Saving…"
+                  : pending.actions.some((a) => a.destructive)
+                    ? "Yes, delete"
+                    : "Apply"}
               </button>
               <button
                 type="button"
@@ -315,7 +361,9 @@ export default function ChatPanel({
           className="field"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Add dinner Thursday at 6…"
+          placeholder={
+            trip ? "Add dinner Thursday at 6…" : "Ask about any trip…"
+          }
           disabled={busy}
           aria-label="Message Aly"
         />

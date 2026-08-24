@@ -2,9 +2,9 @@ import Link from "next/link";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger from "./AskAlyTrigger";
 
-// `askHref` is for screens with no trip loaded (the trips list): the button
-// links through to a trip and opens the assistant there. On a trip page pass
-// nothing and the button opens the drawer in place.
+// Pass nothing and the button opens the Ask Aly drawer on the current screen,
+// which is what both the trips list and a trip page do. `askHref` is kept for
+// any screen that has no drawer mounted and needs to link somewhere instead.
 export default function TopBar({ askHref, showAsk = true }) {
   return (
     <header className="no-print sticky top-0 z-20 border-b border-sand-deep/70 bg-sand/85 backdrop-blur">

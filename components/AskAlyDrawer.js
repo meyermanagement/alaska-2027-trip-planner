@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 
-export default function AskAlyDrawer({ trip, onApplied, focus }) {
+// `trip` may be null, which puts Aly in general mode: she sees every trip and
+// can create or delete one, but cannot touch what is inside them.
+export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
 

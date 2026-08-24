@@ -4,9 +4,15 @@ import { generate, GeminiError } from "@/lib/agent/gemini";
 import {
   buildTripContext,
   buildSystemPrompt,
+  buildGlobalContext,
+  buildGlobalSystemPrompt,
   FOCUS_LABELS,
 } from "@/lib/agent/context";
-import { TOOL_DECLARATIONS, validateAction } from "@/lib/agent/tools";
+import {
+  TOOL_DECLARATIONS,
+  TRIP_TOOL_DECLARATIONS,
+  validateAction,
+} from "@/lib/agent/tools";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -26,7 +32,7 @@ export async function POST(request) {
   // only ever be one of our known tabs.
   const focus = FOCUS_LABELS[payload?.focus] ? payload.focus : null;
   const history = Array.isArray(payload?.messages) ? payload.messages : [];
-  if (!tripId || history.length === 0) {
+  if (history.length === 0) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
 
@@ -38,57 +44,54 @@ export async function POST(request) {
     return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
   }
 
-  // RLS restricts trips to the user's family, so a hit here proves access.
-  const { data: trip } = await supabase
-    .from("trips")
-    .select("*")
-    .eq("id", tripId)
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
     .maybeSingle();
-  if (!trip) {
-    return NextResponse.json({ error: "Trip not found." }, { status: 404 });
+  const userName = profileRow?.display_name;
+
+  // No trip id means the assistant was opened from the trips list, so it works
+  // across every trip and only gets the trip-level tools.
+  let ctx;
+  let system;
+  let tools;
+
+  if (!tripId) {
+    const [trips, itinerary, packing, tasks, notes, travelers] =
+      await Promise.all([
+        supabase
+          .from("trips")
+          .select(
+            "id, name, slug, destination, start_date, end_date, status, summary"
+          )
+          .order("start_date", { ascending: true }),
+        supabase.from("itinerary_items").select("trip_id"),
+        supabase.from("packing_items").select("trip_id, is_packed"),
+        supabase.from("predeparture_tasks").select("trip_id, is_done"),
+        supabase.from("trip_notes").select("trip_id"),
+        supabase.from("travelers").select("name").order("sort_order"),
+      ]);
+
+    ctx = buildGlobalContext({
+      trips: trips.data || [],
+      itinerary: itinerary.data || [],
+      packing: packing.data || [],
+      tasks: tasks.data || [],
+      notes: notes.data || [],
+      travelers: travelers.data || [],
+      userName,
+    });
+    system = buildGlobalSystemPrompt(ctx.text);
+    tools = TRIP_TOOL_DECLARATIONS;
+  } else {
+    ctx = await tripScope(supabase, tripId, userName);
+    if (!ctx) {
+      return NextResponse.json({ error: "Trip not found." }, { status: 404 });
+    }
+    system = buildSystemPrompt(ctx.text, focus);
+    tools = TOOL_DECLARATIONS;
   }
-
-  const [itinerary, packing, tasks, notes, travelers, profile] =
-    await Promise.all([
-      supabase
-        .from("itinerary_items")
-        .select("*")
-        .eq("trip_id", tripId)
-        .order("item_date", { ascending: true })
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("packing_items")
-        .select("*")
-        .eq("trip_id", tripId)
-        .order("category", { ascending: true })
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("predeparture_tasks")
-        .select("*")
-        .eq("trip_id", tripId)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("trip_notes")
-        .select("*")
-        .eq("trip_id", tripId)
-        .order("created_at", { ascending: false }),
-      supabase.from("travelers").select("name").order("sort_order"),
-      supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .maybeSingle(),
-    ]);
-
-  const ctx = buildTripContext({
-    trip,
-    itinerary: itinerary.data || [],
-    packing: packing.data || [],
-    tasks: tasks.data || [],
-    notes: notes.data || [],
-    travelers: travelers.data || [],
-    userName: profile.data?.display_name,
-  });
 
   const contents = history
     .slice(-MAX_TURNS)
@@ -104,11 +107,7 @@ export async function POST(request) {
 
   let result;
   try {
-    result = await generate({
-      system: buildSystemPrompt(ctx.text, focus),
-      contents,
-      tools: TOOL_DECLARATIONS,
-    });
+    result = await generate({ system, contents, tools });
   } catch (err) {
     const status = err instanceof GeminiError ? err.status : 502;
     return NextResponse.json(
@@ -135,9 +134,54 @@ export async function POST(request) {
       : "I am not sure how to help with that yet.";
   }
 
-  return NextResponse.json({
-    reply,
-    actions,
-    problems,
+  return NextResponse.json({ reply, actions, problems });
+}
+
+// Everything the model needs to reason about one trip.
+async function tripScope(supabase, tripId, userName) {
+  // RLS restricts trips to the user's family, so a hit here proves access.
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("*")
+    .eq("id", tripId)
+    .maybeSingle();
+  if (!trip) return null;
+
+  const [itinerary, packing, tasks, notes, travelers] = await Promise.all(
+    [
+      supabase
+        .from("itinerary_items")
+        .select("*")
+        .eq("trip_id", tripId)
+        .order("item_date", { ascending: true })
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("packing_items")
+        .select("*")
+        .eq("trip_id", tripId)
+        .order("category", { ascending: true })
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("predeparture_tasks")
+        .select("*")
+        .eq("trip_id", tripId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("trip_notes")
+        .select("*")
+        .eq("trip_id", tripId)
+        .order("created_at", { ascending: false }),
+      supabase.from("travelers").select("name").order("sort_order"),
+    ]
+  );
+
+  return buildTripContext({
+    trip,
+    itinerary: itinerary.data || [],
+    packing: packing.data || [],
+    tasks: tasks.data || [],
+    notes: notes.data || [],
+    travelers: travelers.data || [],
+    userName,
   });
 }
