@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { TIMING_LABELS, TIMING_ORDER, assigneeColor, formatShortDay } from "@/lib/format";
+import {
+  TIMING_LABELS,
+  TIMING_ORDER,
+  assigneeColor,
+  formatShortDay,
+} from "@/lib/format";
 
 export default function Tasks({ items, tripId, travelers, userId, onChange }) {
   const supabase = useMemo(() => createClient(), []);
@@ -190,7 +195,10 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                           className="field"
                           value={editDraft.timing}
                           onChange={(e) =>
-                            setEditDraft({ ...editDraft, timing: e.target.value })
+                            setEditDraft({
+                              ...editDraft,
+                              timing: e.target.value,
+                            })
                           }
                         >
                           {TIMING_ORDER.map((t) => (
@@ -203,7 +211,10 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                           className="field"
                           value={editDraft.assignee}
                           onChange={(e) =>
-                            setEditDraft({ ...editDraft, assignee: e.target.value })
+                            setEditDraft({
+                              ...editDraft,
+                              assignee: e.target.value,
+                            })
                           }
                         >
                           {people.map((p) => (
@@ -222,7 +233,10 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                           type="date"
                           value={editDraft.due_date}
                           onChange={(e) =>
-                            setEditDraft({ ...editDraft, due_date: e.target.value })
+                            setEditDraft({
+                              ...editDraft,
+                              due_date: e.target.value,
+                            })
                           }
                         />
                       </div>
@@ -239,59 +253,61 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                     </form>
                   </li>
                 ) : (
-                <li
-                  key={task.id}
-                  className="group flex items-start gap-3 border-b border-sand/80 px-4 py-3 last:border-0"
-                >
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
-                    checked={task.is_done}
-                    onChange={() => toggle(task)}
-                    aria-label={`Mark ${task.title} done`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`text-sm font-medium ${
-                          task.is_done ? "strike-done" : ""
-                        }`}
-                      >
-                        {task.title}
-                      </span>
-                      <span className={`chip ${assigneeColor(task.assignee)}`}>
-                        {task.assignee}
-                      </span>
-                      {task.due_date && (
-                        <span className="chip bg-amber/15 text-amber">
-                          Due {formatShortDay(task.due_date)}
+                  <li
+                    key={task.id}
+                    className="group flex items-start gap-3 border-b border-sand/80 px-4 py-3 last:border-0"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
+                      checked={task.is_done}
+                      onChange={() => toggle(task)}
+                      aria-label={`Mark ${task.title} done`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-sm font-medium ${
+                            task.is_done ? "strike-done" : ""
+                          }`}
+                        >
+                          {task.title}
                         </span>
+                        <span
+                          className={`chip ${assigneeColor(task.assignee)}`}
+                        >
+                          {task.assignee}
+                        </span>
+                        {task.due_date && (
+                          <span className="chip bg-amber/15 text-amber">
+                            Due {formatShortDay(task.due_date)}
+                          </span>
+                        )}
+                      </div>
+                      {task.detail && (
+                        <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                          {task.detail}
+                        </p>
                       )}
                     </div>
-                    {task.detail && (
-                      <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                        {task.detail}
-                      </p>
-                    )}
-                  </div>
-                  <div className="no-print flex shrink-0 items-center gap-2">
-                    <button
-                      onClick={() => startEdit(task)}
-                      className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                      aria-label={`Edit ${task.title}`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => remove(task)}
-                      className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                      aria-label={`Remove ${task.title}`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </li>
-                )
+                    <div className="no-print flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => startEdit(task)}
+                        className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                        aria-label={`Edit ${task.title}`}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => remove(task)}
+                        className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                        aria-label={`Remove ${task.title}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </li>
+                ),
               )}
             </ul>
           </div>

@@ -43,6 +43,44 @@ body {
     radial-gradient(circle at 88% 4%, rgba(43, 110, 168, 0.07), transparent 38%);
   background-attachment: fixed;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ask Aly slide-over */
+@keyframes aly-slide-in {
+  from {
+    transform: translateX(1.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes aly-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.aly-panel {
+  animation: aly-slide-in 0.22s ease-out;
+}
+
+.aly-veil {
+  animation: aly-fade-in 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aly-panel,
+  .aly-veil {
+    animation: none;
+  }
 }
 
 .card {

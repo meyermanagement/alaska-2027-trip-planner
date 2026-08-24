@@ -1,15 +1,16 @@
 import { Suspense } from "react";
 import LoginForm from "./LoginForm";
+import AlyeskaMark from "@/components/AlyeskaMark";
 
-export const metadata = { title: "Sign in · Meyer Family Travel" };
+export const metadata = { title: "Sign in · Alyeska" };
 
 export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-7 text-center">
-        <div className="text-4xl">🧭</div>
-        <h1 className="font-display mt-3 text-3xl font-semibold text-ink">
-          Meyer Family Travel
+        <AlyeskaMark className="mx-auto h-12 w-12 text-teal" />
+        <h1 className="font-display mt-3 text-3xl font-semibold tracking-[0.03em] text-ink">
+          Alyeska
         </h1>
         <p className="mt-2 text-sm text-ink-soft">
           Shared itineraries, packing lists and pre-departure tasks — live

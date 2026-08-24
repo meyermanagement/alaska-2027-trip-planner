@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import FooterBar from "@/components/FooterBar";
 import TripView from "@/components/TripView";
 
 export async function generateMetadata({ params }) {
@@ -11,7 +12,7 @@ export async function generateMetadata({ params }) {
     .select("name")
     .eq("slug", slug)
     .maybeSingle();
-  return { title: `${data?.name || "Trip"} · Meyer Family Travel` };
+  return { title: `${data?.name || "Trip"} · Alyeska` };
 }
 
 export default async function TripPage({ params }) {
@@ -70,7 +71,7 @@ export default async function TripPage({ params }) {
 
   return (
     <>
-      <TopBar displayName={profile?.display_name} familyName="Meyer" />
+      <TopBar />
       <TripView
         trip={trip}
         initialItinerary={itinerary.data || []}
@@ -81,6 +82,7 @@ export default async function TripPage({ params }) {
         userId={user.id}
         userName={profile?.display_name || "Family member"}
       />
+      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

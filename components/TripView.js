@@ -7,14 +7,13 @@ import Itinerary from "./Itinerary";
 import Packing from "./Packing";
 import Tasks from "./Tasks";
 import Notes from "./Notes";
-import ChatPanel from "./ChatPanel";
+import AskAlyDrawer from "./AskAlyDrawer";
 
 const TABS = [
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
-  { id: "assistant", label: "Assistant" },
 ];
 
 export default function TripView({
@@ -69,7 +68,7 @@ export default function TripView({
         if (data) setNotes(data);
       }
     },
-    [supabase, trip.id]
+    [supabase, trip.id],
   );
 
   // Live sync across every family member's device.
@@ -90,7 +89,7 @@ export default function TripView({
           table,
           filter: `trip_id=eq.${trip.id}`,
         },
-        () => refetch(table)
+        () => refetch(table),
       );
     });
     channel.subscribe();
@@ -103,7 +102,7 @@ export default function TripView({
   const packedCount = packing.filter((p) => p.is_packed).length;
   const taskCount = tasks.filter((t) => t.is_done).length;
   const openBookings = itinerary.filter(
-    (i) => i.status === "needs_booking"
+    (i) => i.status === "needs_booking",
   ).length;
 
   const stats = [
@@ -146,7 +145,9 @@ export default function TripView({
                 <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
                   {s.label}
                 </dt>
-                <dd className="font-display text-lg font-semibold">{s.value}</dd>
+                <dd className="font-display text-lg font-semibold">
+                  {s.value}
+                </dd>
               </div>
             ))}
           </dl>
@@ -195,17 +196,6 @@ export default function TripView({
             onChange={() => refetch("predeparture_tasks")}
           />
         )}
-        {tab === "assistant" && (
-          <ChatPanel
-            trip={trip}
-            onApplied={() => {
-              refetch("itinerary_items");
-              refetch("packing_items");
-              refetch("predeparture_tasks");
-              refetch("trip_notes");
-            }}
-          />
-        )}
         {tab === "notes" && (
           <Notes
             items={notes}
@@ -216,6 +206,16 @@ export default function TripView({
           />
         )}
       </div>
+
+      <AskAlyDrawer
+        trip={trip}
+        onApplied={() => {
+          refetch("itinerary_items");
+          refetch("packing_items");
+          refetch("predeparture_tasks");
+          refetch("trip_notes");
+        }}
+      />
     </main>
   );
 }

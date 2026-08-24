@@ -175,7 +175,7 @@ export default function NewTripButton({ familyId }) {
               checked={copyTemplate}
               onChange={(e) => setCopyTemplate(e.target.checked)}
             />
-            Start the packing list from the Meyer Family Base template
+            Start the packing list from the family base template
           </label>
         </div>
 

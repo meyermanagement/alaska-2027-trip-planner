@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import AlyeskaMark from "./AlyeskaMark";
 
 const SUGGESTIONS = [
   "What's on the schedule the first day?",
@@ -9,7 +10,7 @@ const SUGGESTIONS = [
   "What still needs to be booked?",
 ];
 
-export default function ChatPanel({ trip, onApplied }) {
+export default function ChatPanel({ trip, onApplied, onClose, fill = false }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,7 +57,10 @@ export default function ChatPanel({ trip, onApplied }) {
       } else if (!data.reply) {
         setMessages((m) => [
           ...m,
-          { role: "assistant", text: "I could not work out a change for that." },
+          {
+            role: "assistant",
+            text: "I could not work out a change for that.",
+          },
         ]);
       }
       if (data.problems?.length && !data.reply) {
@@ -111,35 +115,69 @@ export default function ChatPanel({ trip, onApplied }) {
   }
 
   return (
-    <section className="card flex h-[32rem] flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-3 border-b border-sand-deep px-4 py-3">
-        <div>
-          <h2 className="font-display text-base font-semibold">Trip assistant</h2>
-          <p className="text-xs text-ink-soft">
-            Ask about {trip.name}, or tell it what to change.
-          </p>
+    <section
+      className={
+        fill
+          ? "flex h-full min-h-0 flex-col overflow-hidden bg-white"
+          : "card flex h-[32rem] flex-col overflow-hidden"
+      }
+    >
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-sand-deep px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <AlyeskaMark className="h-7 w-7 shrink-0 text-teal" />
+          <div className="min-w-0">
+            <h2 className="font-display text-base font-semibold leading-none">
+              Ask Aly
+            </h2>
+            <p className="mt-1 truncate text-xs text-ink-soft">{trip.name}</p>
+          </div>
         </div>
-        {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              setMessages([]);
-              setPending(null);
-              setError("");
-            }}
-            className="btn btn-ghost shrink-0 px-3 py-1.5 text-xs"
-          >
-            Clear
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setMessages([]);
+                setPending(null);
+                setError("");
+              }}
+              className="btn btn-ghost px-3 py-1.5 text-xs"
+            >
+              Clear
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close the assistant"
+              className="rounded-lg p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M5 5l10 10M15 5 5 15" />
+              </svg>
+            </button>
+          )}
+        </div>
       </header>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
+      >
         {messages.length === 0 && !busy && (
           <div className="space-y-3">
             <p className="text-sm text-ink-soft">
-              It can add or change itinerary items, packing, tasks and notes. You
-              approve every change before it saves.
+              Aly can add or change itinerary items, packing, tasks and notes
+              for this trip. You approve every change before it saves.
             </p>
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
@@ -159,7 +197,9 @@ export default function ChatPanel({ trip, onApplied }) {
         {messages.map((m, i) => (
           <div
             key={i}
-            className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+            className={
+              m.role === "user" ? "flex justify-end" : "flex justify-start"
+            }
           >
             <div
               className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
@@ -233,7 +273,7 @@ export default function ChatPanel({ trip, onApplied }) {
           e.preventDefault();
           send(input);
         }}
-        className="flex gap-2 border-t border-sand-deep bg-sand/50 px-3 py-3"
+        className="flex shrink-0 gap-2 border-t border-sand-deep bg-sand/50 px-3 py-3"
       >
         <input
           className="field"
@@ -241,7 +281,7 @@ export default function ChatPanel({ trip, onApplied }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Add dinner Thursday at 6…"
           disabled={busy}
-          aria-label="Message the trip assistant"
+          aria-label="Message Aly"
         />
         <button
           className="btn btn-primary shrink-0 px-4"

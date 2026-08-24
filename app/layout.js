@@ -1,9 +1,9 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Meyer Family Travel",
+  title: "Alyeska",
   description:
-    "Shared itineraries, packing lists and pre-departure tasks for the Meyer family.",
+    "Shared itineraries, packing lists and pre-departure tasks for the family — with Aly along for the trip.",
 };
 
 export const viewport = {

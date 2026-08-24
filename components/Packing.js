@@ -4,7 +4,13 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 
-export default function Packing({ items, tripId, travelers, userId, onChange }) {
+export default function Packing({
+  items,
+  tripId,
+  travelers,
+  userId,
+  onChange,
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
   const [hidePacked, setHidePacked] = useState(false);
@@ -30,7 +36,10 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
   }, [items]);
 
   const visible = items.filter((i) => {
-    if (who !== "all" && !(i.assignee || "").toLowerCase().includes(who.toLowerCase()))
+    if (
+      who !== "all" &&
+      !(i.assignee || "").toLowerCase().includes(who.toLowerCase())
+    )
       return false;
     if (hidePacked && i.is_packed) return false;
     return true;
@@ -160,7 +169,10 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
         </label>
       </div>
 
-      <form onSubmit={add} className="card no-print mb-5 grid gap-2 p-4 sm:grid-cols-[2fr_1fr_auto_auto]">
+      <form
+        onSubmit={add}
+        className="card no-print mb-5 grid gap-2 p-4 sm:grid-cols-[2fr_1fr_auto_auto]"
+      >
         <input
           className="field"
           placeholder="Add an item"
@@ -228,14 +240,20 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
                           list="packing-categories"
                           value={editDraft.category}
                           onChange={(e) =>
-                            setEditDraft({ ...editDraft, category: e.target.value })
+                            setEditDraft({
+                              ...editDraft,
+                              category: e.target.value,
+                            })
                           }
                         />
                         <select
                           className="field"
                           value={editDraft.assignee}
                           onChange={(e) =>
-                            setEditDraft({ ...editDraft, assignee: e.target.value })
+                            setEditDraft({
+                              ...editDraft,
+                              assignee: e.target.value,
+                            })
                           }
                         >
                           {people.map((p) => (
@@ -254,7 +272,10 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
                           placeholder="Quantity"
                           value={editDraft.quantity}
                           onChange={(e) =>
-                            setEditDraft({ ...editDraft, quantity: e.target.value })
+                            setEditDraft({
+                              ...editDraft,
+                              quantity: e.target.value,
+                            })
                           }
                         />
                       </div>
@@ -279,53 +300,60 @@ export default function Packing({ items, tripId, travelers, userId, onChange }) 
                     </form>
                   </li>
                 ) : (
-                <li
-                  key={item.id}
-                  className="group flex items-start gap-3 border-b border-sand/80 px-4 py-2.5 last:border-0"
-                >
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
-                    checked={item.is_packed}
-                    onChange={() => toggle(item)}
-                    aria-label={`Mark ${item.item} packed`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`text-sm ${item.is_packed ? "strike-done" : ""}`}
-                      >
-                        {item.item}
-                        {item.quantity ? (
-                          <span className="text-ink-soft"> ×{item.quantity}</span>
-                        ) : null}
-                      </span>
-                      <span className={`chip ${assigneeColor(item.assignee)}`}>
-                        {item.assignee}
-                      </span>
+                  <li
+                    key={item.id}
+                    className="group flex items-start gap-3 border-b border-sand/80 px-4 py-2.5 last:border-0"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
+                      checked={item.is_packed}
+                      onChange={() => toggle(item)}
+                      aria-label={`Mark ${item.item} packed`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-sm ${item.is_packed ? "strike-done" : ""}`}
+                        >
+                          {item.item}
+                          {item.quantity ? (
+                            <span className="text-ink-soft">
+                              {" "}
+                              ×{item.quantity}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span
+                          className={`chip ${assigneeColor(item.assignee)}`}
+                        >
+                          {item.assignee}
+                        </span>
+                      </div>
+                      {item.notes && (
+                        <p className="mt-0.5 text-xs text-ink-soft">
+                          {item.notes}
+                        </p>
+                      )}
                     </div>
-                    {item.notes && (
-                      <p className="mt-0.5 text-xs text-ink-soft">{item.notes}</p>
-                    )}
-                  </div>
-                  <div className="no-print flex shrink-0 items-center gap-2">
-                    <button
-                      onClick={() => startEdit(item)}
-                      className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                      aria-label={`Edit ${item.item}`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => remove(item)}
-                      className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                      aria-label={`Remove ${item.item}`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </li>
-                )
+                    <div className="no-print flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => startEdit(item)}
+                        className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                        aria-label={`Edit ${item.item}`}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => remove(item)}
+                        className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                        aria-label={`Remove ${item.item}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </li>
+                ),
               )}
             </ul>
           </div>

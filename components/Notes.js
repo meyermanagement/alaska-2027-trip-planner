@@ -126,49 +126,49 @@ export default function Notes({ items, tripId, userId, userName, onChange }) {
               </div>
             </form>
           ) : (
-          <article key={note.id} className="card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                {note.title && (
-                  <h3 className="font-display text-base font-semibold">
-                    {note.title}
-                  </h3>
-                )}
-                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
-                  {note.body}
-                </p>
-                <p className="mt-2 text-xs text-ink-soft/80">
-                  {note.author_name || "Family"} ·{" "}
-                  {new Date(note.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
+            <article key={note.id} className="card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {note.title && (
+                    <h3 className="font-display text-base font-semibold">
+                      {note.title}
+                    </h3>
+                  )}
+                  <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
+                    {note.body}
+                  </p>
+                  <p className="mt-2 text-xs text-ink-soft/80">
+                    {note.author_name || "Family"} ·{" "}
+                    {new Date(note.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+                <div className="no-print flex shrink-0 flex-col items-end gap-1">
+                  <button
+                    onClick={() => togglePin(note)}
+                    className="text-xs font-semibold text-ink-soft hover:text-teal"
+                  >
+                    {note.pinned ? "📌 Pinned" : "Pin"}
+                  </button>
+                  <button
+                    onClick={() => startEdit(note)}
+                    className="text-xs font-bold uppercase tracking-wide text-teal"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => remove(note)}
+                    className="text-xs font-semibold text-ink-soft/60 hover:text-rose"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="no-print flex shrink-0 flex-col items-end gap-1">
-                <button
-                  onClick={() => togglePin(note)}
-                  className="text-xs font-semibold text-ink-soft hover:text-teal"
-                >
-                  {note.pinned ? "📌 Pinned" : "Pin"}
-                </button>
-                <button
-                  onClick={() => startEdit(note)}
-                  className="text-xs font-bold uppercase tracking-wide text-teal"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => remove(note)}
-                  className="text-xs font-semibold text-ink-soft/60 hover:text-rose"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </article>
-          )
+            </article>
+          ),
         )}
         {items.length === 0 && (
           <p className="card p-6 text-center text-sm text-ink-soft">

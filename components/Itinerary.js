@@ -19,7 +19,13 @@ const CATEGORIES = [
   "transport",
   "note",
 ];
-const STATUSES = ["confirmed", "planned", "optional", "needs_booking", "cancelled"];
+const STATUSES = [
+  "confirmed",
+  "planned",
+  "optional",
+  "needs_booking",
+  "cancelled",
+];
 
 const EMPTY = {
   title: "",
@@ -58,7 +64,9 @@ function ItemFields({ draft, setDraft }) {
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-ink-soft">Date</span>
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Date
+          </span>
           <input
             className="field"
             type="date"
@@ -67,7 +75,9 @@ function ItemFields({ draft, setDraft }) {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-ink-soft">Time</span>
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Time
+          </span>
           <input
             className="field"
             type="time"
@@ -76,7 +86,9 @@ function ItemFields({ draft, setDraft }) {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-ink-soft">Type</span>
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Type
+          </span>
           <select
             className="field"
             value={draft.category}
@@ -90,7 +102,9 @@ function ItemFields({ draft, setDraft }) {
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-ink-soft">Status</span>
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Status
+          </span>
           <select
             className="field"
             value={draft.status}
@@ -155,7 +169,7 @@ export default function Itinerary({ items, tripId, onChange }) {
       ? true
       : filter === "open"
         ? i.status === "needs_booking" || i.status === "optional"
-        : i.status === "confirmed"
+        : i.status === "confirmed",
   );
 
   const days = useMemo(() => {
@@ -248,7 +262,11 @@ export default function Itinerary({ items, tripId, onChange }) {
           ))}
         </div>
         <div className="flex gap-2">
-          <button className="btn btn-ghost" onClick={() => window.print()} type="button">
+          <button
+            className="btn btn-ghost"
+            onClick={() => window.print()}
+            type="button"
+          >
             Print
           </button>
           <button
@@ -328,11 +346,17 @@ export default function Itinerary({ items, tripId, onChange }) {
                               {formatTime(item.start_time)}
                             </span>
                           )}
-                          <h4 className="font-semibold leading-snug">{item.title}</h4>
-                          <span className={`chip ${status.cls}`}>{status.label}</span>
+                          <h4 className="font-semibold leading-snug">
+                            {item.title}
+                          </h4>
+                          <span className={`chip ${status.cls}`}>
+                            {status.label}
+                          </span>
                         </div>
                         {item.location && (
-                          <p className="mt-0.5 text-sm text-ink-soft">{item.location}</p>
+                          <p className="mt-0.5 text-sm text-ink-soft">
+                            {item.location}
+                          </p>
                         )}
                         {item.confirmation_number && (
                           <p className="mt-1 font-mono text-xs text-ink-soft">
@@ -351,16 +375,21 @@ export default function Itinerary({ items, tripId, onChange }) {
                           >
                             Edit
                           </button>
-                          <span className="mx-1 h-4 w-px bg-sand-deep" aria-hidden />
-                          {STATUSES.filter((s) => s !== item.status).map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => updateStatus(item, s)}
-                              className="rounded-full border border-sand-deep px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
-                            >
-                              {STATUS_STYLES[s].label}
-                            </button>
-                          ))}
+                          <span
+                            className="mx-1 h-4 w-px bg-sand-deep"
+                            aria-hidden
+                          />
+                          {STATUSES.filter((s) => s !== item.status).map(
+                            (s) => (
+                              <button
+                                key={s}
+                                onClick={() => updateStatus(item, s)}
+                                className="rounded-full border border-sand-deep px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
+                              >
+                                {STATUS_STYLES[s].label}
+                              </button>
+                            ),
+                          )}
                           <button
                             onClick={() => remove(item)}
                             className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"

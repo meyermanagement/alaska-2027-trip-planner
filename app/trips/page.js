@@ -2,10 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import FooterBar from "@/components/FooterBar";
 import { formatRange, daysUntil } from "@/lib/format";
 import NewTripButton from "./NewTripButton";
 
-export const metadata = { title: "Trips · Meyer Family Travel" };
+export const metadata = { title: "Trips · Alyeska" };
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -29,9 +30,13 @@ export default async function TripsPage() {
     .eq("id", user.id)
     .maybeSingle();
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const { data: trips } = await supabase
     .from("trips")
-    .select("id, name, slug, destination, start_date, end_date, cover_emoji, summary, status")
+    .select(
+      "id, name, slug, destination, start_date, end_date, cover_emoji, summary, status",
+    )
     .order("start_date", { ascending: true });
 
   const { data: counts } = await supabase
@@ -47,11 +52,17 @@ export default async function TripsPage() {
     return { done, total: mine.length };
   }
 
+  // Ask Aly needs a trip to talk about, so point it at the next trip that
+  // hasn't finished yet (falling back to the most recent one).
+  const askTrip =
+    (trips || []).find((t) => (t.end_date || t.start_date) >= today) ||
+    (trips || [])[trips?.length - 1];
+
   return (
     <>
       <TopBar
-        displayName={profile?.display_name}
-        familyName={family?.name?.replace(/ Family$/, "")}
+        askHref={askTrip ? `/trips/${askTrip.slug}?ask=1` : undefined}
+        showAsk={Boolean(askTrip)}
       />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
@@ -90,7 +101,9 @@ export default async function TripsPage() {
                   {formatRange(trip.start_date, trip.end_date)}
                 </p>
                 {trip.destination && (
-                  <p className="mt-2 text-sm text-ink-soft">{trip.destination}</p>
+                  <p className="mt-2 text-sm text-ink-soft">
+                    {trip.destination}
+                  </p>
                 )}
                 {trip.summary && (
                   <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-soft">
@@ -110,20 +123,8 @@ export default async function TripsPage() {
             );
           })}
         </div>
-
-        <div className="card mt-8 p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-soft">
-            Invite the family
-          </h2>
-          <p className="mt-2 text-sm text-ink-soft">
-            Steph and Veda can create their own accounts with this code. Anyone
-            who joins sees the same live trips, checkmarks and notes.
-          </p>
-          <p className="mt-3 inline-block rounded-lg bg-sand px-3 py-2 font-mono text-lg font-semibold tracking-widest text-teal">
-            {family.invite_code}
-          </p>
-        </div>
       </main>
+      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }
