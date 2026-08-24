@@ -431,7 +431,7 @@ export default function Itinerary({
                 step(-1);
               }
             }}
-            className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1"
+            className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 sm:gap-1.5"
           >
             {railKeys.map((key, i) => {
               const count = byDay.get(key)?.length ?? 0;
