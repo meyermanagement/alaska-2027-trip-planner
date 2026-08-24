@@ -164,7 +164,7 @@ export default function ChatPanel({
           : "card flex h-[32rem] flex-col overflow-hidden"
       }
     >
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-sand-deep px-4 py-3">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <AlyeskaMark className="h-7 w-7 shrink-0 text-teal" />
           <div className="min-w-0">
@@ -250,7 +250,7 @@ export default function ChatPanel({
                   key={s}
                   type="button"
                   onClick={() => send(s)}
-                  className="rounded-full border border-sand-deep px-3 py-1.5 text-left text-xs font-semibold text-ink-soft transition hover:border-teal hover:text-teal"
+                  className="rounded-full border border-[var(--line)] px-3 py-1.5 text-left text-xs font-semibold text-ink-soft transition hover:border-teal hover:text-teal"
                 >
                   {s}
                 </button>
@@ -267,7 +267,7 @@ export default function ChatPanel({
             }
           >
             <div
-              className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+              className={`max-w-[85%] whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                 m.role === "user"
                   ? "bg-teal text-white"
                   : m.kind === "receipt"
@@ -282,7 +282,7 @@ export default function ChatPanel({
 
         {busy && (
           <div className="flex justify-start">
-            <div className="rounded-2xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft">
+            <div className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft">
               Thinking…
             </div>
           </div>
@@ -290,7 +290,7 @@ export default function ChatPanel({
 
         {pending && (
           <div
-            className={`rounded-2xl border bg-white p-4 ring-1 ${
+            className={`rounded-xl border bg-white p-4 ring-1 ${
               pending.actions.some((a) => a.destructive)
                 ? "border-rose/50 ring-rose/20"
                 : "border-teal/40 ring-teal/20"
@@ -355,7 +355,7 @@ export default function ChatPanel({
           e.preventDefault();
           send(input);
         }}
-        className="flex shrink-0 gap-2 border-t border-sand-deep bg-sand/50 px-3 py-3"
+        className="flex shrink-0 gap-2 border-t border-[var(--line)] bg-sand/50 px-3 py-3"
       >
         <input
           className="field"

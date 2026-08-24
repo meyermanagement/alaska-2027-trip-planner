@@ -1,20 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #16211f;
-  --color-ink-soft: #4b5b57;
-  --color-sand: #f7f4ee;
-  --color-sand-deep: #ece6db;
+  --color-ink: #14201e;
+  --color-ink-soft: #54625e;
+  --color-ink-faint: #6f7b77;
+  --color-sand: #f7f5f0;
+  --color-sand-deep: #e7e1d5;
   --color-teal: #0f5f57;
-  --color-teal-soft: #e2efec;
-  --color-glacier: #2b6ea8;
-  --color-amber: #b4711d;
-  --color-rose: #a4405c;
-  --font-display: "Georgia", "Iowan Old Style", serif;
+  --color-teal-soft: #e7f0ed;
+  --color-glacier: #245f92;
+  --color-amber: #96601a;
+  --color-rose: #943952;
+  --font-display: var(--font-display-face), "Iowan Old Style", Georgia, serif;
+  --font-sans:
+    var(--font-sans-face), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Helvetica, Arial, sans-serif;
 }
 
 :root {
   color-scheme: light;
+
+  /* One hairline and one shadow, used everywhere, so surfaces agree. */
+  --line: rgba(20, 32, 30, 0.1);
+  --line-strong: rgba(20, 32, 30, 0.16);
+  --shadow-card:
+    0 1px 2px rgba(20, 32, 30, 0.04), 0 10px 26px -20px rgba(20, 32, 30, 0.24);
+  --shadow-card-lift:
+    0 1px 2px rgba(20, 32, 30, 0.05), 0 16px 34px -20px rgba(20, 32, 30, 0.3);
+  --shadow-inset: inset 0 1px 2px rgba(20, 32, 30, 0.04);
 }
 
 html,
@@ -22,29 +35,57 @@ body {
   background: var(--color-sand);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: 0;
 }
 
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  font-optical-sizing: auto;
+  letter-spacing: -0.012em;
 }
 
-/* Subtle paper texture behind the whole app */
+/* Numbers line up in columns wherever they are counted or compared. */
+.chip,
+.tabular,
+dd,
+time {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+::placeholder {
+  color: var(--color-ink-faint);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(15, 95, 87, 0.55);
+  outline-offset: 2px;
+  border-radius: 0.35rem;
+}
+
+/* Quiet warm wash, lighter at the top, so the page has a horizon. */
 .app-shell {
-  background-image:
-    radial-gradient(circle at 12% 8%, rgba(15, 95, 87, 0.07), transparent 42%),
-    radial-gradient(circle at 88% 4%, rgba(43, 110, 168, 0.07), transparent 38%);
+  background-image: linear-gradient(
+    180deg,
+    #fbf9f6 0%,
+    var(--color-sand) 30%,
+    var(--color-sand) 100%
+  );
   background-attachment: fixed;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* Keep a wide row (a scrolling tab strip, a long word) from stretching the
+   whole page sideways on a phone. */
+.app-shell > * {
+  max-width: 100%;
 }
 
 /* Ask Aly slide-over */
@@ -85,9 +126,32 @@ body {
 
 .card {
   background: #fff;
-  border: 1px solid var(--color-sand-deep);
-  border-radius: 1rem;
-  box-shadow: 0 1px 2px rgba(22, 33, 31, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 0.875rem;
+  box-shadow: var(--shadow-card);
+}
+
+/* A card that is itself a link earns a hover state. */
+a.card,
+button.card {
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+a.card:hover,
+button.card:hover {
+  border-color: rgba(15, 95, 87, 0.32);
+  box-shadow: var(--shadow-card-lift);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.card:hover,
+  button.card:hover {
+    transform: none;
+  }
 }
 
 .chip {
@@ -95,12 +159,45 @@ body {
   align-items: center;
   gap: 0.3rem;
   border-radius: 999px;
-  padding: 0.15rem 0.6rem;
-  font-size: 0.7rem;
+  border: 1px solid color-mix(in oklab, currentColor 16%, transparent);
+  padding: 0.16rem 0.55rem;
+  font-size: 0.675rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+/* The trip icons the family picks, given a proper frame. */
+.emoji-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #fff 0%, var(--color-sand) 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 1px 2px rgba(20, 32, 30, 0.05);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.emoji-badge-lg {
+  width: 3.25rem;
+  height: 3.25rem;
+  font-size: 1.7rem;
+}
+
+.section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
 }
 
 input,
@@ -111,16 +208,21 @@ select {
 
 .field {
   width: 100%;
-  border-radius: 0.65rem;
-  border: 1px solid var(--color-sand-deep);
+  border-radius: 0.6rem;
+  border: 1px solid var(--line-strong);
   background: #fff;
   padding: 0.6rem 0.75rem;
+  box-shadow: var(--shadow-inset);
   outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .field:focus {
   border-color: var(--color-teal);
-  box-shadow: 0 0 0 3px rgba(15, 95, 87, 0.12);
+  box-shadow: 0 0 0 3px rgba(15, 95, 87, 0.13);
+  outline: none;
 }
 
 .btn {
@@ -128,11 +230,16 @@ select {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border-radius: 0.65rem;
-  padding: 0.6rem 1rem;
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.95rem;
   font-weight: 600;
-  font-size: 0.9rem;
-  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+  font-size: 0.875rem;
+  letter-spacing: -0.003em;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
   cursor: pointer;
 }
 
@@ -141,22 +248,27 @@ select {
 }
 
 .btn-primary {
-  background: var(--color-teal);
+  background: linear-gradient(180deg, #167066 0%, var(--color-teal) 100%);
   color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 2px rgba(20, 32, 30, 0.16);
 }
 
 .btn-primary:hover {
-  background: #0c4e47;
+  background: linear-gradient(180deg, #12655c 0%, #0c4e47 100%);
 }
 
 .btn-ghost {
   background: #fff;
-  border: 1px solid var(--color-sand-deep);
+  border: 1px solid var(--line-strong);
   color: var(--color-ink);
+  box-shadow: 0 1px 1px rgba(20, 32, 30, 0.03);
 }
 
 .btn-ghost:hover {
   background: var(--color-sand);
+  border-color: rgba(15, 95, 87, 0.32);
 }
 
 .btn:disabled {
@@ -179,6 +291,18 @@ select {
   }
   .card {
     box-shadow: none;
+    border-color: #d9d4c9;
     break-inside: avoid;
   }
+  .emoji-badge {
+    background: #fff;
+    box-shadow: none;
+  }
+}
+
+.emoji-badge-sm {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  font-size: 1.15rem;
 }

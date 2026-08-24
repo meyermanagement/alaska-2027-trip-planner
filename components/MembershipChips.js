@@ -27,7 +27,7 @@ export default function MembershipChips({
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
               active
                 ? "border-teal bg-teal text-white"
-                : "border-dashed border-sand-deep bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
+                : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
             }`}
           >
             {item.color && (

@@ -29,7 +29,7 @@ export default function GoogleButton({ next = "/trips", onError }) {
       type="button"
       onClick={signIn}
       disabled={busy}
-      className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-sand-deep bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-teal disabled:opacity-60"
+      className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-teal disabled:opacity-60"
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
         <path

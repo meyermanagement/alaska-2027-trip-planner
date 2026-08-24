@@ -92,7 +92,7 @@ export default function NewTripButton({ familyId }) {
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-6">
       <form
         onSubmit={create}
-        className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-xl"
       >
         <h2 className="font-display text-xl font-semibold">New trip</h2>
         <p className="mt-1 text-sm text-ink-soft">
@@ -160,7 +160,7 @@ export default function NewTripButton({ familyId }) {
                   className={`h-10 w-10 rounded-lg border text-lg ${
                     emoji === e
                       ? "border-teal bg-teal-soft"
-                      : "border-sand-deep bg-white"
+                      : "border-[var(--line)] bg-white"
                   }`}
                 >
                   {e}

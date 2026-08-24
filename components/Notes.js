@@ -92,7 +92,7 @@ export default function Notes({ items, tripId, userId, userName, onChange }) {
               onSubmit={saveEdit}
               className="card space-y-3 p-4 ring-1 ring-teal/30"
             >
-              <p className="font-display text-sm font-semibold text-teal">
+              <p className="tabular text-[0.8rem] font-semibold text-teal">
                 Editing this note
               </p>
               <input

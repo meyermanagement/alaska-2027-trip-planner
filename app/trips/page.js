@@ -105,7 +105,9 @@ export default async function TripsPage() {
                 className="card group flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-3xl">{trip.cover_emoji}</span>
+                  <span className="emoji-badge" aria-hidden="true">
+                    {trip.cover_emoji}
+                  </span>
                   {countdown !== null && countdown >= 0 && (
                     <span className="chip bg-teal-soft text-teal">
                       {countdown} days away
@@ -128,7 +130,7 @@ export default async function TripsPage() {
                     {trip.summary}
                   </p>
                 )}
-                <div className="mt-4 border-t border-sand-deep pt-3 text-xs font-semibold text-ink-soft">
+                <div className="mt-4 border-t border-[var(--line)] pt-3 text-xs font-semibold text-ink-soft">
                   <div className="flex flex-wrap gap-2">
                     <span>
                       Packing {packing.done}/{packing.total}
@@ -161,7 +163,10 @@ export default async function TripsPage() {
               <h2 className="font-display text-lg font-semibold text-ink-soft">
                 Past trips
               </h2>
-              <span className="h-px flex-1 bg-sand-deep" aria-hidden="true" />
+              <span
+                className="h-px flex-1 bg-[var(--line)]"
+                aria-hidden="true"
+              />
               <span className="text-xs font-semibold text-ink-soft">
                 {past.length}
               </span>
@@ -181,10 +186,10 @@ export default async function TripsPage() {
                   <Link
                     key={trip.id}
                     href={`/trips/${trip.slug}`}
-                    className="group flex flex-col rounded-2xl border border-sand-deep bg-sand/60 p-4 transition hover:border-teal/40 hover:bg-white hover:shadow-md"
+                    className="group flex flex-col rounded-xl border border-[var(--line)] bg-white/55 p-4 transition hover:-translate-y-px hover:border-teal/30 hover:bg-white hover:shadow-[0_10px_26px_-20px_rgba(20,32,30,0.3)]"
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="text-2xl opacity-80">
+                      <span className="emoji-badge emoji-badge-sm" aria-hidden="true">
                         {trip.cover_emoji}
                       </span>
                       <div className="min-w-0">
@@ -201,7 +206,7 @@ export default async function TripsPage() {
                         {trip.destination}
                       </p>
                     )}
-                    <div className="mt-3 border-t border-sand-deep pt-2.5 text-[0.7rem] font-semibold text-ink-soft">
+                    <div className="mt-3 border-t border-[var(--line)] pt-2.5 text-[0.7rem] font-semibold text-ink-soft">
                       <div className="flex flex-wrap gap-2">
                         <span>
                           {stops} {stops === 1 ? "stop" : "stops"}

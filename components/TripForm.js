@@ -65,7 +65,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
     <form onSubmit={submit} className="no-print space-y-3">
       <div className="flex gap-3">
         <label className="w-20 shrink-0">
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+          <span className="block section-label">
             Icon
           </span>
           <input
@@ -77,7 +77,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
           />
         </label>
         <label className="min-w-0 flex-1">
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+          <span className="block section-label">
             Trip name
           </span>
           <input
@@ -91,7 +91,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label>
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+          <span className="block section-label">
             Where
           </span>
           <input
@@ -102,7 +102,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
           />
         </label>
         <label>
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+          <span className="block section-label">
             Status
           </span>
           <select
@@ -119,7 +119,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
         </label>
       </div>
 
-      <div className="rounded-xl border border-sand-deep bg-sand/50 p-3">
+      <div className="rounded-xl border border-[var(--line)] bg-sand/50 p-3">
         <label className="flex items-start gap-2.5">
           <input
             type="checkbox"
@@ -144,7 +144,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
         {!values.dates_auto && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label>
-              <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+              <span className="block section-label">
                 First day
               </span>
               <input
@@ -155,7 +155,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
               />
             </label>
             <label>
-              <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+              <span className="block section-label">
                 Last day
               </span>
               <input
@@ -170,7 +170,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
       </div>
 
       <label className="block">
-        <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+        <span className="block section-label">
           Summary
         </span>
         <textarea

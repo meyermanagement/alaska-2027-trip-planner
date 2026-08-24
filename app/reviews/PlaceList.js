@@ -90,7 +90,7 @@ function FilterChip({ active, onClick, children }) {
       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
         active
           ? "border-teal bg-teal text-white"
-          : "border-sand-deep bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
+          : "border-[var(--line)] bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
       }`}
     >
       {children}
@@ -142,7 +142,7 @@ function Place({ item, showTrip, onSave }) {
         </p>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-3 border-t border-sand-deep pt-2.5">
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-2.5">
         <Stars
           value={item.rating || 0}
           onPick={(rating) =>

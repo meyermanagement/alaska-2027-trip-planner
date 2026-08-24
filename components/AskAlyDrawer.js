@@ -53,7 +53,7 @@ export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
         onClick={close}
         className="aly-veil absolute inset-0 cursor-default bg-ink/40"
       />
-      <aside className="aly-panel relative flex h-full w-full max-w-md flex-col border-l border-sand-deep bg-white shadow-2xl">
+      <aside className="aly-panel relative flex h-full w-full max-w-md flex-col border-l border-[var(--line)] bg-white shadow-2xl">
         <ChatPanel
           trip={trip}
           onApplied={onApplied}

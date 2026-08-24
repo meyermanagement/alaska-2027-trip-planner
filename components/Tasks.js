@@ -156,8 +156,8 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
       <div className="space-y-4">
         {grouped.map(([timing, rows]) => (
           <div key={timing} className="card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-sand-deep bg-sand/60 px-4 py-2.5">
-              <h3 className="font-display text-sm font-semibold uppercase tracking-wide">
+            <div className="flex items-center justify-between border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
+              <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
                 {TIMING_LABELS[timing]}
               </h3>
               <span className="text-xs font-semibold text-ink-soft">

@@ -218,7 +218,9 @@ export default function TripView({
         <div className="flex flex-wrap items-start justify-between gap-4 p-5">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-3xl">{info.cover_emoji}</span>
+              <span className="emoji-badge" aria-hidden="true">
+                {info.cover_emoji}
+              </span>
               {countdown !== null && countdown >= 0 && (
                 <span className="chip bg-teal-soft text-teal">
                   {countdown} days away
@@ -254,7 +256,7 @@ export default function TripView({
 
             {people.length > 0 && (
               <div className="mt-4">
-                <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+                <p className="section-label">
                   {past ? "Who went" : "Who is going"}
                   <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
                     — tap a name to change it
@@ -280,11 +282,14 @@ export default function TripView({
           </div>
           <dl className="grid grid-cols-3 gap-3 text-center sm:gap-4">
             {stats.map((s) => (
-              <div key={s.label} className="rounded-xl bg-sand px-3 py-2">
-                <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+              <div
+                key={s.label}
+                className="rounded-xl border border-[var(--line)] bg-sand/70 px-3.5 py-2.5"
+              >
+                <dt className="section-label">
                   {s.label}
                 </dt>
-                <dd className="font-display text-lg font-semibold">
+                <dd className="font-display mt-0.5 text-xl font-semibold">
                   {s.value}
                 </dd>
               </div>
@@ -293,7 +298,7 @@ export default function TripView({
         </div>
         )}
 
-        <nav className="no-print flex gap-1 overflow-x-auto border-t border-sand-deep bg-sand/60 px-3 py-2">
+        <nav className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand/60 px-3 py-2">
           {TABS.map((t) => (
             <button
               key={t.id}

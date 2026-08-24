@@ -299,7 +299,7 @@ export default function Itinerary({ items, tripId, onChange }) {
       <div className="space-y-5">
         {days.map(([date, dayItems]) => (
           <div key={date}>
-            <h3 className="font-display mb-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
+            <h3 className="mb-2 text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
               {date === "unscheduled" ? "Unscheduled" : formatDay(date)}
             </h3>
             <div className="space-y-2">
@@ -313,7 +313,7 @@ export default function Itinerary({ items, tripId, onChange }) {
                       onSubmit={saveEdit}
                       className="card space-y-3 border-teal/40 p-4 ring-1 ring-teal/30"
                     >
-                      <p className="font-display text-sm font-semibold text-teal">
+                      <p className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
                         Editing this item
                       </p>
                       <ItemFields draft={editDraft} setDraft={setEditDraft} />
@@ -342,7 +342,7 @@ export default function Itinerary({ items, tripId, onChange }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           {item.start_time && (
-                            <span className="font-display text-sm font-semibold text-teal">
+                            <span className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
                               {formatTime(item.start_time)}
                             </span>
                           )}
@@ -384,7 +384,7 @@ export default function Itinerary({ items, tripId, onChange }) {
                               <button
                                 key={s}
                                 onClick={() => updateStatus(item, s)}
-                                className="rounded-full border border-sand-deep px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
+                                className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
                               >
                                 {STATUS_STYLES[s].label}
                               </button>

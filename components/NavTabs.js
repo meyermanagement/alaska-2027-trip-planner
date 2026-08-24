@@ -16,7 +16,7 @@ export default function NavTabs() {
   return (
     <nav
       aria-label="Main menu"
-      className="no-print -mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-2.5"
+      className="no-print -mx-1 flex min-w-0 items-center gap-1.5 overflow-x-auto px-1 pb-2.5"
     >
       {TABS.map((tab) => {
         const active =
@@ -26,10 +26,10 @@ export default function NavTabs() {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.04em] transition ${
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.07em] transition ${
               active
-                ? "border-teal bg-teal text-white"
-                : "border-sand-deep bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
+                ? "border-teal/80 bg-teal text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
+                : "border-[var(--line)] bg-white/70 text-ink-soft hover:border-teal/30 hover:bg-white hover:text-teal"
             }`}
           >
             {tab.label}

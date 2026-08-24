@@ -119,7 +119,7 @@ export default function Preferences({
       </div>
 
       {adding && (
-        <div className="mt-4 rounded-xl border border-sand-deep bg-sand/40 p-3">
+        <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
           <PreferenceForm
             travelers={travelers}
             busy={busy}
@@ -130,7 +130,7 @@ export default function Preferences({
       )}
 
       {prefs.length === 0 && !adding ? (
-        <div className="mt-4 rounded-xl border border-dashed border-sand-deep p-4">
+        <div className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4">
           <p className="text-sm text-ink-soft">
             Nothing saved yet. The sort of thing that belongs here:
           </p>
@@ -149,7 +149,7 @@ export default function Preferences({
         <div className="mt-4 space-y-5">
           {groups.map((group) => (
             <div key={group.key || "_none"}>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+              <p className="section-label">
                 {group.label}
               </p>
               <ul className="mt-1.5 space-y-2">
@@ -157,7 +157,7 @@ export default function Preferences({
                   editing === pref.id ? (
                     <li
                       key={pref.id}
-                      className="rounded-xl border border-sand-deep bg-sand/40 p-3"
+                      className="rounded-xl border border-[var(--line)] bg-sand/40 p-3"
                     >
                       <PreferenceForm
                         pref={pref}
@@ -170,7 +170,7 @@ export default function Preferences({
                   ) : (
                     <li
                       key={pref.id}
-                      className="rounded-xl border border-sand-deep bg-white p-3"
+                      className="rounded-xl border border-[var(--line)] bg-white p-3"
                     >
                       <p className="text-sm leading-relaxed whitespace-pre-line">
                         {pref.body}
@@ -229,7 +229,7 @@ function PreferenceForm({ pref, travelers, busy, onCancel, onSave }) {
   return (
     <form onSubmit={submit} className="no-print space-y-3">
       <label className="block">
-        <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+        <span className="block section-label">
           The preference
         </span>
         <textarea
@@ -244,7 +244,7 @@ function PreferenceForm({ pref, travelers, busy, onCancel, onSave }) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label>
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+          <span className="block section-label">
             Topic (optional)
           </span>
           <input
@@ -261,7 +261,7 @@ function PreferenceForm({ pref, travelers, busy, onCancel, onSave }) {
           </datalist>
         </label>
         <label>
-          <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+          <span className="block section-label">
             Whose
           </span>
           <select

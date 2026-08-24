@@ -121,7 +121,7 @@ export default function People({
   return (
     <div className="space-y-5">
       {expiring.length > 0 && (
-        <div className="rounded-2xl border border-amber/40 bg-amber/[0.07] p-4 shadow-[0_1px_2px_rgba(22,33,31,0.04)]">
+        <div className="rounded-xl border border-amber/40 bg-amber/[0.07] p-4 shadow-[0_1px_2px_rgba(22,33,31,0.04)]">
           <h2 className="text-sm font-semibold">Worth renewing soon</h2>
           <ul className="mt-2 space-y-1 text-sm text-ink-soft">
             {expiring.map((d) => {
@@ -249,9 +249,9 @@ export default function People({
             </div>
 
             {trips.length > 0 && (
-              <div className="mt-4 border-t border-sand-deep pt-3">
+              <div className="mt-4 border-t border-[var(--line)] pt-3">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+                  <p className="section-label">
                     Trips
                   </p>
                   <button
@@ -278,10 +278,10 @@ export default function People({
                     ].map(([heading, list]) =>
                       list.length === 0 ? null : (
                         <div key={heading}>
-                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft/70">
+                          <p className="section-label/70">
                             {heading}
                           </p>
-                          <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-sand-deep bg-white">
+                          <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-[var(--line)] bg-white">
                             {list.map((trip) => {
                               const on = tripIdsFor(person.id).includes(trip.id);
                               return (
@@ -297,10 +297,10 @@ export default function People({
                                   >
                                     <span
                                       aria-hidden="true"
-                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
+                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${
                                         on
                                           ? "border-teal bg-teal text-white"
-                                          : "border-sand-deep bg-white text-transparent"
+                                          : "border-[var(--line)] bg-white text-transparent"
                                       }`}
                                     >
                                       ✓
@@ -392,7 +392,7 @@ function DocRow({ doc, shown, onToggle, onEdit, onDelete }) {
   }
 
   return (
-    <div className="rounded-xl border border-sand-deep bg-sand/40 p-3">
+    <div className="rounded-xl border border-[var(--line)] bg-sand/40 p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold">
@@ -664,7 +664,7 @@ function PersonTripList({ name, upcoming, past }) {
       ].map(([heading, list]) =>
         list.length === 0 ? null : (
           <div key={heading}>
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft/70">
+            <p className="section-label/70">
               {heading}
             </p>
             <ul className="mt-1 space-y-1.5">
