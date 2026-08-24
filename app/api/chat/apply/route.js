@@ -56,36 +56,37 @@ export async function POST(request) {
     }
   }
 
-  // Re-derive which ids the user may touch. The client is never trusted.
-  const [itin, pack, task, travelers, trips, prefs] = await Promise.all([
-    // With no trip in scope the only itinerary write allowed is a review, so
-    // every item the family can see is fair game; RLS scopes it to them.
-    tripId
-      ? supabase.from("itinerary_items").select("id, title").eq("trip_id", tripId)
-      : supabase.from("itinerary_items").select("id, title"),
-    tripId
-      ? supabase.from("packing_items").select("id, item").eq("trip_id", tripId)
-      : { data: [] },
-    tripId
-      ? supabase
-          .from("predeparture_tasks")
-          .select("id, title")
-          .eq("trip_id", tripId)
-      : { data: [] },
+  // Re-derive which ids the user may touch, across every trip the family has.
+  // The client is never trusted. RLS keeps all of this inside the family.
+  const [itin, pack, task, notes, travelers, trips, prefs] = await Promise.all([
+    supabase.from("itinerary_items").select("id, title, trip_id"),
+    supabase.from("packing_items").select("id, item, trip_id"),
+    supabase.from("predeparture_tasks").select("id, title, trip_id"),
+    supabase.from("trip_notes").select("id, title, body, trip_id"),
     supabase.from("travelers").select("id, name").order("sort_order"),
-    tripId ? { data: [] } : supabase.from("trips").select("id, name"),
+    supabase.from("trips").select("id, name"),
     supabase.from("travel_preferences").select("id, body"),
   ]);
+
+  // Which trip each row sits in, so an edit lands on the right trip even when
+  // the user is looking at a different one.
+  const rowTrip = new Map();
+  for (const rows of [itin.data, pack.data, task.data, notes.data]) {
+    for (const r of rows || []) rowTrip.set(r.id, r.trip_id);
+  }
 
   const known = {
     itinerary_items: new Map((itin.data || []).map((r) => [r.id, r.title])),
     packing_items: new Map((pack.data || []).map((r) => [r.id, r.item])),
     predeparture_tasks: new Map((task.data || []).map((r) => [r.id, r.title])),
-    trip_notes: new Map(),
+    trip_notes: new Map(
+      (notes.data || []).map((r) => [r.id, (r.title || r.body || "").slice(0, 60)])
+    ),
     trips: new Map((trips.data || []).map((r) => [r.id, r.name])),
     travel_preferences: new Map(
       (prefs.data || []).map((r) => [r.id, (r.body || "").slice(0, 60)])
     ),
+    rowTrip,
   };
   const travelerNames = Array.from(
     new Set([...(travelers.data || []).map((t) => t.name), "Shared"])
@@ -108,7 +109,7 @@ export async function POST(request) {
     // Revalidate from scratch rather than trusting the client's patch.
     const { action, error } = validateAction(
       { name: raw?.tool, args: { ...(raw?.patch || {}), id: raw?.id } },
-      { travelerNames, travelerIds, known }
+      { travelerNames, travelerIds, known, focusTripId: tripId }
     );
 
     if (!action) {
@@ -118,27 +119,6 @@ export async function POST(request) {
 
     const { tool, table, id, patch = {} } = action;
     let dbError = null;
-
-    // A trip id in the request scopes every write to that trip, so trip-level
-    // tools are only valid from the general assistant, and vice versa.
-    if (table === "trips" && tripId) {
-      results.push({
-        ok: false,
-        summary: action.summary,
-        error: "Trips can only be created or removed from the trips list.",
-      });
-      continue;
-    }
-    // Travel preferences and reviews are family-level, so they need no trip.
-    const familyLevel = FAMILY_TABLES.has(table) || REVIEW_TOOLS.has(tool);
-    if (table !== "trips" && !tripId && !familyLevel) {
-      results.push({
-        ok: false,
-        summary: action.summary,
-        error: "Open the trip first and I can change what's inside it.",
-      });
-      continue;
-    }
 
     try {
       if (table === "trips") {
@@ -170,22 +150,20 @@ export async function POST(request) {
         }
       } else if (REVIEW_TOOLS.has(tool)) {
         // Rating and review only, on one itinerary item.
-        let query = supabase
+        const query = supabase
           .from("itinerary_items")
           .update({
             ...(patch.rating !== undefined ? { rating: patch.rating } : {}),
             ...(patch.review !== undefined ? { review: patch.review } : {}),
           })
           .eq("id", id);
-        if (tripId) query = query.eq("trip_id", tripId);
         const { error: e } = await query;
         dbError = e;
       } else if (tool.startsWith("delete_")) {
         const { error: e } = await supabase
           .from(table)
           .delete()
-          .eq("id", id)
-          .eq("trip_id", tripId);
+          .eq("id", id);
         dbError = e;
       } else if (tool.startsWith("update_")) {
         const row = { ...patch };
@@ -200,11 +178,11 @@ export async function POST(request) {
         const { error: e } = await supabase
           .from(table)
           .update(row)
-          .eq("id", id)
-          .eq("trip_id", tripId);
+          .eq("id", id);
         dbError = e;
       } else {
-        const row = { ...patch, trip_id: tripId };
+        // validateAction put the resolved trip on the patch.
+        const row = { ...patch };
         if (table === "trip_notes") {
           row.author_id = user.id;
           row.author_name = profile?.display_name || null;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { daysUntil, formatRange, isPastTrip } from "@/lib/format";
 import MembershipChips from "./MembershipChips";
@@ -31,6 +32,7 @@ export default function TripView({
   userName,
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const [tab, setTab] = useState("itinerary");
   const [itinerary, setItinerary] = useState(initialItinerary);
   const [packing, setPacking] = useState(initialPacking);
@@ -365,6 +367,8 @@ export default function TripView({
           refetch("packing_items");
           refetch("predeparture_tasks");
           refetch("trip_notes");
+          // Aly can change the trip itself, or another trip entirely.
+          router.refresh();
         }}
       />
     </main>
