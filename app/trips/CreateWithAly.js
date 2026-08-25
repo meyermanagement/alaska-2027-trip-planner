@@ -7,11 +7,6 @@ import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 // typed here is handed to Aly as the opening message of a real conversation —
 // she can ask about dates or who is coming before she drafts anything — so this
 // is a doorway, not a wizard.
-const EXAMPLES = [
-  "A long weekend somewhere warm in February, no flight over four hours",
-  "Two weeks in Japan for the cherry blossoms, spring 2028",
-  "A national park road trip with one proper hotel in the middle",
-];
 
 export default function CreateWithAly() {
   const [idea, setIdea] = useState("");
@@ -60,22 +55,6 @@ export default function CreateWithAly() {
         <span className="text-xs text-ink-soft">
           Nothing is saved until you press the cards she sends back.
         </span>
-      </div>
-
-      <div className="mt-4 border-t border-[var(--line)] pt-3">
-        <p className="section-label">Or start from one of these</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {EXAMPLES.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => setIdea(e)}
-              className="rounded-full border border-[var(--line)] bg-white px-3 py-1.5 text-left text-xs font-medium text-ink-soft transition hover:border-teal/40 hover:text-ink"
-            >
-              {e}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
