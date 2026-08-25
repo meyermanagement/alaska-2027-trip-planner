@@ -1,18 +1,58 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_ICONS, formatShortDay } from "@/lib/format";
 
+// Only the kinds this page keeps a record of. Re-filing a place as a flight
+// would make it vanish from the only screen you can edit it on.
+const PLACE_KINDS = [
+  { value: "lodging", label: "Somewhere we stayed" },
+  { value: "dining", label: "Somewhere we ate" },
+  { value: "excursion", label: "An excursion" },
+  { value: "activity", label: "Something we did" },
+];
+
 export default function PlaceList({ groups, trips }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const [tripFilter, setTripFilter] = useState("all");
   // Local edits so a rating sticks immediately without a page refresh.
   const [edits, setEdits] = useState({});
 
   async function save(id, patch) {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-    await supabase.from("itinerary_items").update(patch).eq("id", id);
+    const { error } = await supabase
+      .from("itinerary_items")
+      .update(patch)
+      .eq("id", id);
+    return error;
+  }
+
+  // What the place is, rather than what we thought of it. The name, where it
+  // was and what kind of thing it is belong to every night or every booking of
+  // it, so they are written to all of them. The note is about this one entry.
+  async function saveDetails(item, { shared, own }) {
+    setEdits((prev) => ({
+      ...prev,
+      [item.id]: { ...prev[item.id], ...shared, ...own },
+    }));
+    const ids = item.rowIds?.length ? item.rowIds : [item.id];
+    const { error: sharedError } = await supabase
+      .from("itinerary_items")
+      .update(shared)
+      .in("id", ids);
+    if (sharedError) return sharedError;
+    const { error: ownError } = await supabase
+      .from("itinerary_items")
+      .update(own)
+      .eq("id", item.id);
+    if (ownError) return ownError;
+    // A new name or a new kind changes how the page groups and de-duplicates
+    // it, which only the server can work out.
+    router.refresh();
+    return null;
   }
 
   const shown = groups
@@ -72,6 +112,7 @@ export default function PlaceList({ groups, trips }) {
                   item={{ ...item, ...(edits[item.id] || {}) }}
                   showTrip={tripFilter === "all"}
                   onSave={save}
+                  onSaveDetails={saveDetails}
                 />
               ))}
             </div>
@@ -98,10 +139,11 @@ function FilterChip({ active, onClick, children }) {
   );
 }
 
-function Place({ item, showTrip, onSave }) {
+function Place({ item, showTrip, onSave, onSaveDetails }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.review || "");
   const [busy, setBusy] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   async function saveReview(e) {
     e.preventDefault();
@@ -109,6 +151,16 @@ function Place({ item, showTrip, onSave }) {
     await onSave(item.id, { review: draft.trim() || null });
     setBusy(false);
     setEditing(false);
+  }
+
+  if (detailsOpen) {
+    return (
+      <Details
+        item={item}
+        onCancel={() => setDetailsOpen(false)}
+        onSave={onSaveDetails}
+      />
+    );
   }
 
   return (
@@ -150,16 +202,25 @@ function Place({ item, showTrip, onSave }) {
           }
         />
         {!editing && (
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(item.review || "");
-              setEditing(true);
-            }}
-            className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-4"
-          >
-            {item.review ? "Edit note" : "Add a note"}
-          </button>
+          <div className="no-print flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDetailsOpen(true)}
+              className="text-xs font-semibold text-ink-soft underline decoration-[var(--line)] underline-offset-4 transition hover:text-teal"
+            >
+              Edit details
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(item.review || "");
+                setEditing(true);
+              }}
+              className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-4"
+            >
+              {item.review ? "Edit note" : "Add a note"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -200,6 +261,123 @@ function Place({ item, showTrip, onSave }) {
   );
 }
 
+// Editing the place rather than the opinion of it: what it was called, where
+// it was, what kind of thing it is, and anything worth keeping about it.
+function Details({ item, onCancel, onSave }) {
+  const [title, setTitle] = useState(item.title || "");
+  const [location, setLocation] = useState(item.location || "");
+  const [category, setCategory] = useState(item.category || "activity");
+  const [notes, setNotes] = useState(item.notes || "");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState("");
+
+  const nights = item.rowIds?.length || 1;
+  const clean = title.trim();
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!clean || busy) return;
+    setBusy(true);
+    setFailed("");
+    const error = await onSave(item, {
+      shared: {
+        title: clean,
+        location: location.trim() || null,
+        category,
+      },
+      own: { notes: notes.trim() || null },
+    });
+    setBusy(false);
+    if (error) {
+      setFailed("That did not save. Try again.");
+      return;
+    }
+    onCancel();
+  }
+
+  return (
+    <article className="card flex flex-col p-4">
+      <form onSubmit={submit} className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Name
+          </span>
+          <input
+            className="field"
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="What is it called?"
+            required
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Where
+          </span>
+          <input
+            className="field"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Town, address or the part of the ship"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Kind
+          </span>
+          <select
+            className="field"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {PLACE_KINDS.map((k) => (
+              <option key={k.value} value={k.value}>
+                {CATEGORY_ICONS[k.value]} {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-ink-soft">
+            Anything worth remembering
+          </span>
+          <textarea
+            className="field"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Room 412 was quiet. Ask for the corner table."
+          />
+        </label>
+        {nights > 1 && (
+          <p className="text-xs text-ink-soft">
+            The name, place and kind apply to all {nights} entries for this on
+            the trip. The note stays on this one.
+          </p>
+        )}
+        {failed && <p className="text-xs font-semibold text-rose">{failed}</p>}
+        <div className="flex gap-2">
+          <button
+            className="btn btn-primary px-3 py-1.5 text-xs"
+            disabled={busy || !clean}
+          >
+            {busy ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost px-3 py-1.5 text-xs"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </article>
+  );
+}
+
 function Stars({ value, onPick }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -212,7 +390,9 @@ function Stars({ value, onPick }) {
           aria-pressed={value === n}
           className="text-base leading-none transition hover:scale-110"
         >
-          <span className={n <= value ? "text-amber" : "text-sand-deep"}>★</span>
+          <span className={n <= value ? "text-amber" : "text-sand-deep"}>
+            ★
+          </span>
         </button>
       ))}
       {value > 0 && (

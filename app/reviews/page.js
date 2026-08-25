@@ -67,7 +67,9 @@ export default async function HistoryPage() {
 
   const { data: trips } = await supabase
     .from("trips")
-    .select("id, name, slug, destination, start_date, end_date, cover_emoji, status");
+    .select(
+      "id, name, slug, destination, start_date, end_date, cover_emoji, status",
+    );
 
   const pastTrips = (trips || [])
     .filter((t) => isPastTrip(t))
@@ -96,9 +98,22 @@ export default async function HistoryPage() {
   // A trip often has the same hotel or restaurant on two different days. Show
   // it once, on its most recent date, so the record reads like a list of
   // places rather than a list of calendar entries.
+  const placeKey = (i) =>
+    `${i.trip_id}|${(i.title || "").trim().toLowerCase()}`;
+
+  // Every row the card stands for, not just the one being shown. Renaming a
+  // five-night hotel has to rename all five nights, or the next render would
+  // split it into two places.
+  const rowsByPlace = new Map();
+  for (const i of sorted) {
+    const key = placeKey(i);
+    if (!rowsByPlace.has(key)) rowsByPlace.set(key, []);
+    rowsByPlace.get(key).push(i.id);
+  }
+
   const seen = new Set();
   const unique = sorted.filter((i) => {
-    const key = `${i.trip_id}|${(i.title || "").trim().toLowerCase()}`;
+    const key = placeKey(i);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -108,7 +123,11 @@ export default async function HistoryPage() {
     ...g,
     items: unique
       .filter((i) => g.categories.includes(i.category))
-      .map((i) => ({ ...i, trip: tripById.get(i.trip_id) || null })),
+      .map((i) => ({
+        ...i,
+        trip: tripById.get(i.trip_id) || null,
+        rowIds: rowsByPlace.get(placeKey(i)) || [i.id],
+      })),
   })).filter((g) => g.items.length > 0);
 
   const total = groups.reduce((n, g) => n + g.items.length, 0);
@@ -143,12 +162,13 @@ export default async function HistoryPage() {
 
         {pastTrips.length === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">
-            Nothing here yet. Once a trip&apos;s last day has passed, its hotels,
-            excursions and restaurants show up on this page.
+            Nothing here yet. Once a trip&apos;s last day has passed, its
+            hotels, excursions and restaurants show up on this page.
           </p>
         ) : total === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">
-            No stays, excursions or restaurants were saved on our past trips yet.
+            No stays, excursions or restaurants were saved on our past trips
+            yet.
           </p>
         ) : (
           <PlaceList groups={groups} trips={pastTrips} />
