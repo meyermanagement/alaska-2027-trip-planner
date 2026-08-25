@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -107,6 +107,14 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
   const [shown, setShown] = useState(() => new Set());
   const [balanceFor, setBalanceFor] = useState(null);
   const [balanceDraft, setBalanceDraft] = useState("");
+  const formRef = useRef(null);
+
+  // The form opens directly under the button, but on a long list the page can
+  // still be scrolled past it — so bring it into view whenever it appears.
+  useEffect(() => {
+    if (!form) return;
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [form?.id, Boolean(form)]);
 
   const nameFor = (id) => travelers.find((t) => t.id === id)?.name;
   const total = totalEstimatedValue(rows);
@@ -220,6 +228,20 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
         </button>
       </div>
 
+      {form && (
+        <div ref={formRef} className="scroll-mt-24">
+          <ProgramForm
+            values={form.values}
+            isNew={!form.id}
+            travelers={travelers}
+            busy={busy}
+            onChange={(values) => setForm((f) => ({ ...f, values }))}
+            onCancel={() => setForm(null)}
+            onSave={save}
+          />
+        </div>
+      )}
+
       {payWith.length > 0 && (
         <section>
           <h2 className="font-display text-lg font-semibold">
@@ -248,18 +270,6 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
             ))}
           </div>
         </section>
-      )}
-
-      {form && (
-        <ProgramForm
-          values={form.values}
-          isNew={!form.id}
-          travelers={travelers}
-          busy={busy}
-          onChange={(values) => setForm((f) => ({ ...f, values }))}
-          onCancel={() => setForm(null)}
-          onSave={save}
-        />
       )}
 
       {groups.length === 0 && !form && (
