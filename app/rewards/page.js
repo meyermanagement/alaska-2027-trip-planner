@@ -49,11 +49,11 @@ export default async function RewardsPage() {
         <div className="mb-6">
           <h1 className="font-display text-3xl font-semibold">Rewards</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Every programme the family belongs to, what the balances are, and
-            what each credit card earns. Aly reads all of it when she plans, so
-            she can say when a stay is worth paying for with points and which
-            card to put a booking on. Membership numbers stay hidden until you
-            tap to show them.
+            Every program the family belongs to, what the balances are, and what
+            each credit card earns. Aly reads all of it when she plans, so she
+            can say when a stay is worth paying for with points and which card
+            to put a booking on. Membership numbers stay hidden until you tap to
+            show them.
           </p>
         </div>
         <RewardsBoard

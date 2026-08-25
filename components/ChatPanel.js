@@ -446,7 +446,7 @@ export default function ChatPanel({
                 <>
                   Aly can see{" "}
                   <span className="font-semibold text-ink">
-                    every programme and card
+                    every program and card
                   </span>{" "}
                   you have saved, and what each one earns. Ask what a balance is
                   worth, or tell her a new one.

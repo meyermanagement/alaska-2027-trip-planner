@@ -18,7 +18,7 @@ import {
   formatMoney,
   formatPoints,
   formatRule,
-  normaliseRules,
+  normalizeRules,
   totalEstimatedValue,
 } from "@/lib/rewards";
 
@@ -63,7 +63,7 @@ function toForm(row) {
     member_number: row.member_number || "",
     status_tier: row.status_tier || "",
     annual_fee: row.annual_fee ?? "",
-    earn_rules: normaliseRules(row.earn_rules),
+    earn_rules: normalizeRules(row.earn_rules),
     perks: row.perks || "",
     expiry_note: row.expiry_note || "",
     notes: row.notes || "",
@@ -85,7 +85,7 @@ function toRow(form) {
     member_number: form.member_number.trim() || null,
     status_tier: form.status_tier.trim() || null,
     annual_fee: number(form.annual_fee),
-    earn_rules: normaliseRules(form.earn_rules),
+    earn_rules: normalizeRules(form.earn_rules),
     perks: form.perks.trim() || null,
     expiry_note: form.expiry_note.trim() || null,
     notes: form.notes.trim() || null,
@@ -195,7 +195,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           {rows.length ? (
             <>
               <span className="font-semibold text-ink">
-                {rows.length} {rows.length === 1 ? "programme" : "programmes"}
+                {rows.length} {rows.length === 1 ? "program" : "programs"}
               </span>
               {total > 0 && (
                 <>
@@ -216,7 +216,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           className="btn btn-primary"
           onClick={() => startAdd()}
         >
-          Add a programme
+          Add a program
         </button>
       </div>
 
@@ -294,7 +294,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           <p className="mt-0.5 text-sm text-ink-soft">{group.meta?.blurb}</p>
           <div className="mt-3 space-y-3">
             {group.items.map((row) => {
-              const rules = normaliseRules(row.earn_rules);
+              const rules = normalizeRules(row.earn_rules);
               const value = estimatedValue(row);
               const points = formatPoints(row.points_balance);
               return (
@@ -495,7 +495,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
 }
 
 /**
- * Catalogue entry → form values, leaving the personal fields empty. The note
+ * Catalog entry → form values, leaving the personal fields empty. The note
  * carries where the numbers came from, so a balance saved today still says which
  * page it was read off and roughly when.
  */
@@ -510,7 +510,7 @@ function fromCatalog(entry) {
     currency_label: entry.currency_label || "points",
     point_value_cents: entry.point_value_cents ?? "",
     annual_fee: entry.annual_fee ?? "",
-    earn_rules: normaliseRules(entry.earn_rules),
+    earn_rules: normalizeRules(entry.earn_rules),
     perks: entry.perks || "",
     expiry_note: entry.expiry_note || "",
     notes: provenance,
@@ -539,7 +539,7 @@ function ProgramForm({
       }}
     >
       <h2 className="font-display text-lg font-semibold">
-        {isNew ? "Add a rewards programme" : `Edit ${values.brand}`}
+        {isNew ? "Add a rewards program" : `Edit ${values.brand}`}
       </h2>
 
       {isNew && (
