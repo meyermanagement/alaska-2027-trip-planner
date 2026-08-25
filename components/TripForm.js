@@ -4,6 +4,8 @@ import { useState } from "react";
 import { formatRange } from "@/lib/format";
 
 const STATUSES = [
+  // Draft keeps the trip out of Upcoming and out of Past until someone moves it.
+  { value: "draft", label: "Draft — still an idea" },
   { value: "planning", label: "Planning" },
   { value: "booked", label: "Booked" },
   { value: "active", label: "Happening now" },
@@ -13,7 +15,13 @@ const STATUSES = [
 
 // Edit the trip's own details. Dates normally follow the itinerary, so the
 // date fields stay out of the way until that is switched off.
-export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave }) {
+export default function TripForm({
+  trip,
+  autoStart,
+  autoEnd,
+  onCancel,
+  onSave,
+}) {
   const [values, setValues] = useState({
     name: trip.name || "",
     destination: trip.destination || "",
@@ -65,9 +73,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
     <form onSubmit={submit} className="no-print space-y-3">
       <div className="flex gap-3">
         <label className="w-20 shrink-0">
-          <span className="block section-label">
-            Icon
-          </span>
+          <span className="block section-label">Icon</span>
           <input
             className="field mt-1 text-center text-xl"
             value={values.cover_emoji}
@@ -77,9 +83,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
           />
         </label>
         <label className="min-w-0 flex-1">
-          <span className="block section-label">
-            Trip name
-          </span>
+          <span className="block section-label">Trip name</span>
           <input
             className="field mt-1"
             value={values.name}
@@ -91,9 +95,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label>
-          <span className="block section-label">
-            Where
-          </span>
+          <span className="block section-label">Where</span>
           <input
             className="field mt-1"
             value={values.destination}
@@ -102,9 +104,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
           />
         </label>
         <label>
-          <span className="block section-label">
-            Status
-          </span>
+          <span className="block section-label">Status</span>
           <select
             className="field mt-1"
             value={values.status}
@@ -144,9 +144,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
         {!values.dates_auto && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label>
-              <span className="block section-label">
-                First day
-              </span>
+              <span className="block section-label">First day</span>
               <input
                 type="date"
                 className="field mt-1"
@@ -155,9 +153,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
               />
             </label>
             <label>
-              <span className="block section-label">
-                Last day
-              </span>
+              <span className="block section-label">Last day</span>
               <input
                 type="date"
                 className="field mt-1"
@@ -170,9 +166,7 @@ export default function TripForm({ trip, autoStart, autoEnd, onCancel, onSave })
       </div>
 
       <label className="block">
-        <span className="block section-label">
-          Summary
-        </span>
+        <span className="block section-label">Summary</span>
         <textarea
           className="field mt-1 min-h-20"
           value={values.summary}

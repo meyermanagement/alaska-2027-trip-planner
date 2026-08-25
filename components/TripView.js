@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { daysUntil, formatRange, isPastTrip } from "@/lib/format";
+import { daysUntil, formatRange, isDraftTrip, isPastTrip } from "@/lib/format";
+import PromoteDraft from "./PromoteDraft";
 import MembershipChips from "./MembershipChips";
 import TripForm from "./TripForm";
 import Itinerary from "./Itinerary";
@@ -187,7 +188,8 @@ export default function TripView({
     .filter((p) => going.includes(p.id))
     .map((p) => p.name);
 
-  const countdown = daysUntil(info.start_date);
+  // Counting down to a draft would dress up a guess as a departure date.
+  const countdown = isDraftTrip(info) ? null : daysUntil(info.start_date);
   const packedCount = packing.filter((p) => p.is_packed).length;
   const taskCount = tasks.filter((t) => t.is_done).length;
   const openBookings = itinerary.filter(
@@ -202,11 +204,25 @@ export default function TripView({
 
   return (
     <main className="mx-auto max-w-5xl px-5 pb-20 pt-6">
+      {/* A draft is still an idea, and the whole page otherwise reads like a
+          trip that is really happening — so it says so, once, at the top. */}
+      {isDraftTrip(info) && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-[var(--line-strong)] bg-sand-deep/30 px-4 py-3">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            <span className="font-semibold text-amber">Draft.</span> Keep
+            changing it as much as you like — nothing here is on the family
+            calendar until you move it across.
+          </p>
+          <PromoteDraft trip={info} onDone={() => refetch("trips")} />
+        </div>
+      )}
       <section className="card overflow-hidden">
         {editing ? (
           <div className="p-5">
             <div className="mb-3 flex items-baseline justify-between gap-3">
-              <h2 className="font-display text-lg font-semibold">Trip details</h2>
+              <h2 className="font-display text-lg font-semibold">
+                Trip details
+              </h2>
             </div>
             <TripForm
               trip={info}
@@ -217,87 +233,85 @@ export default function TripView({
             />
           </div>
         ) : (
-        <div className="flex flex-wrap items-start justify-between gap-4 p-5">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="emoji-badge" aria-hidden="true">
-                {info.cover_emoji}
-              </span>
-              {countdown !== null && countdown >= 0 && (
-                <span className="chip bg-teal-soft text-teal">
-                  {countdown} days away
+          <div className="flex flex-wrap items-start justify-between gap-4 p-5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="emoji-badge" aria-hidden="true">
+                  {info.cover_emoji}
                 </span>
-              )}
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-              >
-                Edit trip
-              </button>
-            </div>
-            <h1 className="font-display mt-2 text-3xl font-semibold leading-tight">
-              {info.name}
-            </h1>
-            <p className="mt-1 text-sm font-semibold text-ink-soft">
-              {formatRange(info.start_date, info.end_date)}
-              {info.dates_auto !== false && (
-                <span className="no-print ml-1.5 font-normal text-ink-soft/80">
-                  · from the itinerary
-                </span>
-              )}
-            </p>
-            {info.destination && (
-              <p className="mt-1 text-sm text-ink-soft">{info.destination}</p>
-            )}
-            {info.summary && (
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-                {info.summary}
-              </p>
-            )}
-
-            {people.length > 0 && (
-              <div className="mt-4">
-                <p className="section-label">
-                  {past ? "Who went" : "Who is going"}
-                  <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
-                    — tap a name to change it
+                {countdown !== null && countdown >= 0 && (
+                  <span className="chip bg-teal-soft text-teal">
+                    {countdown} days away
                   </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                >
+                  Edit trip
+                </button>
+              </div>
+              <h1 className="font-display mt-2 text-3xl font-semibold leading-tight">
+                {info.name}
+              </h1>
+              <p className="mt-1 text-sm font-semibold text-ink-soft">
+                {formatRange(info.start_date, info.end_date)}
+                {info.dates_auto !== false && (
+                  <span className="no-print ml-1.5 font-normal text-ink-soft/80">
+                    · from the itinerary
+                  </span>
+                )}
+              </p>
+              {info.destination && (
+                <p className="mt-1 text-sm text-ink-soft">{info.destination}</p>
+              )}
+              {info.summary && (
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
+                  {info.summary}
                 </p>
-                <div className="mt-1.5">
-                  <MembershipChips
-                    items={people.map((p) => ({
-                      id: p.id,
-                      label: p.name,
-                      color: p.color,
-                    }))}
-                    activeIds={going}
-                    busyId={rosterBusy}
-                    onToggle={toggleTraveler}
-                  />
+              )}
+
+              {people.length > 0 && (
+                <div className="mt-4">
+                  <p className="section-label">
+                    {past ? "Who went" : "Who is going"}
+                    <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
+                      — tap a name to change it
+                    </span>
+                  </p>
+                  <div className="mt-1.5">
+                    <MembershipChips
+                      items={people.map((p) => ({
+                        id: p.id,
+                        label: p.name,
+                        color: p.color,
+                      }))}
+                      activeIds={going}
+                      busyId={rosterBusy}
+                      onToggle={toggleTraveler}
+                    />
+                  </div>
+                  <p className="mt-1.5 hidden text-sm text-ink-soft print:block">
+                    {goingNames.length ? goingNames.join(", ") : "Nobody yet"}
+                  </p>
                 </div>
-                <p className="mt-1.5 hidden text-sm text-ink-soft print:block">
-                  {goingNames.length ? goingNames.join(", ") : "Nobody yet"}
-                </p>
-              </div>
-            )}
+              )}
+            </div>
+            <dl className="grid grid-cols-3 gap-3 text-center sm:gap-4">
+              {stats.map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-xl border border-[var(--line)] bg-sand/70 px-3.5 py-2.5"
+                >
+                  <dt className="section-label">{s.label}</dt>
+                  <dd className="font-display mt-0.5 text-xl font-semibold">
+                    {s.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
-          <dl className="grid grid-cols-3 gap-3 text-center sm:gap-4">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className="rounded-xl border border-[var(--line)] bg-sand/70 px-3.5 py-2.5"
-              >
-                <dt className="section-label">
-                  {s.label}
-                </dt>
-                <dd className="font-display mt-0.5 text-xl font-semibold">
-                  {s.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
         )}
 
         <nav className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand/60 px-3 py-2">

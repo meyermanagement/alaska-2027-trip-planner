@@ -8,6 +8,7 @@ import {
   docType,
   formatDayYear,
   formatRange,
+  isDraftTrip,
   isPastTrip,
   monthsUntil,
 } from "@/lib/format";
@@ -34,9 +35,14 @@ export default function People({
 
   const docsFor = (id) => documents.filter((d) => d.traveler_id === id);
 
-  // Soonest first for what is ahead, most recent first for what is done.
+  // Soonest first for what is ahead, most recent first for what is done. Drafts
+  // are kept apart: people can still be pencilled in, but a draft is not a trip
+  // that is coming up.
+  const draftTrips = trips
+    .filter(isDraftTrip)
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const upcomingTrips = trips
-    .filter((t) => !isPastTrip(t))
+    .filter((t) => !isDraftTrip(t) && !isPastTrip(t))
     .sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
   const pastTrips = trips
     .filter((t) => isPastTrip(t))
@@ -111,7 +117,12 @@ export default function People({
         : 1;
       await supabase
         .from("travelers")
-        .insert({ ...values, family_id: familyId, is_person: true, sort_order: next });
+        .insert({
+          ...values,
+          family_id: familyId,
+          is_person: true,
+          sort_order: next,
+        });
     }
     setEditingPerson(null);
     setAddingPerson(false);
@@ -130,11 +141,16 @@ export default function People({
                 <li key={d.id}>
                   {nameFor(d.traveler_id)}&apos;s{" "}
                   {(d.label || docType(d.doc_type).label).toLowerCase()}{" "}
-                  {m < 0 ? "expired" : "expires"} {formatDayYear(d.expiration_date)}
+                  {m < 0 ? "expired" : "expires"}{" "}
+                  {formatDayYear(d.expiration_date)}
                   {m >= 0 && m <= 12 && (
                     <span className="text-ink-soft">
                       {" "}
-                      ({m <= 0 ? "this month" : `${m} month${m === 1 ? "" : "s"} out`})
+                      (
+                      {m <= 0
+                        ? "this month"
+                        : `${m} month${m === 1 ? "" : "s"} out`}
+                      )
                     </span>
                   )}
                 </li>
@@ -251,9 +267,7 @@ export default function People({
             {trips.length > 0 && (
               <div className="mt-4 border-t border-[var(--line)] pt-3">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="section-label">
-                    Trips
-                  </p>
+                  <p className="section-label">Trips</p>
                   <button
                     type="button"
                     onClick={() =>
@@ -274,16 +288,17 @@ export default function People({
                     </p>
                     {[
                       ["Coming up", upcomingTrips],
+                      ["Still just an idea", draftTrips],
                       ["Already done", pastTrips],
                     ].map(([heading, list]) =>
                       list.length === 0 ? null : (
                         <div key={heading}>
-                          <p className="section-label/70">
-                            {heading}
-                          </p>
+                          <p className="section-label/70">{heading}</p>
                           <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-[var(--line)] bg-white">
                             {list.map((trip) => {
-                              const on = tripIdsFor(person.id).includes(trip.id);
+                              const on = tripIdsFor(person.id).includes(
+                                trip.id,
+                              );
                               return (
                                 <li key={trip.id}>
                                   <button
@@ -339,6 +354,9 @@ export default function People({
                     upcoming={upcomingTrips.filter((t) =>
                       tripIdsFor(person.id).includes(t.id),
                     )}
+                    drafts={draftTrips.filter((t) =>
+                      tripIdsFor(person.id).includes(t.id),
+                    )}
                     past={pastTrips.filter((t) =>
                       tripIdsFor(person.id).includes(t.id),
                     )}
@@ -386,7 +404,8 @@ function DocRow({ doc, shown, onToggle, onEdit, onDelete }) {
           : "bg-sand-deep text-ink-soft";
     expiry = (
       <span className={`chip ${cls}`}>
-        {months < 0 ? "Expired" : "Expires"} {formatDayYear(doc.expiration_date)}
+        {months < 0 ? "Expired" : "Expires"}{" "}
+        {formatDayYear(doc.expiration_date)}
       </span>
     );
   }
@@ -421,7 +440,9 @@ function DocRow({ doc, shown, onToggle, onEdit, onDelete }) {
             {doc.issuing_authority && doc.issue_date && (
               <span aria-hidden="true"> · </span>
             )}
-            {doc.issue_date && <span>Issued {formatDayYear(doc.issue_date)}</span>}
+            {doc.issue_date && (
+              <span>Issued {formatDayYear(doc.issue_date)}</span>
+            )}
           </p>
           {doc.notes && (
             <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
@@ -647,8 +668,8 @@ function PersonForm({ person, onCancel, onSave }) {
 
 // A person's trips, newest plans first and finished trips underneath, so the
 // list stays readable as trips pile up.
-function PersonTripList({ name, upcoming, past }) {
-  if (upcoming.length === 0 && past.length === 0) {
+function PersonTripList({ name, upcoming, drafts = [], past }) {
+  if (upcoming.length === 0 && drafts.length === 0 && past.length === 0) {
     return (
       <p className="mt-1.5 text-sm text-ink-soft">
         {name} is not on any trips yet.
@@ -660,13 +681,12 @@ function PersonTripList({ name, upcoming, past }) {
     <div className="mt-2 space-y-3">
       {[
         ["Coming up", upcoming],
+        ["Still just an idea", drafts],
         ["Already done", past],
       ].map(([heading, list]) =>
         list.length === 0 ? null : (
           <div key={heading}>
-            <p className="section-label/70">
-              {heading}
-            </p>
+            <p className="section-label/70">{heading}</p>
             <ul className="mt-1 space-y-1.5">
               {list.map((trip) => (
                 <li

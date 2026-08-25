@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
-import { formatRange, daysUntil, isPastTrip } from "@/lib/format";
+import { isDraftTrip, isPastTrip } from "@/lib/format";
 import NewTripButton from "./NewTripButton";
+import TripBoard from "./TripBoard";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 
 export const metadata = { title: "Trips · Alyeska" };
@@ -58,11 +58,8 @@ export default async function TripsPage() {
 
   function progress(rows, tripId, doneKey) {
     const mine = (rows || []).filter((r) => r.trip_id === tripId);
-    const done = mine.filter((r) => r[doneKey]).length;
-    return { done, total: mine.length };
+    return { done: mine.filter((r) => r[doneKey]).length, total: mine.length };
   }
-
-  const isPast = (trip) => isPastTrip(trip);
 
   // Who is on each trip, in the family's usual order.
   function travelerNames(tripId) {
@@ -72,10 +69,28 @@ export default async function TripsPage() {
     return (people || []).filter((p) => ids.includes(p.id)).map((p) => p.name);
   }
 
-  const upcoming = (trips || []).filter((t) => !isPast(t));
+  // The cards are drawn on the client, so each one arrives with its numbers
+  // already worked out rather than four more lists to filter over there.
+  const card = (trip) => {
+    const packing = progress(counts, trip.id, "is_packed");
+    const tasks = progress(taskRows, trip.id, "is_done");
+    return {
+      ...trip,
+      packing: packing.total,
+      packed: packing.done,
+      tasks: tasks.total,
+      tasksDone: tasks.done,
+      stops: (itineraryRows || []).filter((r) => r.trip_id === trip.id).length,
+      going: travelerNames(trip.id),
+    };
+  };
+
+  const all = (trips || []).map(card);
+  const drafts = all.filter(isDraftTrip);
+  const upcoming = all.filter((t) => !isDraftTrip(t) && !isPastTrip(t));
   // Most recently finished first, so the last trip is the one you see.
-  const past = (trips || [])
-    .filter(isPast)
+  const past = all
+    .filter(isPastTrip)
     .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
 
   return (
@@ -83,153 +98,20 @@ export default async function TripsPage() {
       {/* No askHref: the button opens the drawer here, in general context. */}
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-        <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl font-semibold">Our trips</h1>
+            {/* The heading used to say "Our trips" over a single list. The
+                three groups below are each named now, so the page keeps the
+                plain name and "Upcoming trips" labels the list it belongs to. */}
+            <h1 className="font-display text-3xl font-semibold">Trips</h1>
             <p className="mt-1 text-sm text-ink-soft">
-              Everything below is shared live with everyone in the family group.
+              Everything here is shared live with everyone in the family group.
             </p>
           </div>
           <NewTripButton familyId={family.id} />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {upcoming.map((trip) => {
-            const packing = progress(counts, trip.id, "is_packed");
-            const tasks = progress(taskRows, trip.id, "is_done");
-            const countdown = daysUntil(trip.start_date);
-            return (
-              <Link
-                key={trip.id}
-                href={`/trips/${trip.slug}`}
-                className="card group flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="emoji-badge" aria-hidden="true">
-                    {trip.cover_emoji}
-                  </span>
-                  {countdown !== null && countdown >= 0 && (
-                    <span className="chip bg-teal-soft text-teal">
-                      {countdown} days away
-                    </span>
-                  )}
-                </div>
-                <h2 className="font-display mt-3 text-xl font-semibold group-hover:text-teal">
-                  {trip.name}
-                </h2>
-                <p className="mt-0.5 text-sm font-medium text-ink-soft">
-                  {formatRange(trip.start_date, trip.end_date)}
-                </p>
-                {trip.destination && (
-                  <p className="mt-2 text-sm text-ink-soft">
-                    {trip.destination}
-                  </p>
-                )}
-                {trip.summary && (
-                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-soft">
-                    {trip.summary}
-                  </p>
-                )}
-                <div className="mt-4 border-t border-[var(--line)] pt-3 text-xs font-semibold text-ink-soft">
-                  <div className="flex flex-wrap gap-2">
-                    <span>
-                      Packing {packing.done}/{packing.total}
-                    </span>
-                    <span aria-hidden>·</span>
-                    <span>
-                      Tasks {tasks.done}/{tasks.total}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 font-normal">
-                    {travelerNames(trip.id).length
-                      ? `Going: ${travelerNames(trip.id).join(", ")}`
-                      : "Nobody added yet"}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-
-        {upcoming.length === 0 && (
-          <p className="card p-5 text-sm text-ink-soft">
-            No trips coming up. Start one whenever you are ready.
-          </p>
-        )}
-
-        {past.length > 0 && (
-          <section className="mt-12">
-            <div className="flex items-center gap-3">
-              <h2 className="font-display text-lg font-semibold text-ink-soft">
-                Past trips
-              </h2>
-              <span
-                className="h-px flex-1 bg-[var(--line)]"
-                aria-hidden="true"
-              />
-              <span className="text-xs font-semibold text-ink-soft">
-                {past.length}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-ink-soft">
-              Kept for the record — itineraries, packing lists and notes are all
-              still here.
-            </p>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {past.map((trip) => {
-                const stops = (itineraryRows || []).filter(
-                  (r) => r.trip_id === trip.id,
-                ).length;
-                const packing = progress(counts, trip.id, "is_packed");
-                return (
-                  <Link
-                    key={trip.id}
-                    href={`/trips/${trip.slug}`}
-                    className="group flex flex-col rounded-xl border border-[var(--line)] bg-white/55 p-4 transition hover:-translate-y-px hover:border-teal/30 hover:bg-white hover:shadow-[0_10px_26px_-20px_rgba(20,32,30,0.3)]"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="emoji-badge emoji-badge-sm" aria-hidden="true">
-                        {trip.cover_emoji}
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="font-display truncate text-base font-semibold group-hover:text-teal">
-                          {trip.name}
-                        </h3>
-                        <p className="text-xs font-medium text-ink-soft">
-                          {formatRange(trip.start_date, trip.end_date)}
-                        </p>
-                      </div>
-                    </div>
-                    {trip.destination && (
-                      <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-ink-soft">
-                        {trip.destination}
-                      </p>
-                    )}
-                    <div className="mt-3 border-t border-[var(--line)] pt-2.5 text-[0.7rem] font-semibold text-ink-soft">
-                      <div className="flex flex-wrap gap-2">
-                        <span>
-                          {stops} {stops === 1 ? "stop" : "stops"}
-                        </span>
-                        {packing.total > 0 && (
-                          <>
-                            <span aria-hidden>·</span>
-                            <span>{packing.total} things packed</span>
-                          </>
-                        )}
-                      </div>
-                      {travelerNames(trip.id).length > 0 && (
-                        <p className="mt-1 font-normal">
-                          Went: {travelerNames(trip.id).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
+        <TripBoard upcoming={upcoming} drafts={drafts} past={past} />
       </main>
       <AskAlyGeneral />
       <FooterBar displayName={profile?.display_name} />

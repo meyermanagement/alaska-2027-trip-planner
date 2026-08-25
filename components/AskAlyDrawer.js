@@ -8,12 +8,31 @@ import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 // can create or delete one, but cannot touch what is inside them.
 export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
   const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
+  // Set when something on the page opens Aly with an opening message already
+  // written — "Create with Aly" on the Trips page does this. Cleared on close,
+  // so the next plain "Ask Aly" starts from an empty box.
+  const [seed, setSeed] = useState(null);
+  const close = useCallback(() => {
+    setOpen(false);
+    setSeed(null);
+  }, []);
 
   // Opened by the "Ask Aly" button in the top bar, which lives in a separate
   // server-rendered subtree, so a window event is the simplest bridge.
   useEffect(() => {
-    const onAsk = () => setOpen(true);
+    const onAsk = (event) => {
+      const detail = event?.detail || {};
+      setSeed(
+        detail.seed
+          ? {
+              text: detail.seed,
+              autoSend: detail.autoSend !== false,
+              focus: detail.focus,
+            }
+          : null,
+      );
+      setOpen(true);
+    };
     window.addEventListener(ASK_ALY_EVENT, onAsk);
     return () => window.removeEventListener(ASK_ALY_EVENT, onAsk);
   }, []);
@@ -58,7 +77,9 @@ export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
           trip={trip}
           onApplied={onApplied}
           onClose={close}
-          focus={focus}
+          focus={seed?.focus || focus}
+          seed={seed?.text}
+          autoSendSeed={seed?.autoSend}
           fill
         />
       </aside>

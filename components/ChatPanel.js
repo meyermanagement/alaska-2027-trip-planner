@@ -25,6 +25,12 @@ const SUGGESTIONS = {
     "What notes do we have?",
     "Save a note that Veda wants Space Mountain first",
   ],
+  // Started from "Create with Aly" on the Trips page.
+  new_trip: [
+    "A week somewhere warm over spring break",
+    "Somewhere we can drive to in three days",
+    "A repeat of Europe 2026, but slower",
+  ],
   // No trip open: Aly works across all of them.
   general: [
     "Which trip is next and how far away is it?",
@@ -73,6 +79,8 @@ export default function ChatPanel({
   onApplied,
   onClose,
   focus,
+  seed,
+  autoSendSeed = false,
   fill = false,
 }) {
   const [messages, setMessages] = useState([]);
@@ -118,6 +126,23 @@ export default function ChatPanel({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, pending, busy, loadingHistory]);
+
+  // Opened with an opening message already written. It waits for the saved
+  // thread to arrive first, because that fetch replaces the whole message list
+  // and would otherwise swallow the message we just sent. Once per opening: the
+  // panel is unmounted when the drawer closes, so the guard resets on its own.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!seed || loadingHistory || seededRef.current) return;
+    seededRef.current = true;
+    if (autoSendSeed) {
+      send(seed);
+    } else {
+      setInput(seed);
+      inputRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed, autoSendSeed, loadingHistory]);
 
   // The message box grows with what is in it, between a floor and a ceiling set
   // in CSS below: three lines tall even when empty, so it reads as somewhere you
@@ -261,7 +286,11 @@ export default function ChatPanel({
               Ask Aly
             </h2>
             <p className="mt-1 truncate text-xs text-ink-soft">
-              {trip ? trip.name : "All trips"}
+              {trip
+                ? trip.name
+                : focus === "new_trip"
+                  ? "A new trip"
+                  : "All trips"}
               {trip && SECTION_LABELS[focus]
                 ? ` · ${SECTION_LABELS[focus]}`
                 : ""}
@@ -307,6 +336,12 @@ export default function ChatPanel({
                     ? `, and assumes you mean the ${SECTION_LABELS[focus].toLowerCase()} unless you say otherwise.`
                     : "."}
                 </>
+              ) : focus === "new_trip" ? (
+                <>
+                  Tell Aly what you have in mind and she will draft{" "}
+                  <span className="font-semibold text-ink">a new trip</span> —
+                  it lands in Drafts until you move it to Upcoming trips.
+                </>
               ) : (
                 <>
                   Aly is looking across{" "}
@@ -318,9 +353,9 @@ export default function ChatPanel({
               You approve every change before it saves.
             </p>
             <div className="flex flex-wrap gap-2">
-              {(trip
-                ? SUGGESTIONS[focus] || SUGGESTIONS.itinerary
-                : SUGGESTIONS.general
+              {(
+                SUGGESTIONS[focus] ||
+                (trip ? SUGGESTIONS.itinerary : SUGGESTIONS.general)
               ).map((s) => (
                 <button
                   key={s}

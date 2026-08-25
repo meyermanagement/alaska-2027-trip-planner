@@ -4,7 +4,8 @@ import { generate, ModelError } from "@/lib/agent/llm";
 import {
   buildContext,
   buildSystemPrompt,
-  FOCUS_LABELS,
+  isKnownFocus,
+  NEW_TRIP_FOCUS,
 } from "@/lib/agent/context";
 import { allTools, validateAction, pendingTripNames } from "@/lib/agent/tools";
 import {
@@ -26,9 +27,9 @@ export async function POST(request) {
   }
 
   const tripId = payload?.tripId;
-  // Which section of the trip the user was looking at. Whitelisted so it can
-  // only ever be one of our known tabs.
-  const focus = FOCUS_LABELS[payload?.focus] ? payload.focus : null;
+  // Which section of the trip the user was looking at, or "new_trip" when they
+  // came from "Create with Aly". Whitelisted so it can only ever be one of ours.
+  const focus = isKnownFocus(payload?.focus) ? payload.focus : null;
   // The client sends only what was just typed. The conversation itself lives in
   // chat_messages, so it survives a reload, a different device, and a change of
   // model provider.
@@ -103,6 +104,7 @@ export async function POST(request) {
       known: ctx.known,
       focusTripId: ctx.focusTripId,
       pendingTrips,
+      newTripDraft: focus === NEW_TRIP_FOCUS,
     });
     if (action) actions.push(action);
     else if (error) problems.push(error);
