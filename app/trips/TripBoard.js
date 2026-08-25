@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatRange, daysUntil } from "@/lib/format";
 import PromoteDraft from "@/components/PromoteDraft";
-import CreateWithAly from "./CreateWithAly";
 
 // Three kinds of trip, three shapes of card. Upcoming trips are the reason the
 // app exists, so they stay large; drafts are unfinished, so they read as
@@ -276,13 +275,18 @@ export default function TripBoard({ upcoming, drafts, past }) {
           blurb="Ideas being worked out. Nothing here is on the family calendar until you move it to Upcoming."
           count={drafts.length}
         >
-          <CreateWithAly />
-          {drafts.length > 0 && (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {drafts.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
               {drafts.map((trip) => (
                 <DraftCard key={trip.id} trip={trip} />
               ))}
             </div>
+          ) : (
+            <p className="card p-5 text-sm text-ink-soft">
+              Nothing sketched out yet. Press “New trip” and either mark it a
+              draft or hand the idea to Aly — she will draft the whole thing and
+              leave it here.
+            </p>
           )}
         </Section>
 

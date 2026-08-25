@@ -7,8 +7,11 @@ import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 // typed here is handed to Aly as the opening message of a real conversation —
 // she can ask about dates or who is coming before she drafts anything — so this
 // is a doorway, not a wizard.
-
-export default function CreateWithAly() {
+//
+// It lives on the New trip screen next to the form, since deciding to plan a
+// trip and deciding how to plan it are the same moment. `onStarted` lets that
+// screen get out of the way once the conversation has begun.
+export default function CreateWithAly({ onStarted }) {
   const [idea, setIdea] = useState("");
 
   function start() {
@@ -20,16 +23,17 @@ export default function CreateWithAly() {
       }),
     );
     setIdea("");
+    if (onStarted) onStarted();
   }
 
   return (
-    <div className="no-print card p-5">
-      <h3 className="font-display text-lg font-semibold">Create with Aly</h3>
-      <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+    <div className="no-print">
+      <p className="text-sm leading-relaxed text-ink-soft">
         Tell her roughly what you have in mind. She will ask about anything she
         needs, then draft the trip and a day-by-day itinerary — leaning on your
         saved preferences and what you thought of the places you have already
-        been.
+        been. It arrives as a draft, so nothing lands on the family calendar
+        until you move it across.
       </p>
 
       <textarea
@@ -43,19 +47,18 @@ export default function CreateWithAly() {
         }}
       />
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={start}
-          disabled={!idea.trim()}
-        >
-          Start planning
-        </button>
-        <span className="text-xs text-ink-soft">
-          Nothing is saved until you press the cards she sends back.
-        </span>
-      </div>
+      <p className="mt-2 text-xs text-ink-soft">
+        Nothing is saved until you press the cards she sends back.
+      </p>
+
+      <button
+        type="button"
+        className="btn btn-primary mt-4 w-full"
+        onClick={start}
+        disabled={!idea.trim()}
+      >
+        Start planning with Aly
+      </button>
     </div>
   );
 }

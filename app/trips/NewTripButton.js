@@ -3,8 +3,30 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import CreateWithAly from "./CreateWithAly";
 
 const EMOJI = ["🧳", "🏝️", "🏔️", "🚢", "🎡", "🗺️", "🎿", "🏰"];
+
+// The three things a new trip can be, in the family's words rather than the
+// database's. Everything else a status can say — booked, happening now,
+// archived — is a change to make later, on the trip itself.
+const KINDS = [
+  {
+    value: "planning",
+    label: "Upcoming",
+    hint: "A trip that is really happening. Sits with the countdowns.",
+  },
+  {
+    value: "draft",
+    label: "Draft",
+    hint: "An idea being worked out. Off the calendar until you move it.",
+  },
+  {
+    value: "complete",
+    label: "Past trip",
+    hint: "One you have already taken, kept for the record.",
+  },
+];
 
 function slugify(value) {
   return value
@@ -17,17 +39,29 @@ function slugify(value) {
 export default function NewTripButton({ familyId }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Two ways to start the same thing: fill it in, or talk it through.
+  const [how, setHow] = useState("form");
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [emoji, setEmoji] = useState("🧳");
+  const [kind, setKind] = useState("planning");
   const [copyTemplate, setCopyTemplate] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  function close() {
+    setOpen(false);
+    setError("");
+  }
+
   async function create(e) {
     e.preventDefault();
+    if (start && end && end < start) {
+      setError("The last day cannot be before the first day.");
+      return;
+    }
     setBusy(true);
     setError("");
     const supabase = createClient();
@@ -42,6 +76,7 @@ export default function NewTripButton({ familyId }) {
         start_date: start || null,
         end_date: end || null,
         cover_emoji: emoji,
+        status: kind,
       })
       .select("id, slug")
       .single();
@@ -67,9 +102,9 @@ export default function NewTripButton({ familyId }) {
           .eq("template_id", tpl.id);
 
         if (items?.length) {
-          await supabase.from("packing_items").insert(
-            items.map((i) => ({ ...i, trip_id: trip.id }))
-          );
+          await supabase
+            .from("packing_items")
+            .insert(items.map((i) => ({ ...i, trip_id: trip.id })));
         }
       }
     }
@@ -89,115 +124,204 @@ export default function NewTripButton({ familyId }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-6">
-      <form
-        onSubmit={create}
-        className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-xl"
-      >
+    <div className="fixed inset-0 z-40 flex items-end justify-center overflow-y-auto bg-ink/40 p-0 sm:items-center sm:p-6">
+      <div className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-xl">
         <h2 className="font-display text-xl font-semibold">New trip</h2>
         <p className="mt-1 text-sm text-ink-soft">
           Everyone in the family will see it immediately.
         </p>
 
-        <div className="mt-4 space-y-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-              Trip name
-            </span>
-            <input
-              className="field"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Italy 2028"
-              required
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-              Destination
-            </span>
-            <input
-              className="field"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="Rome, Florence & the Amalfi Coast"
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                Start
-              </span>
-              <input
-                className="field"
-                type="date"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                End
-              </span>
-              <input
-                className="field"
-                type="date"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-              />
-            </label>
-          </div>
-          <div>
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-              Cover
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {EMOJI.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setEmoji(e)}
-                  className={`h-10 w-10 rounded-lg border text-lg ${
-                    emoji === e
-                      ? "border-teal bg-teal-soft"
-                      : "border-[var(--line)] bg-white"
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
+        <div
+          className="mt-4 inline-flex w-full rounded-full border border-[var(--line)] bg-sand/60 p-1"
+          role="tablist"
+          aria-label="How to start the trip"
+        >
+          {[
+            { id: "form", label: "Fill it in myself" },
+            { id: "aly", label: "Create with Aly" },
+          ].map((t) => {
+            const on = how === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setHow(t.id)}
+                className={`flex-1 rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+                  on
+                    ? "bg-teal text-white shadow-sm"
+                    : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {how === "aly" ? (
+          <>
+            <div className="mt-4">
+              <CreateWithAly onStarted={close} />
             </div>
-          </div>
-          <label className="flex items-start gap-2 text-sm text-ink-soft">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 accent-teal"
-              checked={copyTemplate}
-              onChange={(e) => setCopyTemplate(e.target.checked)}
-            />
-            Start the packing list from the family base template
-          </label>
-        </div>
+            <button
+              type="button"
+              className="btn btn-ghost mt-2 w-full"
+              onClick={close}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <form onSubmit={create}>
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Trip name
+                </span>
+                <input
+                  className="field"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Italy 2028"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Destination
+                </span>
+                <input
+                  className="field"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  placeholder="Rome, Florence & the Amalfi Coast"
+                />
+              </label>
 
-        {error && (
-          <p className="mt-3 rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
-            {error}
-          </p>
+              <fieldset>
+                <legend className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  What kind of trip
+                </legend>
+                <div className="space-y-1.5">
+                  {KINDS.map((k) => {
+                    const on = kind === k.value;
+                    return (
+                      <label
+                        key={k.value}
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2 transition ${
+                          on
+                            ? "border-teal bg-teal-soft/50"
+                            : "border-[var(--line)] bg-white hover:border-teal/40"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="trip-kind"
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
+                          value={k.value}
+                          checked={on}
+                          onChange={() => setKind(k.value)}
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold">
+                            {k.label}
+                          </span>
+                          <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
+                            {k.hint}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    Start
+                  </span>
+                  <input
+                    className="field"
+                    type="date"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    End
+                  </span>
+                  <input
+                    className="field"
+                    type="date"
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                  />
+                </label>
+              </div>
+              {kind === "draft" && (
+                <p className="text-xs leading-relaxed text-ink-soft">
+                  Dates can wait on a draft — leave them blank and add them when
+                  the idea firms up.
+                </p>
+              )}
+
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Cover
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {EMOJI.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setEmoji(e)}
+                      className={`h-10 w-10 rounded-lg border text-lg ${
+                        emoji === e
+                          ? "border-teal bg-teal-soft"
+                          : "border-[var(--line)] bg-white"
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-start gap-2 text-sm text-ink-soft">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-teal"
+                  checked={copyTemplate}
+                  onChange={(e) => setCopyTemplate(e.target.checked)}
+                />
+                Start the packing list from the family base template
+              </label>
+            </div>
+
+            {error && (
+              <p className="mt-3 rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost flex-1"
+                onClick={close}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary flex-1" disabled={busy}>
+                {busy ? "Creating…" : "Create trip"}
+              </button>
+            </div>
+          </form>
         )}
-
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            className="btn btn-ghost flex-1"
-            onClick={() => setOpen(false)}
-          >
-            Cancel
-          </button>
-          <button className="btn btn-primary flex-1" disabled={busy}>
-            {busy ? "Creating…" : "Create trip"}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   );
 }
