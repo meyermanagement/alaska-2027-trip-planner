@@ -245,25 +245,6 @@ export default function ChatPanel({
     });
   }
 
-  // Clearing really forgets: the stored thread goes with it, so Aly starts over
-  // too rather than remembering a conversation the user thinks is gone.
-  async function clear() {
-    if (busy || applying) return;
-    setMessages([]);
-    setPending(null);
-    setError("");
-    try {
-      const url = tripId
-        ? `/api/chat/history?tripId=${encodeURIComponent(tripId)}`
-        : "/api/chat/history";
-      await fetch(url, { method: "DELETE" });
-    } catch {
-      setError(
-        "Cleared on screen, but the saved conversation may still be there.",
-      );
-    }
-  }
-
   return (
     <section
       className={
@@ -288,15 +269,6 @@ export default function ChatPanel({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {messages.length > 0 && (
-            <button
-              type="button"
-              onClick={clear}
-              className="btn btn-ghost px-3 py-1.5 text-xs"
-            >
-              Clear
-            </button>
-          )}
           {onClose && (
             <button
               type="button"

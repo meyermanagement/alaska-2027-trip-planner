@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  TRANSCRIPT_MESSAGES,
-  clearThread,
-  loadThread,
-} from "@/lib/agent/thread";
+import { TRANSCRIPT_MESSAGES, loadThread } from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -38,25 +34,8 @@ export async function GET(request) {
   });
 }
 
-// "Clear" now really forgets, rather than just emptying the screen.
-export async function DELETE(request) {
-  const { supabase, user, error } = await session();
-  if (error) return error;
-
-  const { error: delError } = await clearThread(
-    supabase,
-    user.id,
-    tripFrom(request),
-  );
-  if (delError) {
-    return NextResponse.json(
-      { error: "Could not clear the conversation." },
-      { status: 500 },
-    );
-  }
-  return NextResponse.json({ ok: true });
-}
-
+// There is deliberately no way to delete a thread: the family always wants Aly
+// to keep the context of what was already said.
 function tripFrom(request) {
   const value = new URL(request.url).searchParams.get("tripId");
   return value && value !== "null" ? value : null;
