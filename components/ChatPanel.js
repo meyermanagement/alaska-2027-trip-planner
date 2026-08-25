@@ -91,6 +91,7 @@ export default function ChatPanel({
   const [pending, setPending] = useState(null); // { groups: [...] }
   const [applyingKey, setApplyingKey] = useState(null);
   const applying = applyingKey !== null;
+  const [packingBusy, setPackingBusy] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
@@ -256,10 +257,40 @@ export default function ChatPanel({
         return left.length ? { groups: left } : null;
       });
       onApplied?.();
+
+      // A new trip starts with the family base template so it is never empty,
+      // then the real list is worked out from past trips, the destination and
+      // the time of year. That takes a model call, so it happens after the save
+      // rather than inside it.
+      if (data.packingTripId) await workOutPackingList(data.packingTripId);
     } catch {
       setError("Network hiccup while saving. Nothing may have been applied.");
     }
     setApplyingKey(null);
+  }
+
+  // Best effort by design: the trip already has a usable list, so anything that
+  // goes wrong here is worth nothing more than silence.
+  async function workOutPackingList(newTripId) {
+    setPackingBusy(true);
+    try {
+      const res = await fetch("/api/packing/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId: newTripId, replace: true }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.receipt) {
+        setMessages((m) => [
+          ...m,
+          { role: "assistant", kind: "receipt", text: data.receipt },
+        ]);
+        onApplied?.();
+      }
+    } catch {
+      // The base template is already saved, so there is nothing to report.
+    }
+    setPackingBusy(false);
   }
 
   function dismissGroup(key) {
@@ -395,6 +426,17 @@ export default function ChatPanel({
           <div className="flex justify-start">
             <div className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft">
               Thinking…
+            </div>
+          </div>
+        )}
+
+        {packingBusy && (
+          <div className="flex justify-start">
+            <div
+              className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft"
+              aria-live="polite"
+            >
+              Working out the packing list…
             </div>
           </div>
         )}

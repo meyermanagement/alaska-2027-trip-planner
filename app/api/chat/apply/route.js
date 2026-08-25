@@ -128,6 +128,11 @@ export async function POST(request) {
   const results = [];
   // Trips created in this batch, so the client can navigate to a new one.
   let createdSlug = null;
+  // A new trip whose packing list is currently just the family base template.
+  // Generating a real one takes a model call, and making the family wait for it
+  // behind the Apply button would be the wrong trade — so the trip is saved with
+  // the template and the client asks for the better list straight afterwards.
+  let packingTripId = null;
 
   // A trip has to exist before anything can go inside it, so new trips are
   // written first no matter what order they arrived in. Emptying a list comes
@@ -181,6 +186,7 @@ export async function POST(request) {
         if (outcome.slug) createdSlug = outcome.slug;
         // The trip now exists, so the rows that named it can resolve to its id.
         if (!outcome.error && tool === "create_trip" && outcome.id) {
+          if (outcome.wantsPacking) packingTripId = outcome.id;
           known.trips.set(outcome.id, patch.name);
           const at = pendingTrips.indexOf(patch.name);
           if (at >= 0) pendingTrips.splice(at, 1);
@@ -274,7 +280,13 @@ export async function POST(request) {
     "receipt",
   );
 
-  return NextResponse.json({ applied, results, createdSlug, receipt });
+  return NextResponse.json({
+    applied,
+    results,
+    createdSlug,
+    packingTripId,
+    receipt,
+  });
 }
 
 // Plain language, and specific about what failed.
@@ -348,7 +360,10 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
     }
   }
 
-  return { error: null, slug: trip.slug, id: trip.id };
+  // `wantsPacking` says the family asked for a packing list on this trip, which
+  // is true whether or not there was a template to copy. What is in there now is
+  // only the floor.
+  return { error: null, slug: trip.slug, id: trip.id, wantsPacking: copyBase };
 }
 
 // Slugs are how trips are addressed in the URL, so keep them unique.

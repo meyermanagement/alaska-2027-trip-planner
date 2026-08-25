@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildPackingList } from "@/lib/packing/generate";
+import { appendMessage } from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -8,8 +9,12 @@ export const maxDuration = 60;
 // Fill a brand new trip's packing list. Called straight after the trip is
 // created, when the family asked for the list to be worked out for them.
 //
-// Deliberately refuses to run on a trip that already has items: this is a
-// starting point, not something that can overwrite work.
+// Two ways in. From the New trip screen the list is empty and this fills it.
+// From Aly, the trip was created with the base template already copied in — so
+// that a slow model never leaves a new trip with nothing — and this is called
+// with replace: true to upgrade that copy. Either way it refuses to touch a list
+// anyone has started using: if a single item is ticked off, it leaves well alone.
+// This is a starting point, never something that can overwrite work.
 export async function POST(request) {
   let payload;
   try {
@@ -43,12 +48,17 @@ export async function POST(request) {
     return NextResponse.json({ error: "Trip not found." }, { status: 404 });
   }
 
-  const { count: existing } = await supabase
+  const replace = payload?.replace === true;
+
+  const { data: existing } = await supabase
     .from("packing_items")
-    .select("id", { count: "exact", head: true })
+    .select("id, is_packed")
     .eq("trip_id", trip.id);
-  if (existing) {
-    return NextResponse.json({ count: 0, source: "skipped" });
+  if (existing?.length) {
+    const untouched = existing.every((row) => !row.is_packed);
+    if (!replace || !untouched) {
+      return NextResponse.json({ count: 0, source: "skipped" });
+    }
   }
 
   // Who is going, so the list is assigned to real people. A brand new trip
@@ -70,7 +80,24 @@ export async function POST(request) {
     supabase,
     trip,
     travelerNames: names,
+    replace: replace && existing?.length > 0,
   });
 
-  return NextResponse.json(result);
+  // When this ran off the back of a conversation with Aly, the transcript should
+  // say so too — the same rule the apply route follows, so the screen and the
+  // stored conversation never disagree.
+  let receipt = null;
+  if (replace && result.source === "generated" && result.count) {
+    receipt = `Packing list worked out as well — ${result.count} items for ${trip.name}, from what you packed on past trips and where this one goes at that time of year.`;
+    await appendMessage(
+      supabase,
+      user.id,
+      trip.id,
+      "assistant",
+      receipt,
+      "receipt",
+    );
+  }
+
+  return NextResponse.json({ ...result, receipt });
 }
