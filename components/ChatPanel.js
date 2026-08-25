@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import AlyeskaMark from "./AlyeskaMark";
+import { groupActions } from "@/lib/agent/groups";
 
 // Prompts follow whichever section the user was looking at.
 const SUGGESTIONS = {
@@ -49,8 +50,11 @@ export default function ChatPanel({
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState(null); // { actions, forMessage }
-  const [applying, setApplying] = useState(false);
+  // Proposals are held as chunks: one per part of the app they touch, each
+  // approved on its own. See lib/agent/groups.js.
+  const [pending, setPending] = useState(null); // { groups: [...] }
+  const [applyingKey, setApplyingKey] = useState(null);
+  const applying = applyingKey !== null;
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
@@ -131,7 +135,7 @@ export default function ChatPanel({
         setMessages((m) => [...m, { role: "assistant", text: data.reply }]);
       }
       if (data.actions?.length) {
-        setPending({ actions: data.actions });
+        setPending({ groups: groupActions(data.actions) });
       } else if (!data.reply) {
         setMessages((m) => [
           ...m,
@@ -150,9 +154,11 @@ export default function ChatPanel({
     setBusy(false);
   }
 
-  async function apply() {
-    if (!pending || applying) return;
-    setApplying(true);
+  // One chunk at a time. Everything else stays on screen, still pending, so a
+  // long paste can be approved in the order the family cares about.
+  async function apply(group) {
+    if (!pending || applying || !group?.actions?.length) return;
+    setApplyingKey(group.key);
     setError("");
     try {
       const res = await fetch("/api/chat/apply", {
@@ -160,14 +166,14 @@ export default function ChatPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tripId,
-          actions: pending.actions,
+          actions: group.actions,
         }),
       });
       const data = await res.json();
 
       if (!res.ok) {
         setError(data?.error || "Could not save those changes.");
-        setApplying(false);
+        setApplyingKey(null);
         return;
       }
 
@@ -189,12 +195,24 @@ export default function ChatPanel({
         ...m,
         { role: "assistant", text: data.receipt || fallback, kind: "receipt" },
       ]);
-      setPending(null);
+      // Drop just the chunk that went through; keep the rest waiting.
+      setPending((p) => {
+        const left = (p?.groups || []).filter((g) => g.key !== group.key);
+        return left.length ? { groups: left } : null;
+      });
       onApplied?.();
     } catch {
       setError("Network hiccup while saving. Nothing may have been applied.");
     }
-    setApplying(false);
+    setApplyingKey(null);
+  }
+
+  function dismissGroup(key) {
+    if (applying) return;
+    setPending((p) => {
+      const left = (p?.groups || []).filter((g) => g.key !== key);
+      return left.length ? { groups: left } : null;
+    });
   }
 
   // Clearing really forgets: the stored thread goes with it, so Aly starts over
@@ -343,59 +361,87 @@ export default function ChatPanel({
         )}
 
         {pending && (
-          <div
-            className={`rounded-xl border bg-white p-4 ring-1 ${
-              pending.actions.some((a) => a.destructive)
-                ? "border-rose/50 ring-rose/20"
-                : "border-teal/40 ring-teal/20"
-            }`}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
-              {pending.actions.length === 1
-                ? "Proposed change"
-                : `${pending.actions.length} proposed changes`}
-            </p>
-            {/* A pasted itinerary can propose dozens of rows at once. Cap the
-                height so Apply and Discard stay in reach without scrolling. */}
-            <ul className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
-              {pending.actions.map((a, i) => (
-                <li key={i} className="flex gap-2 text-sm text-ink">
-                  <span
-                    aria-hidden="true"
-                    className={a.destructive ? "text-rose" : "text-teal"}
-                  >
-                    •
-                  </span>
-                  <span>{a.summary}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={apply}
-                disabled={applying}
-                className={`btn px-4 py-1.5 text-sm ${
-                  pending.actions.some((a) => a.destructive)
-                    ? "bg-rose text-white hover:bg-[#8c364e]"
-                    : "btn-primary"
-                }`}
-              >
-                {applying
-                  ? "Saving…"
-                  : pending.actions.some((a) => a.destructive)
-                    ? "Yes, delete"
-                    : "Apply"}
-              </button>
+          <div className="space-y-2.5">
+            {pending.groups.length > 1 && (
+              <p className="text-xs text-ink-soft">
+                {pending.groups.reduce((n, g) => n + g.actions.length, 0)}{" "}
+                proposed changes, in {pending.groups.length} groups. Save them
+                one group at a time.
+              </p>
+            )}
+
+            {pending.groups.map((group) => {
+              const saving = applyingKey === group.key;
+              const count = group.actions.length;
+              return (
+                <div
+                  key={group.key}
+                  className={`rounded-xl border bg-white p-4 ring-1 ${
+                    group.destructive
+                      ? "border-rose/50 ring-rose/20"
+                      : "border-teal/40 ring-teal/20"
+                  }`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    {group.label} · {count} change{count === 1 ? "" : "s"}
+                  </p>
+                  {/* A pasted list can be dozens of rows. Cap the height so the
+                      buttons stay in reach without scrolling the card away. */}
+                  <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                    {group.actions.map((a, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-ink">
+                        <span
+                          aria-hidden="true"
+                          className={
+                            group.destructive ? "text-rose" : "text-teal"
+                          }
+                        >
+                          •
+                        </span>
+                        <span>{a.summary}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => apply(group)}
+                      disabled={applying}
+                      className={`btn px-4 py-1.5 text-sm ${
+                        group.destructive
+                          ? "bg-rose text-white hover:bg-[#8c364e]"
+                          : "btn-primary"
+                      }`}
+                    >
+                      {saving
+                        ? "Saving…"
+                        : group.destructive
+                          ? "Yes, delete"
+                          : "Apply"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => dismissGroup(group.key)}
+                      disabled={applying}
+                      className="btn btn-ghost px-4 py-1.5 text-sm"
+                    >
+                      Discard
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {pending.groups.length > 1 && (
               <button
                 type="button"
                 onClick={() => setPending(null)}
                 disabled={applying}
-                className="btn btn-ghost px-4 py-1.5 text-sm"
+                className="btn btn-ghost px-3 py-1 text-xs"
               >
-                Discard
+                Discard everything
               </button>
-            </div>
+            )}
           </div>
         )}
 
