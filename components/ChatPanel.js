@@ -51,13 +51,40 @@ export default function ChatPanel({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null); // { actions, forMessage }
   const [applying, setApplying] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
+  const tripId = trip?.id || null;
+
+  // The conversation lives in the database, so reopening Aly picks up where the
+  // last one left off — same on a phone as on a laptop.
+  useEffect(() => {
+    let alive = true;
+    setLoadingHistory(true);
+    setMessages([]);
+    setPending(null);
+    const url = tripId
+      ? `/api/chat/history?tripId=${encodeURIComponent(tripId)}`
+      : "/api/chat/history";
+    fetch(url)
+      .then((res) => (res.ok ? res.json() : { messages: [] }))
+      .then((data) => {
+        if (!alive) return;
+        setMessages(Array.isArray(data?.messages) ? data.messages : []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setLoadingHistory(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tripId]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, pending, busy]);
+  }, [messages, pending, busy, loadingHistory]);
 
   async function send(text) {
     const clean = text.trim();
@@ -66,18 +93,19 @@ export default function ChatPanel({
     setError("");
     setPending(null);
     setInput("");
-    const next = [...messages, { role: "user", text: clean }];
-    setMessages(next);
+    setMessages((m) => [...m, { role: "user", text: clean }]);
     setBusy(true);
 
     try {
+      // Only the new message goes up; the server reads the rest of the thread
+      // from the database.
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tripId: trip?.id || null,
+          tripId,
           focus,
-          messages: next,
+          message: clean,
         }),
       });
       const data = await res.json();
@@ -120,7 +148,7 @@ export default function ChatPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tripId: trip?.id || null,
+          tripId,
           actions: pending.actions,
         }),
       });
@@ -132,21 +160,23 @@ export default function ChatPanel({
         return;
       }
 
+      // The server writes the receipt into the thread and hands it back, so the
+      // screen and the stored conversation always say the same thing.
       const failed = (data.results || []).filter((r) => !r.ok);
       const okCount = data.applied || 0;
-      const summary =
-        okCount > 0
+      const fallback =
+        (okCount > 0
           ? `Saved ${okCount} change${okCount === 1 ? "" : "s"}.`
-          : "Nothing was saved.";
-      const detail = failed.length
-        ? ` ${failed.length} failed: ${failed
-            .map((f) => f.error || f.summary)
-            .join("; ")}`
-        : "";
+          : "Nothing was saved.") +
+        (failed.length
+          ? ` ${failed.length} failed: ${failed
+              .map((f) => f.error || f.summary)
+              .join("; ")}`
+          : "");
 
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: summary + detail, kind: "receipt" },
+        { role: "assistant", text: data.receipt || fallback, kind: "receipt" },
       ]);
       setPending(null);
       onApplied?.();
@@ -154,6 +184,23 @@ export default function ChatPanel({
       setError("Network hiccup while saving. Nothing may have been applied.");
     }
     setApplying(false);
+  }
+
+  // Clearing really forgets: the stored thread goes with it, so Aly starts over
+  // too rather than remembering a conversation the user thinks is gone.
+  async function clear() {
+    if (busy || applying) return;
+    setMessages([]);
+    setPending(null);
+    setError("");
+    try {
+      const url = tripId
+        ? `/api/chat/history?tripId=${encodeURIComponent(tripId)}`
+        : "/api/chat/history";
+      await fetch(url, { method: "DELETE" });
+    } catch {
+      setError("Cleared on screen, but the saved conversation may still be there.");
+    }
   }
 
   return (
@@ -183,11 +230,7 @@ export default function ChatPanel({
           {messages.length > 0 && (
             <button
               type="button"
-              onClick={() => {
-                setMessages([]);
-                setPending(null);
-                setError("");
-              }}
+              onClick={clear}
               className="btn btn-ghost px-3 py-1.5 text-xs"
             >
               Clear
@@ -220,7 +263,7 @@ export default function ChatPanel({
         ref={scrollRef}
         className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
       >
-        {messages.length === 0 && !busy && (
+        {messages.length === 0 && !busy && !loadingHistory && (
           <div className="space-y-3">
             <p className="text-sm text-ink-soft">
               {trip ? (

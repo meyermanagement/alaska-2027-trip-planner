@@ -5,6 +5,7 @@ import {
   FAMILY_TABLES,
   REVIEW_TOOLS,
 } from "@/lib/agent/tools";
+import { appendMessage } from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
 
@@ -202,7 +203,26 @@ export async function POST(request) {
   }
 
   const applied = results.filter((r) => r.ok).length;
-  return NextResponse.json({ applied, results, createdSlug });
+
+  // The receipt is part of the conversation, not just a toast. Writing it here
+  // means the transcript — and Aly, on the next turn — knows what was actually
+  // saved rather than only what was proposed.
+  const receipt = describeOutcome(applied, results);
+  await appendMessage(supabase, user.id, tripId, "assistant", receipt, "receipt");
+
+  return NextResponse.json({ applied, results, createdSlug, receipt });
+}
+
+// Plain language, and specific about what failed.
+function describeOutcome(applied, results) {
+  const failed = results.filter((r) => !r.ok);
+  const head =
+    applied > 0
+      ? `Saved ${applied} change${applied === 1 ? "" : "s"}.`
+      : "Nothing was saved.";
+  if (!failed.length) return head;
+  const detail = failed.map((f) => f.error || f.summary).join("; ");
+  return `${head} ${failed.length} failed: ${detail}`;
 }
 
 function slugify(value) {

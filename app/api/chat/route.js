@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generate, GeminiError } from "@/lib/agent/gemini";
+import { generate, ModelError } from "@/lib/agent/llm";
 import {
   buildContext,
   buildSystemPrompt,
   FOCUS_LABELS,
 } from "@/lib/agent/context";
 import { allTools, validateAction } from "@/lib/agent/tools";
+import {
+  CONTEXT_MESSAGES,
+  appendMessage,
+  loadThread,
+  toModelMessages,
+} from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const MAX_TURNS = 12;
 
 export async function POST(request) {
   let payload;
@@ -25,8 +29,11 @@ export async function POST(request) {
   // Which section of the trip the user was looking at. Whitelisted so it can
   // only ever be one of our known tabs.
   const focus = FOCUS_LABELS[payload?.focus] ? payload.focus : null;
-  const history = Array.isArray(payload?.messages) ? payload.messages : [];
-  if (history.length === 0) {
+  // The client sends only what was just typed. The conversation itself lives in
+  // chat_messages, so it survives a reload, a different device, and a change of
+  // model provider.
+  const said = typeof payload?.message === "string" ? payload.message.trim() : "";
+  if (!said) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
 
@@ -55,23 +62,25 @@ export async function POST(request) {
   const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName);
   const tools = allTools();
 
-  const contents = history
-    .slice(-MAX_TURNS)
-    .filter((m) => typeof m?.text === "string" && m.text.trim())
-    .map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: String(m.text).slice(0, 4000) }],
-    }));
+  const threadTripId = snapshot.focusTripId || null;
+  const { messages: past } = await loadThread(
+    supabase,
+    user.id,
+    threadTripId,
+    CONTEXT_MESSAGES
+  );
 
-  if (contents.length === 0 || contents[contents.length - 1].role !== "user") {
-    return NextResponse.json({ error: "Bad request." }, { status: 400 });
-  }
+  const messages = [...toModelMessages(past), { role: "user", text: said }];
+
+  // Store the question before answering it, so a failed or timed-out reply still
+  // leaves the transcript honest about what was asked.
+  await appendMessage(supabase, user.id, threadTripId, "user", said);
 
   let result;
   try {
-    result = await generate({ system, contents, tools });
+    result = await generate({ system, messages, tools });
   } catch (err) {
-    const status = err instanceof GeminiError ? err.status : 502;
+    const status = err instanceof ModelError ? err.status : 502;
     return NextResponse.json(
       { error: err.message || "The assistant is unavailable right now." },
       { status: status === 403 ? 500 : status }
@@ -96,6 +105,17 @@ export async function POST(request) {
     reply = problems.length
       ? problems.join(" ")
       : "I am not sure how to help with that yet.";
+  }
+
+  // What Aly proposed matters as much as what she said, so the transcript keeps
+  // the proposal alongside the reply.
+  const record = actions.length
+    ? [reply, `(Proposed: ${actions.map((a) => a.summary).join("; ")})`]
+        .filter(Boolean)
+        .join("\n\n")
+    : reply;
+  if (record) {
+    await appendMessage(supabase, user.id, threadTripId, "assistant", record);
   }
 
   return NextResponse.json({ reply, actions, problems });
