@@ -11,14 +11,20 @@ import {
   catalogEntry,
 } from "@/lib/rewards-catalog";
 import {
+  CREDIT_PERIODS,
   KIND_ORDER,
   REWARD_KINDS,
-  bestCardFor,
+  creditsFor,
   estimatedValue,
+  formatCredit,
   formatMoney,
   formatPoints,
   formatRule,
+  normalizeCredits,
   normalizeRules,
+  payWithOptions,
+  routeShort,
+  totalCreditValue,
   totalEstimatedValue,
 } from "@/lib/rewards";
 
@@ -45,6 +51,7 @@ const BLANK = {
   status_tier: "",
   annual_fee: "",
   earn_rules: [],
+  credits: [],
   perks: "",
   expiry_note: "",
   notes: "",
@@ -64,6 +71,7 @@ function toForm(row) {
     status_tier: row.status_tier || "",
     annual_fee: row.annual_fee ?? "",
     earn_rules: normalizeRules(row.earn_rules),
+    credits: normalizeCredits(row.credits),
     perks: row.perks || "",
     expiry_note: row.expiry_note || "",
     notes: row.notes || "",
@@ -86,6 +94,7 @@ function toRow(form) {
     status_tier: form.status_tier.trim() || null,
     annual_fee: number(form.annual_fee),
     earn_rules: normalizeRules(form.earn_rules),
+    credits: normalizeCredits(form.credits),
     perks: form.perks.trim() || null,
     expiry_note: form.expiry_note.trim() || null,
     notes: form.notes.trim() || null,
@@ -132,9 +141,12 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
     if (!cards.length) return [];
     return SPENDS.map((spend) => ({
       ...spend,
-      best: bestCardFor(rows, spend.key),
-    })).filter((s) => s.best);
+      options: payWithOptions(rows, spend.key),
+      credits: creditsFor(rows, spend.key),
+    })).filter((s) => s.options.length || s.credits.length);
   }, [rows, cards.length]);
+
+  const creditTotal = useMemo(() => totalCreditValue(rows), [rows]);
 
   async function save() {
     if (!form) return;
@@ -248,10 +260,20 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
             What to pay with
           </h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Worked out from the earning rules on your own cards. Aly uses the
-            same reasoning when she suggests a booking.
+            Worked out from the earning rules on your own cards. Where it
+            matters how you book, each way is listed separately.
+            {creditTotal > 0 && (
+              <>
+                {" "}
+                Statement credits are shown too — up to{" "}
+                <span className="font-semibold text-ink">
+                  {formatMoney(creditTotal)}
+                </span>{" "}
+                a year across your cards, if you use all of them.
+              </>
+            )}
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {payWith.map((spend) => (
               <div
                 key={spend.key}
@@ -260,15 +282,54 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
                 <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
                   {spend.label}
                 </p>
-                <p className="mt-1 text-sm font-semibold">
-                  {spend.best.card.brand}
-                </p>
-                <p className="text-xs text-ink-soft">
-                  {formatRule(spend.best.rule)}
-                </p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {spend.options.map((option, i) => (
+                    <li key={`${option.card.id}-${i}`}>
+                      <p className="text-sm font-semibold leading-snug">
+                        {option.card.brand}
+                        {spend.options.length > 1 && (
+                          <span className="font-normal text-ink-soft">
+                            {" "}
+                            · {routeShort(option.route)}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-ink-soft">
+                        {formatRule(option.rule)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                {spend.credits.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-[var(--line)] pt-2">
+                    {spend.credits.slice(0, 3).map((entry, i) => (
+                      <li
+                        key={`${entry.card.id}-credit-${i}`}
+                        className="text-xs text-ink-soft"
+                      >
+                        <span className="font-semibold text-teal">
+                          {formatMoney(entry.credit.amount)} credit
+                        </span>{" "}
+                        on {entry.card.brand}
+                        {entry.credit.note ? ` — ${entry.credit.note}` : ""}
+                      </li>
+                    ))}
+                    {spend.credits.length > 3 && (
+                      <li className="text-xs text-ink-faint">
+                        and {spend.credits.length - 3} more credit
+                        {spend.credits.length - 3 === 1 ? "" : "s"} that could
+                        apply
+                      </li>
+                    )}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
+          <p className="mt-3 text-xs text-ink-faint">
+            Credits are listed, not counted down: the app does not know what you
+            have already put against one this year.
+          </p>
         </section>
       )}
 
@@ -305,6 +366,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           <div className="mt-3 space-y-3">
             {group.items.map((row) => {
               const rules = normalizeRules(row.earn_rules);
+              const credits = normalizeCredits(row.credits);
               const value = estimatedValue(row);
               const points = formatPoints(row.points_balance);
               return (
@@ -378,6 +440,27 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
                           {formatRule(rule)}
                         </span>
                       ))}
+                    </div>
+                  )}
+
+                  {credits.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/60 px-3 py-2">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                        Statement credits
+                      </p>
+                      <ul className="mt-1 space-y-0.5">
+                        {credits.map((credit, i) => (
+                          <li key={i} className="text-sm text-ink-soft">
+                            <span className="font-semibold text-ink">
+                              {formatMoney(credit.amount)}
+                            </span>{" "}
+                            {formatCredit(credit).replace(
+                              `${formatMoney(credit.amount)} `,
+                              "",
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
 
@@ -521,6 +604,7 @@ function fromCatalog(entry) {
     point_value_cents: entry.point_value_cents ?? "",
     annual_fee: entry.annual_fee ?? "",
     earn_rules: normalizeRules(entry.earn_rules),
+    credits: normalizeCredits(entry.credits),
     perks: entry.perks || "",
     expiry_note: entry.expiry_note || "",
     notes: provenance,
@@ -581,8 +665,9 @@ function ProgramForm({
             ))}
           </select>
           <span className="mt-1 block text-xs text-ink-soft">
-            Fills in the earning rules and a rough value per point. Everything
-            stays editable — check it against your own account.
+            Fills in the earning rules, the statement credits and a rough value
+            per point. Everything stays editable — check it against your own
+            account.
           </span>
         </label>
       )}
@@ -807,6 +892,104 @@ function ProgramForm({
           }
         >
           Add a rule
+        </button>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
+          Statement credits
+        </legend>
+        <p className="text-xs text-ink-soft">
+          Money the card gives back each year, like a travel credit or a Global
+          Entry fee credit. The app lists these next to what to pay with; it
+          does not track how much you have already used.
+        </p>
+        {values.credits.map((credit, i) => (
+          <div key={i} className="flex flex-wrap items-center gap-2">
+            <span className="w-24 shrink-0">
+              <input
+                className="field"
+                type="number"
+                step="1"
+                value={credit.amount}
+                aria-label="Credit amount in dollars"
+                placeholder="300"
+                onChange={(e) => {
+                  const next = [...values.credits];
+                  next[i] = { ...credit, amount: e.target.value };
+                  set({ credits: next });
+                }}
+              />
+            </span>
+            <span className="shrink-0 text-sm text-ink-soft">on</span>
+            <span className="min-w-40 flex-1">
+              <input
+                className="field"
+                value={credit.on}
+                aria-label="What the credit covers"
+                placeholder="travel purchases"
+                onChange={(e) => {
+                  const next = [...values.credits];
+                  next[i] = { ...credit, on: e.target.value };
+                  set({ credits: next });
+                }}
+              />
+            </span>
+            <span className="w-44 shrink-0">
+              <select
+                className="field"
+                value={credit.resets}
+                aria-label="How often it resets"
+                onChange={(e) => {
+                  const next = [...values.credits];
+                  next[i] = { ...credit, resets: e.target.value };
+                  set({ credits: next });
+                }}
+              >
+                {CREDIT_PERIODS.map((period) => (
+                  <option key={period.key} value={period.key}>
+                    {period.label}
+                  </option>
+                ))}
+              </select>
+            </span>
+            <span className="min-w-32 flex-1">
+              <input
+                className="field"
+                value={credit.note}
+                aria-label="Any condition"
+                placeholder="enrollment required"
+                onChange={(e) => {
+                  const next = [...values.credits];
+                  next[i] = { ...credit, note: e.target.value };
+                  set({ credits: next });
+                }}
+              />
+            </span>
+            <button
+              type="button"
+              className="text-xs font-semibold text-rose"
+              onClick={() =>
+                set({ credits: values.credits.filter((_, j) => j !== i) })
+              }
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() =>
+            set({
+              credits: [
+                ...values.credits,
+                { amount: "", on: "", resets: "annual", note: "" },
+              ],
+            })
+          }
+        >
+          Add a credit
         </button>
       </fieldset>
 
