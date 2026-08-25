@@ -339,11 +339,15 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                         >
                           {task.assignee}
                         </span>
-                        {!task.is_done && priorityChip(task) && (
-                          <span className={`chip ${priorityChip(task).cls}`}>
-                            {priorityChip(task).label}
+                        <span className={`chip ${priorityChip(task).cls}`}>
+                          <span
+                            aria-hidden="true"
+                            className="mr-1 text-[0.6rem]"
+                          >
+                            {priorityChip(task).mark}
                           </span>
-                        )}
+                          {priorityChip(task).label}
+                        </span>
                         {task.due_date && (
                           <span className="chip bg-amber/15 text-amber">
                             Due {formatShortDay(task.due_date)}
