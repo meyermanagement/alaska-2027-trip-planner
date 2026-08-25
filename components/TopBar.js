@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { countNeedingAttention, todayISO } from "@/lib/reminders";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger from "./AskAlyTrigger";
 import NavTabs from "./NavTabs";
@@ -6,7 +8,16 @@ import NavTabs from "./NavTabs";
 // Pass nothing and the button opens the Ask Aly drawer on the current screen,
 // which is what every signed-in screen does. `askHref` is kept for any screen
 // that has no drawer mounted and needs to link somewhere instead.
-export default function TopBar({ askHref, showAsk = true }) {
+export default async function TopBar({ askHref, showAsk = true }) {
+  // The menu carries the one number worth interrupting someone for: how many
+  // open tasks are late or urgent. It is read here, once, for every screen.
+  const supabase = await createClient();
+  const { data: rows } = await supabase
+    .from("predeparture_tasks")
+    .select("due_date, timing, priority, trips(start_date, end_date, status)")
+    .eq("is_done", false);
+  const attention = countNeedingAttention(rows || [], todayISO());
+
   return (
     <header className="no-print sticky top-0 z-20 border-b border-[var(--line)] bg-sand/80 backdrop-blur-md">
       <div className="mx-auto max-w-5xl px-5 pt-3">
@@ -19,7 +30,7 @@ export default function TopBar({ askHref, showAsk = true }) {
           </Link>
           {showAsk && <AskAlyTrigger href={askHref} />}
         </div>
-        <NavTabs />
+        <NavTabs attention={attention} />
       </div>
     </header>
   );
