@@ -6,7 +6,7 @@ import {
   buildSystemPrompt,
   FOCUS_LABELS,
 } from "@/lib/agent/context";
-import { allTools, validateAction } from "@/lib/agent/tools";
+import { allTools, validateAction, pendingTripNames } from "@/lib/agent/tools";
 import {
   CONTEXT_MESSAGES,
   appendMessage,
@@ -32,7 +32,8 @@ export async function POST(request) {
   // The client sends only what was just typed. The conversation itself lives in
   // chat_messages, so it survives a reload, a different device, and a change of
   // model provider.
-  const said = typeof payload?.message === "string" ? payload.message.trim() : "";
+  const said =
+    typeof payload?.message === "string" ? payload.message.trim() : "";
   if (!said) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
@@ -42,7 +43,10 @@ export async function POST(request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Please sign in again." },
+      { status: 401 },
+    );
   }
 
   const { data: profileRow } = await supabase
@@ -67,7 +71,7 @@ export async function POST(request) {
     supabase,
     user.id,
     threadTripId,
-    CONTEXT_MESSAGES
+    CONTEXT_MESSAGES,
   );
 
   const messages = [...toModelMessages(past), { role: "user", text: said }];
@@ -83,18 +87,22 @@ export async function POST(request) {
     const status = err instanceof ModelError ? err.status : 502;
     return NextResponse.json(
       { error: err.message || "The assistant is unavailable right now." },
-      { status: status === 403 ? 500 : status }
+      { status: status === 403 ? 500 : status },
     );
   }
 
   const actions = [];
   const problems = [];
+  // A trip being created in this same turn has no id yet, so the itinerary and
+  // packing rows that came with it are filed against its name instead.
+  const pendingTrips = pendingTripNames(result.calls);
   for (const call of result.calls) {
     const { action, error } = validateAction(call, {
       travelerNames: ctx.travelerNames,
       travelerIds: ctx.travelerIds,
       known: ctx.known,
       focusTripId: ctx.focusTripId,
+      pendingTrips,
     });
     if (action) actions.push(action);
     else if (error) problems.push(error);
@@ -123,38 +131,43 @@ export async function POST(request) {
 
 // Everything the family has, in one snapshot. RLS keeps it to their own rows.
 async function loadEverything(supabase, userName, focusTripId) {
-  const [trips, itinerary, packing, tasks, notes, travelers, rosters, preferences] =
-    await Promise.all([
-      supabase
-        .from("trips")
-        .select("*")
-        .order("start_date", { ascending: true }),
-      supabase
-        .from("itinerary_items")
-        .select("*")
-        .order("item_date", { ascending: true })
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("packing_items")
-        .select("*")
-        .order("category", { ascending: true })
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("predeparture_tasks")
-        .select("*")
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("trip_notes")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase.from("travelers").select("id, name").order("sort_order"),
-      supabase.from("trip_travelers").select("trip_id, traveler_id"),
-      supabase
-        .from("travel_preferences")
-        .select("id, topic, body, traveler_id")
-        .order("topic", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: true }),
-    ]);
+  const [
+    trips,
+    itinerary,
+    packing,
+    tasks,
+    notes,
+    travelers,
+    rosters,
+    preferences,
+  ] = await Promise.all([
+    supabase.from("trips").select("*").order("start_date", { ascending: true }),
+    supabase
+      .from("itinerary_items")
+      .select("*")
+      .order("item_date", { ascending: true })
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("packing_items")
+      .select("*")
+      .order("category", { ascending: true })
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("predeparture_tasks")
+      .select("*")
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("trip_notes")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase.from("travelers").select("id, name").order("sort_order"),
+    supabase.from("trip_travelers").select("trip_id, traveler_id"),
+    supabase
+      .from("travel_preferences")
+      .select("id, topic, body, traveler_id")
+      .order("topic", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true }),
+  ]);
 
   return buildContext({
     trips: trips.data || [],

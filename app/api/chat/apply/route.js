@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   validateAction,
+  pendingTripNames,
   FAMILY_TABLES,
   REVIEW_TOOLS,
 } from "@/lib/agent/tools";
@@ -31,7 +32,7 @@ export async function POST(request) {
       {
         error: `That is ${incoming.length} changes at once, and ${MAX_ACTIONS} is the limit. Send it in a couple of smaller pieces.`,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -40,7 +41,10 @@ export async function POST(request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Please sign in again." },
+      { status: 401 },
+    );
   }
 
   // The family this user writes into. RLS enforces it too; we need the id.
@@ -50,7 +54,10 @@ export async function POST(request) {
     .eq("user_id", user.id);
   const familyId = memberships?.[0]?.family_id;
   if (!familyId) {
-    return NextResponse.json({ error: "No family group found." }, { status: 403 });
+    return NextResponse.json(
+      { error: "No family group found." },
+      { status: 403 },
+    );
   }
 
   if (tripId) {
@@ -88,19 +95,24 @@ export async function POST(request) {
     packing_items: new Map((pack.data || []).map((r) => [r.id, r.item])),
     predeparture_tasks: new Map((task.data || []).map((r) => [r.id, r.title])),
     trip_notes: new Map(
-      (notes.data || []).map((r) => [r.id, (r.title || r.body || "").slice(0, 60)])
+      (notes.data || []).map((r) => [
+        r.id,
+        (r.title || r.body || "").slice(0, 60),
+      ]),
     ),
     trips: new Map((trips.data || []).map((r) => [r.id, r.name])),
     travel_preferences: new Map(
-      (prefs.data || []).map((r) => [r.id, (r.body || "").slice(0, 60)])
+      (prefs.data || []).map((r) => [r.id, (r.body || "").slice(0, 60)]),
     ),
     rowTrip,
   };
   const travelerNames = Array.from(
-    new Set([...(travelers.data || []).map((t) => t.name), "Shared"])
+    new Set([...(travelers.data || []).map((t) => t.name), "Shared"]),
   );
   const travelerIds = new Map(
-    (travelers.data || []).filter((t) => t.id && t.name).map((t) => [t.name, t.id])
+    (travelers.data || [])
+      .filter((t) => t.id && t.name)
+      .map((t) => [t.name, t.id]),
   );
 
   const { data: profile } = await supabase
@@ -113,15 +125,36 @@ export async function POST(request) {
   // Trips created in this batch, so the client can navigate to a new one.
   let createdSlug = null;
 
-  for (const raw of incoming) {
+  // A trip has to exist before anything can go inside it, so new trips are
+  // written first no matter what order they arrived in. Everything else keeps
+  // the order the family approved it in.
+  const ordered = [
+    ...incoming.filter((a) => a?.tool === "create_trip"),
+    ...incoming.filter((a) => a?.tool !== "create_trip"),
+  ];
+  // Names of trips this batch is about to create, so their contents validate
+  // against a trip that does not have an id yet.
+  const pendingTrips = pendingTripNames(ordered);
+
+  for (const raw of ordered) {
     // Revalidate from scratch rather than trusting the client's patch.
     const { action, error } = validateAction(
       { name: raw?.tool, args: { ...(raw?.patch || {}), id: raw?.id } },
-      { travelerNames, travelerIds, known, focusTripId: tripId }
+      { travelerNames, travelerIds, known, focusTripId: tripId, pendingTrips },
     );
 
     if (!action) {
       results.push({ ok: false, summary: raw?.summary || "Change", error });
+      continue;
+    }
+
+    // Its trip was approved in a different chunk that has not been applied yet.
+    if (action.needsTrip) {
+      results.push({
+        ok: false,
+        summary: action.summary,
+        error: `Approve the new trip “${action.needsTrip}” first, then this will save into it.`,
+      });
       continue;
     }
 
@@ -139,6 +172,12 @@ export async function POST(request) {
         });
         dbError = outcome.error;
         if (outcome.slug) createdSlug = outcome.slug;
+        // The trip now exists, so the rows that named it can resolve to its id.
+        if (!outcome.error && tool === "create_trip" && outcome.id) {
+          known.trips.set(outcome.id, patch.name);
+          const at = pendingTrips.indexOf(patch.name);
+          if (at >= 0) pendingTrips.splice(at, 1);
+        }
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.
         if (tool.startsWith("delete_")) {
@@ -168,10 +207,7 @@ export async function POST(request) {
         const { error: e } = await query;
         dbError = e;
       } else if (tool.startsWith("delete_")) {
-        const { error: e } = await supabase
-          .from(table)
-          .delete()
-          .eq("id", id);
+        const { error: e } = await supabase.from(table).delete().eq("id", id);
         dbError = e;
       } else if (tool.startsWith("update_")) {
         const row = { ...patch };
@@ -205,7 +241,7 @@ export async function POST(request) {
     results.push(
       dbError
         ? { ok: false, summary: action.summary, error: dbError.message }
-        : { ok: true, summary: action.summary }
+        : { ok: true, summary: action.summary },
     );
   }
 
@@ -215,7 +251,14 @@ export async function POST(request) {
   // means the transcript — and Aly, on the next turn — knows what was actually
   // saved rather than only what was proposed.
   const receipt = describeOutcome(applied, results);
-  await appendMessage(supabase, user.id, tripId, "assistant", receipt, "receipt");
+  await appendMessage(
+    supabase,
+    user.id,
+    tripId,
+    "assistant",
+    receipt,
+    "receipt",
+  );
 
   return NextResponse.json({ applied, results, createdSlug, receipt });
 }
@@ -291,14 +334,14 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
     }
   }
 
-  return { error: null, slug: trip.slug };
+  return { error: null, slug: trip.slug, id: trip.id };
 }
 
 // Slugs are how trips are addressed in the URL, so keep them unique.
 async function freeSlug(supabase, base, excludeId) {
   const { data } = await supabase.from("trips").select("id, slug");
   const taken = new Set(
-    (data || []).filter((t) => t.id !== excludeId).map((t) => t.slug)
+    (data || []).filter((t) => t.id !== excludeId).map((t) => t.slug),
   );
   if (!taken.has(base)) return base;
   for (let n = 2; n < 50; n++) {

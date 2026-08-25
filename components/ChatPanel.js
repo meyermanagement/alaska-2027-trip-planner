@@ -375,6 +375,15 @@ export default function ChatPanel({
             {pending.groups.map((group) => {
               const saving = applyingKey === group.key;
               const count = group.actions.length;
+              // Contents of a trip that has not been created yet cannot be
+              // saved until that trip's own chunk has been approved.
+              const waitingOn =
+                group.needsTrip &&
+                pending.groups.some((g) =>
+                  g.actions.some((a) => a.createsTrip === group.needsTrip),
+                )
+                  ? group.needsTrip
+                  : null;
               return (
                 <div
                   key={group.key}
@@ -404,11 +413,17 @@ export default function ChatPanel({
                       </li>
                     ))}
                   </ul>
+                  {waitingOn && (
+                    <p className="mt-2 text-xs text-ink-soft">
+                      These go inside {waitingOn}. Create that trip first and
+                      this will unlock.
+                    </p>
+                  )}
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
                       onClick={() => apply(group)}
-                      disabled={applying}
+                      disabled={applying || Boolean(waitingOn)}
                       className={`btn px-4 py-1.5 text-sm ${
                         group.destructive
                           ? "bg-rose text-white hover:bg-[#8c364e]"
