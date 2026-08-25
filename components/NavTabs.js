@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 // The main menu. Trips is home; the other two are for looking things up.
 const TABS = [
   { href: "/trips", label: "Trips" },
-  { href: "/reviews", label: "Reviews" },
+  // The address stays /reviews; the page grew to hold standing preferences too.
+  { href: "/reviews", label: "Preferences & Reviews" },
   { href: "/people", label: "People" },
 ];
 
