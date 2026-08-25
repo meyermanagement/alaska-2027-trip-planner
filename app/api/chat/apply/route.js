@@ -6,7 +6,7 @@ import {
   FAMILY_TABLES,
   REVIEW_TOOLS,
 } from "@/lib/agent/tools";
-import { appendMessage } from "@/lib/agent/thread";
+import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 
 export const runtime = "nodejs";
@@ -271,14 +271,24 @@ export async function POST(request) {
   // means the transcript — and Aly, on the next turn — knows what was actually
   // saved rather than only what was proposed.
   const receipt = describeOutcome(applied, results);
-  await appendMessage(
-    supabase,
-    user.id,
+  // It belongs to the conversation the changes were proposed in, so an id the
+  // client did not send, or one belonging to someone else, gets a conversation of
+  // its own rather than dropping the receipt on the floor.
+  const { id: conversationId } = await ensureConversation(supabase, user.id, {
+    conversationId:
+      typeof payload?.conversationId === "string"
+        ? payload.conversationId
+        : null,
     tripId,
-    "assistant",
-    receipt,
-    "receipt",
-  );
+  });
+  await appendMessage(supabase, {
+    userId: user.id,
+    conversationId,
+    tripId,
+    role: "assistant",
+    body: receipt,
+    kind: "receipt",
+  });
 
   return NextResponse.json({
     applied,
@@ -286,6 +296,7 @@ export async function POST(request) {
     createdSlug,
     packingTripId,
     receipt,
+    conversationId,
   });
 }
 

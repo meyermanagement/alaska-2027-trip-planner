@@ -11,7 +11,10 @@ import { allTools, validateAction, pendingTripNames } from "@/lib/agent/tools";
 import {
   CONTEXT_MESSAGES,
   appendMessage,
+  ensureConversation,
+  listConversations,
   loadThread,
+  recallOtherConversations,
   toModelMessages,
 } from "@/lib/agent/thread";
 
@@ -64,22 +67,67 @@ export async function POST(request) {
     return NextResponse.json({ error: "Trip not found." }, { status: 404 });
   }
   const ctx = snapshot;
-  const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName);
-  const tools = allTools();
-
   const threadTripId = snapshot.focusTripId || null;
+
+  // Which conversation this belongs to. The client sends one it picked from the
+  // list, or nothing at all, in which case a new one starts here and its id goes
+  // back with the reply.
+  const { id: conversationId } = await ensureConversation(supabase, user.id, {
+    conversationId:
+      typeof payload?.conversationId === "string"
+        ? payload.conversationId
+        : null,
+    tripId: threadTripId,
+    focus,
+  });
+  if (!conversationId) {
+    return NextResponse.json(
+      { error: "Could not open that conversation." },
+      { status: 500 },
+    );
+  }
+
   const { messages: past } = await loadThread(
     supabase,
-    user.id,
-    threadTripId,
+    conversationId,
     CONTEXT_MESSAGES,
   );
+
+  // Conversations are separate, but not sealed off from each other: Aly is told
+  // what the others were about, and the words of this question are used to pull
+  // the closest lines out of them. Best effort — a failure here only costs her
+  // the cross-reference, so it must never cost the answer.
+  let extras = {};
+  try {
+    const [{ conversations }, { hits }] = await Promise.all([
+      listConversations(supabase, 20),
+      recallOtherConversations(supabase, {
+        message: said,
+        exclude: conversationId,
+      }),
+    ]);
+    extras = {
+      others: (conversations || []).filter((c) => c.id !== conversationId),
+      recall: hits || [],
+    };
+  } catch {
+    extras = {};
+  }
+
+  const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName, extras);
+  const tools = allTools();
 
   const messages = [...toModelMessages(past), { role: "user", text: said }];
 
   // Store the question before answering it, so a failed or timed-out reply still
   // leaves the transcript honest about what was asked.
-  await appendMessage(supabase, user.id, threadTripId, "user", said);
+  await appendMessage(supabase, {
+    userId: user.id,
+    conversationId,
+    tripId: threadTripId,
+    role: "user",
+    body: said,
+  });
 
   let result;
   try {
@@ -125,10 +173,16 @@ export async function POST(request) {
         .join("\n\n")
     : reply;
   if (record) {
-    await appendMessage(supabase, user.id, threadTripId, "assistant", record);
+    await appendMessage(supabase, {
+      userId: user.id,
+      conversationId,
+      tripId: threadTripId,
+      role: "assistant",
+      body: record,
+    });
   }
 
-  return NextResponse.json({ reply, actions, problems });
+  return NextResponse.json({ reply, actions, problems, conversationId });
 }
 
 // Everything the family has, in one snapshot. RLS keeps it to their own rows.

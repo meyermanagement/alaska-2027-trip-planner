@@ -5,17 +5,33 @@ import { TRANSCRIPT_MESSAGES, loadThread } from "@/lib/agent/thread";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// The transcript for one thread: a trip, or the all-trips view when tripId is
-// absent. Private per person — RLS on chat_messages does the enforcing.
+// The transcript of one conversation. Private per person — RLS on chat_messages
+// does the enforcing, so an id belonging to someone else simply reads as empty.
 export async function GET(request) {
-  const { supabase, user, error } = await session();
+  const { supabase, error } = await session();
   if (error) return error;
 
-  const tripId = tripFrom(request);
+  const params = new URL(request.url).searchParams;
+  const conversationId = clean(params.get("conversationId"));
+  if (!conversationId) {
+    return NextResponse.json({ messages: [], conversation: null });
+  }
+
+  const { data: conversation } = await supabase
+    .from("chat_conversations")
+    .select("id, title, trip_id, focus, created_at, updated_at")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (!conversation?.id) {
+    return NextResponse.json(
+      { error: "That conversation is no longer there." },
+      { status: 404 },
+    );
+  }
+
   const { messages, error: loadError } = await loadThread(
     supabase,
-    user.id,
-    tripId,
+    conversationId,
     TRANSCRIPT_MESSAGES,
   );
   if (loadError) {
@@ -26,7 +42,14 @@ export async function GET(request) {
   }
 
   return NextResponse.json({
+    conversation: {
+      id: conversation.id,
+      title: conversation.title,
+      tripId: conversation.trip_id,
+      focus: conversation.focus,
+    },
     messages: messages.map((m) => ({
+      id: m.id,
       role: m.role,
       text: m.body,
       kind: m.kind || undefined,
@@ -34,11 +57,10 @@ export async function GET(request) {
   });
 }
 
-// There is deliberately no way to delete a thread: the family always wants Aly
-// to keep the context of what was already said.
-function tripFrom(request) {
-  const value = new URL(request.url).searchParams.get("tripId");
-  return value && value !== "null" ? value : null;
+// There is deliberately no way to delete a conversation: the family always wants
+// Aly to keep the context of what was already said.
+function clean(value) {
+  return value && value !== "null" && value !== "undefined" ? value : null;
 }
 
 async function session() {

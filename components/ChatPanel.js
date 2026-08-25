@@ -78,9 +78,16 @@ export default function ChatPanel({
   trip,
   onApplied,
   onClose,
+  onBack,
   focus,
   seed,
   autoSendSeed = false,
+  // The conversation being read. Null means a new one, which has no id until the
+  // first reply comes back and tells us what it was filed as.
+  conversationId = null,
+  conversationTitle = null,
+  conversationTripName = null,
+  onConversationStarted,
   fill = false,
 }) {
   const [messages, setMessages] = useState([]);
@@ -97,18 +104,40 @@ export default function ChatPanel({
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const tripId = trip?.id || null;
+  // Held in a ref as well as a prop because a brand-new conversation gets its id
+  // mid-flight, and the very next request — approving a card, say — has to be
+  // filed against it rather than starting a second one.
+  const conversationRef = useRef(conversationId);
+  useEffect(() => {
+    conversationRef.current = conversationId;
+  }, [conversationId]);
+  // A conversation that started here is already on screen. Remembering that it
+  // was ours stops the id arriving from the server from reading the whole thing
+  // back and throwing away what is already there.
+  const startedHereRef = useRef(null);
 
-  // The conversation lives in the database, so reopening Aly picks up where the
-  // last one left off — same on a phone as on a laptop.
+  // Conversations live in the database, so picking one from the list reads back
+  // exactly what was said — same on a phone as on a laptop.
   useEffect(() => {
     let alive = true;
-    setLoadingHistory(true);
+    if (conversationId && conversationId === startedHereRef.current) {
+      setLoadingHistory(false);
+      return () => {
+        alive = false;
+      };
+    }
     setMessages([]);
     setPending(null);
-    const url = tripId
-      ? `/api/chat/history?tripId=${encodeURIComponent(tripId)}`
-      : "/api/chat/history";
-    fetch(url)
+    if (!conversationId) {
+      setLoadingHistory(false);
+      return () => {
+        alive = false;
+      };
+    }
+    setLoadingHistory(true);
+    fetch(
+      `/api/chat/history?conversationId=${encodeURIComponent(conversationId)}`,
+    )
       .then((res) => (res.ok ? res.json() : { messages: [] }))
       .then((data) => {
         if (!alive) return;
@@ -121,7 +150,7 @@ export default function ChatPanel({
     return () => {
       alive = false;
     };
-  }, [tripId]);
+  }, [conversationId]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -175,9 +204,18 @@ export default function ChatPanel({
           tripId,
           focus,
           message: clean,
+          conversationId: conversationRef.current,
         }),
       });
       const data = await readReply(res);
+
+      // A new conversation is filed by the server on the first message, so the
+      // rest of this one goes to the same place.
+      if (data?.conversationId && !conversationRef.current) {
+        conversationRef.current = data.conversationId;
+        startedHereRef.current = data.conversationId;
+        onConversationStarted?.(data.conversationId);
+      }
 
       if (!res.ok) {
         setError(data?.error || "The assistant is unavailable right now.");
@@ -223,6 +261,7 @@ export default function ChatPanel({
         body: JSON.stringify({
           tripId,
           actions: group.actions,
+          conversationId: conversationRef.current,
         }),
       });
       const data = await readReply(res);
@@ -277,7 +316,11 @@ export default function ChatPanel({
       const res = await fetch("/api/packing/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tripId: newTripId, replace: true }),
+        body: JSON.stringify({
+          tripId: newTripId,
+          replace: true,
+          conversationId: conversationRef.current,
+        }),
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.receipt) {
@@ -311,17 +354,41 @@ export default function ChatPanel({
     >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back to your conversations"
+              title="Your conversations"
+              className="-ml-1 shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M11.5 5 6.5 10l5 5" />
+              </svg>
+            </button>
+          ) : null}
           <AlyeskaMark className="h-7 w-7 shrink-0 text-teal" />
           <div className="min-w-0">
-            <h2 className="font-display text-base font-semibold leading-none">
-              Ask Aly
+            <h2 className="truncate font-display text-base font-semibold leading-none">
+              {conversationTitle || "Ask Aly"}
             </h2>
             <p className="mt-1 truncate text-xs text-ink-soft">
-              {trip
-                ? trip.name
+              {conversationId
+                ? conversationTripName || (trip ? trip.name : "All trips")
                 : focus === "new_trip"
                   ? "A new trip"
-                  : "All trips"}
+                  : conversationTripName || trip?.name
+                    ? `New conversation · ${conversationTripName || trip.name}`
+                    : "New conversation"}
               {trip && SECTION_LABELS[focus]
                 ? ` · ${SECTION_LABELS[focus]}`
                 : ""}

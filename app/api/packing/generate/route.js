@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildPackingList } from "@/lib/packing/generate";
-import { appendMessage } from "@/lib/agent/thread";
+import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -89,14 +89,21 @@ export async function POST(request) {
   let receipt = null;
   if (replace && result.source === "generated" && result.count) {
     receipt = `Packing list worked out as well — ${result.count} items for ${trip.name}, from what you packed on past trips and where this one goes at that time of year.`;
-    await appendMessage(
-      supabase,
-      user.id,
-      trip.id,
-      "assistant",
-      receipt,
-      "receipt",
-    );
+    const { id: conversationId } = await ensureConversation(supabase, user.id, {
+      conversationId:
+        typeof payload?.conversationId === "string"
+          ? payload.conversationId
+          : null,
+      tripId: trip.id,
+    });
+    await appendMessage(supabase, {
+      userId: user.id,
+      conversationId,
+      tripId: trip.id,
+      role: "assistant",
+      body: receipt,
+      kind: "receipt",
+    });
   }
 
   return NextResponse.json({ ...result, receipt });
