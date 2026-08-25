@@ -9,7 +9,7 @@ import {
   TIMING_ORDER,
   assigneeColor,
   formatShortDay,
-  priorityChip,
+  priorityMeter,
   priorityOf,
   priorityRank,
 } from "@/lib/format";
@@ -38,6 +38,9 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
   // A finished task has no urgency left, so it neither jumps the queue nor keeps
   // its badge — it just sits where it was.
   const rank = (task) => (task.is_done ? 1 : priorityRank(task));
+
+  // The bars are quiet on purpose, so say once what they mean.
+  const legend = ["low", "normal", "high"];
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -197,6 +200,16 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
         <button className="btn btn-primary">Add</button>
       </form>
 
+      <div className="mb-3 flex items-center gap-4 px-1 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+        <span>Priority</span>
+        {legend.map((level) => (
+          <span key={level} className="flex items-center gap-1.5">
+            <PriorityMeter task={{ priority: level }} />
+            {level}
+          </span>
+        ))}
+      </div>
+
       <div className="space-y-4">
         {grouped.map(([timing, rows]) => (
           <div key={timing} className="card overflow-hidden">
@@ -325,6 +338,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                       onChange={() => toggle(task)}
                       aria-label={`Mark ${task.title} done`}
                     />
+                    <PriorityMeter task={task} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
@@ -338,15 +352,6 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                           className={`chip ${assigneeColor(task.assignee)}`}
                         >
                           {task.assignee}
-                        </span>
-                        <span className={`chip ${priorityChip(task).cls}`}>
-                          <span
-                            aria-hidden="true"
-                            className="mr-1 text-[0.6rem]"
-                          >
-                            {priorityChip(task).mark}
-                          </span>
-                          {priorityChip(task).label}
                         </span>
                         {task.due_date && (
                           <span className="chip bg-amber/15 text-amber">
@@ -394,5 +399,31 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
         )}
       </div>
     </section>
+  );
+}
+
+// Three bars, lit from the bottom up: one for low, two for normal, three for
+// high. Small enough to sit in front of the task without competing with it.
+function PriorityMeter({ task }) {
+  const meter = priorityMeter(task);
+  const heights = ["h-2", "h-3", "h-4"];
+  return (
+    <span
+      title={meter.label}
+      className={`mt-1 flex shrink-0 items-end gap-[2px] ${
+        task.is_done ? "opacity-40" : ""
+      }`}
+    >
+      <span className="sr-only">{meter.label}</span>
+      {heights.map((h, i) => (
+        <span
+          key={h}
+          aria-hidden="true"
+          className={`w-[4px] rounded-sm ${h} ${
+            i < meter.lit ? meter.on : meter.off
+          }`}
+        />
+      ))}
+    </span>
   );
 }
