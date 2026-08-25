@@ -7,8 +7,12 @@ import {
   REVIEW_TOOLS,
 } from "@/lib/agent/tools";
 import { appendMessage } from "@/lib/agent/thread";
+import { WIPE_TOOLS } from "@/lib/agent/groups";
 
 export const runtime = "nodejs";
+// Writing eighty rows one at a time can outlast the default budget, and a
+// timeout here reads to the family as a network error.
+export const maxDuration = 60;
 
 // High enough that a whole pasted itinerary or a full family packing list goes
 // in one card, low enough that a runaway model cannot rewrite the trip.
@@ -126,12 +130,15 @@ export async function POST(request) {
   let createdSlug = null;
 
   // A trip has to exist before anything can go inside it, so new trips are
-  // written first no matter what order they arrived in. Everything else keeps
-  // the order the family approved it in.
-  const ordered = [
-    ...incoming.filter((a) => a?.tool === "create_trip"),
-    ...incoming.filter((a) => a?.tool !== "create_trip"),
-  ];
+  // written first no matter what order they arrived in. Emptying a list comes
+  // next, so a replacement list written in the same batch survives the wipe.
+  // Everything else keeps the order the family approved it in.
+  const rank = (a) =>
+    a?.tool === "create_trip" ? 0 : WIPE_TOOLS.has(a?.tool) ? 1 : 2;
+  const ordered = incoming
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => rank(x.a) - rank(y.a) || x.i - y.i)
+    .map(({ a }) => a);
   // Names of trips this batch is about to create, so their contents validate
   // against a trip that does not have an id yet.
   const pendingTrips = pendingTripNames(ordered);
@@ -178,6 +185,13 @@ export async function POST(request) {
           const at = pendingTrips.indexOf(patch.name);
           if (at >= 0) pendingTrips.splice(at, 1);
         }
+      } else if (tool === "clear_packing_list") {
+        // One statement instead of forty deletes.
+        const { error: e } = await supabase
+          .from(table)
+          .delete()
+          .eq("trip_id", patch.trip_id);
+        dbError = e;
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.
         if (tool.startsWith("delete_")) {

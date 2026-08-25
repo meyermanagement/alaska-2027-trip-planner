@@ -7,6 +7,7 @@ import {
 } from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // The transcript for one thread: a trip, or the all-trips view when tripId is
 // absent. Private per person — RLS on chat_messages does the enforcing.
@@ -19,10 +20,13 @@ export async function GET(request) {
     supabase,
     user.id,
     tripId,
-    TRANSCRIPT_MESSAGES
+    TRANSCRIPT_MESSAGES,
   );
   if (loadError) {
-    return NextResponse.json({ error: "Could not load the conversation." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not load the conversation." },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({
@@ -39,9 +43,16 @@ export async function DELETE(request) {
   const { supabase, user, error } = await session();
   if (error) return error;
 
-  const { error: delError } = await clearThread(supabase, user.id, tripFrom(request));
+  const { error: delError } = await clearThread(
+    supabase,
+    user.id,
+    tripFrom(request),
+  );
   if (delError) {
-    return NextResponse.json({ error: "Could not clear the conversation." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not clear the conversation." },
+      { status: 500 },
+    );
   }
   return NextResponse.json({ ok: true });
 }
@@ -58,7 +69,10 @@ async function session() {
   } = await supabase.auth.getUser();
   if (!user) {
     return {
-      error: NextResponse.json({ error: "Please sign in again." }, { status: 401 }),
+      error: NextResponse.json(
+        { error: "Please sign in again." },
+        { status: 401 },
+      ),
     };
   }
   return { supabase, user, error: null };

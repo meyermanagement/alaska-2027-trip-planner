@@ -40,6 +40,34 @@ const SECTION_LABELS = {
   notes: "Notes",
 };
 
+// A dead gateway or a killed function answers with HTML, or with nothing at
+// all, so reading it as JSON throws and the real story is lost. This keeps the
+// status and turns it into something true.
+async function readReply(res) {
+  const body = await res.text();
+  let data = null;
+  try {
+    data = body ? JSON.parse(body) : null;
+  } catch {
+    /* not JSON: a gateway or proxy answered, not our route */
+  }
+  if (data && typeof data === "object") return data;
+  if (res.status === 504 || res.status === 502 || res.status === 503) {
+    return {
+      error:
+        "That took too long to finish. Try it in two smaller pieces — a long list is easier in halves.",
+    };
+  }
+  if (res.status === 413) {
+    return { error: "That was too much to send at once. Try it in halves." };
+  }
+  return {
+    error: res.ok
+      ? "I could not read the answer that came back. Try that again."
+      : `Something went wrong on the way back (${res.status}). Try that again.`,
+  };
+}
+
 export default function ChatPanel({
   trip,
   onApplied,
@@ -123,7 +151,7 @@ export default function ChatPanel({
           message: clean,
         }),
       });
-      const data = await res.json();
+      const data = await readReply(res);
 
       if (!res.ok) {
         setError(data?.error || "The assistant is unavailable right now.");
@@ -149,7 +177,9 @@ export default function ChatPanel({
         setError(data.problems.join(" "));
       }
     } catch {
-      setError("Network hiccup. Try that again.");
+      setError(
+        "I could not reach the app just then. Check your signal and try again.",
+      );
     }
     setBusy(false);
   }
@@ -169,7 +199,7 @@ export default function ChatPanel({
           actions: group.actions,
         }),
       });
-      const data = await res.json();
+      const data = await readReply(res);
 
       if (!res.ok) {
         setError(data?.error || "Could not save those changes.");
@@ -384,6 +414,15 @@ export default function ChatPanel({
                 )
                   ? group.needsTrip
                   : null;
+              // A new list cannot be saved before the old one is emptied, or
+              // the emptying would take the new list with it.
+              const waitingForWipe =
+                !waitingOn &&
+                group.waitsForWipe &&
+                pending.groups.some(
+                  (g) => g.wipes && g.category === group.category,
+                );
+              const blocked = Boolean(waitingOn) || waitingForWipe;
               return (
                 <div
                   key={group.key}
@@ -419,11 +458,17 @@ export default function ChatPanel({
                       this will unlock.
                     </p>
                   )}
+                  {waitingForWipe && (
+                    <p className="mt-2 text-xs text-ink-soft">
+                      This is the replacement list. Empty the old one above
+                      first, then this will unlock.
+                    </p>
+                  )}
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
                       onClick={() => apply(group)}
-                      disabled={applying || Boolean(waitingOn)}
+                      disabled={applying || blocked}
                       className={`btn px-4 py-1.5 text-sm ${
                         group.destructive
                           ? "bg-rose text-white hover:bg-[#8c364e]"
