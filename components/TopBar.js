@@ -18,10 +18,14 @@ export default async function TopBar({ askHref, showAsk = true }) {
     .eq("is_done", false);
   const attention = countNeedingAttention(rows || [], todayISO());
 
+  // The menu is a sibling of the header, not a child: the header blurs what is
+  // behind it, and a blurred element becomes the frame its fixed children are
+  // positioned against, which would nail the menu to the top of the screen
+  // instead of the bottom of the window.
   return (
-    <header className="no-print sticky top-0 z-20 border-b border-[var(--line)] bg-sand/80 backdrop-blur-md">
-      <div className="mx-auto max-w-5xl px-5 pt-3">
-        <div className="flex items-center justify-between gap-3 pb-2.5">
+    <>
+      <header className="no-print sticky top-0 z-20 border-b border-[var(--line)] bg-sand/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-3">
           <Link href="/trips" className="flex items-center gap-2.5 text-ink">
             <AlyeskaMark className="h-7 w-7 shrink-0" />
             <span className="font-display text-[1.1rem] font-semibold tracking-[0.005em]">
@@ -30,8 +34,8 @@ export default async function TopBar({ askHref, showAsk = true }) {
           </Link>
           {showAsk && <AskAlyTrigger href={askHref} />}
         </div>
-        <NavTabs attention={attention} />
-      </div>
-    </header>
+      </header>
+      <NavTabs attention={attention} />
+    </>
   );
 }

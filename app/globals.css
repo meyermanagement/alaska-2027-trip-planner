@@ -84,11 +84,16 @@ time {
 
 /* Keep a wide row (a scrolling tab strip, a long word) from stretching the
    whole page sideways on a phone. */
-/* The menu is fixed to the bottom of a phone screen, so the page needs to end
-   above it rather than under it. */
-@media (max-width: 639px) {
+/* The menu is fixed to the bottom of the screen, so the page has to end above
+   it rather than under it. A little more room on a laptop, where the menu
+   floats clear of the edge. */
+.app-shell {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 640px) {
   .app-shell {
-    padding-bottom: calc(4.3rem + env(safe-area-inset-bottom));
+    padding-bottom: 6rem;
   }
 }
 

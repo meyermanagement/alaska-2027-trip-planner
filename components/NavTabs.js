@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * The main menu. Four loose pills in a row read as four unrelated buttons and,
- * on a phone, as a strip you had to scroll sideways. So there are two shapes
- * now: one grouped segmented control on a laptop, where the four sit inside a
- * single track and it is obvious they are alternatives to each other, and a
- * fixed bar across the bottom of a phone, where the menu is under your thumb
- * instead of at the top of a page you have scrolled away from.
+ * The main menu, and on every screen size it lives at the bottom. On a phone
+ * that puts it under your thumb rather than at the top of a page you have
+ * scrolled away from; on a laptop it becomes a floating dock, centred, one
+ * track with the four destinations inside it so they read as alternatives to
+ * each other rather than four unrelated buttons. The top of every screen is
+ * left to the Alyeska mark and Ask Aly.
  *
  * Trips is home; Reminders cuts across all of them; the last two are for
  * looking things up.
@@ -39,80 +39,52 @@ export default function NavTabs({ attention = 0 }) {
   const countFor = (tab) => (tab.badge ? attention : 0);
 
   return (
-    <>
-      {/* Laptop: one track, four segments. */}
-      <nav
-        aria-label="Main menu"
-        className="no-print hidden pb-2.5 sm:flex sm:min-w-0"
-      >
-        <div className="flex min-w-0 items-center gap-1 rounded-full border border-[var(--line)] bg-white/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
-          {TABS.map((tab) => {
-            const active = isActive(tab.href);
-            const count = countFor(tab);
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.07em] transition ${
-                  active
-                    ? "bg-teal text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
-                    : "text-ink-soft hover:bg-sand hover:text-teal"
-                }`}
-              >
-                <tab.Icon className="h-4 w-4 shrink-0" />
-                {tab.label}
+    <nav
+      aria-label="Main menu"
+      className="no-print fixed inset-x-0 bottom-0 z-30 sm:w-max border-t border-[var(--line)] bg-sand/95 backdrop-blur-md sm:bottom-5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:border-0 sm:bg-transparent sm:backdrop-blur-none"
+      style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
+    >
+      <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1.5 sm:w-auto sm:max-w-none sm:items-center sm:gap-1 sm:rounded-full sm:border sm:border-[var(--line)] sm:bg-white/90 sm:p-1.5 sm:pt-1.5 sm:shadow-[0_6px_24px_rgba(20,32,30,0.14)] sm:backdrop-blur-md">
+        {TABS.map((tab) => {
+          const active = isActive(tab.href);
+          const count = countFor(tab);
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.06em] transition sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-3.5 sm:py-1.5 sm:text-[0.72rem] sm:tracking-[0.07em] ${
+                active
+                  ? "bg-teal/10 text-teal sm:bg-teal sm:text-white sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
+                  : "text-ink-soft sm:hover:bg-sand sm:hover:text-teal"
+              }`}
+            >
+              <span className="relative sm:contents">
+                <tab.Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
                 {count > 0 && (
-                  <span
-                    className={`ml-0.5 rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 ${
-                      active ? "bg-white/20 text-white" : "bg-rose/15 text-rose"
-                    }`}
-                  >
+                  <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-white sm:hidden">
                     {count}
                     <span className="sr-only"> needing attention</span>
                   </span>
                 )}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* Phone: a bar across the bottom, thumb height. */}
-      <nav
-        aria-label="Main menu"
-        className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-sand/95 backdrop-blur-md sm:hidden"
-        style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1.5">
-          {TABS.map((tab) => {
-            const active = isActive(tab.href);
-            const count = countFor(tab);
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.06em] transition ${
-                  active ? "bg-teal/10 text-teal" : "text-ink-soft"
-                }`}
-              >
-                <span className="relative">
-                  <tab.Icon className="h-5 w-5" />
-                  {count > 0 && (
-                    <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-white">
-                      {count}
-                      <span className="sr-only"> needing attention</span>
-                    </span>
-                  )}
+              </span>
+              <span className="sm:hidden">{tab.short}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+              {count > 0 && (
+                <span
+                  className={`hidden rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 sm:ml-0.5 sm:inline ${
+                    active ? "bg-white/20 text-white" : "bg-rose/15 text-rose"
+                  }`}
+                >
+                  {count}
+                  <span className="sr-only"> needing attention</span>
                 </span>
-                {tab.short}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-    </>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
