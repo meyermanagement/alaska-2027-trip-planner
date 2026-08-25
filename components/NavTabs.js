@@ -13,6 +13,11 @@ import { usePathname } from "next/navigation";
  *
  * Trips is home; Reminders cuts across all of them; the last two are for
  * looking things up.
+ *
+ * One exception, and it matters: while you are inside a single trip, the first
+ * item stops pretending to be where you already are and becomes the way out —
+ * an arrow and the words "All trips". Filling it in like a current page made it
+ * look like a label rather than a door.
  */
 const TABS = [
   { href: "/trips", label: "Trips", short: "Trips", Icon: SuitcaseIcon },
@@ -37,6 +42,8 @@ export default function NavTabs({ attention = 0 }) {
   const isActive = (href) =>
     pathname === href || pathname.startsWith(`${href}/`);
   const countFor = (tab) => (tab.badge ? attention : 0);
+  // Inside one trip, as opposed to the list of them.
+  const insideTrip = /^\/trips\/[^/]+/.test(pathname);
 
   return (
     <nav
@@ -46,21 +53,27 @@ export default function NavTabs({ attention = 0 }) {
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1.5 sm:w-auto sm:max-w-none sm:items-center sm:gap-1 sm:rounded-full sm:border sm:border-[var(--line)] sm:bg-white/90 sm:p-1.5 sm:pt-1.5 sm:shadow-[0_6px_24px_rgba(20,32,30,0.14)] sm:backdrop-blur-md">
         {TABS.map((tab) => {
-          const active = isActive(tab.href);
+          // The way back out of a trip, rather than a name for where you are.
+          const isWayOut = tab.href === "/trips" && insideTrip;
+          const active = isActive(tab.href) && !isWayOut;
           const count = countFor(tab);
+          const Icon = isWayOut ? BackIcon : tab.Icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
               aria-current={active ? "page" : undefined}
+              title={isWayOut ? "Back to all your trips" : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.06em] transition sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-3.5 sm:py-1.5 sm:text-[0.72rem] sm:tracking-[0.07em] ${
                 active
                   ? "bg-teal/10 text-teal sm:bg-teal sm:text-white sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
-                  : "text-ink-soft sm:hover:bg-sand sm:hover:text-teal"
+                  : isWayOut
+                    ? "text-teal sm:border sm:border-teal/35 sm:bg-teal/5 sm:px-3 sm:text-teal sm:hover:border-teal sm:hover:bg-teal/10"
+                    : "text-ink-soft sm:hover:bg-sand sm:hover:text-teal"
               }`}
             >
               <span className="relative sm:contents">
-                <tab.Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+                <Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
                 {count > 0 && (
                   <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-white sm:hidden">
                     {count}
@@ -68,8 +81,12 @@ export default function NavTabs({ attention = 0 }) {
                   </span>
                 )}
               </span>
-              <span className="sm:hidden">{tab.short}</span>
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">
+                {isWayOut ? "All trips" : tab.short}
+              </span>
+              <span className="hidden sm:inline">
+                {isWayOut ? "All trips" : tab.label}
+              </span>
               {count > 0 && (
                 <span
                   className={`hidden rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 sm:ml-0.5 sm:inline ${
@@ -108,6 +125,15 @@ function SuitcaseIcon({ className }) {
     <svg {...iconProps(className)}>
       <rect x="2.8" y="6.2" width="14.4" height="10" rx="2.2" />
       <path d="M7.4 6.2V4.6c0-.6.5-1.1 1.1-1.1h3c.6 0 1.1.5 1.1 1.1v1.6M7.4 16.2v1M12.6 16.2v1" />
+    </svg>
+  );
+}
+
+// An arrow back into the stack of trips: this is a door, not a label.
+function BackIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M16.5 10H4.6M9.2 5.4 4.2 10l5 4.6" />
     </svg>
   );
 }
