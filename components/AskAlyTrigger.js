@@ -4,8 +4,10 @@ import Link from "next/link";
 
 export const ASK_ALY_EVENT = "ask-aly";
 
-// A question mark, drawn to match the app's other line icons.
-function QuestionIcon() {
+// A speech bubble: the button starts a conversation rather than opening help,
+// so a bubble fits it better than a question mark. Drawn to match the app's
+// other line icons.
+function BubbleIcon() {
   return (
     <svg
       viewBox="0 0 20 20"
@@ -17,9 +19,7 @@ function QuestionIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <circle cx="10" cy="10" r="7.6" />
-      <path d="M7.9 7.7a2.2 2.2 0 1 1 3.5 1.8c-.8.6-1.4 1-1.4 1.9" />
-      <path d="M10 14.3h.01" />
+      <path d="M17.2 9.4c0 3.1-3.2 5.6-7.2 5.6-.7 0-1.4-.1-2.1-.2l-3.5 1.7 1.1-2.8C4 12.6 2.8 11.1 2.8 9.4c0-3.1 3.2-5.6 7.2-5.6s7.2 2.5 7.2 5.6Z" />
     </svg>
   );
 }
@@ -37,7 +37,7 @@ export default function AskAlyTrigger({ href }) {
   if (href) {
     return (
       <Link href={href} className={styles}>
-        <QuestionIcon />
+        <BubbleIcon />
         {label}
       </Link>
     );
@@ -49,7 +49,7 @@ export default function AskAlyTrigger({ href }) {
       onClick={() => window.dispatchEvent(new CustomEvent(ASK_ALY_EVENT))}
       className={styles}
     >
-      <QuestionIcon />
+      <BubbleIcon />
       {label}
     </button>
   );
