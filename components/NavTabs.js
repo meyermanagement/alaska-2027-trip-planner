@@ -8,11 +8,11 @@ import { PendingSwap } from "./LinkPending";
  * The main menu, and on every screen size it lives at the bottom. On a phone
  * that puts it under your thumb rather than at the top of a page you have
  * scrolled away from; on a laptop it becomes a floating dock, centred, one
- * track with the four destinations inside it so they read as alternatives to
- * each other rather than four unrelated buttons. The top of every screen is
+ * track with the destinations inside it so they read as alternatives to
+ * each other rather than a row of unrelated buttons. The top of every screen is
  * left to the Alyeska mark and Ask Aly.
  *
- * Trips is home; Reminders cuts across all of them; the last two are for
+ * Trips is home; Reminders cuts across all of them; the last three are for
  * looking things up.
  *
  * One exception, and it matters: while you are inside a single trip, the first
@@ -28,6 +28,12 @@ const TABS = [
     short: "Reminders",
     Icon: BellIcon,
     badge: true,
+  },
+  {
+    href: "/rewards",
+    label: "Rewards",
+    short: "Rewards",
+    Icon: RewardsIcon,
   },
   {
     href: "/reviews",
@@ -65,7 +71,7 @@ export default function NavTabs({ attention = 0 }) {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               title={isWayOut ? "Back to all your trips" : undefined}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.06em] transition sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-3.5 sm:py-1.5 sm:text-[0.72rem] sm:tracking-[0.07em] ${
+              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-0.5 py-1.5 text-[0.55rem] font-semibold uppercase tracking-[0.02em] transition sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-3.5 sm:py-1.5 sm:text-[0.72rem] sm:tracking-[0.07em] ${
                 active
                   ? "bg-teal/10 text-teal sm:bg-teal sm:text-white sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
                   : isWayOut
@@ -146,6 +152,17 @@ function BellIcon({ className }) {
     <svg {...iconProps(className)}>
       <path d="M10 3.2c-2.3 0-4 1.8-4 4.1 0 3.4-1 4.4-1 4.4h10s-1-1-1-4.4c0-2.3-1.7-4.1-4-4.1Z" />
       <path d="M8.4 14.4a1.7 1.7 0 0 0 3.2 0" />
+    </svg>
+  );
+}
+
+// A card with a spark on it: what you pay with, and the points it throws off.
+function RewardsIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <rect x="2.6" y="5.2" width="14.8" height="9.6" rx="2.1" />
+      <path d="M2.6 8.4h14.8" />
+      <path d="M12.9 10.4l.7 1.4 1.4.7-1.4.7-.7 1.4-.7-1.4-1.4-.7 1.4-.7.7-1.4Z" />
     </svg>
   );
 }

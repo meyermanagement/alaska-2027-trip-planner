@@ -196,6 +196,7 @@ async function loadEverything(supabase, userName, focusTripId) {
     travelers,
     rosters,
     preferences,
+    rewards,
   ] = await Promise.all([
     supabase.from("trips").select("*").order("start_date", { ascending: true }),
     supabase
@@ -223,6 +224,12 @@ async function loadEverything(supabase, userName, focusTripId) {
       .select("id, topic, body, traveler_id")
       .order("topic", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
+    supabase
+      .from("rewards_programs")
+      .select("*")
+      .eq("is_active", true)
+      .order("kind", { ascending: true })
+      .order("sort_order", { ascending: true }),
   ]);
 
   return buildContext({
@@ -235,6 +242,7 @@ async function loadEverything(supabase, userName, focusTripId) {
     travelers: travelers.data || [],
     rosters: rosters.data || [],
     preferences: preferences.data || [],
+    rewards: rewards.data || [],
     userName,
   });
 }

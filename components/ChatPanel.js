@@ -31,6 +31,12 @@ const SUGGESTIONS = {
     "Somewhere we can drive to in three days",
     "A repeat of Europe 2026, but slower",
   ],
+  // Opened from the Rewards tab.
+  rewards: [
+    "What are our points worth right now?",
+    "Which card should I book the Alaska hotel on?",
+    "I have 68,000 Marriott points",
+  ],
   // No trip open: Aly works across all of them.
   general: [
     "Which trip is next and how far away is it?",
@@ -386,9 +392,11 @@ export default function ChatPanel({
                 ? conversationTripName || (trip ? trip.name : "All trips")
                 : focus === "new_trip"
                   ? "A new trip"
-                  : conversationTripName || trip?.name
-                    ? `New conversation · ${conversationTripName || trip.name}`
-                    : "New conversation"}
+                  : focus === "rewards"
+                    ? "Points, miles and cards"
+                    : conversationTripName || trip?.name
+                      ? `New conversation · ${conversationTripName || trip.name}`
+                      : "New conversation"}
               {trip && SECTION_LABELS[focus]
                 ? ` · ${SECTION_LABELS[focus]}`
                 : ""}
@@ -433,6 +441,15 @@ export default function ChatPanel({
                   {SECTION_LABELS[focus]
                     ? `, and assumes you mean the ${SECTION_LABELS[focus].toLowerCase()} unless you say otherwise.`
                     : "."}
+                </>
+              ) : focus === "rewards" ? (
+                <>
+                  Aly can see{" "}
+                  <span className="font-semibold text-ink">
+                    every programme and card
+                  </span>{" "}
+                  you have saved, and what each one earns. Ask what a balance is
+                  worth, or tell her a new one.
                 </>
               ) : focus === "new_trip" ? (
                 <>
