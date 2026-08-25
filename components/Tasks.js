@@ -3,10 +3,15 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  PRIORITY_LABELS,
+  PRIORITY_ORDER,
   TIMING_LABELS,
   TIMING_ORDER,
   assigneeColor,
   formatShortDay,
+  priorityChip,
+  priorityOf,
+  priorityRank,
 } from "@/lib/format";
 
 export default function Tasks({ items, tripId, travelers, userId, onChange }) {
@@ -14,6 +19,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
   const [newTitle, setNewTitle] = useState("");
   const [newTiming, setNewTiming] = useState("now");
   const [newAssignee, setNewAssignee] = useState("Shared");
+  const [newPriority, setNewPriority] = useState("normal");
   const [hideDone, setHideDone] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({
@@ -21,12 +27,17 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
     detail: "",
     assignee: "Shared",
     timing: "now",
+    priority: "normal",
     due_date: "",
   });
 
   const people = travelers.length
     ? travelers
     : ["Mark", "Steph", "Veda", "Shared"];
+
+  // A finished task has no urgency left, so it neither jumps the queue nor keeps
+  // its badge — it just sits where it was.
+  const rank = (task) => (task.is_done ? 1 : priorityRank(task));
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -36,7 +47,17 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
         if (!map.has(t.timing)) map.set(t.timing, []);
         map.get(t.timing).push(t);
       });
-    return TIMING_ORDER.filter((k) => map.has(k)).map((k) => [k, map.get(k)]);
+    // Inside a group the urgent ones come first, then everything normal, then
+    // the ones that can wait. Anything level pegging stays in the order it was
+    // already in.
+    return TIMING_ORDER.filter((k) => map.has(k)).map((k) => [
+      k,
+      map
+        .get(k)
+        .map((t, i) => [t, i])
+        .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
+        .map(([t]) => t),
+    ]);
   }, [items, hideDone]);
 
   async function toggle(task) {
@@ -64,6 +85,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
       detail: task.detail || "",
       assignee: task.assignee || "Shared",
       timing: task.timing || "now",
+      priority: priorityOf(task),
       due_date: task.due_date || "",
     });
   }
@@ -78,6 +100,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
         detail: editDraft.detail.trim() || null,
         assignee: editDraft.assignee,
         timing: editDraft.timing,
+        priority: editDraft.priority,
         due_date: editDraft.due_date || null,
       })
       .eq("id", editingId);
@@ -93,6 +116,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
       title: newTitle.trim(),
       timing: newTiming,
       assignee: newAssignee,
+      priority: newPriority,
       sort_order: 999,
     });
     setNewTitle("");
@@ -100,12 +124,20 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
   }
 
   const done = items.filter((t) => t.is_done).length;
+  const openHigh = items.filter(
+    (t) => !t.is_done && priorityOf(t) === "high",
+  ).length;
 
   return (
     <section>
       <div className="no-print mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-ink-soft">
           {done} of {items.length} complete
+          {openHigh > 0 && (
+            <span className="ml-2 chip bg-rose/12 text-rose">
+              {openHigh} high priority still open
+            </span>
+          )}
         </p>
         <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
           <input
@@ -120,7 +152,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
 
       <form
         onSubmit={add}
-        className="card no-print mb-5 grid gap-2 p-4 sm:grid-cols-[2fr_1fr_1fr_auto]"
+        className="card no-print mb-5 grid gap-2 p-4 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
       >
         <input
           className="field"
@@ -147,6 +179,18 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
           {people.map((p) => (
             <option key={p} value={p}>
               {p}
+            </option>
+          ))}
+        </select>
+        <select
+          className="field"
+          value={newPriority}
+          onChange={(e) => setNewPriority(e.target.value)}
+          aria-label="Priority"
+        >
+          {PRIORITY_ORDER.map((p) => (
+            <option key={p} value={p}>
+              {PRIORITY_LABELS[p]}
             </option>
           ))}
         </select>
@@ -190,7 +234,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                           setEditDraft({ ...editDraft, detail: e.target.value })
                         }
                       />
-                      <div className="grid gap-2 sm:grid-cols-3">
+                      <div className="grid gap-2 sm:grid-cols-2">
                         <select
                           className="field"
                           value={editDraft.timing}
@@ -227,6 +271,23 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                               {editDraft.assignee}
                             </option>
                           )}
+                        </select>
+                        <select
+                          className="field"
+                          value={editDraft.priority}
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft,
+                              priority: e.target.value,
+                            })
+                          }
+                          aria-label="Priority"
+                        >
+                          {PRIORITY_ORDER.map((p) => (
+                            <option key={p} value={p}>
+                              {PRIORITY_LABELS[p]}
+                            </option>
+                          ))}
                         </select>
                         <input
                           className="field"
@@ -278,6 +339,11 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                         >
                           {task.assignee}
                         </span>
+                        {!task.is_done && priorityChip(task) && (
+                          <span className={`chip ${priorityChip(task).cls}`}>
+                            {priorityChip(task).label}
+                          </span>
+                        )}
                         {task.due_date && (
                           <span className="chip bg-amber/15 text-amber">
                             Due {formatShortDay(task.due_date)}
