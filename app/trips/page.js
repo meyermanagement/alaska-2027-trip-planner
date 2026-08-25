@@ -25,36 +25,39 @@ export default async function TripsPage() {
 
   const family = memberships[0].families;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const { data: trips } = await supabase
-    .from("trips")
-    .select(
-      "id, name, slug, destination, start_date, end_date, cover_emoji, summary, status",
-    )
-    .order("start_date", { ascending: true });
-
-  const { data: counts } = await supabase
-    .from("packing_items")
-    .select("trip_id, is_packed");
-  const { data: taskRows } = await supabase
-    .from("predeparture_tasks")
-    .select("trip_id, is_done");
-  const { data: itineraryRows } = await supabase
-    .from("itinerary_items")
-    .select("trip_id");
-  const { data: people } = await supabase
-    .from("travelers")
-    .select("id, name, sort_order, is_person")
-    .eq("is_person", true)
-    .order("sort_order", { ascending: true });
-  const { data: rosters } = await supabase
-    .from("trip_travelers")
-    .select("trip_id, traveler_id");
+  // None of these depend on each other, so they go together rather than one
+  // after another: seven round trips to the database stacked end to end is
+  // most of the wait people notice when this screen opens.
+  const [
+    { data: profile },
+    { data: trips },
+    { data: counts },
+    { data: taskRows },
+    { data: itineraryRows },
+    { data: people },
+    { data: rosters },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("trips")
+      .select(
+        "id, name, slug, destination, start_date, end_date, cover_emoji, summary, status",
+      )
+      .order("start_date", { ascending: true }),
+    supabase.from("packing_items").select("trip_id, is_packed"),
+    supabase.from("predeparture_tasks").select("trip_id, is_done"),
+    supabase.from("itinerary_items").select("trip_id"),
+    supabase
+      .from("travelers")
+      .select("id, name, sort_order, is_person")
+      .eq("is_person", true)
+      .order("sort_order", { ascending: true }),
+    supabase.from("trip_travelers").select("trip_id, traveler_id"),
+  ]);
 
   function progress(rows, tripId, doneKey) {
     const mine = (rows || []).filter((r) => r.trip_id === tripId);

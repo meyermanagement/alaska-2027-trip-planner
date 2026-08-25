@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { PendingSpark } from "./LinkPending";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import PriorityMeter from "@/components/PriorityMeter";
@@ -163,9 +164,10 @@ export default function Reminders({ tasks, today, userId }) {
                       </span>
                       <Link
                         href={`/trips/${row.trip.slug}?tab=tasks`}
-                        className="chip bg-teal-soft text-teal transition hover:bg-teal hover:text-white"
+                        className="chip inline-flex items-center gap-1.5 bg-teal-soft text-teal transition hover:bg-teal hover:text-white"
                       >
                         {row.trip.name}
+                        <PendingSpark className="h-3 w-3" />
                       </Link>
                       <span
                         className={`chip ${assigneeColor(row.task.assignee)}`}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PendingSwap } from "./LinkPending";
 
 /**
  * The main menu, and on every screen size it lives at the bottom. On a phone
@@ -73,7 +74,9 @@ export default function NavTabs({ attention = 0 }) {
               }`}
             >
               <span className="relative sm:contents">
-                <Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+                <PendingSwap className="h-5 w-5 shrink-0 sm:h-4 sm:w-4">
+                  <Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+                </PendingSwap>
                 {count > 0 && (
                   <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-white sm:hidden">
                     {count}

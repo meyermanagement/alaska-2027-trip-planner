@@ -22,21 +22,23 @@ export default async function RemindersPage() {
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
+  // The name and the tasks are asked for together, not one after the other.
   // Only what is still open, and only for trips that have not happened yet:
   // a reminder about a trip you already took is not a reminder.
-  const { data: rows } = await supabase
-    .from("predeparture_tasks")
-    .select(
-      "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, start_date, end_date, status)",
-    )
-    .eq("is_done", false)
-    .order("sort_order", { ascending: true });
+  const [{ data: profile }, { data: rows }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("predeparture_tasks")
+      .select(
+        "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, start_date, end_date, status)",
+      )
+      .eq("is_done", false)
+      .order("sort_order", { ascending: true }),
+  ]);
 
   const tasks = (rows || [])
     .filter((row) => row.trips && !isPastTrip(row.trips))

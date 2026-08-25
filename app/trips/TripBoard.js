@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PendingSpark, PendingVeil } from "@/components/LinkPending";
 import { formatRange, daysUntil } from "@/lib/format";
 import PromoteDraft from "@/components/PromoteDraft";
 
@@ -39,8 +40,9 @@ function UpcomingCard({ trip }) {
   return (
     <Link
       href={`/trips/${trip.slug}`}
-      className="card group flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
+      className="card group relative flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
     >
+      <PendingVeil />
       <div className="flex items-start justify-between gap-3">
         <span className="emoji-badge" aria-hidden="true">
           {trip.cover_emoji}
@@ -95,8 +97,12 @@ function DraftCard({ trip }) {
         <span className="chip bg-sand-deep/60 text-amber">Draft</span>
       </div>
       <h3 className="font-display mt-3 text-xl font-semibold">
-        <Link href={`/trips/${trip.slug}`} className="hover:text-teal">
+        <Link
+          href={`/trips/${trip.slug}`}
+          className="inline-flex items-center gap-2 hover:text-teal"
+        >
           {trip.name}
+          <PendingSpark className="h-4 w-4" />
         </Link>
       </h3>
       <p className="mt-0.5 text-sm font-medium text-ink-soft">
@@ -133,9 +139,10 @@ function DraftCard({ trip }) {
       <div className="no-print mt-4 flex flex-wrap items-center gap-3">
         <Link
           href={`/trips/${trip.slug}`}
-          className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
         >
           Keep working on it
+          <PendingSpark />
         </Link>
         <PromoteDraft trip={trip} />
       </div>
@@ -147,8 +154,9 @@ function PastCard({ trip }) {
   return (
     <Link
       href={`/trips/${trip.slug}`}
-      className="group flex flex-col rounded-xl border border-[var(--line)] bg-white/55 p-4 transition hover:-translate-y-px hover:border-teal/30 hover:bg-white hover:shadow-[0_10px_26px_-20px_rgba(20,32,30,0.3)]"
+      className="group relative flex flex-col rounded-xl border border-[var(--line)] bg-white/55 p-4 transition hover:-translate-y-px hover:border-teal/30 hover:bg-white hover:shadow-[0_10px_26px_-20px_rgba(20,32,30,0.3)]"
     >
+      <PendingVeil />
       <div className="flex items-center gap-2.5">
         <span className="emoji-badge emoji-badge-sm" aria-hidden="true">
           {trip.cover_emoji}

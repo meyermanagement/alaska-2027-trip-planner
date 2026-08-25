@@ -101,6 +101,36 @@ time {
   max-width: 100%;
 }
 
+/* Loading placeholders: a slow warm sweep rather than a throb, so a page that
+   is filling in reads as patient instead of anxious. */
+.sk {
+  background-color: rgba(20, 32, 30, 0.07);
+  background-image: linear-gradient(
+    90deg,
+    rgba(20, 32, 30, 0) 0%,
+    rgba(20, 32, 30, 0.055) 45%,
+    rgba(20, 32, 30, 0) 90%
+  );
+  background-repeat: no-repeat;
+  background-size: 60% 100%;
+  animation: sk-sweep 1.5s ease-in-out infinite;
+}
+
+@keyframes sk-sweep {
+  from {
+    background-position: -60% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk {
+    animation: none;
+  }
+}
+
 /* Ask Aly slide-over */
 @keyframes aly-slide-in {
   from {

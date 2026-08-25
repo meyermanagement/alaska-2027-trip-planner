@@ -21,33 +21,36 @@ export default async function PeoplePage() {
   if (!memberships || memberships.length === 0) redirect("/join");
   const familyId = memberships[0].family_id;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const { data: travelers } = await supabase
-    .from("travelers")
-    .select("id, name, color, sort_order, is_person, date_of_birth, notes")
-    .eq("is_person", true)
-    .order("sort_order", { ascending: true });
-
-  const { data: trips } = await supabase
-    .from("trips")
-    .select("id, name, cover_emoji, start_date, end_date, status")
-    .order("start_date", { ascending: false });
-
-  const { data: rosters } = await supabase
-    .from("trip_travelers")
-    .select("trip_id, traveler_id");
-
-  const { data: documents } = await supabase
-    .from("traveler_documents")
-    .select(
-      "id, traveler_id, doc_type, label, number, issuing_authority, issue_date, expiration_date, notes, sort_order",
-    )
-    .order("sort_order", { ascending: true });
+  // Five independent reads, asked for at once rather than in a queue.
+  const [
+    { data: profile },
+    { data: travelers },
+    { data: trips },
+    { data: rosters },
+    { data: documents },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("travelers")
+      .select("id, name, color, sort_order, is_person, date_of_birth, notes")
+      .eq("is_person", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("trips")
+      .select("id, name, cover_emoji, start_date, end_date, status")
+      .order("start_date", { ascending: false }),
+    supabase.from("trip_travelers").select("trip_id, traveler_id"),
+    supabase
+      .from("traveler_documents")
+      .select(
+        "id, traveler_id, doc_type, label, number, issuing_authority, issue_date, expiration_date, notes, sort_order",
+      )
+      .order("sort_order", { ascending: true }),
+  ]);
 
   return (
     <>
