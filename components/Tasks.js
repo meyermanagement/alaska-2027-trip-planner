@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import PriorityMeter from "@/components/PriorityMeter";
 import {
   PRIORITY_LABELS,
   PRIORITY_ORDER,
@@ -9,7 +10,6 @@ import {
   TIMING_ORDER,
   assigneeColor,
   formatShortDay,
-  priorityMeter,
   priorityOf,
   priorityRank,
 } from "@/lib/format";
@@ -338,7 +338,7 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                       onChange={() => toggle(task)}
                       aria-label={`Mark ${task.title} done`}
                     />
-                    <PriorityMeter task={task} />
+                    <PriorityMeter task={task} dim={task.is_done} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
@@ -399,31 +399,5 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
         )}
       </div>
     </section>
-  );
-}
-
-// Three bars, lit from the bottom up: one for low, two for normal, three for
-// high. Small enough to sit in front of the task without competing with it.
-function PriorityMeter({ task }) {
-  const meter = priorityMeter(task);
-  const heights = ["h-2", "h-3", "h-4"];
-  return (
-    <span
-      title={meter.label}
-      className={`mt-1 flex shrink-0 items-end gap-[2px] ${
-        task.is_done ? "opacity-40" : ""
-      }`}
-    >
-      <span className="sr-only">{meter.label}</span>
-      {heights.map((h, i) => (
-        <span
-          key={h}
-          aria-hidden="true"
-          className={`w-[4px] rounded-sm ${h} ${
-            i < meter.lit ? meter.on : meter.off
-          }`}
-        />
-      ))}
-    </span>
   );
 }

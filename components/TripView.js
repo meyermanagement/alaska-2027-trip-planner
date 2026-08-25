@@ -35,6 +35,14 @@ export default function TripView({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [tab, setTab] = useState("itinerary");
+
+  // Reminders links straight at a trip's task list, so honour ?tab= on arrival.
+  // It is read after mount rather than during render so the server and the
+  // browser always draw the same first frame.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted && TABS.some((t) => t.id === wanted)) setTab(wanted);
+  }, []);
   const [itinerary, setItinerary] = useState(initialItinerary);
   const [packing, setPacking] = useState(initialPacking);
   const [tasks, setTasks] = useState(initialTasks);

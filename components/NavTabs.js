@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// The main menu. Trips is home; the other two are for looking things up.
+// The main menu. Trips is home; Reminders cuts across all of them; the last two
+// are for looking things up.
 const TABS = [
   { href: "/trips", label: "Trips" },
+  { href: "/reminders", label: "Reminders" },
   // The address stays /reviews; the page grew to hold standing preferences too.
   { href: "/reviews", label: "Preferences & Reviews" },
   { href: "/people", label: "People" },
