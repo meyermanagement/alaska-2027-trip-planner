@@ -28,6 +28,28 @@ const KINDS = [
   },
 ];
 
+// The old behaviour, kept as the safety net for when the model cannot be
+// reached: every trip starts with at least what the family always packs.
+async function copyBaseTemplate(supabase, familyId, tripId) {
+  const { data: tpl } = await supabase
+    .from("packing_templates")
+    .select("id")
+    .eq("family_id", familyId)
+    .eq("is_base", true)
+    .maybeSingle();
+  if (!tpl) return;
+
+  const { data: items } = await supabase
+    .from("packing_template_items")
+    .select("category, item, assignee, quantity, sort_order")
+    .eq("template_id", tpl.id);
+  if (!items?.length) return;
+
+  await supabase
+    .from("packing_items")
+    .insert(items.map((i) => ({ ...i, trip_id: tripId })));
+}
+
 function slugify(value) {
   return value
     .toLowerCase()
@@ -47,8 +69,9 @@ export default function NewTripButton({ familyId }) {
   const [end, setEnd] = useState("");
   const [emoji, setEmoji] = useState("🧳");
   const [kind, setKind] = useState("planning");
-  const [copyTemplate, setCopyTemplate] = useState(true);
+  const [autoPack, setAutoPack] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState("");
   const [error, setError] = useState("");
 
   function close() {
@@ -63,6 +86,7 @@ export default function NewTripButton({ familyId }) {
       return;
     }
     setBusy(true);
+    setStep("Creating…");
     setError("");
     const supabase = createClient();
 
@@ -83,33 +107,34 @@ export default function NewTripButton({ familyId }) {
 
     if (tripError) {
       setBusy(false);
+      setStep("");
       setError(tripError.message);
       return;
     }
 
-    if (copyTemplate) {
-      const { data: tpl } = await supabase
-        .from("packing_templates")
-        .select("id")
-        .eq("family_id", familyId)
-        .eq("is_base", true)
-        .maybeSingle();
-
-      if (tpl) {
-        const { data: items } = await supabase
-          .from("packing_template_items")
-          .select("category, item, assignee, quantity, sort_order")
-          .eq("template_id", tpl.id);
-
-        if (items?.length) {
-          await supabase
-            .from("packing_items")
-            .insert(items.map((i) => ({ ...i, trip_id: trip.id })));
-        }
+    if (autoPack) {
+      // Worked out on the server from the base template, the lists from past
+      // trips, and where and when this one is. It can take a moment, and it is
+      // never worth losing a created trip over, so every failure falls through
+      // to copying the base template here.
+      setStep("Working out the packing list…");
+      let done = false;
+      try {
+        const res = await fetch("/api/packing/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tripId: trip.id }),
+        });
+        const body = await res.json().catch(() => null);
+        done = res.ok && body?.source !== "none";
+      } catch {
+        done = false;
       }
+      if (!done) await copyBaseTemplate(supabase, familyId, trip.id);
     }
 
     setBusy(false);
+    setStep("");
     setOpen(false);
     router.push(`/trips/${trip.slug}`);
     router.refresh();
@@ -294,16 +319,23 @@ export default function NewTripButton({ familyId }) {
                 <input
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 accent-teal"
-                  checked={copyTemplate}
-                  onChange={(e) => setCopyTemplate(e.target.checked)}
+                  checked={autoPack}
+                  onChange={(e) => setAutoPack(e.target.checked)}
                 />
-                Start the packing list from the family base template
+                Auto-generate packing list from previous trips, location, and
+                time of year.
               </label>
             </div>
 
             {error && (
               <p className="mt-3 rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
                 {error}
+              </p>
+            )}
+
+            {busy && step && (
+              <p className="mt-3 text-sm text-ink-soft" aria-live="polite">
+                {step}
               </p>
             )}
 
@@ -316,7 +348,7 @@ export default function NewTripButton({ familyId }) {
                 Cancel
               </button>
               <button className="btn btn-primary flex-1" disabled={busy}>
-                {busy ? "Creating…" : "Create trip"}
+                {busy ? "Working…" : "Create trip"}
               </button>
             </div>
           </form>
