@@ -91,9 +91,9 @@ export default function ChatPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, pending, busy, loadingHistory]);
 
-  // The message box grows with what is in it, up to a ceiling, so a pasted
-  // itinerary is readable instead of scrolling past inside one line. Clearing
-  // the box after a send shrinks it back on its own.
+  // The message box grows with what is in it, between a floor and a ceiling set
+  // in CSS below: three lines tall even when empty, so it reads as somewhere you
+  // can paste a list, and never taller than a third of the panel.
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -228,7 +228,9 @@ export default function ChatPanel({
         : "/api/chat/history";
       await fetch(url, { method: "DELETE" });
     } catch {
-      setError("Cleared on screen, but the saved conversation may still be there.");
+      setError(
+        "Cleared on screen, but the saved conversation may still be there.",
+      );
     }
   }
 
@@ -307,8 +309,8 @@ export default function ChatPanel({
                 <>
                   Aly is looking across{" "}
                   <span className="font-semibold text-ink">all your trips</span>
-                  . She can start a new one or remove one from here — open a trip
-                  to work on what is inside it.
+                  . She can start a new one or remove one from here — open a
+                  trip to work on what is inside it.
                 </>
               )}{" "}
               You approve every change before it saves.
@@ -457,34 +459,45 @@ export default function ChatPanel({
           e.preventDefault();
           send(input);
         }}
-        className="flex shrink-0 items-end gap-2 border-t border-[var(--line)] bg-sand/50 px-3 py-3"
+        className="shrink-0 border-t border-[var(--line)] bg-sand/50 px-3 py-3"
       >
-        <textarea
-          ref={inputRef}
-          rows={1}
-          className="field max-h-48 resize-none overflow-y-auto leading-relaxed"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            // Enter still sends. Shift-Enter makes a new line, so a whole
-            // itinerary can be typed or pasted as one message.
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              send(input);
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            rows={1}
+            className="field max-h-48 min-h-[7rem] resize-none overflow-y-auto leading-relaxed"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter still sends. Shift-Enter makes a new line, so a whole
+              // itinerary can be typed or pasted as one message.
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                send(input);
+              }
+            }}
+            placeholder={
+              trip
+                ? "Add dinner Thursday at 6, or paste a whole list…"
+                : "Ask about any trip, or paste a whole list…"
             }
-          }}
-          placeholder={
-            trip ? "Add dinner Thursday at 6…" : "Ask about any trip…"
-          }
-          disabled={busy}
-          aria-label="Message Aly"
-        />
-        <button
-          className="btn btn-primary shrink-0 px-4"
-          disabled={busy || !input.trim()}
-        >
-          Send
-        </button>
+            disabled={busy}
+            aria-label="Message Aly"
+          />
+          <button
+            className="btn btn-primary shrink-0 px-4"
+            disabled={busy || !input.trim()}
+          >
+            Send
+          </button>
+        </div>
+        <p className="mt-1.5 text-[0.7rem] text-ink-soft">
+          Enter sends · Shift-Enter starts a new line
+        </p>
       </form>
     </section>
   );
