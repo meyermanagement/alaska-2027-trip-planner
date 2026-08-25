@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import PriorityMeter from "@/components/PriorityMeter";
+import AddToCalendar from "@/components/AddToCalendar";
+import { eventFromTask } from "@/lib/calendar";
 import {
   PRIORITY_LABELS,
   PRIORITY_ORDER,
@@ -189,6 +191,13 @@ export default function Reminders({ tasks, today, userId }) {
                       </p>
                     )}
                   </div>
+                  {row.due.date && (
+                    <AddToCalendar
+                      compact
+                      className="mt-0.5 shrink-0"
+                      event={eventFromTask(row.task, row.trip, today)}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

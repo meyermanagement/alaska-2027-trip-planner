@@ -346,6 +346,7 @@ export default function TripView({
             tripId={trip.id}
             tripStart={info.start_date}
             tripEnd={info.end_date}
+            tripName={info.name}
             tasks={tasks}
             onTaskChange={() => refetch("predeparture_tasks")}
             onOpenTasks={() => setTab("tasks")}
@@ -365,6 +366,7 @@ export default function TripView({
           <Tasks
             items={tasks}
             tripId={trip.id}
+            trip={info}
             travelers={travelers}
             userId={userId}
             onChange={() => refetch("predeparture_tasks")}

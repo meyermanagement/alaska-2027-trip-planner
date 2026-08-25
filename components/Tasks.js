@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import PriorityMeter from "@/components/PriorityMeter";
+import AddToCalendar from "@/components/AddToCalendar";
+import { eventFromTask } from "@/lib/calendar";
 import {
   PRIORITY_LABELS,
   PRIORITY_ORDER,
@@ -14,7 +16,14 @@ import {
   priorityRank,
 } from "@/lib/format";
 
-export default function Tasks({ items, tripId, travelers, userId, onChange }) {
+export default function Tasks({
+  items,
+  tripId,
+  trip,
+  travelers,
+  userId,
+  onChange,
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [newTitle, setNewTitle] = useState("");
   const [newTiming, setNewTiming] = useState("now");
@@ -126,6 +135,16 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
     onChange();
   }
 
+  // Anything still open that can be pinned to a day, ready to hand to a calendar.
+  const openEvents = useMemo(
+    () =>
+      items
+        .filter((t) => !t.is_done)
+        .map((t) => eventFromTask(t, trip))
+        .filter(Boolean),
+    [items, trip],
+  );
+
   const done = items.filter((t) => t.is_done).length;
   const openHigh = items.filter(
     (t) => !t.is_done && priorityOf(t) === "high",
@@ -142,15 +161,24 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
             </span>
           )}
         </p>
-        <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-teal"
-            checked={hideDone}
-            onChange={(e) => setHideDone(e.target.checked)}
-          />
-          Hide completed
-        </label>
+        <div className="flex items-center gap-3">
+          {openEvents.length > 0 && (
+            <AddToCalendar
+              compact
+              events={openEvents}
+              title={trip?.name ? `${trip.name} tasks` : "Trip tasks"}
+            />
+          )}
+          <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-teal"
+              checked={hideDone}
+              onChange={(e) => setHideDone(e.target.checked)}
+            />
+            Hide completed
+          </label>
+        </div>
       </div>
 
       <form
@@ -371,6 +399,12 @@ export default function Tasks({ items, tripId, travelers, userId, onChange }) {
                       )}
                     </div>
                     <div className="no-print flex shrink-0 items-center gap-2">
+                      {!task.is_done && eventFromTask(task, trip) && (
+                        <AddToCalendar
+                          compact
+                          event={eventFromTask(task, trip)}
+                        />
+                      )}
                       <button
                         onClick={() => startEdit(task)}
                         className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"

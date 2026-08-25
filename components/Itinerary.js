@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import AddToCalendar from "@/components/AddToCalendar";
+import { eventFromItem, eventFromTask } from "@/lib/calendar";
 import {
   CATEGORY_ICONS,
   STATUS_STYLES,
@@ -185,9 +187,7 @@ function bookingTaskTitle(title) {
 /** How soon a booking task ought to sit, judged by the trip's own dates. */
 function bookingTiming(itemDate) {
   if (!itemDate) return "now";
-  const days = Math.round(
-    (parseDate(itemDate) - new Date()) / 86400000,
-  );
+  const days = Math.round((parseDate(itemDate) - new Date()) / 86400000);
   if (days <= 7) return "week_before";
   if (days <= 45) return "month_before";
   return "now";
@@ -215,6 +215,7 @@ export default function Itinerary({
   tasks = [],
   onTaskChange = () => {},
   onOpenTasks = () => {},
+  tripName,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [filter, setFilter] = useState("all");
@@ -236,7 +237,12 @@ export default function Itinerary({
   // The rail is built from the trip window, not from what happens to be
   // booked, so a quiet day is still somewhere you can go and add to.
   const dayKeys = useMemo(
-    () => buildDayKeys(tripStart, tripEnd, items.map((i) => i.item_date)),
+    () =>
+      buildDayKeys(
+        tripStart,
+        tripEnd,
+        items.map((i) => i.item_date),
+      ),
     [tripStart, tripEnd, items],
   );
   const hasUnscheduled = items.some((i) => !i.item_date);
@@ -310,11 +316,26 @@ export default function Itinerary({
   }, [tasks]);
   const [taskBusyId, setTaskBusyId] = useState(null);
 
+  // Everything about this trip that has a date on it, so the whole thing can go
+  // across in one file: the itinerary first, then the tasks that are still open.
+  const tripEvents = useMemo(() => {
+    const trip = { name: tripName, start_date: tripStart, end_date: tripEnd };
+    const fromItems = items
+      .filter((i) => i.item_date && i.status !== "cancelled")
+      .map((i) => eventFromItem(i, trip));
+    const fromTasks = tasks
+      .filter((t) => !t.is_done)
+      .map((t) => eventFromTask(t, trip));
+    return [...fromItems, ...fromTasks].filter(Boolean);
+  }, [items, tasks, tripName, tripStart, tripEnd]);
+
   async function makeBookingTask(item) {
     setTaskBusyId(item.id);
     setError("");
     const bits = [
-      item.item_date ? `On the itinerary for ${formatDay(item.item_date)}` : null,
+      item.item_date
+        ? `On the itinerary for ${formatDay(item.item_date)}`
+        : null,
       item.location || null,
     ].filter(Boolean);
     const { error: err } = await supabase.from("predeparture_tasks").insert({
@@ -349,14 +370,15 @@ export default function Itinerary({
       trip_id: tripId,
       itinerary_item_id: item.id,
       title: bookingTaskTitle(item.title),
-      detail: [
-        item.item_date
-          ? `On the itinerary for ${formatDay(item.item_date)}`
-          : null,
-        item.location || null,
-      ]
-        .filter(Boolean)
-        .join(" · ") || null,
+      detail:
+        [
+          item.item_date
+            ? `On the itinerary for ${formatDay(item.item_date)}`
+            : null,
+          item.location || null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || null,
       assignee: "Shared",
       timing: bookingTiming(item.item_date),
       sort_order: 99,
@@ -469,6 +491,11 @@ export default function Itinerary({
           ))}
         </div>
         <div className="flex gap-2">
+          <AddToCalendar
+            events={tripEvents}
+            title={tripName ? `${tripName} itinerary` : "Trip itinerary"}
+            label="Add trip to calendar"
+          />
           <button
             className="btn btn-ghost"
             onClick={() => window.print()}
@@ -594,9 +621,7 @@ export default function Itinerary({
                     )}
                   </span>
                   <span className="sr-only">
-                    {key === UNSCHEDULED
-                      ? "Not scheduled yet"
-                      : `Day ${i + 1}`}
+                    {key === UNSCHEDULED ? "Not scheduled yet" : `Day ${i + 1}`}
                     , {count} {count === 1 ? "item" : "items"}
                     {key === today ? ", today" : ""}
                   </span>
@@ -626,166 +651,172 @@ export default function Itinerary({
           const dayItems = byDay.get(date) ?? [];
           const active = date === selected;
           return (
-          <div
-            key={date}
-            className={`day-panel ${active ? "" : "hidden print:block"} print:mb-5`}
-            role="tabpanel"
-          >
-            <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
-                {date === UNSCHEDULED ? "Not scheduled yet" : formatDay(date)}
-              </h3>
-              {date !== UNSCHEDULED && dayKeys.length > 1 && (
-                <span className="text-[0.72rem] text-ink-faint">
-                  Day {i + 1} of {dayKeys.length}
-                </span>
-              )}
-            </div>
-            <div className="space-y-2">
-              {dayItems.map((item) => {
-                const status = STATUS_STYLES[item.status];
+            <div
+              key={date}
+              className={`day-panel ${active ? "" : "hidden print:block"} print:mb-5`}
+              role="tabpanel"
+            >
+              <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                  {date === UNSCHEDULED ? "Not scheduled yet" : formatDay(date)}
+                </h3>
+                {date !== UNSCHEDULED && dayKeys.length > 1 && (
+                  <span className="text-[0.72rem] text-ink-faint">
+                    Day {i + 1} of {dayKeys.length}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2">
+                {dayItems.map((item) => {
+                  const status = STATUS_STYLES[item.status];
 
-                if (editingId === item.id) {
-                  return (
-                    <form
-                      key={item.id}
-                      onSubmit={saveEdit}
-                      className="card space-y-3 border-teal/40 p-4 ring-1 ring-teal/30"
-                    >
-                      <p className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
-                        Editing this item
-                      </p>
-                      <ItemFields draft={editDraft} setDraft={setEditDraft} />
-                      <div className="flex flex-wrap gap-2">
-                        <button className="btn btn-primary" disabled={busy}>
-                          {busy ? "Saving…" : "Save changes"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={cancelEdit}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  );
-                }
-
-                return (
-                  <article key={item.id} className="card p-4">
-                    <div className="flex items-start gap-3">
-                      <span className="text-xl leading-none">
-                        {CATEGORY_ICONS[item.category]}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {item.start_time && (
-                            <span className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
-                              {formatTime(item.start_time)}
-                            </span>
-                          )}
-                          <h4 className="font-semibold leading-snug">
-                            {item.title}
-                          </h4>
-                          <span className={`chip ${status.cls}`}>
-                            {status.label}
-                          </span>
+                  if (editingId === item.id) {
+                    return (
+                      <form
+                        key={item.id}
+                        onSubmit={saveEdit}
+                        className="card space-y-3 border-teal/40 p-4 ring-1 ring-teal/30"
+                      >
+                        <p className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
+                          Editing this item
+                        </p>
+                        <ItemFields draft={editDraft} setDraft={setEditDraft} />
+                        <div className="flex flex-wrap gap-2">
+                          <button className="btn btn-primary" disabled={busy}>
+                            {busy ? "Saving…" : "Save changes"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={cancelEdit}
+                          >
+                            Cancel
+                          </button>
                         </div>
-                        {item.location && (
-                          <p className="mt-0.5 text-sm text-ink-soft">
-                            {item.location}
-                          </p>
-                        )}
-                        {item.confirmation_number && (
-                          <p className="mt-1 font-mono text-xs text-ink-soft">
-                            Conf: {item.confirmation_number}
-                          </p>
-                        )}
-                        {item.notes && (
-                          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
-                            {item.notes}
-                          </p>
-                        )}
-                        {item.status === "needs_booking" &&
-                          (taskByItem.has(item.id) ? (
-                            <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">
-                              <span aria-hidden="true">✓</span>
-                              {taskByItem.get(item.id).is_done
-                                ? "Booking task is done"
-                                : "On the task list"}
+                      </form>
+                    );
+                  }
+
+                  return (
+                    <article key={item.id} className="card p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl leading-none">
+                          {CATEGORY_ICONS[item.category]}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {item.start_time && (
+                              <span className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
+                                {formatTime(item.start_time)}
+                              </span>
+                            )}
+                            <h4 className="font-semibold leading-snug">
+                              {item.title}
+                            </h4>
+                            <span className={`chip ${status.cls}`}>
+                              {status.label}
+                            </span>
+                          </div>
+                          {item.location && (
+                            <p className="mt-0.5 text-sm text-ink-soft">
+                              {item.location}
+                            </p>
+                          )}
+                          {item.confirmation_number && (
+                            <p className="mt-1 font-mono text-xs text-ink-soft">
+                              Conf: {item.confirmation_number}
+                            </p>
+                          )}
+                          {item.notes && (
+                            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
+                              {item.notes}
+                            </p>
+                          )}
+                          {item.status === "needs_booking" &&
+                            (taskByItem.has(item.id) ? (
+                              <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">
+                                <span aria-hidden="true">✓</span>
+                                {taskByItem.get(item.id).is_done
+                                  ? "Booking task is done"
+                                  : "On the task list"}
+                                <button
+                                  type="button"
+                                  onClick={onOpenTasks}
+                                  className="font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+                                >
+                                  Open Tasks
+                                </button>
+                              </p>
+                            ) : (
                               <button
                                 type="button"
-                                onClick={onOpenTasks}
-                                className="font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+                                onClick={() => makeBookingTask(item)}
+                                disabled={taskBusyId === item.id}
+                                className="no-print mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-[0.72rem] font-semibold text-amber hover:border-amber hover:bg-amber/15 disabled:opacity-60"
                               >
-                                Open Tasks
+                                {taskBusyId === item.id
+                                  ? "Adding…"
+                                  : "Make this a task"}
                               </button>
-                            </p>
-                          ) : (
+                            ))}
+                          <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">
                             <button
-                              type="button"
-                              onClick={() => makeBookingTask(item)}
-                              disabled={taskBusyId === item.id}
-                              className="no-print mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-[0.72rem] font-semibold text-amber hover:border-amber hover:bg-amber/15 disabled:opacity-60"
+                              onClick={() => startEdit(item)}
+                              className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
                             >
-                              {taskBusyId === item.id
-                                ? "Adding…"
-                                : "Make this a task"}
+                              Edit
                             </button>
-                          ))}
-                        <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">
-                          <button
-                            onClick={() => startEdit(item)}
-                            className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
-                          >
-                            Edit
-                          </button>
-                          <span
-                            className="mx-1 h-4 w-px bg-sand-deep"
-                            aria-hidden
-                          />
-                          {STATUSES.filter((s) => s !== item.status).map(
-                            (s) => (
-                              <button
-                                key={s}
-                                onClick={() => updateStatus(item, s)}
-                                className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
-                              >
-                                {STATUS_STYLES[s].label}
-                              </button>
-                            ),
-                          )}
-                          <button
-                            onClick={() => remove(item)}
-                            className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
-                          >
-                            Delete
-                          </button>
+                            {item.item_date && (
+                              <AddToCalendar
+                                compact
+                                event={eventFromItem(item, { name: tripName })}
+                              />
+                            )}
+                            <span
+                              className="mx-1 h-4 w-px bg-sand-deep"
+                              aria-hidden
+                            />
+                            {STATUSES.filter((s) => s !== item.status).map(
+                              (s) => (
+                                <button
+                                  key={s}
+                                  onClick={() => updateStatus(item, s)}
+                                  className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
+                                >
+                                  {STATUS_STYLES[s].label}
+                                </button>
+                              ),
+                            )}
+                            <button
+                              onClick={() => remove(item)}
+                              className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                );
-              })}
-              {dayItems.length === 0 && (
-                <div className="card p-6 text-center">
-                  <p className="text-sm text-ink-soft">
-                    {filter === "all"
-                      ? "Nothing planned for this day."
-                      : "Nothing on this day matches the filter."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => addToDay(date)}
-                    className="no-print mt-3 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
-                  >
-                    Add something to this day
-                  </button>
-                </div>
-              )}
+                    </article>
+                  );
+                })}
+                {dayItems.length === 0 && (
+                  <div className="card p-6 text-center">
+                    <p className="text-sm text-ink-soft">
+                      {filter === "all"
+                        ? "Nothing planned for this day."
+                        : "Nothing on this day matches the filter."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => addToDay(date)}
+                      className="no-print mt-3 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+                    >
+                      Add something to this day
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
           );
         })}
         {railKeys.length === 0 && (
