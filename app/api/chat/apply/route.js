@@ -9,7 +9,9 @@ import { appendMessage } from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
 
-const MAX_ACTIONS = 25;
+// High enough that a whole pasted itinerary or a full family packing list goes
+// in one card, low enough that a runaway model cannot rewrite the trip.
+const MAX_ACTIONS = 80;
 
 export async function POST(request) {
   let payload;
@@ -25,7 +27,12 @@ export async function POST(request) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
   if (incoming.length > MAX_ACTIONS) {
-    return NextResponse.json({ error: "Too many changes at once." }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: `That is ${incoming.length} changes at once, and ${MAX_ACTIONS} is the limit. Send it in a couple of smaller pieces.`,
+      },
+      { status: 400 }
+    );
   }
 
   const supabase = await createClient();

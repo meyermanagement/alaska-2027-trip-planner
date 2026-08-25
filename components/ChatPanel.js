@@ -54,6 +54,7 @@ export default function ChatPanel({
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
   const tripId = trip?.id || null;
 
   // The conversation lives in the database, so reopening Aly picks up where the
@@ -85,6 +86,16 @@ export default function ChatPanel({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, pending, busy, loadingHistory]);
+
+  // The message box grows with what is in it, up to a ceiling, so a pasted
+  // itinerary is readable instead of scrolling past inside one line. Clearing
+  // the box after a send shrinks it back on its own.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
 
   async function send(text) {
     const clean = text.trim();
@@ -344,7 +355,9 @@ export default function ChatPanel({
                 ? "Proposed change"
                 : `${pending.actions.length} proposed changes`}
             </p>
-            <ul className="mt-2 space-y-1.5">
+            {/* A pasted itinerary can propose dozens of rows at once. Cap the
+                height so Apply and Discard stay in reach without scrolling. */}
+            <ul className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
               {pending.actions.map((a, i) => (
                 <li key={i} className="flex gap-2 text-sm text-ink">
                   <span
@@ -398,12 +411,22 @@ export default function ChatPanel({
           e.preventDefault();
           send(input);
         }}
-        className="flex shrink-0 gap-2 border-t border-[var(--line)] bg-sand/50 px-3 py-3"
+        className="flex shrink-0 items-end gap-2 border-t border-[var(--line)] bg-sand/50 px-3 py-3"
       >
-        <input
-          className="field"
+        <textarea
+          ref={inputRef}
+          rows={1}
+          className="field max-h-48 resize-none overflow-y-auto leading-relaxed"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter still sends. Shift-Enter makes a new line, so a whole
+            // itinerary can be typed or pasted as one message.
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              send(input);
+            }
+          }}
           placeholder={
             trip ? "Add dinner Thursday at 6…" : "Ask about any trip…"
           }
