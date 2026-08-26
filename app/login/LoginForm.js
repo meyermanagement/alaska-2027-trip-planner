@@ -33,6 +33,9 @@ export default function LoginForm() {
           password,
         });
         if (error) throw error;
+        // Same email-to-person link the Google callback does, for the password
+        // route in.
+        await supabase.rpc("claim_traveler_seat");
         router.replace(next);
         router.refresh();
         return;
@@ -56,7 +59,7 @@ export default function LoginForm() {
         router.refresh();
       } else {
         setNotice(
-          "Account created. Check your email for the confirmation link, then sign in."
+          "Account created. Check your email for the confirmation link, then sign in.",
         );
         setMode("signin");
       }
@@ -163,7 +166,9 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            autoComplete={
+              mode === "signin" ? "current-password" : "new-password"
+            }
           />
         </label>
 
@@ -186,11 +191,7 @@ export default function LoginForm() {
         )}
 
         <button className="btn btn-primary w-full" disabled={busy}>
-          {busy
-            ? "Working…"
-            : mode === "signin"
-              ? "Sign in"
-              : "Create account"}
+          {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
         </button>
       </form>
     </div>

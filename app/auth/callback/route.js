@@ -10,15 +10,15 @@ export async function GET(request) {
 
   if (oauthError) {
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(oauthError)}`
+      `${origin}/login?error=${encodeURIComponent(oauthError)}`,
     );
   }
 
   if (!code) {
     return NextResponse.redirect(
       `${origin}/login?error=${encodeURIComponent(
-        "Sign-in link was missing its code. Please try again."
-      )}`
+        "Sign-in link was missing its code. Please try again.",
+      )}`,
     );
   }
 
@@ -27,9 +27,14 @@ export async function GET(request) {
 
   if (error) {
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(error.message)}`
+      `${origin}/login?error=${encodeURIComponent(error.message)}`,
     );
   }
+
+  // A person whose email was added to the family's People list gets their seat
+  // here, on the way in — no invite code to type. The function is a no-op for
+  // anyone already linked, and returns null for an email nobody has listed.
+  await supabase.rpc("claim_traveler_seat");
 
   const safeNext = next.startsWith("/") ? next : "/trips";
   return NextResponse.redirect(`${origin}${safeNext}`);

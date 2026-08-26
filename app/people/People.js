@@ -15,6 +15,7 @@ import {
 
 export default function People({
   familyId,
+  userId,
   travelers,
   documents,
   trips = [],
@@ -30,6 +31,8 @@ export default function People({
   const [revealed, setRevealed] = useState({});
   const [rosterBusy, setRosterBusy] = useState(null);
   const [editingTripsFor, setEditingTripsFor] = useState(null);
+  const [inviteBusy, setInviteBusy] = useState(null);
+  const [inviteNote, setInviteNote] = useState(null);
   // Local copy so a tapped trip chip reacts immediately.
   const [roster, setRoster] = useState(rosters);
 
@@ -109,24 +112,66 @@ export default function People({
   }
 
   async function savePerson(travelerId, values) {
+    let error = null;
     if (travelerId) {
-      await supabase.from("travelers").update(values).eq("id", travelerId);
+      ({ error } = await supabase
+        .from("travelers")
+        .update(values)
+        .eq("id", travelerId));
     } else {
       const next = travelers.length
         ? Math.max(...travelers.map((t) => t.sort_order || 0)) + 1
         : 1;
-      await supabase
-        .from("travelers")
-        .insert({
-          ...values,
-          family_id: familyId,
-          is_person: true,
-          sort_order: next,
-        });
+      ({ error } = await supabase.from("travelers").insert({
+        ...values,
+        family_id: familyId,
+        is_person: true,
+        sort_order: next,
+      }));
+    }
+    if (error) {
+      // The one failure worth spelling out: two people cannot share a sign-in
+      // address, because the address is what decides whose name a change lands
+      // under.
+      return /travelers_family_email/.test(error.message || "")
+        ? "Someone else in the family already uses that email address."
+        : error.message || "That did not save.";
     }
     setEditingPerson(null);
     setAddingPerson(false);
     router.refresh();
+    return null;
+  }
+
+  // Sends the branded sign-in email. The address itself is what grants access —
+  // this is the nudge telling them it is waiting.
+  async function sendInvite(person) {
+    setInviteBusy(person.id);
+    setInviteNote(null);
+    try {
+      const res = await fetch("/api/people/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ traveler_id: person.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setInviteNote({
+        id: person.id,
+        ok: res.ok,
+        text: res.ok
+          ? `Sent to ${person.email}.`
+          : data?.error || "The email could not be sent.",
+      });
+      if (res.ok) router.refresh();
+    } catch {
+      setInviteNote({
+        id: person.id,
+        ok: false,
+        text: "The email could not be sent.",
+      });
+    } finally {
+      setInviteBusy(null);
+    }
   }
 
   return (
@@ -216,6 +261,15 @@ export default function People({
                 {person.notes}
               </p>
             )}
+
+            <AccessRow
+              person={person}
+              isMe={person.user_id === userId}
+              busy={inviteBusy === person.id}
+              note={inviteNote?.id === person.id ? inviteNote : null}
+              onSend={() => sendInvite(person)}
+              onAddEmail={() => setEditingPerson(person.id)}
+            />
 
             {editingPerson === person.id && (
               <PersonForm
@@ -569,6 +623,23 @@ function DocForm({ doc, onCancel, onSave }) {
           />
         </label>
         <label className="block text-xs font-semibold sm:col-span-2">
+          Email for signing in (optional)
+          <input
+            type="email"
+            className="field mt-1 text-sm"
+            placeholder="name@gmail.com"
+            value={form.email}
+            onChange={set("email")}
+            autoComplete="off"
+            inputMode="email"
+          />
+          <span className="mt-1 block font-normal text-ink-soft">
+            Whoever owns this address can sign in with Google and edit the
+            packing lists and itineraries. Their changes get recorded under
+            their name.
+          </span>
+        </label>
+        <label className="block text-xs font-semibold sm:col-span-2">
           Notes (optional)
           <textarea
             className="field mt-1 text-sm"
@@ -595,25 +666,116 @@ function DocForm({ doc, onCancel, onSave }) {
   );
 }
 
+// Who can get into the app, said plainly on the person it belongs to. An email
+// address here is not a formality: it is the thing that lets someone sign in, so
+// the row states what that address currently does rather than just showing it.
+// invited_at is a timestamp, not a date, so it cannot go through the date-only
+// formatters the rest of this file uses.
+function stampDay(value) {
+  const when = new Date(value);
+  if (Number.isNaN(when.getTime())) return "already";
+  return when.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+}
+
+export function AccessRow({ person, isMe, busy, note, onSend, onAddEmail }) {
+  const linked = !!person.user_id;
+
+  return (
+    <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/40 px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0">
+          <p className="section-label">Signing in</p>
+          {linked ? (
+            <p className="mt-0.5 text-sm text-ink">
+              <span
+                aria-hidden="true"
+                className="mr-1.5 inline-block h-2 w-2 rounded-full bg-teal align-middle"
+              />
+              <span className="break-all font-semibold">{person.email}</span>
+              {isMe ? " — that's you" : " — signed in and can make changes"}
+            </p>
+          ) : person.email ? (
+            <p className="mt-0.5 text-sm text-ink-soft">
+              <span className="break-all font-semibold text-ink">
+                {person.email}
+              </span>{" "}
+              can sign in with Google.{" "}
+              {person.invited_at
+                ? `Emailed ${stampDay(person.invited_at)}, not signed in yet.`
+                : "They have not been emailed yet."}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-sm text-ink-soft">
+              No email saved, so {person.name} cannot sign in or make changes.
+            </p>
+          )}
+        </div>
+
+        {!linked && (
+          <div className="no-print shrink-0">
+            {person.email ? (
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={busy}
+                className="btn btn-primary px-3 py-1.5 text-xs"
+              >
+                {busy
+                  ? "Sending…"
+                  : person.invited_at
+                    ? "Send it again"
+                    : "Send sign-in email"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onAddEmail}
+                className="btn btn-ghost px-3 py-1.5 text-xs"
+              >
+                Add an email
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {note && (
+        <p
+          className={`mt-2 rounded-lg px-3 py-2 text-xs ${
+            note.ok ? "bg-teal-soft text-teal" : "bg-rose/10 text-rose"
+          }`}
+        >
+          {note.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function PersonForm({ person, onCancel, onSave }) {
   const [form, setForm] = useState({
     name: person?.name || "",
+    email: person?.email || "",
     date_of_birth: person?.date_of_birth || "",
     notes: person?.notes || "",
   });
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   async function submit(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
     setBusy(true);
-    await onSave({
+    setError("");
+    const message = await onSave({
       name: form.name.trim(),
+      email: form.email.trim().toLowerCase() || null,
       date_of_birth: form.date_of_birth || null,
       notes: form.notes.trim() || null,
     });
     setBusy(false);
+    if (message) setError(message);
   }
 
   return (
@@ -650,6 +812,11 @@ function PersonForm({ person, onCancel, onSave }) {
           />
         </label>
       </div>
+      {error && (
+        <p className="rounded-lg bg-rose/10 px-3 py-2 text-xs text-rose">
+          {error}
+        </p>
+      )}
       <div className="flex gap-2">
         <button className="btn btn-primary px-3 py-1.5 text-xs" disabled={busy}>
           Save

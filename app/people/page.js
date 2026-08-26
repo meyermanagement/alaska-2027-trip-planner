@@ -36,7 +36,9 @@ export default async function PeoplePage() {
       .maybeSingle(),
     supabase
       .from("travelers")
-      .select("id, name, color, sort_order, is_person, date_of_birth, notes")
+      .select(
+        "id, name, color, sort_order, is_person, date_of_birth, notes, email, user_id, invited_at, linked_at",
+      )
       .eq("is_person", true)
       .order("sort_order", { ascending: true }),
     supabase
@@ -67,6 +69,7 @@ export default async function PeoplePage() {
         </div>
         <People
           familyId={familyId}
+          userId={user.id}
           travelers={travelers || []}
           documents={documents || []}
           trips={trips || []}

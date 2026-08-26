@@ -219,7 +219,10 @@ async function loadEverything(supabase, userName, focusTripId) {
       .from("trip_notes")
       .select("*")
       .order("created_at", { ascending: false }),
-    supabase.from("travelers").select("id, name").order("sort_order"),
+    supabase
+      .from("travelers")
+      .select("id, name, email, user_id, invited_at")
+      .order("sort_order"),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
     supabase
       .from("travel_preferences")

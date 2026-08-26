@@ -9,6 +9,7 @@ import {
 import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
+import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 
 export const runtime = "nodejs";
 // Writing eighty rows one at a time can outlast the default budget, and a
@@ -271,6 +272,30 @@ export async function POST(request) {
           .delete()
           .eq("trip_id", patch.trip_id);
         dbError = e;
+      } else if (tool === "set_person_email") {
+        const { error: e } = await supabase
+          .from("travelers")
+          .update({ email: patch.email })
+          .eq("id", patch.traveler_id);
+        // The unique index is doing real work here: an address decides whose
+        // name a change lands under, so two people cannot share one.
+        dbError =
+          e && /travelers_family_email/.test(e.message || "")
+            ? {
+                message:
+                  "Someone else in the family already uses that email address.",
+              }
+            : e;
+      } else if (tool === "invite_person") {
+        const outcome = await sendTravelerInvite({
+          supabase,
+          travelerId: patch.traveler_id,
+          inviterId: user.id,
+          inviterEmail: user.email,
+          origin: siteOrigin(request),
+        });
+        dbError = outcome.ok ? null : { message: outcome.error };
+        if (outcome.ok) extra = ` — sent to ${outcome.to}`;
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.
         if (tool.startsWith("delete_")) {
