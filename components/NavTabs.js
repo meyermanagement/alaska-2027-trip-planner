@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PendingSwap } from "./LinkPending";
+import useSoftKeyboard from "./useSoftKeyboard";
 
 /**
  * The main menu, and on every screen size it lives at the bottom. On a phone
@@ -19,6 +20,11 @@ import { PendingSwap } from "./LinkPending";
  * item stops pretending to be where you already are and becomes the way out —
  * an arrow and the words "All trips". Filling it in like a current page made it
  * look like a label rather than a door.
+ *
+ * While you are typing on a phone the menu gets out of the way. Left alone, iOS
+ * lifts anything pinned to the bottom of the screen up on top of the keyboard as
+ * soon as you scroll, so the menu ends up sitting in the middle of the page over
+ * the form you are filling in. It slides back as soon as the keyboard closes.
  */
 const TABS = [
   { href: "/trips", label: "Trips", short: "Trips", Icon: SuitcaseIcon },
@@ -46,6 +52,7 @@ const TABS = [
 
 export default function NavTabs({ attention = 0 }) {
   const pathname = usePathname() || "";
+  const keyboardOpen = useSoftKeyboard();
   const isActive = (href) =>
     pathname === href || pathname.startsWith(`${href}/`);
   const countFor = (tab) => (tab.badge ? attention : 0);
@@ -55,7 +62,12 @@ export default function NavTabs({ attention = 0 }) {
   return (
     <nav
       aria-label="Main menu"
-      className="no-print fixed inset-x-0 bottom-0 z-30 sm:w-max border-t border-[var(--line)] bg-sand/95 backdrop-blur-md sm:bottom-5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:border-0 sm:bg-transparent sm:backdrop-blur-none"
+      aria-hidden={keyboardOpen ? "true" : undefined}
+      className={`no-print fixed inset-x-0 bottom-0 z-30 sm:w-max border-t border-[var(--line)] bg-sand/95 backdrop-blur-md transition-transform duration-200 sm:bottom-5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:border-0 sm:bg-transparent sm:backdrop-blur-none ${
+        // Out of reach as well as out of sight, so a tap meant for the field
+        // underneath cannot land on a menu item on the way down.
+        keyboardOpen ? "translate-y-full pointer-events-none" : ""
+      }`}
       style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1.5 sm:w-auto sm:max-w-none sm:items-center sm:gap-1 sm:rounded-full sm:border sm:border-[var(--line)] sm:bg-white/90 sm:p-1.5 sm:pt-1.5 sm:shadow-[0_6px_24px_rgba(20,32,30,0.14)] sm:backdrop-blur-md">
