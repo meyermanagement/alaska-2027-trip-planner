@@ -21,7 +21,39 @@ export default function ConversationList({ onPick, onNew, onClose }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
+  // Deleting takes two taps. A conversation is a record of things the family
+  // worked out, and the transcript goes with it, so one stray tap on a phone
+  // should not be enough.
+  const [confirmId, setConfirmId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const searchBox = useRef(null);
+
+  const remove = async (id) => {
+    setDeletingId(id);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/chat/conversations?id=${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json().catch(() => ({}));
+      // A conversation someone else already deleted is still gone, which is the
+      // outcome that was wanted, so drop it from the list rather than complain.
+      if (!res.ok && res.status !== 404) {
+        setError(data?.error || "Could not delete that conversation.");
+        return;
+      }
+      setConversations((list) => list.filter((c) => c.id !== id));
+      setResults((list) =>
+        list ? list.filter((r) => r.conversationId !== id) : list,
+      );
+      setConfirmId(null);
+    } catch {
+      setError("Could not delete that conversation.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -167,13 +199,16 @@ export default function ConversationList({ onPick, onNew, onClose }) {
         ) : (
           <ul className="space-y-2">
             {conversations.map((c) => (
-              <li key={c.id}>
+              <li
+                key={c.id}
+                className="relative rounded-xl border border-[var(--line)] bg-white transition hover:border-teal/50"
+              >
                 <button
                   type="button"
                   onClick={() => onPick(c)}
-                  className="w-full rounded-xl border border-[var(--line)] bg-white px-3.5 py-3 text-left transition hover:border-teal/50 hover:bg-sand/60"
+                  className="w-full rounded-xl px-3.5 py-3 text-left transition hover:bg-sand/60"
                 >
-                  <p className="truncate text-sm font-semibold text-ink">
+                  <p className="truncate pr-8 text-sm font-semibold text-ink">
                     {c.title}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-ink-soft">
@@ -185,6 +220,52 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                     </p>
                   )}
                 </button>
+                {/* A sibling of the row rather than a child of it, because a
+                    button cannot live inside another button. */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmId((was) => (was === c.id ? null : c.id))
+                  }
+                  aria-label={`Delete the conversation ${c.title}`}
+                  className="absolute right-1.5 top-1.5 rounded-lg p-1.5 text-ink-soft transition hover:bg-rose/10 hover:text-rose"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 6.5h12M8 6.5V4.75h4V6.5M6.5 6.5 7 16h6l.5-9.5M9 9.5v4M11 9.5v4" />
+                  </svg>
+                </button>
+                {confirmId === c.id && (
+                  <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-3.5 py-2">
+                    <p className="text-xs text-ink-soft">
+                      Delete this and everything said in it?
+                    </p>
+                    <div className="flex shrink-0 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmId(null)}
+                        className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-soft transition hover:bg-sand"
+                      >
+                        Keep
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(c.id)}
+                        disabled={deletingId === c.id}
+                        className="rounded-lg bg-rose/10 px-2 py-1 text-xs font-semibold text-rose transition hover:bg-rose/20 disabled:opacity-50"
+                      >
+                        {deletingId === c.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

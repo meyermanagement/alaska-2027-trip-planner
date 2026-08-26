@@ -60,6 +60,41 @@ export async function POST(request) {
   return NextResponse.json({ conversationId: id, tripId: ownTripId });
 }
 
+// Throwing one away. The messages go with it: chat_messages cascades from the
+// conversation, so this one delete takes the whole transcript. RLS scopes the
+// row to the person asking, which is what stops this reaching anyone else's
+// conversation even if an id is guessed — so a miss means "not yours or not
+// there", and either way the honest answer is that it was not found.
+export async function DELETE(request) {
+  const { supabase, error } = await session();
+  if (error) return error;
+
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "Which conversation?" }, { status: 400 });
+  }
+
+  const { data, error: deleteError } = await supabase
+    .from("chat_conversations")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
+  if (deleteError) {
+    return NextResponse.json(
+      { error: "Could not delete that conversation." },
+      { status: 500 },
+    );
+  }
+  if (!data?.length) {
+    return NextResponse.json(
+      { error: "That conversation is already gone." },
+      { status: 404 },
+    );
+  }
+  return NextResponse.json({ deletedId: id });
+}
+
 async function session() {
   const supabase = await createClient();
   const {

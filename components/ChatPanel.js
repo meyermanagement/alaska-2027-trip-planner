@@ -308,6 +308,12 @@ export default function ChatPanel({
       // than push: going Back should not return to a trip that was deleted.
       if (tripId && (data.deletedTripIds || []).includes(tripId)) {
         router.replace("/trips");
+        // The trips list was rendered before the trip was deleted, and moving to
+        // it reuses what the router already has, so the trip they just deleted
+        // is still sitting there until something says otherwise. This is the one
+        // place the refresh cannot wait for the drawer to close: the page being
+        // left is gone, so there is no conversation left to protect.
+        router.refresh();
         setApplyingKey(null);
         return;
       }
