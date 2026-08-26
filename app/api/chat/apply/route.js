@@ -392,7 +392,7 @@ async function writeTemplate({ supabase, patch, familyId }) {
   if (!fromList && !fromTrip) return { id, copied: 0 };
 
   const columns = "category, item, assignee, quantity, sort_order";
-  const { data: source } = fromTrip
+  const { data: source, error: readError } = fromTrip
     ? await supabase
         .from("packing_items")
         .select(columns)
@@ -406,26 +406,47 @@ async function writeTemplate({ supabase, patch, familyId }) {
         .order("category")
         .order("sort_order");
 
+  // A copy was asked for, so coming back with nothing is a failure, not a quiet
+  // success. Reporting "saved" over an empty list is how this went unnoticed
+  // once already.
+  if (readError) {
+    return rollback(supabase, id, {
+      message: `I could not read the list to copy from, so I did not start “${row.name}”: ${readError.message}`,
+    });
+  }
+
   const items = copiedTemplateItems(source, {
     templateId: id,
     categories,
   });
-  if (!items.length) return { id, copied: 0 };
+  if (!items.length) {
+    return rollback(supabase, id, {
+      message: `I found nothing to copy, so I did not start “${row.name}”${
+        Array.isArray(categories) && categories.length
+          ? `. Check that ${categories.join(" and ")} is spelled the way it appears on the list`
+          : ""
+      }.`,
+    });
+  }
 
   const { error: itemsError } = await supabase
     .from("packing_template_items")
     .insert(items);
   if (itemsError) {
-    // The list itself did save, so say that rather than implying nothing happened.
-    return {
-      id,
-      copied: 0,
-      error: {
-        message: `I started “${row.name}” but could not copy the items into it: ${itemsError.message}`,
-      },
-    };
+    return rollback(supabase, id, {
+      message: `I could not copy the items in, so I did not start “${row.name}”: ${itemsError.message}`,
+    });
   }
   return { id, copied: items.length };
+}
+
+// An empty list left behind by a half-finished copy is worse than no list: the
+// name is taken, so asking again is refused as a duplicate, and there is no way
+// to remove it from the chat. Either the list arrives with its contents or it
+// does not arrive.
+async function rollback(supabase, id, error) {
+  await supabase.from("packing_templates").delete().eq("id", id);
+  return { copied: 0, error };
 }
 
 async function writeTrip({ supabase, tool, id, patch, familyId }) {
