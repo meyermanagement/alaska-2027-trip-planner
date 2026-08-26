@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatRange } from "@/lib/format";
+import { carryEnd, formatRange } from "@/lib/format";
 
 const STATUSES = [
   // Draft keeps the trip out of Upcoming and out of Past until someone moves it.
@@ -37,6 +37,16 @@ export default function TripForm({
 
   const set = (key) => (event) =>
     setValues((v) => ({ ...v, [key]: event.target.value }));
+
+  // Moving the first day moves the last one with it, holding the same length.
+  // A trip with no last day yet keeps it empty: a day trip is a real trip, so
+  // there is no minimum length to infer one from.
+  const setStartDate = (event) =>
+    setValues((v) => ({
+      ...v,
+      start_date: event.target.value,
+      end_date: carryEnd(v.start_date, v.end_date, event.target.value, 0),
+    }));
 
   async function submit(event) {
     event.preventDefault();
@@ -149,7 +159,7 @@ export default function TripForm({
                 type="date"
                 className="field mt-1"
                 value={values.start_date}
-                onChange={set("start_date")}
+                onChange={setStartDate}
               />
             </label>
             <label>
@@ -158,6 +168,7 @@ export default function TripForm({
                 type="date"
                 className="field mt-1"
                 value={values.end_date}
+                min={values.start_date || undefined}
                 onChange={set("end_date")}
               />
             </label>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { carryEnd } from "@/lib/format";
 import CreateWithAly from "./CreateWithAly";
 
 const EMOJI = ["🧳", "🏝️", "🏔️", "🚢", "🎡", "🗺️", "🎿", "🏰"];
@@ -73,6 +74,15 @@ export default function NewTripButton({ familyId }) {
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState("");
   const [error, setError] = useState("");
+
+  // Moving the start moves the trip: the end keeps its distance, so fixing a
+  // departure date does not leave the return stranded behind it. A trip with no
+  // end date yet keeps it empty — unlike a hotel stay, a trip has no minimum
+  // length to guess from, and a day trip is a real trip.
+  function setStartDate(value) {
+    setEnd(carryEnd(start, end, value, 0));
+    setStart(value);
+  }
 
   function close() {
     setOpen(false);
@@ -272,7 +282,7 @@ export default function NewTripButton({ familyId }) {
                     className="field"
                     type="date"
                     value={start}
-                    onChange={(e) => setStart(e.target.value)}
+                    onChange={(e) => setStartDate(e.target.value)}
                   />
                 </label>
                 <label className="block">
@@ -283,6 +293,7 @@ export default function NewTripButton({ familyId }) {
                     className="field"
                     type="date"
                     value={end}
+                    min={start || undefined}
                     onChange={(e) => setEnd(e.target.value)}
                   />
                 </label>

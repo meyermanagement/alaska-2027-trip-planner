@@ -7,7 +7,7 @@ import { eventFromItem, eventFromTask } from "@/lib/calendar";
 import {
   CATEGORY_ICONS,
   STATUS_STYLES,
-  addDays,
+  carryEnd,
   earliestEnd,
   endDateLabel,
   formatDay,
@@ -129,11 +129,10 @@ function ItemFields({ draft, setDraft }) {
   // where it can, and never lands on or before the day the stay begins.
   const setCheckIn = (item_date) => {
     if (!isSpanning(draft.category)) return set({ item_date });
-    const nights = stayNights(draft.item_date, draft.end_date);
-    const end_date = item_date
-      ? addDays(item_date, nights || 1)
-      : draft.end_date;
-    return set({ item_date, end_date });
+    return set({
+      item_date,
+      end_date: carryEnd(draft.item_date, draft.end_date, item_date, 1),
+    });
   };
   // Becoming a stay earns a check-out date; ceasing to be one gives it up.
   const setCategory = (category) => {
