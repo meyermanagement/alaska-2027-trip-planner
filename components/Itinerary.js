@@ -7,6 +7,8 @@ import { eventFromItem, eventFromTask } from "@/lib/calendar";
 import {
   CATEGORY_ICONS,
   STATUS_STYLES,
+  addDays,
+  earliestEnd,
   endDateLabel,
   formatDay,
   formatNights,
@@ -123,8 +125,27 @@ function ItemFields({ draft, setDraft }) {
   const nights = formatNights(draft.item_date, draft.end_date);
   // Changing a hotel into a dinner should not leave a check-out date sitting
   // in a field nobody can see any more.
-  const setCategory = (category) =>
-    set({ category, end_date: isSpanning(category) ? draft.end_date : "" });
+  // Moving the check-in moves the whole stay: the check-out keeps its distance
+  // where it can, and never lands on or before the day the stay begins.
+  const setCheckIn = (item_date) => {
+    if (!isSpanning(draft.category)) return set({ item_date });
+    const nights = stayNights(draft.item_date, draft.end_date);
+    const end_date = item_date
+      ? addDays(item_date, nights || 1)
+      : draft.end_date;
+    return set({ item_date, end_date });
+  };
+  // Becoming a stay earns a check-out date; ceasing to be one gives it up.
+  const setCategory = (category) => {
+    if (!isSpanning(category)) return set({ category, end_date: "" });
+    return set({
+      category,
+      end_date:
+        stayNights(draft.item_date, draft.end_date) || !draft.item_date
+          ? draft.end_date
+          : earliestEnd(draft.item_date),
+    });
+  };
   return (
     <>
       <input
@@ -143,7 +164,7 @@ function ItemFields({ draft, setDraft }) {
             className="field"
             type="date"
             value={draft.item_date}
-            onChange={(e) => set({ item_date: e.target.value })}
+            onChange={(e) => setCheckIn(e.target.value)}
           />
         </label>
         {spanning && (
@@ -160,12 +181,9 @@ function ItemFields({ draft, setDraft }) {
               className="field"
               type="date"
               value={draft.end_date}
-              min={draft.item_date || undefined}
+              min={earliestEnd(draft.item_date) || undefined}
               onChange={(e) => set({ end_date: e.target.value })}
             />
-            <span className="mt-1 block text-xs text-ink-soft">
-              Leave this empty if it is only one day.
-            </span>
           </label>
         )}
         <label className="block">
