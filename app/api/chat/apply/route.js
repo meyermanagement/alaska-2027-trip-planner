@@ -158,6 +158,10 @@ export async function POST(request) {
   // behind the Apply button would be the wrong trade — so the trip is saved with
   // the template and the client asks for the better list straight afterwards.
   let packingTripId = null;
+  // Deleting the trip pulls the ground out from under whoever asked: the page
+  // they are standing on no longer exists. The client has to be told so it can
+  // move them, rather than refreshing into a 404.
+  const deletedTripIds = [];
 
   // A trip has to exist before anything can go inside it, so new trips are
   // written first no matter what order they arrived in. Emptying a list comes
@@ -216,6 +220,10 @@ export async function POST(request) {
         });
         dbError = outcome.error;
         if (outcome.slug) createdSlug = outcome.slug;
+        if (!outcome.error && tool === "delete_trip" && id) {
+          deletedTripIds.push(id);
+          known.trips.delete(id);
+        }
         // The trip now exists, so the rows that named it can resolve to its id.
         if (!outcome.error && tool === "create_trip" && outcome.id) {
           if (outcome.wantsPacking) packingTripId = outcome.id;
@@ -321,17 +329,24 @@ export async function POST(request) {
   // It belongs to the conversation the changes were proposed in, so an id the
   // client did not send, or one belonging to someone else, gets a conversation of
   // its own rather than dropping the receipt on the floor.
+  //
+  // It also cannot be filed against a trip that no longer exists.
+  // chat_messages.trip_id cascades on delete, so the insert is rejected by the
+  // foreign key and the confirmation vanishes without a word — which is why
+  // deleting a trip appeared to do nothing at all before failing.
+  const receiptTripId =
+    tripId && deletedTripIds.includes(tripId) ? null : tripId;
   const { id: conversationId } = await ensureConversation(supabase, user.id, {
     conversationId:
       typeof payload?.conversationId === "string"
         ? payload.conversationId
         : null,
-    tripId,
+    tripId: receiptTripId,
   });
   await appendMessage(supabase, {
     userId: user.id,
     conversationId,
-    tripId,
+    tripId: receiptTripId,
     role: "assistant",
     body: receipt,
     kind: "receipt",
@@ -342,6 +357,7 @@ export async function POST(request) {
     results,
     createdSlug,
     packingTripId,
+    deletedTripIds,
     receipt,
     conversationId,
   });

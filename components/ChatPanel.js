@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
 
@@ -110,6 +111,7 @@ export default function ChatPanel({
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const tripId = trip?.id || null;
+  const router = useRouter();
   // Held in a ref as well as a prop because a brand-new conversation gets its id
   // mid-flight, and the very next request — approving a card, say — has to be
   // filed against it rather than starting a second one.
@@ -301,6 +303,15 @@ export default function ChatPanel({
         const left = (p?.groups || []).filter((g) => g.key !== group.key);
         return left.length ? { groups: left } : null;
       });
+      // The trip this panel belongs to is gone, so refreshing would re-render a
+      // page for a trip that no longer exists and land on a 404. Replace rather
+      // than push: going Back should not return to a trip that was deleted.
+      if (tripId && (data.deletedTripIds || []).includes(tripId)) {
+        router.replace("/trips");
+        setApplyingKey(null);
+        return;
+      }
+
       onApplied?.();
 
       // A new trip starts with the family base template so it is never empty,
