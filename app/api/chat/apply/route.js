@@ -226,7 +226,6 @@ export async function POST(request) {
         }
         // The trip now exists, so the rows that named it can resolve to its id.
         if (!outcome.error && tool === "create_trip" && outcome.id) {
-          if (outcome.wantsPacking) packingTripId = outcome.id;
           known.trips.set(outcome.id, patch.name);
           const at = pendingTrips.indexOf(patch.name);
           if (at >= 0) pendingTrips.splice(at, 1);
@@ -249,6 +248,21 @@ export async function POST(request) {
                   : ""
               }`
             : " — empty for now";
+        }
+      } else if (tool === "start_packing_list") {
+        const outcome = await fillPackingFromBase({
+          supabase,
+          tripId: patch.trip_id,
+          familyId,
+        });
+        dbError = outcome.error;
+        if (!outcome.error) {
+          // The smarter pass runs from the panel once this is saved, so what is
+          // reported here is the floor rather than the finished list.
+          packingTripId = patch.trip_id;
+          extra = outcome.copied
+            ? ` — ${outcome.copied} item${outcome.copied === 1 ? "" : "s"} from your base list to start with`
+            : " — nothing on your base list to start from";
         }
       } else if (tool === "clear_packing_list") {
         // One statement instead of forty deletes.
@@ -508,8 +522,6 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
 
   // create_trip
   const row = { ...patch };
-  const copyBase = row.copy_base_packing !== false;
-  delete row.copy_base_packing;
   // Not a column on a trip: it exists to trim the packing list to the people
   // who are actually going, so it is read here and never written.
   const going = Array.isArray(row.travelers) ? row.travelers : null;
@@ -544,40 +556,63 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
       .insert(roster.map((p) => ({ trip_id: trip.id, traveler_id: p.id })));
   }
 
-  if (copyBase) {
-    // Best effort: a missing template should not fail the trip creation.
-    const { data: tpl } = await supabase
-      .from("packing_templates")
-      .select("id")
-      .eq("family_id", familyId)
-      .eq("is_base", true)
-      .maybeSingle();
-    if (tpl) {
-      const { data: items } = await supabase
-        .from("packing_template_items")
-        .select("category, item, assignee, quantity, sort_order")
-        .eq("template_id", tpl.id);
-      // When only some of the family is going, packing for the ones who stayed
-      // home is noise on the list. Shared items are kept either way, since they
-      // belong to the trip rather than to a person.
-      const wanted = going
-        ? items.filter((i) => {
-            const who = String(i.assignee || "").trim();
-            return !who || who === "Shared" || going.includes(who);
-          })
-        : items;
-      if (wanted?.length) {
-        await supabase
-          .from("packing_items")
-          .insert(wanted.map((i) => ({ ...i, trip_id: trip.id })));
-      }
-    }
+  return { error: null, slug: trip.slug, id: trip.id };
+}
+
+// Copying the base list onto a trip. This used to happen inside trip creation,
+// where an 87-item list appeared as an invisible side effect of approving a
+// trip; it is now something the family says yes to on its own. What lands here
+// is only the floor — the smarter pass that reads the destination and the time
+// of year runs afterwards, from the panel.
+async function fillPackingFromBase({ supabase, tripId, familyId }) {
+  const { count } = await supabase
+    .from("packing_items")
+    .select("id", { count: "exact", head: true })
+    .eq("trip_id", tripId);
+  if (count) {
+    return {
+      error: {
+        message:
+          "That trip already has a packing list, so I left it alone rather than doubling it up.",
+      },
+    };
   }
 
-  // `wantsPacking` says the family asked for a packing list on this trip, which
-  // is true whether or not there was a template to copy. What is in there now is
-  // only the floor.
-  return { error: null, slug: trip.slug, id: trip.id, wantsPacking: copyBase };
+  const { data: tpl } = await supabase
+    .from("packing_templates")
+    .select("id")
+    .eq("family_id", familyId)
+    .eq("is_base", true)
+    .maybeSingle();
+  if (!tpl) return { error: null, copied: 0 };
+
+  const { data: items } = await supabase
+    .from("packing_template_items")
+    .select("category, item, assignee, quantity, sort_order")
+    .eq("template_id", tpl.id);
+  if (!items?.length) return { error: null, copied: 0 };
+
+  // Who is going is read from the trip's own roster rather than passed in, so
+  // this is right whoever asked for it and whenever they asked. Packing for
+  // someone who stayed home is noise; shared items belong to the trip rather
+  // than to a person, so they are kept either way.
+  const { data: rows } = await supabase
+    .from("trip_travelers")
+    .select("travelers(name)")
+    .eq("trip_id", tripId);
+  const going = (rows || []).map((r) => r.travelers?.name).filter(Boolean);
+  const wanted = going.length
+    ? items.filter((i) => {
+        const who = String(i.assignee || "").trim();
+        return !who || who === "Shared" || going.includes(who);
+      })
+    : items;
+  if (!wanted.length) return { error: null, copied: 0 };
+
+  const { error } = await supabase
+    .from("packing_items")
+    .insert(wanted.map((i) => ({ ...i, trip_id: tripId })));
+  return { error, copied: error ? 0 : wanted.length };
 }
 
 // Slugs are how trips are addressed in the URL, so keep them unique.
