@@ -525,6 +525,25 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
     .single();
   if (error) return { error };
 
+  // Who is on a trip is real trip data, not just a hint for the packing list:
+  // the Trips page shows it, and the packing list the app works out afterwards
+  // reads it. Every seeded trip has one and every trip Aly made had nobody on
+  // it, which is why this is written here rather than left to the family.
+  const { data: people } = await supabase
+    .from("travelers")
+    .select("id, name")
+    .eq("family_id", familyId);
+  // "Shared" is a traveler row so that things can be assigned to nobody in
+  // particular. It is not a person and never belongs on a roster.
+  const roster = (people || []).filter(
+    (p) => p.name !== "Shared" && (!going || going.includes(p.name)),
+  );
+  if (roster.length) {
+    await supabase
+      .from("trip_travelers")
+      .insert(roster.map((p) => ({ trip_id: trip.id, traveler_id: p.id })));
+  }
+
   if (copyBase) {
     // Best effort: a missing template should not fail the trip creation.
     const { data: tpl } = await supabase

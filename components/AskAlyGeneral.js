@@ -13,7 +13,7 @@ export default function AskAlyGeneral({ focus }) {
     <AskAlyDrawer
       trip={null}
       focus={focus}
-      onApplied={() => router.refresh()}
+      onRefresh={() => router.refresh()}
     />
   );
 }

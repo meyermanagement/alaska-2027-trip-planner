@@ -1,13 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import ConversationList from "./ConversationList";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 
 // `trip` may be null, which puts Aly in general mode: she sees every trip and
 // can create or delete one, but cannot touch what is inside them.
-export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
+// `onApplied` runs the moment something is saved and must only touch data on the
+// client. `onRefresh` is for re-rendering the page from the server, and it is
+// held back until the drawer closes — see the note on `needsRefresh` below.
+export default function AskAlyDrawer({
+  trip = null,
+  onApplied,
+  onRefresh,
+  focus,
+}) {
   const [open, setOpen] = useState(false);
   // Set when something on the page opens Aly with an opening message already
   // written — "Create with Aly" on the Trips page does this. Cleared on close,
@@ -18,11 +26,28 @@ export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
   // been started but not yet said anything, so it has no id until the first
   // reply comes back.
   const [current, setCurrent] = useState(null);
+  // Refreshing the page from the server while the drawer is open destroys the
+  // conversation. Every screen the drawer sits on has a loading.js, so if the
+  // refresh is slow — and these pages make seven database round trips — Next
+  // swaps in that skeleton, which unmounts the page subtree the drawer lives in
+  // and takes its state with it. What that looked like was approving the first
+  // suggestion, being dropped back on the Trips page, and finding the rest of
+  // the suggestions gone. So the refresh waits for the drawer to close, when
+  // there is no longer anything to lose.
+  const needsRefresh = useRef(false);
+  const noteApplied = useCallback(() => {
+    needsRefresh.current = true;
+    onApplied?.();
+  }, [onApplied]);
   const close = useCallback(() => {
     setOpen(false);
     setSeed(null);
     setCurrent(null);
-  }, []);
+    if (needsRefresh.current) {
+      needsRefresh.current = false;
+      onRefresh?.();
+    }
+  }, [onRefresh]);
 
   // Opened by the "Ask Aly" button in the top bar, which lives in a separate
   // server-rendered subtree, so a window event is the simplest bridge.
@@ -110,7 +135,7 @@ export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
         {current ? (
           <ChatPanel
             trip={trip}
-            onApplied={onApplied}
+            onApplied={noteApplied}
             onClose={close}
             onBack={() => setCurrent(null)}
             focus={seed?.focus || focus}

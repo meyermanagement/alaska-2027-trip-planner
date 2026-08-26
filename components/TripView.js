@@ -386,14 +386,17 @@ export default function TripView({
       <AskAlyDrawer
         trip={trip}
         focus={tab}
+        // These read straight from the database on the client, so the tabs
+        // update as soon as something is saved without disturbing the page.
         onApplied={() => {
           refetch("itinerary_items");
           refetch("packing_items");
           refetch("predeparture_tasks");
           refetch("trip_notes");
-          // Aly can change the trip itself, or another trip entirely.
-          router.refresh();
         }}
+        // Aly can change the trip itself, or another trip entirely, and only the
+        // server can redraw those. Held until the drawer closes.
+        onRefresh={() => router.refresh()}
       />
     </main>
   );
