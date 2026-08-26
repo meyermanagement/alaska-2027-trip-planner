@@ -161,7 +161,7 @@ export async function POST(request) {
   let reply = result.text;
   if (!reply && actions.length === 0) {
     reply = problems.length
-      ? problems.join(" ")
+      ? Array.from(new Set(problems)).join(" ")
       : "I am not sure how to help with that yet.";
   }
 

@@ -8,6 +8,7 @@ import {
 } from "@/lib/agent/tools";
 import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
+import { copiedTemplateItems } from "@/lib/packing/copy";
 
 export const runtime = "nodejs";
 // Writing eighty rows one at a time can outlast the default budget, and a
@@ -163,7 +164,11 @@ export async function POST(request) {
   // next, so a replacement list written in the same batch survives the wipe.
   // Everything else keeps the order the family approved it in.
   const rank = (a) =>
-    a?.tool === "create_trip" ? 0 : WIPE_TOOLS.has(a?.tool) ? 1 : 2;
+    a?.tool === "create_trip" || a?.tool === "create_template"
+      ? 0
+      : WIPE_TOOLS.has(a?.tool)
+        ? 1
+        : 2;
   const ordered = incoming
     .map((a, i) => ({ a, i }))
     .sort((x, y) => rank(x.a) - rank(y.a) || x.i - y.i)
@@ -196,6 +201,9 @@ export async function POST(request) {
 
     const { tool, table, id, patch = {} } = action;
     let dbError = null;
+    // Copying is worth counting out loud: "start a Disney list from this trip"
+    // is a fair thing to ask and a terrible thing to guess at.
+    let extra = "";
 
     try {
       if (table === "trips") {
@@ -214,6 +222,21 @@ export async function POST(request) {
           known.trips.set(outcome.id, patch.name);
           const at = pendingTrips.indexOf(patch.name);
           if (at >= 0) pendingTrips.splice(at, 1);
+        }
+      } else if (tool === "create_template") {
+        const outcome = await writeTemplate({ supabase, patch, familyId });
+        dbError = outcome.error;
+        if (outcome.id) {
+          // Anything else in this batch that named the new list can now find it.
+          known.packing_templates.set(outcome.id, {
+            name: patch.name,
+            is_base: false,
+          });
+        }
+        if (!outcome.error) {
+          extra = outcome.copied
+            ? ` — ${outcome.copied} item${outcome.copied === 1 ? "" : "s"} copied`
+            : " — empty for now";
         }
       } else if (tool === "clear_packing_list") {
         // One statement instead of forty deletes.
@@ -285,7 +308,7 @@ export async function POST(request) {
     results.push(
       dbError
         ? { ok: false, summary: action.summary, error: dbError.message }
-        : { ok: true, summary: action.summary },
+        : { ok: true, summary: `${action.summary}${extra}` },
     );
   }
 
@@ -346,6 +369,65 @@ function slugify(value) {
 
 // Create, rename or delete a whole trip. Deleting cascades to the itinerary,
 // packing list, tasks and notes at the database level.
+// A standing packing list, and whatever it was asked to start from. The copy
+// reads the source here rather than trusting anything the model sent, so what
+// lands on the new list is what is actually on the old one.
+async function writeTemplate({ supabase, patch, familyId }) {
+  const {
+    copy_from_template_id: fromList,
+    copy_from_trip_id: fromTrip,
+    copy_categories: categories,
+    ...row
+  } = patch;
+
+  const { data, error } = await supabase
+    .from("packing_templates")
+    .insert({ ...row, family_id: familyId })
+    .select("id")
+    .single();
+  if (error || !data?.id) {
+    return { error: error || { message: "Could not start that list." } };
+  }
+  const id = data.id;
+  if (!fromList && !fromTrip) return { id, copied: 0 };
+
+  const columns = "category, item, assignee, quantity, sort_order";
+  const { data: source } = fromTrip
+    ? await supabase
+        .from("packing_items")
+        .select(columns)
+        .eq("trip_id", fromTrip)
+        .order("category")
+        .order("sort_order")
+    : await supabase
+        .from("packing_template_items")
+        .select(columns)
+        .eq("template_id", fromList)
+        .order("category")
+        .order("sort_order");
+
+  const items = copiedTemplateItems(source, {
+    templateId: id,
+    categories,
+  });
+  if (!items.length) return { id, copied: 0 };
+
+  const { error: itemsError } = await supabase
+    .from("packing_template_items")
+    .insert(items);
+  if (itemsError) {
+    // The list itself did save, so say that rather than implying nothing happened.
+    return {
+      id,
+      copied: 0,
+      error: {
+        message: `I started “${row.name}” but could not copy the items into it: ${itemsError.message}`,
+      },
+    };
+  }
+  return { id, copied: items.length };
+}
+
 async function writeTrip({ supabase, tool, id, patch, familyId }) {
   if (tool === "delete_trip") {
     const { error } = await supabase.from("trips").delete().eq("id", id);
