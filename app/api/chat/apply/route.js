@@ -510,6 +510,10 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
   const row = { ...patch };
   const copyBase = row.copy_base_packing !== false;
   delete row.copy_base_packing;
+  // Not a column on a trip: it exists to trim the packing list to the people
+  // who are actually going, so it is read here and never written.
+  const going = Array.isArray(row.travelers) ? row.travelers : null;
+  delete row.travelers;
 
   row.family_id = familyId;
   row.slug = await freeSlug(supabase, slugify(row.name) || "trip", null);
@@ -534,10 +538,19 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
         .from("packing_template_items")
         .select("category, item, assignee, quantity, sort_order")
         .eq("template_id", tpl.id);
-      if (items?.length) {
+      // When only some of the family is going, packing for the ones who stayed
+      // home is noise on the list. Shared items are kept either way, since they
+      // belong to the trip rather than to a person.
+      const wanted = going
+        ? items.filter((i) => {
+            const who = String(i.assignee || "").trim();
+            return !who || who === "Shared" || going.includes(who);
+          })
+        : items;
+      if (wanted?.length) {
         await supabase
           .from("packing_items")
-          .insert(items.map((i) => ({ ...i, trip_id: trip.id })));
+          .insert(wanted.map((i) => ({ ...i, trip_id: trip.id })));
       }
     }
   }
