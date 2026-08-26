@@ -16,6 +16,7 @@ import {
 export default function People({
   familyId,
   userId,
+  userEmail,
   travelers,
   documents,
   trips = [],
@@ -137,6 +138,10 @@ export default function People({
         ? "Someone else in the family already uses that email address."
         : error.message || "That did not save.";
     }
+    // Saving your own address should seat you immediately. The claim only ever
+    // matches the signed-in account's own email, so calling it here is safe and
+    // does nothing when there is nothing to match.
+    if (values.email) await supabase.rpc("claim_traveler_seat");
     setEditingPerson(null);
     setAddingPerson(false);
     router.refresh();
@@ -266,7 +271,12 @@ export default function People({
 
             <AccessRow
               person={person}
-              isMe={person.user_id === userId}
+              isMe={
+                person.user_id === userId ||
+                (!!person.email &&
+                  !!userEmail &&
+                  person.email.toLowerCase() === userEmail.toLowerCase())
+              }
               busy={inviteBusy === person.id}
               note={inviteNote?.id === person.id ? inviteNote : null}
               onSend={() => sendInvite(person)}
@@ -625,23 +635,6 @@ function DocForm({ doc, onCancel, onSave }) {
           />
         </label>
         <label className="block text-xs font-semibold sm:col-span-2">
-          Email for signing in (optional)
-          <input
-            type="email"
-            className="field mt-1 text-sm"
-            placeholder="name@gmail.com"
-            value={form.email}
-            onChange={set("email")}
-            autoComplete="off"
-            inputMode="email"
-          />
-          <span className="mt-1 block font-normal text-ink-soft">
-            Whoever owns this address can sign in with Google and edit the
-            packing lists and itineraries. Their changes get recorded under
-            their name.
-          </span>
-        </label>
-        <label className="block text-xs font-semibold sm:col-span-2">
           Notes (optional)
           <textarea
             className="field mt-1 text-sm"
@@ -680,7 +673,10 @@ function stampDay(value) {
 }
 
 export function AccessRow({ person, isMe, busy, note, onSend, onAddEmail }) {
-  const linked = !!person.user_id;
+  // Your own row counts as settled the moment it carries your address, even if
+  // the seat claim has not caught up — you are demonstrably signed in already.
+  const mine = isMe && !!person.email;
+  const linked = !!person.user_id || mine;
 
   return (
     <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/40 px-3 py-2.5">
@@ -694,7 +690,7 @@ export function AccessRow({ person, isMe, busy, note, onSend, onAddEmail }) {
                 className="mr-1.5 inline-block h-2 w-2 rounded-full bg-teal align-middle"
               />
               <span className="break-all font-semibold">{person.email}</span>
-              {isMe ? " — that's you" : " — signed in and can make changes"}
+              {mine ? " — that's you" : " — signed in and can make changes"}
             </p>
           ) : person.email ? (
             <p className="mt-0.5 text-sm text-ink-soft">
@@ -713,7 +709,7 @@ export function AccessRow({ person, isMe, busy, note, onSend, onAddEmail }) {
           )}
         </div>
 
-        {linked && isMe && person.email && (
+        {mine && (
           <div className="no-print shrink-0">
             <button
               type="button"
@@ -815,6 +811,23 @@ function PersonForm({ person, onCancel, onSave }) {
             value={form.date_of_birth}
             onChange={set("date_of_birth")}
           />
+        </label>
+        <label className="block text-xs font-semibold sm:col-span-2">
+          Email for signing in (optional)
+          <input
+            type="email"
+            className="field mt-1 text-sm"
+            placeholder="name@gmail.com"
+            value={form.email}
+            onChange={set("email")}
+            autoComplete="off"
+            inputMode="email"
+          />
+          <span className="mt-1 block font-normal text-ink-soft">
+            Whoever owns this address can sign in with Google and edit the
+            packing lists and itineraries. Their changes get recorded under
+            their name.
+          </span>
         </label>
         <label className="block text-xs font-semibold sm:col-span-2">
           Notes (optional)

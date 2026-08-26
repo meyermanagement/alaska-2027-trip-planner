@@ -70,6 +70,7 @@ export default async function PeoplePage() {
         <People
           familyId={familyId}
           userId={user.id}
+          userEmail={user.email}
           travelers={travelers || []}
           documents={documents || []}
           trips={trips || []}
