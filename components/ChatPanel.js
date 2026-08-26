@@ -31,7 +31,7 @@ const SUGGESTIONS = {
     "Somewhere we can drive to in three days",
     "A repeat of Europe 2026, but slower",
   ],
-  // Opened from the Rewards tab.
+  // Opened from the Travel programs tab.
   rewards: [
     "What are our points worth right now?",
     "Which card should I book the Alaska hotel on?",

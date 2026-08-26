@@ -16,6 +16,20 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * Trips is home; Reminders and Packing lists cut across all of them; the last
  * three are for looking things up.
  *
+ * Half of these screens hold more than their name admits — Reviews is also
+ * where the family's standing travel preferences live, and what used to be
+ * called Rewards is really the record of every program the family belongs to —
+ * so the broad noun leads and a second, quieter line carries what is inside.
+ * The first line stays short so the dock is no wider than it was when the words
+ * were crammed onto one line. On a phone there is no room for two lines at a
+ * legible size, so the short label stands alone there and the page's own
+ * subtitle does the explaining once you arrive.
+ *
+ * The dock needs about nine hundred pixels to lay six destinations out in a
+ * row, so the switch between the two layouts happens at lg rather than sm. Any
+ * earlier and a tablet held in portrait gets a pill wider than the screen,
+ * clipped at both ends.
+ *
  * One exception, and it matters: while you are inside a single trip, the first
  * item stops pretending to be where you already are and becomes the way out —
  * an arrow and the words "All trips". Filling it in like a current page made it
@@ -27,33 +41,49 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * the form you are filling in. It slides back as soon as the keyboard closes.
  */
 const TABS = [
-  { href: "/trips", label: "Trips", short: "Trips", Icon: SuitcaseIcon },
+  {
+    href: "/trips",
+    label: "Trips",
+    short: "Trips",
+    sub: "Itineraries & plans",
+    Icon: SuitcaseIcon,
+  },
   {
     href: "/reminders",
     label: "Reminders",
     short: "Reminders",
+    sub: "Pre-travel checklist",
     Icon: BellIcon,
     badge: true,
   },
   {
     href: "/packing",
-    label: "Packing lists",
+    label: "Packing",
     short: "Packing",
+    sub: "Standing lists",
     Icon: ShirtIcon,
   },
   {
     href: "/rewards",
-    label: "Rewards",
-    short: "Rewards",
+    label: "Travel programs",
+    short: "Programs",
+    sub: "Points, miles & cards",
     Icon: RewardsIcon,
   },
   {
     href: "/reviews",
-    label: "Preferences & Reviews",
+    label: "Reviews",
     short: "Reviews",
+    sub: "Travel preferences",
     Icon: StarIcon,
   },
-  { href: "/people", label: "People", short: "People", Icon: PeopleIcon },
+  {
+    href: "/people",
+    label: "People",
+    short: "People",
+    sub: "Travelers & ages",
+    Icon: PeopleIcon,
+  },
 ];
 
 export default function NavTabs({ attention = 0 }) {
@@ -69,14 +99,14 @@ export default function NavTabs({ attention = 0 }) {
     <nav
       aria-label="Main menu"
       aria-hidden={keyboardOpen ? "true" : undefined}
-      className={`no-print fixed inset-x-0 bottom-0 z-30 sm:w-max border-t border-[var(--line)] bg-sand/95 backdrop-blur-md transition-transform duration-200 sm:bottom-5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:border-0 sm:bg-transparent sm:backdrop-blur-none ${
+      className={`no-print fixed inset-x-0 bottom-0 z-30 lg:w-max border-t border-[var(--line)] bg-sand/95 backdrop-blur-md transition-transform duration-200 lg:bottom-5 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:border-0 lg:bg-transparent lg:backdrop-blur-none ${
         // Out of reach as well as out of sight, so a tap meant for the field
         // underneath cannot land on a menu item on the way down.
         keyboardOpen ? "translate-y-full pointer-events-none" : ""
       }`}
       style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1.5 sm:w-auto sm:max-w-none sm:items-center sm:gap-1 sm:rounded-full sm:border sm:border-[var(--line)] sm:bg-white/90 sm:p-1.5 sm:pt-1.5 sm:shadow-[0_6px_24px_rgba(20,32,30,0.14)] sm:backdrop-blur-md">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around px-0.5 pt-1.5 min-[375px]:px-2 lg:w-auto lg:max-w-none lg:items-center lg:gap-1 lg:rounded-full lg:border lg:border-[var(--line)] lg:bg-white/90 lg:p-1.5 lg:pt-1.5 lg:shadow-[0_6px_24px_rgba(20,32,30,0.14)] lg:backdrop-blur-md">
         {TABS.map((tab) => {
           // The way back out of a trip, rather than a name for where you are.
           const isWayOut = tab.href === "/trips" && insideTrip;
@@ -89,34 +119,44 @@ export default function NavTabs({ attention = 0 }) {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               title={isWayOut ? "Back to all your trips" : undefined}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-0.5 py-1.5 text-[0.55rem] font-semibold uppercase tracking-[0.02em] transition sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-3.5 sm:py-1.5 sm:text-[0.72rem] sm:tracking-[0.07em] ${
+              aria-label={isWayOut ? "Back to all your trips" : undefined}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-0 py-1.5 text-[0.5rem] min-[375px]:px-0.5 min-[375px]:text-[0.55rem] font-semibold uppercase tracking-normal transition lg:flex-none lg:flex-row lg:gap-1.5 lg:rounded-full lg:px-3.5 lg:py-1.5 lg:text-[0.72rem] lg:tracking-[0.07em] ${
                 active
-                  ? "bg-teal/10 text-teal sm:bg-teal sm:text-white sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
+                  ? "bg-teal/10 text-teal lg:bg-teal lg:text-white lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
                   : isWayOut
-                    ? "text-teal sm:border sm:border-teal/35 sm:bg-teal/5 sm:px-3 sm:text-teal sm:hover:border-teal sm:hover:bg-teal/10"
-                    : "text-ink-soft sm:hover:bg-sand sm:hover:text-teal"
+                    ? "text-teal lg:border lg:border-teal/35 lg:bg-teal/5 lg:px-3 lg:text-teal lg:hover:border-teal lg:hover:bg-teal/10"
+                    : "text-ink-soft lg:hover:bg-sand lg:hover:text-teal"
               }`}
             >
-              <span className="relative sm:contents">
-                <PendingSwap className="h-5 w-5 shrink-0 sm:h-4 sm:w-4">
-                  <Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+              <span className="relative lg:contents">
+                <PendingSwap className="h-5 w-5 shrink-0 lg:h-4 lg:w-4">
+                  <Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" />
                 </PendingSwap>
                 {count > 0 && (
-                  <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-white sm:hidden">
+                  <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-white lg:hidden">
                     {count}
                     <span className="sr-only"> needing attention</span>
                   </span>
                 )}
               </span>
-              <span className="sm:hidden">
-                {isWayOut ? "All trips" : tab.short}
+              <span className="w-full truncate text-center leading-tight lg:hidden">
+                {isWayOut ? "Back" : tab.short}
               </span>
-              <span className="hidden sm:inline">
-                {isWayOut ? "All trips" : tab.label}
+              <span className="hidden text-left lg:flex lg:flex-col lg:leading-[1.15]">
+                <span>{isWayOut ? "All trips" : tab.label}</span>
+                {!isWayOut && tab.sub && (
+                  <span
+                    className={`text-[0.6rem] font-medium normal-case tracking-[0.02em] ${
+                      active ? "text-white/75" : "text-ink-soft/75"
+                    }`}
+                  >
+                    {tab.sub}
+                  </span>
+                )}
               </span>
               {count > 0 && (
                 <span
-                  className={`hidden rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 sm:ml-0.5 sm:inline ${
+                  className={`hidden rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 lg:ml-0.5 lg:inline ${
                     active ? "bg-white/20 text-white" : "bg-rose/15 text-rose"
                   }`}
                 >

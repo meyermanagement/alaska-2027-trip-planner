@@ -5,7 +5,7 @@ import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import RewardsBoard from "./RewardsBoard";
 
-export const metadata = { title: "Rewards · Alyeska" };
+export const metadata = { title: "Travel programs · Alyeska" };
 
 export default async function RewardsPage() {
   const supabase = await createClient();
@@ -47,7 +47,9 @@ export default async function RewardsPage() {
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
         <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">Rewards</h1>
+          <h1 className="font-display text-3xl font-semibold">
+            Travel programs
+          </h1>
           <p className="mt-1 text-sm text-ink-soft">
             Every program the family belongs to, what the balances are, and what
             each credit card earns. Aly reads all of it when she plans, so she
