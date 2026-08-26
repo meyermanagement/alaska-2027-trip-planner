@@ -80,7 +80,7 @@ export default async function HistoryPage() {
     ? await supabase
         .from("itinerary_items")
         .select(
-          "id, trip_id, item_date, title, category, location, notes, rating, review",
+          "id, trip_id, item_date, end_date, title, category, location, notes, rating, review",
         )
         .in(
           "trip_id",

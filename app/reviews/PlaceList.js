@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CATEGORY_ICONS, formatShortDay } from "@/lib/format";
+import { CATEGORY_ICONS, formatStayRange } from "@/lib/format";
 
 // Only the kinds this page keeps a record of. Re-filing a place as a flight
 // would make it vanish from the only screen you can edit it on.
@@ -178,7 +178,9 @@ function Place({ item, showTrip, onSave, onSaveDetails }) {
             {item.location && item.item_date && (
               <span aria-hidden="true"> · </span>
             )}
-            {item.item_date && <span>{formatShortDay(item.item_date)}</span>}
+            {item.item_date && (
+              <span>{formatStayRange(item.item_date, item.end_date)}</span>
+            )}
           </p>
           {showTrip && item.trip && (
             <p className="mt-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-ink-soft">

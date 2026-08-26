@@ -7,34 +7,70 @@ import { eventFromItem, eventFromTask } from "@/lib/calendar";
 import {
   CATEGORY_ICONS,
   STATUS_STYLES,
+  endDateLabel,
   formatDay,
+  formatNights,
+  formatShortDay,
+  formatStayRange,
   formatTime,
+  isSpanning,
   parseDate,
+  stayNights,
 } from "@/lib/format";
 
 const UNSCHEDULED = "unscheduled";
 const DAY_MS = 86400000;
 
+/** Every day from one date to another, inclusive, as YYYY-MM-DD. */
+function daysBetween(start, end) {
+  const out = [];
+  if (!start || !end) return out;
+  const [ys, ms, ds] = start.split("-").map(Number);
+  const [ye, me, de] = end.split("-").map(Number);
+  let cursor = Date.UTC(ys, ms - 1, ds);
+  const last = Date.UTC(ye, me - 1, de);
+  // A guard so a bad pair of dates can never spin forever.
+  for (let n = 0; cursor <= last && n < 400; n += 1) {
+    out.push(new Date(cursor).toISOString().slice(0, 10));
+    cursor += DAY_MS;
+  }
+  return out;
+}
+
 /** Every calendar day of the trip, so empty days can still be reached. */
 function buildDayKeys(start, end, itemDates) {
-  const keys = [];
-  if (start && end) {
-    const [ys, ms, ds] = start.split("-").map(Number);
-    const [ye, me, de] = end.split("-").map(Number);
-    let cursor = Date.UTC(ys, ms - 1, ds);
-    const last = Date.UTC(ye, me - 1, de);
-    // A guard so a bad pair of dates can never spin forever.
-    for (let n = 0; cursor <= last && n < 400; n += 1) {
-      keys.push(new Date(cursor).toISOString().slice(0, 10));
-      cursor += DAY_MS;
-    }
-  }
-  // Anything scheduled outside the trip window still deserves a day.
+  const keys = daysBetween(start, end);
+  // Anything scheduled outside the trip window still deserves a day. A stay
+  // that runs past the last planned day brings its own days along with it.
   itemDates.forEach((d) => {
     if (d && !keys.includes(d)) keys.push(d);
   });
   keys.sort();
   return keys;
+}
+
+/**
+ * A stay is filed under its first day as a full card, and shows up on the days
+ * in between as a quiet one-line reminder of where everyone is sleeping. The
+ * last day gets the check-out line instead, since that morning you are leaving.
+ */
+function buildStays(items) {
+  const map = new Map();
+  (items || []).forEach((item) => {
+    if (!isSpanning(item.category)) return;
+    const nights = stayNights(item.item_date, item.end_date);
+    if (!nights) return;
+    daysBetween(item.item_date, item.end_date).forEach((day, i) => {
+      if (i === 0) return; // the first day already has the full card
+      if (!map.has(day)) map.set(day, []);
+      const leaving = i === nights;
+      // On the last day nobody sleeps there, so there is no night to number.
+      map
+        .get(day)
+        .push({ item, night: leaving ? null : i + 1, nights, leaving });
+    });
+  });
+  return map;
 }
 
 const CATEGORIES = [
@@ -58,6 +94,7 @@ const STATUSES = [
 const EMPTY = {
   title: "",
   item_date: "",
+  end_date: "",
   start_time: "",
   category: "activity",
   status: "planned",
@@ -70,6 +107,7 @@ function toDraft(item) {
   return {
     title: item.title || "",
     item_date: item.item_date || "",
+    end_date: item.end_date || "",
     start_time: item.start_time ? item.start_time.slice(0, 5) : "",
     category: item.category || "activity",
     status: item.status || "planned",
@@ -81,6 +119,12 @@ function toDraft(item) {
 
 function ItemFields({ draft, setDraft }) {
   const set = (patch) => setDraft({ ...draft, ...patch });
+  const spanning = isSpanning(draft.category);
+  const nights = formatNights(draft.item_date, draft.end_date);
+  // Changing a hotel into a dinner should not leave a check-out date sitting
+  // in a field nobody can see any more.
+  const setCategory = (category) =>
+    set({ category, end_date: isSpanning(category) ? draft.end_date : "" });
   return (
     <>
       <input
@@ -93,7 +137,7 @@ function ItemFields({ draft, setDraft }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-ink-soft">
-            Date
+            {spanning ? "Check in" : "Date"}
           </span>
           <input
             className="field"
@@ -102,9 +146,31 @@ function ItemFields({ draft, setDraft }) {
             onChange={(e) => set({ item_date: e.target.value })}
           />
         </label>
+        {spanning && (
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-ink-soft">
+              {endDateLabel(draft.category)}
+              {nights && (
+                <span className="ml-1.5 font-normal text-ink-faint">
+                  {nights}
+                </span>
+              )}
+            </span>
+            <input
+              className="field"
+              type="date"
+              value={draft.end_date}
+              min={draft.item_date || undefined}
+              onChange={(e) => set({ end_date: e.target.value })}
+            />
+            <span className="mt-1 block text-xs text-ink-soft">
+              Leave this empty if it is only one day.
+            </span>
+          </label>
+        )}
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-ink-soft">
-            Time
+            {spanning ? "Check-in time" : "Time"}
           </span>
           <input
             className="field"
@@ -120,7 +186,7 @@ function ItemFields({ draft, setDraft }) {
           <select
             className="field"
             value={draft.category}
-            onChange={(e) => set({ category: e.target.value })}
+            onChange={(e) => setCategory(e.target.value)}
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -197,6 +263,13 @@ function payload(draft) {
   return {
     title: draft.title.trim(),
     item_date: draft.item_date || null,
+    // The second date is only kept when it belongs to this kind of item and
+    // actually lands after the first, so switching a hotel to a dinner cannot
+    // leave an orphaned check-out date behind.
+    end_date:
+      isSpanning(draft.category) && stayNights(draft.item_date, draft.end_date)
+        ? draft.end_date
+        : null,
     start_time: draft.start_time || null,
     category: draft.category,
     status: draft.status,
@@ -241,7 +314,11 @@ export default function Itinerary({
       buildDayKeys(
         tripStart,
         tripEnd,
-        items.map((i) => i.item_date),
+        items.flatMap((i) =>
+          stayNights(i.item_date, i.end_date)
+            ? daysBetween(i.item_date, i.end_date)
+            : [i.item_date],
+        ),
       ),
     [tripStart, tripEnd, items],
   );
@@ -260,6 +337,8 @@ export default function Itinerary({
     });
     return map;
   }, [visible]);
+
+  const staysByDay = useMemo(() => buildStays(visible), [visible]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -649,6 +728,7 @@ export default function Itinerary({
       <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {railKeys.map((date, i) => {
           const dayItems = byDay.get(date) ?? [];
+          const stays = staysByDay.get(date) ?? [];
           const active = date === selected;
           return (
             <div
@@ -666,9 +746,35 @@ export default function Itinerary({
                   </span>
                 )}
               </div>
+              {stays.length > 0 && (
+                <ul className="mb-2 space-y-1">
+                  {stays.map(({ item, night, nights, leaving }) => (
+                    <li
+                      key={`${item.id}-stay`}
+                      className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-xl border border-dashed border-[var(--line)] bg-sand/50 px-3 py-1.5 text-sm text-ink-soft"
+                    >
+                      <span aria-hidden="true">
+                        {CATEGORY_ICONS[item.category]}
+                      </span>
+                      <span>
+                        {leaving ? "Check out of " : "Staying at "}
+                        <span className="font-semibold text-ink">
+                          {item.title}
+                        </span>
+                      </span>
+                      {!leaving && (
+                        <span className="text-xs text-ink-faint">
+                          night {night} of {nights}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="space-y-2">
                 {dayItems.map((item) => {
                   const status = STATUS_STYLES[item.status];
+                  const nights = formatNights(item.item_date, item.end_date);
 
                   if (editingId === item.id) {
                     return (
@@ -717,6 +823,16 @@ export default function Itinerary({
                               {status.label}
                             </span>
                           </div>
+                          {nights && (
+                            <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-ink-soft">
+                              <span className="tabular tracking-[0.01em]">
+                                {formatStayRange(item.item_date, item.end_date)}
+                              </span>
+                              <span className="text-xs text-ink-faint">
+                                {nights}
+                              </span>
+                            </p>
+                          )}
                           {item.location && (
                             <p className="mt-0.5 text-sm text-ink-soft">
                               {item.location}
@@ -802,9 +918,13 @@ export default function Itinerary({
                 {dayItems.length === 0 && (
                   <div className="card p-6 text-center">
                     <p className="text-sm text-ink-soft">
-                      {filter === "all"
-                        ? "Nothing planned for this day."
-                        : "Nothing on this day matches the filter."}
+                      {filter !== "all"
+                        ? "Nothing on this day matches the filter."
+                        : stays.some((s) => !s.leaving)
+                          ? "A free day, with the room already booked."
+                          : stays.length > 0
+                            ? "Nothing else planned before you head off."
+                            : "Nothing planned for this day."}
                     </p>
                     <button
                       type="button"
