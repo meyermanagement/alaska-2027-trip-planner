@@ -440,7 +440,7 @@ export default function ChatPanel({
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4"
       >
         {messages.length === 0 && !busy && !loadingHistory && (
           <div className="space-y-3">

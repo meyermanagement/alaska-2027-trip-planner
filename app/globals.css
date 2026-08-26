@@ -152,6 +152,17 @@ time {
   }
 }
 
+/* iOS Safari does not shrink the layout viewport when the keyboard opens, so a
+   `fixed inset-0` overlay keeps its full height and the strip sitting under the
+   keyboard shows whatever page is behind it. The visual viewport is the only
+   thing that knows where the visible area actually is, so the drawer is sized
+   and offset from that instead, with dvh as the fallback where the API is
+   missing. */
+.aly-overlay {
+  height: var(--aly-viewport-h, 100dvh);
+  transform: translateY(var(--aly-viewport-top, 0px));
+}
+
 .aly-panel {
   animation: aly-slide-in 0.22s ease-out;
 }

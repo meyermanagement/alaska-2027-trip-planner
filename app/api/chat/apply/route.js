@@ -243,7 +243,11 @@ export async function POST(request) {
         }
         if (!outcome.error) {
           extra = outcome.copied
-            ? ` — ${outcome.copied} item${outcome.copied === 1 ? "" : "s"} copied`
+            ? ` — ${outcome.copied} item${outcome.copied === 1 ? "" : "s"} copied${
+                outcome.skipped
+                  ? `, ${outcome.skipped} left off because the base list already covers them`
+                  : ""
+              }`
             : " — empty for now";
         }
       } else if (tool === "clear_packing_list") {
@@ -431,17 +435,41 @@ async function writeTemplate({ supabase, patch, familyId }) {
     });
   }
 
-  const items = copiedTemplateItems(source, {
+  // Copying a trip's list brings the base list along with it, because that is
+  // what the trip was built from. An add-on list has to hold only the extras.
+  // Copying from another standing list is left alone: that is deliberate
+  // reorganizing, and an add-on's contents are already additional.
+  let excludeItems = null;
+  if (fromTrip) {
+    const { data: base } = await supabase
+      .from("packing_templates")
+      .select("id")
+      .eq("family_id", familyId)
+      .eq("is_base", true)
+      .maybeSingle();
+    if (base?.id) {
+      const { data: baseItems } = await supabase
+        .from("packing_template_items")
+        .select("item")
+        .eq("template_id", base.id);
+      excludeItems = (baseItems || []).map((r) => r.item);
+    }
+  }
+
+  const { items, skipped } = copiedTemplateItems(source, {
     templateId: id,
     categories,
+    excludeItems,
   });
   if (!items.length) {
     return rollback(supabase, id, {
-      message: `I found nothing to copy, so I did not start “${row.name}”${
-        Array.isArray(categories) && categories.length
-          ? `. Check that ${categories.join(" and ")} is spelled the way it appears on the list`
-          : ""
-      }.`,
+      message: skipped
+        ? `Everything on that list is already on the base list, so “${row.name}” would have added nothing and I did not start it.`
+        : `I found nothing to copy, so I did not start “${row.name}”${
+            Array.isArray(categories) && categories.length
+              ? `. Check that ${categories.join(" and ")} is spelled the way it appears on the list`
+              : ""
+          }.`,
     });
   }
 
@@ -453,7 +481,7 @@ async function writeTemplate({ supabase, patch, familyId }) {
       message: `I could not copy the items in, so I did not start “${row.name}”: ${itemsError.message}`,
     });
   }
-  return { id, copied: items.length };
+  return { id, copied: items.length, skipped };
 }
 
 // An empty list left behind by a half-finished copy is worse than no list: the

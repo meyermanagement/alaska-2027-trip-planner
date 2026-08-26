@@ -68,11 +68,34 @@ export default function AskAlyDrawer({ trip = null, onApplied, focus }) {
     };
   }, [open, close]);
 
+  // Follow the visible area rather than the layout viewport. On iPhone the two
+  // are the same until the keyboard opens, and then they are not.
+  useEffect(() => {
+    const viewport = typeof window !== "undefined" && window.visualViewport;
+    if (!open || !viewport) return;
+    const root = document.documentElement;
+    const sync = () => {
+      root.style.setProperty("--aly-viewport-h", `${viewport.height}px`);
+      root.style.setProperty("--aly-viewport-top", `${viewport.offsetTop}px`);
+    };
+    sync();
+    // resize fires as the keyboard animates in; scroll fires when the page moves
+    // underneath it, which iOS does to keep the focused field in view.
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+      root.style.removeProperty("--aly-viewport-h");
+      root.style.removeProperty("--aly-viewport-top");
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div
-      className="no-print fixed inset-0 z-40 flex justify-end"
+      className="aly-overlay no-print fixed inset-x-0 top-0 z-40 flex justify-end"
       role="dialog"
       aria-modal="true"
       aria-label="Ask Aly"
