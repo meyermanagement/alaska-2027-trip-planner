@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 
@@ -168,6 +169,18 @@ export default function Packing({
           Hide packed
         </label>
       </div>
+
+      <p className="no-print mb-4 text-xs text-ink-soft">
+        This list started from the family&rsquo;s standing lists. Changes here
+        stay on this trip &mdash;{" "}
+        <Link
+          href="/packing"
+          className="font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+        >
+          edit the standing lists
+        </Link>{" "}
+        to change what every future trip starts with.
+      </p>
 
       <form
         onSubmit={add}

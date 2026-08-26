@@ -13,8 +13,8 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * each other rather than a row of unrelated buttons. The top of every screen is
  * left to the Alyeska mark and Ask Aly.
  *
- * Trips is home; Reminders cuts across all of them; the last three are for
- * looking things up.
+ * Trips is home; Reminders and Packing lists cut across all of them; the last
+ * three are for looking things up.
  *
  * One exception, and it matters: while you are inside a single trip, the first
  * item stops pretending to be where you already are and becomes the way out —
@@ -34,6 +34,12 @@ const TABS = [
     short: "Reminders",
     Icon: BellIcon,
     badge: true,
+  },
+  {
+    href: "/packing",
+    label: "Packing lists",
+    short: "Packing",
+    Icon: ShirtIcon,
   },
   {
     href: "/rewards",
@@ -155,6 +161,18 @@ function BackIcon({ className }) {
   return (
     <svg {...iconProps(className)}>
       <path d="M16.5 10H4.6M9.2 5.4 4.2 10l5 4.6" />
+    </svg>
+  );
+}
+
+// A folded shirt: the standing lists of what everyone always takes. Deliberately
+// not a suitcase, which is already the whole trip, and not a checklist, which is
+// already Reminders.
+function ShirtIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M7.6 3.9 4.9 5.2 3.4 8.1l2.2 1.1.7-1.1v7.4h7.4V8.1l.7 1.1 2.2-1.1-1.5-2.9-2.7-1.3" />
+      <path d="M7.6 3.9a2.5 2.5 0 0 0 4.8 0" />
     </svg>
   );
 }

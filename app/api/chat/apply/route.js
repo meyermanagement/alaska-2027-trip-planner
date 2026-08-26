@@ -77,7 +77,17 @@ export async function POST(request) {
 
   // Re-derive which ids the user may touch, across every trip the family has.
   // The client is never trusted. RLS keeps all of this inside the family.
-  const [itin, pack, task, notes, travelers, trips, prefs] = await Promise.all([
+  const [
+    itin,
+    pack,
+    task,
+    notes,
+    travelers,
+    trips,
+    prefs,
+    templates,
+    templateItems,
+  ] = await Promise.all([
     supabase.from("itinerary_items").select("id, title, trip_id"),
     supabase.from("packing_items").select("id, item, trip_id"),
     supabase.from("predeparture_tasks").select("id, title, trip_id"),
@@ -85,6 +95,8 @@ export async function POST(request) {
     supabase.from("travelers").select("id, name").order("sort_order"),
     supabase.from("trips").select("id, name"),
     supabase.from("travel_preferences").select("id, body"),
+    supabase.from("packing_templates").select("id, name, is_base"),
+    supabase.from("packing_template_items").select("id, item, template_id"),
   ]);
 
   // Which trip each row sits in, so an edit lands on the right trip even when
@@ -107,6 +119,18 @@ export async function POST(request) {
     trips: new Map((trips.data || []).map((r) => [r.id, r.name])),
     travel_preferences: new Map(
       (prefs.data || []).map((r) => [r.id, (r.body || "").slice(0, 60)]),
+    ),
+    packing_templates: new Map(
+      (templates.data || []).map((r) => [
+        r.id,
+        { name: r.name, is_base: Boolean(r.is_base) },
+      ]),
+    ),
+    packing_template_items: new Map(
+      (templateItems.data || []).map((r) => [
+        r.id,
+        { item: r.item, template_id: r.template_id },
+      ]),
     ),
     rowTrip,
   };
