@@ -5,6 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import AddToCalendar from "@/components/AddToCalendar";
 import { eventFromItem, eventFromTask } from "@/lib/calendar";
 import {
+  scrollWon,
+  selectionText,
+  startsInControl,
+  swipeDirection,
+} from "@/lib/gestures/swipe";
+import {
   CATEGORY_ICONS,
   STATUS_STYLES,
   carryEnd,
@@ -490,15 +496,52 @@ export default function Itinerary({
     onTaskChange();
   }
 
-  const touchX = useRef(null);
+  // A finger on the day panel might be flicking to the next day, or scrolling
+  // down a long one, or dragging a selection handle across a note. Only the
+  // first should move the day, so the gesture is watched the whole way rather
+  // than judged on where it happened to finish.
+  const touch = useRef(null);
   function onTouchStart(e) {
-    touchX.current = e.touches[0]?.clientX ?? null;
+    if (e.touches.length > 1 || startsInControl(e.target)) {
+      touch.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    if (!t) return;
+    touch.current = {
+      x: t.clientX,
+      y: t.clientY,
+      at: Date.now(),
+      canceled: false,
+    };
+  }
+  function onTouchMove(e) {
+    const start = touch.current;
+    if (!start || start.canceled) return;
+    if (e.touches.length > 1) {
+      start.canceled = true;
+      return;
+    }
+    const t = e.touches[0];
+    if (!t) return;
+    if (scrollWon(t.clientX - start.x, t.clientY - start.y)) {
+      start.canceled = true;
+    }
   }
   function onTouchEnd(e) {
-    if (touchX.current === null) return;
-    const dx = (e.changedTouches[0]?.clientX ?? 0) - touchX.current;
-    touchX.current = null;
-    if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
+    const start = touch.current;
+    touch.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dir = swipeDirection({
+      dx: t.clientX - start.x,
+      dy: t.clientY - start.y,
+      elapsed: Date.now() - start.at,
+      canceled: start.canceled,
+      hasSelection: !!selectionText(),
+    });
+    if (dir) step(dir);
   }
 
   function addToDay(key) {
@@ -742,7 +785,14 @@ export default function Itinerary({
         </div>
       )}
 
-      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={() => {
+          touch.current = null;
+        }}
+      >
         {railKeys.map((date, i) => {
           const dayItems = byDay.get(date) ?? [];
           const stays = staysByDay.get(date) ?? [];
