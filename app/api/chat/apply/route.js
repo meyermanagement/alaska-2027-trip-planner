@@ -295,7 +295,10 @@ export async function POST(request) {
           origin: siteOrigin(request),
         });
         dbError = outcome.ok ? null : { message: outcome.error };
-        if (outcome.ok) extra = ` — sent to ${outcome.to}`;
+        if (outcome.ok)
+          extra = outcome.test
+            ? ` — test copy sent to ${outcome.to}`
+            : ` — sent to ${outcome.to}`;
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.
         if (tool.startsWith("delete_")) {

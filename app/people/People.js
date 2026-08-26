@@ -159,7 +159,9 @@ export default function People({
         id: person.id,
         ok: res.ok,
         text: res.ok
-          ? `Sent to ${person.email}.`
+          ? data?.test
+            ? `Test copy sent to ${person.email}. If it arrives, the sign-in emails will too.`
+            : `Sent to ${person.email}.`
           : data?.error || "The email could not be sent.",
       });
       if (res.ok) router.refresh();
@@ -710,6 +712,19 @@ export function AccessRow({ person, isMe, busy, note, onSend, onAddEmail }) {
             </p>
           )}
         </div>
+
+        {linked && isMe && person.email && (
+          <div className="no-print shrink-0">
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={busy}
+              className="btn btn-ghost px-3 py-1.5 text-xs"
+            >
+              {busy ? "Sending…" : "Email myself a test copy"}
+            </button>
+          </div>
+        )}
 
         {!linked && (
           <div className="no-print shrink-0">
