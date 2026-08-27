@@ -15,6 +15,99 @@ import {
   priorityOf,
   priorityRank,
 } from "@/lib/format";
+import { dueWording, timingForDate, todayISO } from "@/lib/reminders";
+
+// Some things are due on a day. Most are due at a stage — book it now, sort it
+// the week before - and a stage is not vaguer than a date, it is just measured
+// from the trip instead of the calendar. So "when" is one question with two kinds
+// of answer, and this is the extra option that switches between them.
+const ON_A_DATE = "__date";
+
+/**
+ * The two columns the answer lands in. Whichever way the question was answered,
+ * the stage is stored too: a date is worth more than a stage, but the stage is
+ * what the Tasks tab groups by, so it is derived rather than left stale.
+ */
+function whenColumns(timing, due, trip, today) {
+  if (timing !== ON_A_DATE || !due) return { timing, due_date: null };
+  return {
+    due_date: due,
+    timing: timingForDate(due, trip, today) || "before_trip",
+  };
+}
+
+/**
+ * Which pile a task belongs in. Worked out from the date when it has one, so a
+ * date Aly sets months later still lands the task in the right place without
+ * anything having to remember to rewrite the stage.
+ */
+function groupOf(task, trip, today) {
+  if (task.due_date) {
+    return timingForDate(task.due_date, trip, today) || task.timing || "now";
+  }
+  return task.timing || "now";
+}
+
+/**
+ * The one "when" control: the stages, then a date. Picking a stage forgets the
+ * date and picking a date forgets the stage, because a task saying both is a task
+ * that will eventually contradict itself.
+ */
+function WhenField({ timing, due, onTiming, onDue, idPrefix }) {
+  const dated = timing === ON_A_DATE;
+  return (
+    <>
+      <select
+        className="field"
+        value={timing}
+        onChange={(e) => onTiming(e.target.value)}
+        aria-label="When it needs doing"
+        id={`${idPrefix}-when`}
+      >
+        {TIMING_ORDER.map((t) => (
+          <option key={t} value={t}>
+            {TIMING_LABELS[t]}
+          </option>
+        ))}
+        <option value={ON_A_DATE}>On a date…</option>
+      </select>
+      {dated && (
+        <input
+          className="field"
+          type="date"
+          value={due}
+          required
+          onChange={(e) => onDue(e.target.value)}
+          aria-label="Due date"
+          id={`${idPrefix}-due`}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * A date on a pill. Late is red and says so first, because "Overdue" is the word
+ * you need and the date is the detail; the next two days get words for the same
+ * reason. Everything further out is just the day.
+ */
+function DueChip({ due, today }) {
+  const word = dueWording(due, today);
+  const day = formatShortDay(due);
+  if (word?.late) {
+    return (
+      <span className="chip bg-rose/15 text-rose">Overdue · was {day}</span>
+    );
+  }
+  if (word?.text) {
+    return (
+      <span className="chip bg-amber/15 text-amber">
+        {word.text} · {day}
+      </span>
+    );
+  }
+  return <span className="chip bg-amber/15 text-amber">Due {day}</span>;
+}
 
 export default function Tasks({
   items,
@@ -22,11 +115,16 @@ export default function Tasks({
   trip,
   travelers,
   userId,
+  today: todayProp,
   onChange,
 }) {
+  // Handed down from the server when there is one; worked out here otherwise, so
+  // this still behaves if it is ever mounted somewhere that forgets to pass it.
+  const today = todayProp || todayISO();
   const supabase = useMemo(() => createClient(), []);
   const [newTitle, setNewTitle] = useState("");
   const [newTiming, setNewTiming] = useState("now");
+  const [newDue, setNewDue] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
   const [newPriority, setNewPriority] = useState("normal");
   const [hideDone, setHideDone] = useState(false);
@@ -48,6 +146,15 @@ export default function Tasks({
   // its badge — it just sits where it was.
   const rank = (task) => (task.is_done ? 1 : priorityRank(task));
 
+  // Priority is how you feel about a task. A due date that has arrived is not a
+  // feeling, so late and imminent work climbs above it — but only that work, or
+  // a date on everything would quietly replace the priority meter.
+  const pressing = (task) => {
+    if (task.is_done || !task.due_date) return 1;
+    const word = dueWording(task.due_date, today);
+    return word?.late || word?.soon ? 0 : 1;
+  };
+
   // The bars are quiet on purpose, so say once what they mean.
   const legend = ["low", "normal", "high"];
 
@@ -56,8 +163,9 @@ export default function Tasks({
     items
       .filter((t) => (hideDone ? !t.is_done : true))
       .forEach((t) => {
-        if (!map.has(t.timing)) map.set(t.timing, []);
-        map.get(t.timing).push(t);
+        const key = groupOf(t, trip, today);
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(t);
       });
     // Inside a group the urgent ones come first, then everything normal, then
     // the ones that can wait. Anything level pegging stays in the order it was
@@ -67,10 +175,19 @@ export default function Tasks({
       map
         .get(k)
         .map((t, i) => [t, i])
-        .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
+        .sort(
+          (a, b) =>
+            pressing(a[0]) - pressing(b[0]) ||
+            // Among the pressing ones, the earliest date first.
+            (pressing(a[0]) === 0
+              ? String(a[0].due_date).localeCompare(String(b[0].due_date))
+              : 0) ||
+            rank(a[0]) - rank(b[0]) ||
+            a[1] - b[1],
+        )
         .map(([t]) => t),
     ]);
-  }, [items, hideDone]);
+  }, [items, hideDone, trip, today]);
 
   async function toggle(task) {
     await supabase
@@ -96,7 +213,9 @@ export default function Tasks({
       title: task.title || "",
       detail: task.detail || "",
       assignee: task.assignee || "Shared",
-      timing: task.timing || "now",
+      // A task with a date answered the question with a date, so the control
+      // opens the way it was last answered.
+      timing: task.due_date ? ON_A_DATE : task.timing || "now",
       priority: priorityOf(task),
       due_date: task.due_date || "",
     });
@@ -111,9 +230,8 @@ export default function Tasks({
         title: editDraft.title.trim(),
         detail: editDraft.detail.trim() || null,
         assignee: editDraft.assignee,
-        timing: editDraft.timing,
+        ...whenColumns(editDraft.timing, editDraft.due_date, trip, today),
         priority: editDraft.priority,
-        due_date: editDraft.due_date || null,
       })
       .eq("id", editingId);
     setEditingId(null);
@@ -123,15 +241,17 @@ export default function Tasks({
   async function add(e) {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    if (newTiming === ON_A_DATE && !newDue) return;
     await supabase.from("predeparture_tasks").insert({
       trip_id: tripId,
       title: newTitle.trim(),
-      timing: newTiming,
+      ...whenColumns(newTiming, newDue, trip, today),
       assignee: newAssignee,
       priority: newPriority,
       sort_order: 999,
     });
     setNewTitle("");
+    setNewDue("");
     onChange();
   }
 
@@ -149,12 +269,20 @@ export default function Tasks({
   const openHigh = items.filter(
     (t) => !t.is_done && priorityOf(t) === "high",
   ).length;
+  const late = items.filter(
+    (t) => !t.is_done && t.due_date && t.due_date < today,
+  ).length;
 
   return (
     <section>
       <div className="no-print mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-ink-soft">
           {done} of {items.length} complete
+          {late > 0 && (
+            <span className="ml-2 chip bg-rose/15 text-rose">
+              {late} past due
+            </span>
+          )}
           {openHigh > 0 && (
             <span className="ml-2 chip bg-rose/12 text-rose">
               {openHigh} high priority still open
@@ -183,7 +311,11 @@ export default function Tasks({
 
       <form
         onSubmit={add}
-        className="card no-print mb-5 grid gap-2 p-4 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+        className={`card no-print mb-5 grid gap-2 p-4 ${
+          newTiming === ON_A_DATE
+            ? "sm:grid-cols-[1.8fr_1.15fr_1.15fr_1fr_1fr_auto]"
+            : "sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+        }`}
       >
         <input
           className="field"
@@ -191,17 +323,16 @@ export default function Tasks({
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
         />
-        <select
-          className="field"
-          value={newTiming}
-          onChange={(e) => setNewTiming(e.target.value)}
-        >
-          {TIMING_ORDER.map((t) => (
-            <option key={t} value={t}>
-              {TIMING_LABELS[t]}
-            </option>
-          ))}
-        </select>
+        <WhenField
+          idPrefix="new-task"
+          timing={newTiming}
+          due={newDue}
+          onTiming={(value) => {
+            setNewTiming(value);
+            if (value !== ON_A_DATE) setNewDue("");
+          }}
+          onDue={setNewDue}
+        />
         <select
           className="field"
           value={newAssignee}
@@ -276,22 +407,22 @@ export default function Tasks({
                         }
                       />
                       <div className="grid gap-2 sm:grid-cols-2">
-                        <select
-                          className="field"
-                          value={editDraft.timing}
-                          onChange={(e) =>
+                        <WhenField
+                          idPrefix={`edit-${task.id}`}
+                          timing={editDraft.timing}
+                          due={editDraft.due_date}
+                          onTiming={(value) =>
                             setEditDraft({
                               ...editDraft,
-                              timing: e.target.value,
+                              timing: value,
+                              due_date:
+                                value === ON_A_DATE ? editDraft.due_date : "",
                             })
                           }
-                        >
-                          {TIMING_ORDER.map((t) => (
-                            <option key={t} value={t}>
-                              {TIMING_LABELS[t]}
-                            </option>
-                          ))}
-                        </select>
+                          onDue={(value) =>
+                            setEditDraft({ ...editDraft, due_date: value })
+                          }
+                        />
                         <select
                           className="field"
                           value={editDraft.assignee}
@@ -330,17 +461,6 @@ export default function Tasks({
                             </option>
                           ))}
                         </select>
-                        <input
-                          className="field"
-                          type="date"
-                          value={editDraft.due_date}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              due_date: e.target.value,
-                            })
-                          }
-                        />
                       </div>
                       <div className="flex gap-2">
                         <button className="btn btn-primary">Save</button>
@@ -381,9 +501,12 @@ export default function Tasks({
                         >
                           {task.assignee}
                         </span>
-                        {task.due_date && (
-                          <span className="chip bg-amber/15 text-amber">
-                            Due {formatShortDay(task.due_date)}
+                        {task.due_date && !task.is_done && (
+                          <DueChip due={task.due_date} today={today} />
+                        )}
+                        {task.due_date && task.is_done && (
+                          <span className="chip bg-sand-deep text-ink-soft">
+                            Was due {formatShortDay(task.due_date)}
                           </span>
                         )}
                         {task.itinerary_item_id && (

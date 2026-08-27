@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 
+// The nightly reminder run arrives with no session at all — a scheduler is not a
+// person — so it has to get past the redirect below. It is not open: the route
+// itself demands the shared secret Vercel signs the request with, and refuses to
+// do anything when that secret has not been configured.
+const MACHINE_PATHS = ["/api/tasks/remind"];
+
 export async function middleware(request) {
   let response = NextResponse.next({ request });
 
@@ -32,7 +38,9 @@ export async function middleware(request) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic =
+    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
+    MACHINE_PATHS.includes(pathname);
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

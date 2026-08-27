@@ -34,6 +34,7 @@ export default function People({
   const [editingTripsFor, setEditingTripsFor] = useState(null);
   const [inviteBusy, setInviteBusy] = useState(null);
   const [inviteNote, setInviteNote] = useState(null);
+  const [remindBusy, setRemindBusy] = useState(null);
   // Local copy so a tapped trip chip reacts immediately.
   const [roster, setRoster] = useState(rosters);
 
@@ -146,6 +147,45 @@ export default function People({
     setAddingPerson(false);
     router.refresh();
     return null;
+  }
+
+  // Turns the morning reminder emails on or off for one person. Written straight
+  // to their row rather than kept in a settings screen, because it belongs to the
+  // same address the sign-in email uses.
+  async function setReminders(person, wanted) {
+    await supabase
+      .from("travelers")
+      .update({ wants_reminders: wanted })
+      .eq("id", person.id);
+    router.refresh();
+  }
+
+  // Sends today's reminder to yourself, whatever the schedule is doing. The one
+  // way to see the real email without waiting for the morning.
+  async function sendMine(person) {
+    setRemindBusy(person.id);
+    setInviteNote(null);
+    try {
+      const res = await fetch("/api/tasks/remind", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      setInviteNote({
+        id: person.id,
+        ok: res.ok,
+        text: res.ok
+          ? data?.nothing
+            ? data.message
+            : `Sent to ${data.to} — ${data.count} ${data.count === 1 ? "task" : "tasks"} due today.`
+          : data?.error || "The email could not be sent.",
+      });
+    } catch {
+      setInviteNote({
+        id: person.id,
+        ok: false,
+        text: "The email could not be sent.",
+      });
+    } finally {
+      setRemindBusy(null);
+    }
   }
 
   // Sends the branded sign-in email. The address itself is what grants access —
@@ -278,9 +318,12 @@ export default function People({
                   person.email.toLowerCase() === userEmail.toLowerCase())
               }
               busy={inviteBusy === person.id}
+              remindBusy={remindBusy === person.id}
               note={inviteNote?.id === person.id ? inviteNote : null}
               onSend={() => sendInvite(person)}
               onAddEmail={() => setEditingPerson(person.id)}
+              onReminders={(wanted) => setReminders(person, wanted)}
+              onSendMine={() => sendMine(person)}
             />
 
             {editingPerson === person.id && (
@@ -672,7 +715,17 @@ function stampDay(value) {
   return when.toLocaleDateString("en-US", { month: "long", day: "numeric" });
 }
 
-export function AccessRow({ person, isMe, busy, note, onSend, onAddEmail }) {
+export function AccessRow({
+  person,
+  isMe,
+  busy,
+  remindBusy,
+  note,
+  onSend,
+  onAddEmail,
+  onReminders,
+  onSendMine,
+}) {
   // Your own row counts as settled the moment it carries your address, even if
   // the seat claim has not caught up — you are demonstrably signed in already.
   const mine = isMe && !!person.email;
@@ -749,6 +802,34 @@ export function AccessRow({ person, isMe, busy, note, onSend, onAddEmail }) {
           </div>
         )}
       </div>
+
+      {person.email && (
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--line)] pt-2.5">
+          <label className="flex items-center gap-2 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-[var(--color-teal)]"
+              checked={person.wants_reminders !== false}
+              onChange={(e) => onReminders?.(e.target.checked)}
+            />
+            <span>
+              Email {isMe ? "me" : person.name.split(" ")[0]} on the morning
+              anything {isMe ? "I am" : "they are"} responsible for is due
+            </span>
+          </label>
+
+          {isMe && person.wants_reminders !== false && (
+            <button
+              type="button"
+              onClick={onSendMine}
+              disabled={remindBusy}
+              className="no-print btn btn-ghost shrink-0 px-3 py-1.5 text-xs"
+            >
+              {remindBusy ? "Sending…" : "Send mine now"}
+            </button>
+          )}
+        </div>
+      )}
 
       {note && (
         <p

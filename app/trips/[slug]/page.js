@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import TripView from "@/components/TripView";
+import { todayISO } from "@/lib/reminders";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -38,37 +39,41 @@ export default async function TripPage({ params }) {
     .eq("id", user.id)
     .maybeSingle();
 
-  const [itinerary, packing, tasks, notes, travelers, roster] = await Promise.all([
-    supabase
-      .from("itinerary_items")
-      .select("*")
-      .eq("trip_id", trip.id)
-      .order("item_date", { ascending: true })
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("packing_items")
-      .select("*")
-      .eq("trip_id", trip.id)
-      .order("category", { ascending: true })
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("predeparture_tasks")
-      .select("*")
-      .eq("trip_id", trip.id)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("trip_notes")
-      .select("*")
-      .eq("trip_id", trip.id)
-      .order("pinned", { ascending: false })
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("travelers")
-      .select("id, name, color, is_person, sort_order")
-      .eq("family_id", trip.family_id)
-      .order("sort_order", { ascending: true }),
-    supabase.from("trip_travelers").select("traveler_id").eq("trip_id", trip.id),
-  ]);
+  const [itinerary, packing, tasks, notes, travelers, roster] =
+    await Promise.all([
+      supabase
+        .from("itinerary_items")
+        .select("*")
+        .eq("trip_id", trip.id)
+        .order("item_date", { ascending: true })
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("packing_items")
+        .select("*")
+        .eq("trip_id", trip.id)
+        .order("category", { ascending: true })
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("predeparture_tasks")
+        .select("*")
+        .eq("trip_id", trip.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("trip_notes")
+        .select("*")
+        .eq("trip_id", trip.id)
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("travelers")
+        .select("id, name, color, is_person, sort_order")
+        .eq("family_id", trip.family_id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("trip_travelers")
+        .select("traveler_id")
+        .eq("trip_id", trip.id),
+    ]);
 
   return (
     <>
@@ -82,6 +87,7 @@ export default async function TripPage({ params }) {
         travelers={(travelers.data || []).map((t) => t.name)}
         people={(travelers.data || []).filter((t) => t.is_person)}
         initialGoing={(roster.data || []).map((r) => r.traveler_id)}
+        today={todayISO()}
         userId={user.id}
         userName={profile?.display_name || "Family member"}
       />

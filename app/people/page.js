@@ -37,7 +37,7 @@ export default async function PeoplePage() {
     supabase
       .from("travelers")
       .select(
-        "id, name, color, sort_order, is_person, date_of_birth, notes, email, user_id, invited_at, linked_at",
+        "id, name, color, sort_order, is_person, date_of_birth, notes, email, user_id, invited_at, linked_at, wants_reminders",
       )
       .eq("is_person", true)
       .order("sort_order", { ascending: true }),

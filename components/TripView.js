@@ -31,6 +31,9 @@ export default function TripView({
   initialGoing = [],
   userId,
   userName,
+  // Worked out on the server and handed down, so "overdue" means the same thing
+  // in the first frame the browser draws as it does after it wakes up.
+  today,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -372,6 +375,7 @@ export default function TripView({
             trip={info}
             travelers={travelers}
             userId={userId}
+            today={today}
             onChange={() => refetch("predeparture_tasks")}
           />
         )}
