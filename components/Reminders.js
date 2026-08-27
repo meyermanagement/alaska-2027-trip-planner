@@ -35,7 +35,12 @@ import {
  * answer "what is left for Alaska"; this answers the question you actually ask
  * on a Tuesday morning — what needs doing next, and what is already late.
  */
-export default function Reminders({ tasks, today, userId }) {
+export default function Reminders({
+  tasks,
+  today,
+  userId,
+  assigneesByTrip = {},
+}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [due, setDue] = useState("all");
@@ -106,6 +111,7 @@ export default function Reminders({ tasks, today, userId }) {
       timing: task.due_date ? ON_A_DATE : task.timing || "now",
       due_date: task.due_date || "",
       priority: task.priority || "normal",
+      assignee: task.assignee || "Shared",
     });
   }
 
@@ -113,6 +119,7 @@ export default function Reminders({ tasks, today, userId }) {
     const patch = {
       ...whenColumns(draft.timing, draft.due_date, row.trip, today),
       priority: draft.priority,
+      assignee: draft.assignee,
       updated_by: userId,
       updated_at: new Date().toISOString(),
     };
@@ -261,7 +268,7 @@ export default function Reminders({ tasks, today, userId }) {
 
                   {editingId === row.task.id && draft && (
                     <form
-                      className="no-print mt-3 grid gap-2 rounded-xl border border-[var(--line)] bg-sand/40 p-3 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)_auto]"
+                      className="no-print mt-3 grid gap-2 rounded-xl border border-[var(--line)] bg-sand/40 p-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto]"
                       onSubmit={(e) => {
                         e.preventDefault();
                         saveEdit(row);
@@ -289,6 +296,32 @@ export default function Reminders({ tasks, today, userId }) {
                           }
                         />
                       </div>
+                      <select
+                        className="field"
+                        value={draft.assignee}
+                        aria-label="Who it is down to"
+                        onChange={(e) =>
+                          setDraft({ ...draft, assignee: e.target.value })
+                        }
+                      >
+                        {(assigneesByTrip[row.trip.id] || ["Shared"]).map(
+                          (name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ),
+                        )}
+                        {/* Somebody who is no longer on the roster is still who
+                            this is down to, and dropping them silently would be
+                            a reassignment nobody asked for. */}
+                        {!(assigneesByTrip[row.trip.id] || []).includes(
+                          draft.assignee,
+                        ) && (
+                          <option value={draft.assignee}>
+                            {draft.assignee}
+                          </option>
+                        )}
+                      </select>
                       <select
                         className="field"
                         value={draft.priority}
