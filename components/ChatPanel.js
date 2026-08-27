@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
+import PlaceCards, { addRequest } from "./PlaceCards";
 
 // Prompts follow whichever section the user was looking at.
 const SUGGESTIONS = {
@@ -276,12 +277,13 @@ export default function ChatPanel({
             role: "assistant",
             text: data.reply,
             sources: data.sources?.length ? data.sources : undefined,
+            places: data.places?.length ? data.places : undefined,
           },
         ]);
       }
       if (data.actions?.length) {
         setPending({ groups: groupActions(data.actions) });
-      } else if (!data.reply) {
+      } else if (!data.reply && !data.places?.length) {
         setMessages((m) => [
           ...m,
           {
@@ -555,7 +557,7 @@ export default function ChatPanel({
             }
           >
             <div
-              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+              className={`${m.places?.length ? "w-full" : "max-w-[85%]"} rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                 m.role === "user"
                   ? "bg-teal text-white"
                   : m.kind === "receipt"
@@ -565,6 +567,11 @@ export default function ChatPanel({
             >
               <span className="whitespace-pre-wrap">{m.text}</span>
               <MessageSources sources={m.sources} />
+              <PlaceCards
+                places={m.places}
+                busy={busy}
+                onAdd={(place) => send(addRequest(place))}
+              />
             </div>
           </div>
         ))}

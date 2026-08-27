@@ -18,6 +18,8 @@ import {
   shouldLookUp,
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
+import { splitPlaceCalls } from "@/lib/places/cards";
+import { enrich } from "@/lib/places/photos";
 import {
   CONTEXT_MESSAGES,
   appendMessage,
@@ -168,12 +170,19 @@ export async function POST(request) {
     );
   }
 
+  // A shortlist of places is an answer, not a change, so it is taken out before
+  // anything here treats a tool call as something to save.
+  const { calls: changeCalls, places: shortlist } = splitPlaceCalls(
+    result.calls,
+  );
+  const places = await enrich(shortlist);
+
   const proposed = [];
   const problems = [];
   // A trip being created in this same turn has no id yet, so the itinerary and
   // packing rows that came with it are filed against its name instead.
-  const pendingTrips = pendingTripNames(result.calls);
-  for (const call of result.calls) {
+  const pendingTrips = pendingTripNames(changeCalls);
+  for (const call of changeCalls) {
     const { action, error } = validateAction(call, {
       travelerNames: ctx.travelerNames,
       travelerIds: ctx.travelerIds,
@@ -221,7 +230,7 @@ export async function POST(request) {
   } else if (note && !reply) {
     reply = note;
   }
-  if (!reply && actions.length === 0) {
+  if (!reply && actions.length === 0 && places.length === 0) {
     reply = problems.length
       ? Array.from(new Set(problems)).join(" ")
       : "I am not sure how to help with that yet.";
@@ -229,11 +238,12 @@ export async function POST(request) {
 
   // What Aly proposed matters as much as what she said, so the transcript keeps
   // the proposal alongside the reply.
+  const spoken = reply || (places.length ? placesLine(places) : "");
   const record = actions.length
-    ? [reply, `(Proposed: ${actions.map((a) => a.summary).join("; ")})`]
+    ? [spoken, `(Proposed: ${actions.map((a) => a.summary).join("; ")})`]
         .filter(Boolean)
         .join("\n\n")
-    : reply;
+    : spoken;
   if (record) {
     await appendMessage(supabase, {
       userId: user.id,
@@ -251,6 +261,9 @@ export async function POST(request) {
       // Where a looked-up answer came from, kept with the answer so it is still
       // checkable when the conversation is reopened next week.
       sources: result.sources,
+      // The cards belong to the answer. Without this, reopening the conversation
+      // tomorrow would leave five names and nothing to tap.
+      places,
     });
   }
 
@@ -260,6 +273,7 @@ export async function POST(request) {
     problems,
     conversationId,
     sources: result.sources || [],
+    places,
   });
 }
 
@@ -340,4 +354,10 @@ async function loadEverything(supabase, userName, focusTripId) {
     templateItems: templateItems.data || [],
     userName,
   });
+}
+
+// What the transcript says when the answer was entirely cards. Reopening a
+// conversation to a blank assistant message would look like a fault.
+function placesLine(places) {
+  return `Suggested: ${places.map((p) => p.name).join("; ")}.`;
 }

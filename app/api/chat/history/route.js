@@ -55,6 +55,7 @@ export async function GET(request) {
       kind: m.kind || undefined,
       sources:
         Array.isArray(m.sources) && m.sources.length ? m.sources : undefined,
+      places: Array.isArray(m.places) && m.places.length ? m.places : undefined,
     })),
   });
 }
