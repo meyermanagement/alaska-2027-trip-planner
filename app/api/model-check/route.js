@@ -21,8 +21,13 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Small on purpose: this is a question about entitlement, not about quality.
-const PROBE = "Name one well known restaurant in Willemstad, Curaçao.";
+// A question no model can answer from memory. Naming a restaurant was a poor
+// probe: Gemini knew one, answered in two seconds, searched nothing, and the check
+// could only shrug. Something that changes by the hour leaves no such option -
+// either it searches or it says it cannot know.
+const PROBE =
+  "What is today's date, and name one news story published today. " +
+  "You cannot know either without searching, so search.";
 // Two probes, one after the other, comfortably inside the sixty seconds above.
 // Sequential on purpose: two requests at once could trip a per-minute burst limit
 // and produce exactly the confusion this is meant to clear up.
@@ -38,7 +43,8 @@ async function probe({ grounded }) {
     const out = await gemini.generate({
       system:
         "Reply with one short sentence of plain text. Do not call any function - " +
-        "the function is here only to make this request the same shape as a real one.",
+        "the function is here only to make this request the same shape as a real one. " +
+        "If you cannot search, say so rather than guessing.",
       messages: [{ role: "user", text: PROBE }],
       // One declaration, so this exercises the same shape the chat route sends:
       // our own function calling and Google's search in the same request, which
@@ -102,6 +108,8 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
+    // Spelled out because a browser looking at raw JSON will otherwise guess, and
+    // guesses turn Curaçao into mojibake.
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
 
@@ -118,7 +126,8 @@ export async function GET() {
       userId: user.id,
       asked: label,
       wantedSearch: label.startsWith("web"),
-      searched: result.searched === true,
+      // A search that actually ran, judged the same way the page judges it.
+      searched: (result.queries || []).length > 0,
       refusals: result.refusals,
     });
   }
@@ -138,7 +147,7 @@ export async function GET() {
     ? withSearch.queries?.length
       ? `Search is working. Google searched for: ${withSearch.queries.join("; ")}`
       : withSearch.searchAvailable
-        ? "Search was offered and not refused, but the model did not use it this time, so this run does not prove much either way. Run it again."
+        ? "Nothing refused us, but the model answered without searching even though it was asked something it cannot know unaided. Read its answer below: if it admits it cannot check the web, search is not really available."
         : "Search was refused, and the answer came back without it."
     : withoutSearch.worked
       ? "Search is refused and so is the fallback for this key."
@@ -148,15 +157,20 @@ export async function GET() {
     ? "Google refused on an allowance with FreeTier in its name, so the Google Cloud project behind this key is still on the free tier - where search is not available at any volume. An upgrade applies to a project, not to a key, so this is most likely a key belonging to a different project than the one that was upgraded."
     : null;
 
-  return NextResponse.json({
-    verdict,
-    because,
-    onFreeTier,
-    keySet: Boolean(process.env.GEMINI_API_KEY),
-    providers: providerNames(),
-    models: gemini.modelList(),
-    withSearch,
-    withoutSearch,
-    checkedAt: new Date().toISOString(),
-  });
+  // Spelled out because a browser looking at raw JSON will otherwise guess, and
+  // guesses turn Curaçao into mojibake.
+  return NextResponse.json(
+    {
+      verdict,
+      because,
+      onFreeTier,
+      keySet: Boolean(process.env.GEMINI_API_KEY),
+      providers: providerNames(),
+      models: gemini.modelList(),
+      withSearch,
+      withoutSearch,
+      checkedAt: new Date().toISOString(),
+    },
+    { headers: { "content-type": "application/json; charset=utf-8" } },
+  );
 }
