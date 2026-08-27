@@ -39,6 +39,20 @@ export default function TipStrip({ tips = [], today }) {
     }
   }, []);
 
+  const makeTask = useCallback(async (tip) => {
+    setGone((prev) => ({ ...prev, [tip.id]: "cleared" }));
+    try {
+      const res = await fetch(`/api/tips/${tip.id}/task`, { method: "POST" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setGone((prev) => {
+        const next = { ...prev };
+        delete next[tip.id];
+        return next;
+      });
+    }
+  }, []);
+
   if (!shown.length) return null;
 
   return (
@@ -68,6 +82,15 @@ export default function TipStrip({ tips = [], today }) {
                   >
                     {tip.trips.name}
                   </Link>
+                ) : null}
+                {tip.trip_id ? (
+                  <button
+                    type="button"
+                    onClick={() => makeTask(tip)}
+                    className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-teal hover:underline"
+                  >
+                    Remind me
+                  </button>
                 ) : null}
                 <button
                   type="button"

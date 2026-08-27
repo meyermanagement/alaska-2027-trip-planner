@@ -1,4 +1,5 @@
 import Link from "next/link";
+import WarningTask from "./WarningTask";
 
 /**
  * The band that says a passport is going to be a problem.
@@ -123,6 +124,10 @@ export function PassportWarningPanel({ warnings = [] }) {
             window is checked by the airline at check-in as well as at the
             border, so it is worth doing long before it feels urgent.
           </p>
+          {/* A warning says something is wrong; a task is the app agreeing to
+              keep saying so every morning until it is not. Worth being able to
+              ask for, because a passport renewal is measured in weeks. */}
+          <WarningTask tripId={warning.tripId} />
         </div>
       ))}
     </section>

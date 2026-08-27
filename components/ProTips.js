@@ -68,6 +68,35 @@ export default function ProTips({
 
   // One press, several questions. The loop lives in lib/tips/run.js because Aly
   // drives the same one when she decides to go and look herself.
+  // "Remind me about this." A tip and a task promise different things: a tip is
+  // worth knowing and then goes quiet either way, while a task is the app
+  // agreeing to chase you every morning until it is ticked off. Turning one over
+  // clears the tip, because the same sentence in two places, one of which nags,
+  // is how a checklist stops being trusted.
+  const makeTask = useCallback(async (tip) => {
+    setProblem("");
+    setGone((prev) => ({ ...prev, [tip.id]: "cleared" }));
+    try {
+      const res = await fetch(`/api/tips/${tip.id}/task`, { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || "");
+      setNote(
+        body?.task?.due_date
+          ? `On the checklist, due ${body.task.due_date}. The morning email will say so.`
+          : "On the checklist. The morning email will say so.",
+      );
+    } catch (err) {
+      setGone((prev) => {
+        const next = { ...prev };
+        delete next[tip.id];
+        return next;
+      });
+      setProblem(
+        err?.message || "Could not add that to the checklist. Try again.",
+      );
+    }
+  }, []);
+
   const look = useCallback(async () => {
     setBusy(true);
     setProblem("");
@@ -137,7 +166,13 @@ export default function ProTips({
       {shown.length ? (
         <ul className="space-y-3">
           {shown.map((tip) => (
-            <TipCard key={tip.id} tip={tip} today={today} onResolve={resolve} />
+            <TipCard
+              key={tip.id}
+              tip={tip}
+              today={today}
+              onResolve={resolve}
+              onTask={tip.trip_id ? makeTask : null}
+            />
           ))}
         </ul>
       ) : (
@@ -158,7 +193,7 @@ const TONES = {
   quiet: "border-[var(--line)] bg-white text-ink-faint",
 };
 
-function TipCard({ tip, today, onResolve }) {
+function TipCard({ tip, today, onResolve, onTask }) {
   const when = tipWhen(tip, today);
   const sources = Array.isArray(tip.sources) ? tip.sources.slice(0, 3) : [];
 
@@ -197,6 +232,15 @@ function TipCard({ tip, today, onResolve }) {
         </p>
       ) : null}
       <div className="no-print mt-3 flex flex-wrap gap-2">
+        {onTask ? (
+          <button
+            type="button"
+            onClick={() => onTask(tip)}
+            className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+          >
+            Remind me
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => onResolve(tip, "cleared")}
