@@ -10,6 +10,13 @@
 
 import { KIND_LABELS, addRequest } from "@/lib/places/cards";
 
+// A bare number in brackets is ambiguous - it could be a price or a distance -
+// so the count says what it counts. Grouped with commas, because 3140 reviews
+// reads slower than 3,140.
+function reviews(count) {
+  return `${count.toLocaleString("en-US")} review${count === 1 ? "" : "s"}`;
+}
+
 function Stars({ rating, count }) {
   if (!rating) return null;
   return (
@@ -18,8 +25,10 @@ function Stars({ rating, count }) {
         ★
       </span>
       <span className="font-medium text-ink">{rating.toFixed(1)}</span>
-      {count ? <span className="text-ink-faint">({count})</span> : null}
       <span className="sr-only">out of 5 on Google</span>
+      {count ? (
+        <span className="text-ink-faint">· {reviews(count)}</span>
+      ) : null}
     </span>
   );
 }
@@ -48,15 +57,21 @@ function Card({ place, onAdd, busy }) {
           </span>
         </div>
 
-        <p className="mt-1 text-xs text-ink-soft">
-          {[place.area, place.price].filter(Boolean).join(" · ")}
-        </p>
-
-        {place.rating ? (
-          <p className="mt-1 text-xs">
+        {/* Area, price and rating read as one line: the three things you weigh a
+            place by, so they belong together rather than stacked. */}
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs text-ink-soft">
+          {place.area ? <span>{place.area}</span> : null}
+          {place.area && place.price ? <span aria-hidden="true">·</span> : null}
+          {place.price ? (
+            <span className="tabular-nums">{place.price}</span>
+          ) : null}
+          {place.rating && (place.area || place.price) ? (
+            <span aria-hidden="true">·</span>
+          ) : null}
+          {place.rating ? (
             <Stars rating={place.rating} count={place.ratingCount} />
-          </p>
-        ) : null}
+          ) : null}
+        </p>
 
         {place.why ? (
           <p className="mt-2 text-xs leading-relaxed text-ink">{place.why}</p>
