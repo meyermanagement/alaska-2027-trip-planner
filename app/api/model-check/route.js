@@ -26,13 +26,19 @@ const PROBE = "Name one well known restaurant in Willemstad, Curaçao.";
 // Two probes, one after the other, comfortably inside the sixty seconds above.
 // Sequential on purpose: two requests at once could trip a per-minute burst limit
 // and produce exactly the confusion this is meant to clear up.
-const PROBE_MS = 12000;
+// Twenty seconds each, comfortably inside the sixty above. Twelve was too mean:
+// the model layer will not start an attempt it cannot give eight seconds to, so a
+// first attempt that stumbled left too little on the clock and the probe reported
+// a timeout of its own making rather than anything about Google.
+const PROBE_MS = 20000;
 
 async function probe({ grounded }) {
   const started = Date.now();
   try {
     const out = await gemini.generate({
-      system: "Answer in one short sentence.",
+      system:
+        "Reply with one short sentence of plain text. Do not call any function - " +
+        "the function is here only to make this request the same shape as a real one.",
       messages: [{ role: "user", text: PROBE }],
       // One declaration, so this exercises the same shape the chat route sends:
       // our own function calling and Google's search in the same request, which
@@ -55,8 +61,14 @@ async function probe({ grounded }) {
     return {
       worked: true,
       model: out.model,
-      searched: out.searched === true,
+      searchAvailable: out.searched === true,
+      // The searches Google says it ran. This is the proof, rather than the
+      // absence of a refusal.
+      queries: out.queries || [],
       sources: (out.sources || []).map((s) => s.title),
+      // A model that reaches for the test function instead of writing a sentence
+      // has proved the request shape works, but says nothing about search.
+      choseTheFunction: (out.calls || []).map((c) => c.name),
       said: String(out.text || "").slice(0, 200),
       tookMs: Date.now() - started,
       refusals: out.refusals || [],
@@ -123,9 +135,11 @@ export async function GET() {
   const onFreeTier = named.some((id) => /freetier/i.test(id));
 
   const verdict = withSearch.worked
-    ? withSearch.searched
-      ? "Search is working."
-      : "Search was refused, and the answer came back without it."
+    ? withSearch.queries?.length
+      ? `Search is working. Google searched for: ${withSearch.queries.join("; ")}`
+      : withSearch.searchAvailable
+        ? "Search was offered and not refused, but the model did not use it this time, so this run does not prove much either way. Run it again."
+        : "Search was refused, and the answer came back without it."
     : withoutSearch.worked
       ? "Search is refused and so is the fallback for this key."
       : "Google is not answering at all right now.";

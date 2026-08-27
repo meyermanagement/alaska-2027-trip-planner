@@ -111,9 +111,23 @@ export default function ModelCheckPage() {
             <div className="mt-2 rounded-lg border border-sand-deep bg-white p-3">
               <Line label="Answered" value={grounded?.worked ? "Yes" : "No"} />
               <Line
-                label="Actually searched"
-                value={grounded?.searched ? "Yes" : "No"}
+                label="Search allowed"
+                value={grounded?.searchAvailable ? "Yes" : "No — refused"}
               />
+              <Line
+                label="Searches Google ran"
+                value={
+                  grounded?.queries?.length
+                    ? grounded.queries.join("; ")
+                    : "None — the model did not reach for it this time"
+                }
+              />
+              {grounded?.choseTheFunction?.length ? (
+                <Line
+                  label="Called instead"
+                  value={`${grounded.choseTheFunction.join(", ")} — the test function, so there is no sentence to show`}
+                />
+              ) : null}
               <Line label="Model" value={grounded?.model || "—"} />
               <Line
                 label="Sources"
