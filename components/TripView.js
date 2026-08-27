@@ -33,6 +33,7 @@ export default function TripView({
   tips = [],
   everLooked = false,
   packingTemplates = [],
+  packingTemplateItems = [],
   userId,
   userName,
   // Worked out on the server and handed down, so "overdue" means the same thing
@@ -363,18 +364,23 @@ export default function TripView({
       </section>
 
       <div className="mt-6">
-        {/* Tips about the trip as a whole sit above the tabs rather than inside
-            one of them, because advice about the trip is not advice about the
-            itinerary, and burying it under a tab means it is read once. */}
-        <ProTips
-          tips={tips.filter((tip) => tip.scope === "trip")}
-          today={today}
-          tripId={trip.id}
-          scope="trip"
-          everLooked={everLooked}
-          chain={lookAt}
-          heading="Pro tips for this trip"
-        />
+        {/* Tips about the trip as a whole live on the itinerary tab, not above
+            all of them. They are nearly all about plans and dates — when a thing
+            can be booked, when a window opens — so they belong beside the plans.
+            Standing above the tabs meant the same booking advice followed you
+            onto packing, tasks and notes, where it was noise. Packing advice has
+            its own place on the packing tab for the same reason. */}
+        {tab === "itinerary" && (
+          <ProTips
+            tips={tips.filter((tip) => tip.scope === "trip")}
+            today={today}
+            tripId={trip.id}
+            scope="trip"
+            everLooked={everLooked}
+            chain={lookAt}
+            heading="Pro tips for this trip"
+          />
+        )}
         {tab === "itinerary" && (
           <Itinerary
             items={itinerary}
@@ -402,6 +408,7 @@ export default function TripView({
             travelers={travelers}
             userId={userId}
             templates={packingTemplates}
+            templateItems={packingTemplateItems}
             onChange={() => refetch("packing_items")}
           />
         )}

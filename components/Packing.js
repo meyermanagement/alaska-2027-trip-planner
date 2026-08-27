@@ -13,6 +13,7 @@ export default function Packing({
   userId,
   onChange,
   templates = [],
+  templateItems: initialTemplateItems = [],
   tips = [],
   today,
   everLooked = false,
@@ -30,6 +31,14 @@ export default function Packing({
   const base = templates.find((t) => t.is_base) || templates[0] || null;
   const [templateId, setTemplateId] = useState(base?.id || "");
   const [toTemplate, setToTemplate] = useState(null);
+  // What the packing templates already hold. Without this the offer to keep an
+  // item for future trips is made blind: the thing you are looking at may well
+  // have arrived on this trip from a template in the first place, and being
+  // asked to save it again — with no hint that it is already saved — is how you
+  // end up with two of it on every trip after this one. They arrive with the
+  // page; the copy here only exists so a row written from this form shows up in
+  // the labels without another read.
+  const [templateItems, setTemplateItems] = useState(initialTemplateItems);
   const [editDraft, setEditDraft] = useState({
     item: "",
     category: "",
@@ -41,6 +50,71 @@ export default function Packing({
   const people = travelers.length
     ? travelers
     : ["Mark", "Steph", "Veda", "Shared"];
+
+  /**
+   * Which packing templates already hold a given item.
+   *
+   * Matched on the name without regard to case, because "Rain shell" and "rain
+   * shell" are the same forgotten jacket. The person is reported rather than
+   * required: an item kept for Shared is worth knowing about when you are
+   * looking at Veda's copy of it, and the two are not the same row.
+   */
+  const keptOn = useMemo(() => {
+    const names = new Map(templates.map((t) => [t.id, t]));
+    const byName = new Map();
+    for (const row of templateItems) {
+      const key = String(row.item || "")
+        .trim()
+        .toLowerCase();
+      const template = names.get(row.template_id);
+      if (!key || !template) continue;
+      const list = byName.get(key) || [];
+      list.push({
+        id: template.id,
+        name: template.name,
+        isBase: Boolean(template.is_base),
+        assignee: row.assignee || "Shared",
+      });
+      byName.set(key, list);
+    }
+    return byName;
+  }, [templateItems, templates]);
+
+  const keptFor = (name) =>
+    keptOn.get(
+      String(name || "")
+        .trim()
+        .toLowerCase(),
+    ) || [];
+
+  /** One short line naming the templates an item is already kept on. */
+  function keptLine(item) {
+    const on = keptFor(item.item);
+    if (!on.length) return null;
+    const said = on
+      .slice(0, 2)
+      .map((t) =>
+        t.assignee === item.assignee ? t.name : `${t.name} (${t.assignee})`,
+      );
+    const rest = on.length - said.length;
+    return `Kept on ${said.join(", ")}${rest > 0 ? ` and ${rest} more` : ""}`;
+  }
+
+  const chosenTemplate = templates.find((t) => t.id === templateId) || null;
+  const alreadyKept = keptFor(editDraft.item).some(
+    (k) => k.id === templateId && k.assignee === editDraft.assignee,
+  );
+  // The other templates holding it, for the line under the button. Worth saying
+  // even when the chosen template does not have it: knowing it is on the base
+  // list changes whether you want it on a second one at all.
+  const keptElsewhere = (() => {
+    const others = keptFor(editDraft.item).filter((k) => k.id !== templateId);
+    if (!others.length) return null;
+    const names = [...new Set(others.map((k) => k.name))];
+    const said = names.slice(0, 2).join(", ");
+    const rest = names.length - Math.min(names.length, 2);
+    return `Kept on ${said}${rest > 0 ? ` and ${rest} more` : ""}`;
+  })();
 
   const categories = useMemo(() => {
     const list = Array.from(new Set(items.map((i) => i.category)));
@@ -176,6 +250,14 @@ export default function Packing({
       sort_order: 999,
       created_by: userId,
     });
+    if (!error) {
+      // Kept alongside the row that was written so the labels on this form, and
+      // the line under the item, tell the truth without another read.
+      setTemplateItems((rows) => [
+        ...rows,
+        { template_id: chosen.id, item: name, assignee: patch.assignee },
+      ]);
+    }
     setToTemplate(
       error
         ? { state: "error", message: "That did not save to the template." }
@@ -427,6 +509,16 @@ export default function Packing({
                             >
                               {templates.map((t) => (
                                 <option key={t.id} value={t.id}>
+                                  {/* The mark goes first because a select
+                                      truncates from the right on a phone, and
+                                      "already on it" is the part worth keeping. */}
+                                  {keptFor(editDraft.item).some(
+                                    (k) =>
+                                      k.id === t.id &&
+                                      k.assignee === editDraft.assignee,
+                                  )
+                                    ? "\u2713 "
+                                    : ""}
                                   {t.name}
                                   {t.is_base ? " (base)" : ""}
                                 </option>
@@ -438,7 +530,8 @@ export default function Packing({
                               onClick={alsoAddToTemplate}
                               disabled={
                                 toTemplate?.state === "saving" ||
-                                !editDraft.item.trim()
+                                !editDraft.item.trim() ||
+                                alreadyKept
                               }
                             >
                               {toTemplate?.state === "saving"
@@ -454,7 +547,11 @@ export default function Packing({
                             }`}
                           >
                             {toTemplate?.message ||
-                              "Saves your edits and puts this on the chosen template as well. Trips that already exist are left alone."}
+                              (alreadyKept
+                                ? `Already on ${chosenTemplate?.name} for ${editDraft.assignee}, so there is nothing to add. Pick another template to keep it somewhere else as well.`
+                                : keptElsewhere
+                                  ? `${keptElsewhere} already. Adding it here keeps it on this one too.`
+                                  : "Saves your edits and puts this on the chosen template as well. Trips that already exist are left alone.")}
                           </p>
                         </div>
                       )}
@@ -494,6 +591,11 @@ export default function Packing({
                       {item.notes && (
                         <p className="mt-0.5 text-xs text-ink-soft">
                           {item.notes}
+                        </p>
+                      )}
+                      {keptLine(item) && (
+                        <p className="mt-0.5 text-xs text-ink-faint">
+                          {keptLine(item)}
                         </p>
                       )}
                     </div>

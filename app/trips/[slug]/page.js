@@ -49,6 +49,7 @@ export default async function TripPage({ params }) {
     tips,
     facts,
     templates,
+    templateItems,
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -98,13 +99,20 @@ export default async function TripPage({ params }) {
       .maybeSingle(),
     // The packing templates, so an item invented while packing for this trip
     // can be sent to the list every future trip starts from without leaving
-    // the suitcase. Names and ids only; their contents are not needed here.
+    // the suitcase.
     supabase
       .from("packing_templates")
       .select("id, name, is_base")
       .eq("family_id", trip.family_id)
       .order("is_base", { ascending: false })
       .order("name", { ascending: true }),
+    // And what those templates already hold, so a packing row can say which one
+    // it is kept on. Names and people only — enough to recognize the same item
+    // without reading every field of every template. Row-level security limits
+    // these to the family's own templates.
+    supabase
+      .from("packing_template_items")
+      .select("template_id, item, assignee"),
   ]);
 
   return (
@@ -122,6 +130,7 @@ export default async function TripPage({ params }) {
         tips={tips.data || []}
         everLooked={Boolean(facts.data?.checked_at)}
         packingTemplates={templates.data || []}
+        packingTemplateItems={templateItems.data || []}
         today={todayISO()}
         userId={user.id}
         userName={profile?.display_name || "Family member"}
