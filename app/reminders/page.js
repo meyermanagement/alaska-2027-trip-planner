@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import CalendarLink from "@/components/CalendarLink";
+// Parked, not gone. The calendar subscription block is hidden for now — Mark
+// wants to come back to it, so the component and its route stay in the repo.
+// import CalendarLink from "@/components/CalendarLink";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
@@ -86,7 +88,7 @@ export default async function RemindersPage() {
             Every open task across every upcoming trip, the urgent ones first.
           </p>
         </div>
-        <CalendarLink />
+        {/* <CalendarLink /> */}
         <Reminders
           tasks={tasks}
           today={todayISO()}
