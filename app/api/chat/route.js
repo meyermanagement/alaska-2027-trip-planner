@@ -7,7 +7,8 @@ import {
   isKnownFocus,
   NEW_TRIP_FOCUS,
 } from "@/lib/agent/context";
-import { allTools, validateAction, pendingTripNames } from "@/lib/agent/tools";
+import { validateAction, pendingTripNames } from "@/lib/agent/tools";
+import { toolsForRequest } from "@/lib/agent/toolset";
 import {
   CONTEXT_MESSAGES,
   appendMessage,
@@ -115,7 +116,10 @@ export async function POST(request) {
   }
 
   const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName, extras);
-  const tools = allTools();
+  // Not all 28 of them: the ones this screen and these words could plausibly
+  // need. See lib/agent/toolset.js for why fewer is more accurate as well as
+  // cheaper.
+  const tools = toolsForRequest({ focus, message: said });
 
   const messages = [...toModelMessages(past), { role: "user", text: said }];
 
@@ -130,6 +134,7 @@ export async function POST(request) {
   });
 
   let result;
+  const askedAt = Date.now();
   try {
     result = await generate({ system, messages, tools });
   } catch (err) {
@@ -179,6 +184,13 @@ export async function POST(request) {
       tripId: threadTripId,
       role: "assistant",
       body: record,
+      // Which model answered, and how hard it was to get an answer. Without this
+      // there is no way to tell a slow first choice from a fast third fallback
+      // when someone says Aly felt wrong today.
+      provider: result.provider,
+      model: result.model,
+      latencyMs: Date.now() - askedAt,
+      fallbackDepth: result.fallbackDepth,
     });
   }
 
