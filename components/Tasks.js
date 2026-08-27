@@ -15,99 +15,14 @@ import {
   priorityOf,
   priorityRank,
 } from "@/lib/format";
-import { dueWording, timingForDate, todayISO } from "@/lib/reminders";
-
-// Some things are due on a day. Most are due at a stage — book it now, sort it
-// the week before - and a stage is not vaguer than a date, it is just measured
-// from the trip instead of the calendar. So "when" is one question with two kinds
-// of answer, and this is the extra option that switches between them.
-const ON_A_DATE = "__date";
-
-/**
- * The two columns the answer lands in. Whichever way the question was answered,
- * the stage is stored too: a date is worth more than a stage, but the stage is
- * what the Tasks tab groups by, so it is derived rather than left stale.
- */
-function whenColumns(timing, due, trip, today) {
-  if (timing !== ON_A_DATE || !due) return { timing, due_date: null };
-  return {
-    due_date: due,
-    timing: timingForDate(due, trip, today) || "before_trip",
-  };
-}
-
-/**
- * Which pile a task belongs in. Worked out from the date when it has one, so a
- * date Aly sets months later still lands the task in the right place without
- * anything having to remember to rewrite the stage.
- */
-function groupOf(task, trip, today) {
-  if (task.due_date) {
-    return timingForDate(task.due_date, trip, today) || task.timing || "now";
-  }
-  return task.timing || "now";
-}
-
-/**
- * The one "when" control: the stages, then a date. Picking a stage forgets the
- * date and picking a date forgets the stage, because a task saying both is a task
- * that will eventually contradict itself.
- */
-function WhenField({ timing, due, onTiming, onDue, idPrefix }) {
-  const dated = timing === ON_A_DATE;
-  return (
-    <>
-      <select
-        className="field"
-        value={timing}
-        onChange={(e) => onTiming(e.target.value)}
-        aria-label="When it needs doing"
-        id={`${idPrefix}-when`}
-      >
-        {TIMING_ORDER.map((t) => (
-          <option key={t} value={t}>
-            {TIMING_LABELS[t]}
-          </option>
-        ))}
-        <option value={ON_A_DATE}>On a date…</option>
-      </select>
-      {dated && (
-        <input
-          className="field"
-          type="date"
-          value={due}
-          required
-          onChange={(e) => onDue(e.target.value)}
-          aria-label="Due date"
-          id={`${idPrefix}-due`}
-        />
-      )}
-    </>
-  );
-}
-
-/**
- * A date on a pill. Late is red and says so first, because "Overdue" is the word
- * you need and the date is the detail; the next two days get words for the same
- * reason. Everything further out is just the day.
- */
-function DueChip({ due, today }) {
-  const word = dueWording(due, today);
-  const day = formatShortDay(due);
-  if (word?.late) {
-    return (
-      <span className="chip bg-rose/15 text-rose">Overdue · was {day}</span>
-    );
-  }
-  if (word?.text) {
-    return (
-      <span className="chip bg-amber/15 text-amber">
-        {word.text} · {day}
-      </span>
-    );
-  }
-  return <span className="chip bg-amber/15 text-amber">Due {day}</span>;
-}
+import { dueWording, todayISO } from "@/lib/reminders";
+import {
+  DueChip,
+  ON_A_DATE,
+  WhenField,
+  timingGroupOf,
+  whenColumns,
+} from "@/components/TaskWhen";
 
 export default function Tasks({
   items,
@@ -163,7 +78,7 @@ export default function Tasks({
     items
       .filter((t) => (hideDone ? !t.is_done : true))
       .forEach((t) => {
-        const key = groupOf(t, trip, today);
+        const key = timingGroupOf(t, trip, today);
         if (!map.has(key)) map.set(key, []);
         map.get(key).push(t);
       });

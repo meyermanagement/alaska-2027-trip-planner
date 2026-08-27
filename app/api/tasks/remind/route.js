@@ -26,10 +26,10 @@ export async function GET(request) {
       { status: 503 },
     );
   }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Not allowed." }, { status: 401 });
-  }
-
+  // Both settings are checked before the caller is, so that opening this URL in a
+  // browser is a straight answer about whether the morning run can work. All it
+  // can ever say is that a variable is unset; the values stay on the server, and
+  // a fully configured endpoint just says no.
   const supabase = createAdminClient();
   if (!supabase) {
     return NextResponse.json(
@@ -39,6 +39,9 @@ export async function GET(request) {
       },
       { status: 503 },
     );
+  }
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Not allowed." }, { status: 401 });
   }
 
   const outcome = await sendDueTodayReminders({

@@ -15,6 +15,12 @@ import {
   formatShortDay,
 } from "@/lib/format";
 import {
+  DueChip,
+  ON_A_DATE,
+  WhenField,
+  whenColumns,
+} from "@/components/TaskWhen";
+import {
   DUE_BUCKETS,
   DUE_FILTERS,
   bucketOf,
@@ -37,6 +43,13 @@ export default function Reminders({ tasks, today, userId }) {
   // Ticking something off should feel instant, so the row leaves the list the
   // moment it is clicked rather than waiting for the round trip and refresh.
   const [justDone, setJustDone] = useState([]);
+  // Which row is open for editing, and the changes made to any row so far. The
+  // page's tasks come down from the server, so an edit is held here too and laid
+  // over the top — otherwise the row would snap back to its old date for the
+  // moment it takes the refresh to come round.
+  const [editingId, setEditingId] = useState(null);
+  const [edits, setEdits] = useState({});
+  const [draft, setDraft] = useState(null);
 
   // Each task arrives with its trip, so the date it wants doing and the group it
   // belongs in are worked out once here rather than on every render pass.
@@ -44,7 +57,8 @@ export default function Reminders({ tasks, today, userId }) {
     () =>
       tasks
         .filter((task) => !justDone.includes(task.id))
-        .map((task) => {
+        .map((raw) => {
+          const task = edits[raw.id] ? { ...raw, ...edits[raw.id] } : raw;
           const info = dueInfo(task, task.trip, today);
           return {
             task,
@@ -53,7 +67,7 @@ export default function Reminders({ tasks, today, userId }) {
             bucket: bucketOf(info.date, today),
           };
         }),
-    [tasks, today, justDone],
+    [tasks, today, justDone, edits],
   );
 
   const shown = rows.filter(
@@ -83,6 +97,36 @@ export default function Reminders({ tasks, today, userId }) {
     router.refresh();
   }
 
+  // Opening the editor is the moment the stage-or-date question gets asked, so a
+  // task that already has a date opens on the date and everything else opens on
+  // its stage.
+  function startEdit(task) {
+    setEditingId(task.id);
+    setDraft({
+      timing: task.due_date ? ON_A_DATE : task.timing || "now",
+      due_date: task.due_date || "",
+      priority: task.priority || "normal",
+    });
+  }
+
+  async function saveEdit(row) {
+    const patch = {
+      ...whenColumns(draft.timing, draft.due_date, row.trip, today),
+      priority: draft.priority,
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    };
+    if (draft.timing === ON_A_DATE && !draft.due_date) return;
+    setEdits((all) => ({ ...all, [row.task.id]: patch }));
+    setEditingId(null);
+    setDraft(null);
+    await supabase
+      .from("predeparture_tasks")
+      .update(patch)
+      .eq("id", row.task.id);
+    router.refresh();
+  }
+
   return (
     <section>
       <p className="mb-4 text-sm text-ink-soft">
@@ -99,7 +143,7 @@ export default function Reminders({ tasks, today, userId }) {
               </span>
             )}
             {overdue > 0 && (
-              <span className="ml-2 chip bg-amber/15 text-amber">
+              <span className="ml-2 chip bg-rose/15 text-rose">
                 {overdue} past due
               </span>
             )}
@@ -143,62 +187,141 @@ export default function Reminders({ tasks, today, userId }) {
               {list.map((row) => (
                 <li
                   key={row.task.id}
-                  className={`flex items-start gap-3 border-b border-sand/80 px-4 py-3 last:border-0 ${
+                  className={`border-b border-sand/80 px-4 py-3 last:border-0 ${
                     isHigh(row.task)
                       ? "bg-rose/[0.04] shadow-[inset_3px_0_0_0_var(--color-rose)]"
                       : ""
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
-                    checked={false}
-                    onChange={() => complete(row)}
-                    aria-label={`Mark ${row.task.title} done`}
-                  />
-                  <PriorityMeter task={row.task} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium">
-                        {row.task.title}
-                      </span>
-                      <Link
-                        href={`/trips/${row.trip.slug}?tab=tasks`}
-                        className="chip inline-flex items-center gap-1.5 bg-teal-soft text-teal transition hover:bg-teal hover:text-white"
-                      >
-                        {row.trip.name}
-                        <PendingSpark className="h-3 w-3" />
-                      </Link>
-                      <span
-                        className={`chip ${assigneeColor(row.task.assignee)}`}
-                      >
-                        {row.task.assignee}
-                      </span>
-                      {row.due.exact ? (
-                        <span className="chip bg-amber/15 text-amber">
-                          Due {formatShortDay(row.due.date)}
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
+                      checked={false}
+                      onChange={() => complete(row)}
+                      aria-label={`Mark ${row.task.title} done`}
+                    />
+                    <PriorityMeter task={row.task} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {row.task.title}
                         </span>
-                      ) : (
-                        <span className="chip bg-sand-deep text-ink-soft">
-                          {row.due.note}
-                          {row.due.date
-                            ? ` · around ${formatShortDay(row.due.date)}`
-                            : ""}
+                        <Link
+                          href={`/trips/${row.trip.slug}?tab=tasks`}
+                          className="chip inline-flex items-center gap-1.5 bg-teal-soft text-teal transition hover:bg-teal hover:text-white"
+                        >
+                          {row.trip.name}
+                          <PendingSpark className="h-3 w-3" />
+                        </Link>
+                        <span
+                          className={`chip ${assigneeColor(row.task.assignee)}`}
+                        >
+                          {row.task.assignee}
                         </span>
+                        {row.due.exact ? (
+                          <DueChip due={row.due.date} today={today} />
+                        ) : (
+                          <span className="chip bg-sand-deep text-ink-soft">
+                            {row.due.note}
+                            {row.due.date
+                              ? ` · around ${formatShortDay(row.due.date)}`
+                              : ""}
+                          </span>
+                        )}
+                      </div>
+                      {row.task.detail && (
+                        <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                          {row.task.detail}
+                        </p>
                       )}
                     </div>
-                    {row.task.detail && (
-                      <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                        {row.task.detail}
-                      </p>
-                    )}
+                    <div className="no-print flex shrink-0 items-center gap-1">
+                      {row.due.date && (
+                        <AddToCalendar
+                          compact
+                          className="mt-0.5"
+                          event={eventFromTask(row.task, row.trip, today)}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          editingId === row.task.id
+                            ? setEditingId(null)
+                            : startEdit(row.task)
+                        }
+                        className="rounded-lg px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-ink-faint transition hover:bg-sand hover:text-teal"
+                        aria-expanded={editingId === row.task.id}
+                      >
+                        {editingId === row.task.id ? "Close" : "Edit"}
+                      </button>
+                    </div>
                   </div>
-                  {row.due.date && (
-                    <AddToCalendar
-                      compact
-                      className="mt-0.5 shrink-0"
-                      event={eventFromTask(row.task, row.trip, today)}
-                    />
+
+                  {editingId === row.task.id && draft && (
+                    <form
+                      className="no-print mt-3 grid gap-2 rounded-xl border border-[var(--line)] bg-sand/40 p-3 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)_auto]"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        saveEdit(row);
+                      }}
+                    >
+                      <div
+                        className={`grid gap-2 ${
+                          draft.timing === ON_A_DATE ? "sm:grid-cols-2" : ""
+                        }`}
+                      >
+                        <WhenField
+                          idPrefix={`rem-${row.task.id}`}
+                          timing={draft.timing}
+                          due={draft.due_date}
+                          onTiming={(value) =>
+                            setDraft({
+                              ...draft,
+                              timing: value,
+                              due_date:
+                                value === ON_A_DATE ? draft.due_date : "",
+                            })
+                          }
+                          onDue={(value) =>
+                            setDraft({ ...draft, due_date: value })
+                          }
+                        />
+                      </div>
+                      <select
+                        className="field"
+                        value={draft.priority}
+                        aria-label="Priority"
+                        onChange={(e) =>
+                          setDraft({ ...draft, priority: e.target.value })
+                        }
+                      >
+                        {PRIORITY_ORDER.map((p) => (
+                          <option key={p} value={p}>
+                            {PRIORITY_LABELS[p]}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="submit"
+                          className="btn btn-primary px-3 py-1.5 text-xs"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(null);
+                            setDraft(null);
+                          }}
+                          className="btn btn-ghost px-3 py-1.5 text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
                   )}
                 </li>
               ))}
