@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import IgnoredTips from "@/components/IgnoredTips";
 import Link from "next/link";
 import { PendingSpark } from "./LinkPending";
 import { useRouter } from "next/navigation";
@@ -369,6 +370,7 @@ export default function Reminders({
           </p>
         )}
       </div>
+      <IgnoredTips />
     </section>
   );
 }

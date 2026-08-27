@@ -4,6 +4,8 @@ import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import People from "./People";
+import { todayISO } from "@/lib/reminders";
+import { passportWarnings } from "@/lib/tips/warnings";
 
 export const metadata = { title: "People · Alyeska" };
 
@@ -43,7 +45,9 @@ export default async function PeoplePage() {
       .order("sort_order", { ascending: true }),
     supabase
       .from("trips")
-      .select("id, name, cover_emoji, start_date, end_date, status")
+      .select(
+        "id, name, slug, destination, cover_emoji, start_date, end_date, status, trip_facts (leaves_country, countries)",
+      )
       .order("start_date", { ascending: false }),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
     supabase
@@ -53,6 +57,28 @@ export default async function PeoplePage() {
       )
       .order("sort_order", { ascending: true }),
   ]);
+
+  // The passport warning is worked out here rather than fetched, from the trips,
+  // the roster and the documents this page has already read. Nothing extra to
+  // load, and it cannot disagree with the band in the header because both run the
+  // same function over the same two dates.
+  const today = todayISO();
+  const roster = rosters || [];
+  const warnings = passportWarnings({
+    trips: (trips || [])
+      .filter((trip) => trip.end_date && trip.end_date >= today)
+      .map((trip) => ({
+        ...trip,
+        leavesCountry: trip.trip_facts?.leaves_country === true,
+        countries: trip.trip_facts?.countries || [],
+        going: roster
+          .filter((row) => row.trip_id === trip.id)
+          .map((row) => (travelers || []).find((t) => t.id === row.traveler_id))
+          .filter(Boolean),
+      })),
+    documents: (documents || []).filter((d) => d.doc_type === "passport"),
+    today,
+  });
 
   return (
     <>
@@ -75,6 +101,7 @@ export default async function PeoplePage() {
           documents={documents || []}
           trips={trips || []}
           rosters={rosters || []}
+          warnings={warnings}
         />
       </main>
       <AskAlyGeneral />

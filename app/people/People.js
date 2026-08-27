@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PassportWarningPanel } from "@/components/PassportWarning";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -21,6 +22,7 @@ export default function People({
   documents,
   trips = [],
   rosters = [],
+  warnings = [],
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -223,6 +225,7 @@ export default function People({
 
   return (
     <div className="space-y-5">
+      <PassportWarningPanel warnings={warnings} />
       {expiring.length > 0 && (
         <div className="rounded-xl border border-amber/40 bg-amber/[0.07] p-4 shadow-[0_1px_2px_rgba(22,33,31,0.04)]">
           <h2 className="text-sm font-semibold">Worth renewing soon</h2>

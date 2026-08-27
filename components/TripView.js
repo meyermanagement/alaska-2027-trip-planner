@@ -12,6 +12,7 @@ import Packing from "./Packing";
 import Tasks from "./Tasks";
 import Notes from "./Notes";
 import AskAlyDrawer from "./AskAlyDrawer";
+import ProTips from "./ProTips";
 
 const TABS = [
   { id: "itinerary", label: "Itinerary" },
@@ -29,6 +30,8 @@ export default function TripView({
   travelers,
   people = [],
   initialGoing = [],
+  tips = [],
+  everLooked = false,
   userId,
   userName,
   // Worked out on the server and handed down, so "overdue" means the same thing
@@ -56,6 +59,22 @@ export default function TripView({
   // step with the itinerary, and anyone in the family can edit the details.
   const [info, setInfo] = useState(trip);
   const [editing, setEditing] = useState(false);
+
+  // What a look at this trip covers: the trip, the packing list, and the next
+  // three bookings that have not happened yet. Bounded because each one is a
+  // separate call to the model, and because advice about day nine is not urgent
+  // while day one is still unbooked.
+  const lookAt = useMemo(
+    () => [
+      { scope: "trip" },
+      { scope: "packing" },
+      ...itinerary
+        .filter((item) => item.item_date && item.item_date >= today)
+        .slice(0, 3)
+        .map((item) => ({ scope: "item", itemId: item.id })),
+    ],
+    [itinerary, today],
+  );
 
   const refetch = useCallback(
     async (table) => {
@@ -343,6 +362,18 @@ export default function TripView({
       </section>
 
       <div className="mt-6">
+        {/* Tips about the trip as a whole sit above the tabs rather than inside
+            one of them, because advice about the trip is not advice about the
+            itinerary, and burying it under a tab means it is read once. */}
+        <ProTips
+          tips={tips.filter((tip) => tip.scope === "trip")}
+          today={today}
+          tripId={trip.id}
+          scope="trip"
+          everLooked={everLooked}
+          chain={lookAt}
+          heading="Pro tips for this trip"
+        />
         {tab === "itinerary" && (
           <Itinerary
             items={itinerary}
@@ -356,6 +387,7 @@ export default function TripView({
             tasks={tasks}
             onTaskChange={() => refetch("predeparture_tasks")}
             onOpenTasks={() => setTab("tasks")}
+            tips={tips.filter((tip) => tip.scope === "item")}
             onChange={() => refetch("itinerary_items")}
           />
         )}
@@ -363,6 +395,9 @@ export default function TripView({
           <Packing
             items={packing}
             tripId={trip.id}
+            tips={tips.filter((tip) => tip.scope === "packing")}
+            today={today}
+            everLooked={everLooked}
             travelers={travelers}
             userId={userId}
             onChange={() => refetch("packing_items")}

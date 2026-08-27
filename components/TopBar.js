@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { countNeedingAttention, todayISO } from "@/lib/reminders";
+import { loadHeaderNotices } from "@/lib/tips/load";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger from "./AskAlyTrigger";
 import NavTabs from "./NavTabs";
+import PassportWarning from "./PassportWarning";
+import TipStrip from "./TipStrip";
 
 // Pass nothing and the button opens the Ask Aly drawer on the current screen,
 // which is what every signed-in screen does. `askHref` is kept for any screen
@@ -12,11 +15,18 @@ export default async function TopBar({ askHref, showAsk = true }) {
   // The menu carries the one number worth interrupting someone for: how many
   // open tasks are late or urgent. It is read here, once, for every screen.
   const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from("predeparture_tasks")
-    .select("due_date, timing, priority, trips(start_date, end_date, status)")
-    .eq("is_done", false);
-  const attention = countNeedingAttention(rows || [], todayISO());
+  const today = todayISO();
+  // Read here rather than on each screen, because a passport warning that appears
+  // on Trips and not on Packing is worse than no warning: it teaches you that the
+  // band is decorative. One read, one answer, every screen.
+  const [{ data: rows }, notices] = await Promise.all([
+    supabase
+      .from("predeparture_tasks")
+      .select("due_date, timing, priority, trips(start_date, end_date, status)")
+      .eq("is_done", false),
+    loadHeaderNotices(supabase, today),
+  ]);
+  const attention = countNeedingAttention(rows || [], today);
 
   // The menu is a sibling of the header, not a child: the header blurs what is
   // behind it, and a blurred element becomes the frame its fixed children are
@@ -36,6 +46,8 @@ export default async function TopBar({ askHref, showAsk = true }) {
         </div>
       </header>
       <NavTabs attention={attention} />
+      <PassportWarning warnings={notices.warnings} />
+      <TipStrip tips={notices.urgent} today={today} />
     </>
   );
 }

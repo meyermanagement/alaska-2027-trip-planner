@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ProTips from "./ProTips";
 import { createClient } from "@/lib/supabase/client";
 import LocationField from "@/components/LocationField";
 import AddToCalendar from "@/components/AddToCalendar";
@@ -317,8 +318,22 @@ export default function Itinerary({
   onOpenTasks = () => {},
   tripName,
   destination = "",
+  tips = [],
 }) {
   const supabase = useMemo(() => createClient(), []);
+  // Grouped once rather than filtered inside every card, because a long day in
+  // Alaska is thirty cards and thirty passes over the same list.
+  const tipsByItem = useMemo(() => {
+    const map = new Map();
+    for (const tip of tips) {
+      if (!tip.itinerary_item_id) continue;
+      const list = map.get(tip.itinerary_item_id) || [];
+      list.push(tip);
+      map.set(tip.itinerary_item_id, list);
+    }
+    return map;
+  }, [tips]);
+  const tipsFor = useCallback((id) => tipsByItem.get(id) || [], [tipsByItem]);
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(EMPTY);
@@ -990,6 +1005,19 @@ export default function Itinerary({
                               Delete
                             </button>
                           </div>
+                          {/* Advice about this one booking, under it rather than
+                              anywhere else, because a tip about the ferry is
+                              useless three screens away from the ferry. */}
+                          <ProTips
+                            tips={tipsFor(item.id)}
+                            today={today}
+                            tripId={tripId}
+                            scope="item"
+                            itemId={item.id}
+                            everLooked
+                            compact
+                            heading="Worth knowing"
+                          />
                         </div>
                       </div>
                     </article>

@@ -39,7 +39,7 @@ export default async function TripPage({ params }) {
     .eq("id", user.id)
     .maybeSingle();
 
-  const [itinerary, packing, tasks, notes, travelers, roster] =
+  const [itinerary, packing, tasks, notes, travelers, roster, tips, facts] =
     await Promise.all([
       supabase
         .from("itinerary_items")
@@ -73,6 +73,20 @@ export default async function TripPage({ params }) {
         .from("trip_travelers")
         .select("traveler_id")
         .eq("trip_id", trip.id),
+      // Pro tips for this trip, and whether the place has ever been researched.
+      // The second one is what lets the screen say "nothing yet" rather than
+      // "nothing", which are different claims.
+      supabase
+        .from("pro_tips")
+        .select("*")
+        .eq("trip_id", trip.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("trip_facts")
+        .select("checked_at")
+        .eq("trip_id", trip.id)
+        .maybeSingle(),
     ]);
 
   return (
@@ -87,6 +101,8 @@ export default async function TripPage({ params }) {
         travelers={(travelers.data || []).map((t) => t.name)}
         people={(travelers.data || []).filter((t) => t.is_person)}
         initialGoing={(roster.data || []).map((r) => r.traveler_id)}
+        tips={tips.data || []}
+        everLooked={Boolean(facts.data?.checked_at)}
         today={todayISO()}
         userId={user.id}
         userName={profile?.display_name || "Family member"}

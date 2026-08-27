@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
+import ProTips from "./ProTips";
 
 export default function Packing({
   items,
@@ -11,6 +12,9 @@ export default function Packing({
   travelers,
   userId,
   onChange,
+  tips = [],
+  today,
+  everLooked = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
@@ -120,6 +124,16 @@ export default function Packing({
 
   return (
     <section>
+      {/* Above the progress bar, because the point of a packing tip is to be read
+          before the list is worked through rather than after. */}
+      <ProTips
+        tips={tips}
+        today={today}
+        tripId={tripId}
+        scope="packing"
+        everLooked={everLooked}
+        heading="Before you pack"
+      />
       <div className="card mb-4 p-4">
         <div className="flex items-center justify-between text-sm font-semibold">
           <span>
