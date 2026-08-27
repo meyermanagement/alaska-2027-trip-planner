@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import LocationField from "@/components/LocationField";
 import AddToCalendar from "@/components/AddToCalendar";
 import { eventFromItem, eventFromTask } from "@/lib/calendar";
 import {
@@ -125,7 +126,7 @@ function toDraft(item) {
   };
 }
 
-function ItemFields({ draft, setDraft }) {
+function ItemFields({ draft, setDraft, destination = "" }) {
   const set = (patch) => setDraft({ ...draft, ...patch });
   const spanning = isSpanning(draft.category);
   const nights = formatNights(draft.item_date, draft.end_date);
@@ -234,11 +235,14 @@ function ItemFields({ draft, setDraft }) {
             ))}
           </select>
         </label>
-        <input
-          className="field"
-          placeholder="Location"
+        <LocationField
           value={draft.location}
-          onChange={(e) => set({ location: e.target.value })}
+          onChange={(location) => set({ location })}
+          // What is happening is usually where it is happening, so the box
+          // searches for the title when it has nothing of its own to go on.
+          title={draft.title}
+          category={draft.category}
+          destination={destination}
         />
         <input
           className="field"
@@ -312,6 +316,7 @@ export default function Itinerary({
   onTaskChange = () => {},
   onOpenTasks = () => {},
   tripName,
+  destination = "",
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [filter, setFilter] = useState("all");
@@ -665,7 +670,11 @@ export default function Itinerary({
 
       {adding && (
         <form onSubmit={addItem} className="card mb-5 space-y-3 p-4">
-          <ItemFields draft={draft} setDraft={setDraft} />
+          <ItemFields
+            draft={draft}
+            setDraft={setDraft}
+            destination={destination}
+          />
           <button className="btn btn-primary w-full sm:w-auto" disabled={busy}>
             {busy ? "Saving…" : "Add to itinerary"}
           </button>
@@ -853,7 +862,11 @@ export default function Itinerary({
                         <p className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
                           Editing this item
                         </p>
-                        <ItemFields draft={editDraft} setDraft={setEditDraft} />
+                        <ItemFields
+                          draft={editDraft}
+                          setDraft={setEditDraft}
+                          destination={destination}
+                        />
                         <div className="flex flex-wrap gap-2">
                           <button className="btn btn-primary" disabled={busy}>
                             {busy ? "Saving…" : "Save changes"}

@@ -347,6 +347,9 @@ export default function TripView({
             tripStart={info.start_date}
             tripEnd={info.end_date}
             tripName={info.name}
+            // Where the trip is, so place searches lean towards it rather than
+            // towards whatever the geocoder finds first anywhere on earth.
+            destination={info.destination || ""}
             tasks={tasks}
             onTaskChange={() => refetch("predeparture_tasks")}
             onOpenTasks={() => setTab("tasks")}
