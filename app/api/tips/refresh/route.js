@@ -19,6 +19,8 @@ import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/reminders";
 import {
   FACTS_STALE_DAYS,
+  WINDOWS_VERSION,
+  standingsKey,
   researchFacts,
   tipsForPlace,
   rulesTips,
@@ -28,12 +30,43 @@ import { SCOPES } from "@/lib/tips/tip";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+/** Everything except the working fields the rules pass alongside a tip. */
+const columnsOnly = (tip) =>
+  Object.fromEntries(
+    Object.entries(tip).filter(([key]) => !key.startsWith("_")),
+  );
+
+/** Is this tip about that booking window? Titles here start with the window name. */
+const startsWithWindow = (title, window) =>
+  String(title || "")
+    .trim()
+    .toLowerCase()
+    .startsWith(
+      String(window || "")
+        .trim()
+        .toLowerCase(),
+    );
+
 const bad = (message, status = 400) =>
   NextResponse.json({ error: message }, { status });
 
-/** Whether a fact sheet is old enough to be worth re-checking. */
-export function factsAreStale(facts, now = Date.now()) {
+/**
+ * Whether a fact sheet is worth re-checking.
+ *
+ * Three reasons, and age is only the first. A sheet written before the windows
+ * grew a loyalty level is the wrong shape however new it is, and a sheet
+ * researched without a level this family now holds was answered for somebody
+ * else. Both of those were true of the Disney sheet, which is how a Castaway Club
+ * Silver family was shown the first-timer date.
+ */
+export function factsAreStale(facts, now = Date.now(), memberships = null) {
   if (!facts?.checked_at) return true;
+  if ((facts.windows_version || 0) < WINDOWS_VERSION) return true;
+  if (
+    memberships &&
+    String(facts.standings_key || "") !== standingsKey(memberships)
+  )
+    return true;
   const at = Date.parse(facts.checked_at);
   if (Number.isNaN(at)) return true;
   return now - at > FACTS_STALE_DAYS * 86400000;
@@ -122,7 +155,7 @@ export async function POST(request) {
   // the app works out for itself sits on top of these answers — the passport
   // arithmetic, the voltage tip, and every booking window with a date on it — so
   // there is no point running the rules before they exist.
-  if (factsAreStale(facts)) {
+  if (factsAreStale(facts, Date.now(), memberships || [])) {
     let researched;
     try {
       researched = await researchFacts({
@@ -146,6 +179,8 @@ export async function POST(request) {
           sources: researched.sources,
           model: researched.model,
           checked_at: new Date().toISOString(),
+          windows_version: WINDOWS_VERSION,
+          standings_key: standingsKey(memberships || []),
         },
         { onConflict: "trip_id" },
       );
@@ -166,6 +201,7 @@ export async function POST(request) {
     packing: packing || [],
     itinerary: itinerary || [],
     today,
+    memberships: memberships || [],
   }).filter((tip) => tip.scope === scope);
   let housed = 0;
   if (house.length) {
@@ -176,9 +212,37 @@ export async function POST(request) {
     if (fresh.length) {
       const { data: inserted } = await supabase
         .from("pro_tips")
-        .insert(fresh)
+        .insert(fresh.map(columnsOnly))
         .select("id");
       housed = (inserted || []).length;
+    }
+    // A window whose date has changed produces a new tip rather than an edited
+    // one, because the date is in the title. Retire the earlier ones for the same
+    // window so the wrong date does not sit beside the right one. Cleared, not
+    // deleted: the same state a waved-off tip ends in, so it cannot come back.
+    const superseded = house
+      .flatMap((tip) => {
+        const window = tip._supersedes;
+        if (!window) return [];
+        return (existing || [])
+          .filter(
+            (row) =>
+              row.scope === tip.scope &&
+              row.status === "active" &&
+              row.fingerprint !== tip.fingerprint &&
+              startsWithWindow(row.title, window) &&
+              house.every((other) => other.fingerprint !== row.fingerprint),
+          )
+          .map((row) => row.fingerprint);
+      })
+      .filter(Boolean);
+    if (superseded.length) {
+      await supabase
+        .from("pro_tips")
+        .update({ status: "cleared", resolved_at: new Date().toISOString() })
+        .eq("trip_id", tripId)
+        .eq("status", "active")
+        .in("fingerprint", [...new Set(superseded)]);
     }
   }
 

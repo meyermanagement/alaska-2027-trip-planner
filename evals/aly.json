@@ -1,0 +1,376 @@
+{
+  "about": "Thirty real questions for Aly, with what a good answer does. This is the first pass: the point of writing it down is that any change to her prompt, her tool set or her context can be judged against the same thirty instead of against whichever question somebody happened to try. Written from the family's actual trips, so the answers can be checked against the record rather than against a plausible-sounding paraphrase.",
+  "how_to_read_a_case": {
+    "screen": "The focus passed to the chat route: null for home, the trips list, Preferences & Reviews or People, otherwise itinerary, packing, tasks, notes, templates, rewards, new_trip.",
+    "ask": "Typed exactly as a person would type it.",
+    "expect_tools": "Tool calls the reply must contain. An empty list means the right answer is words only.",
+    "forbid_tools": "Calls that make the answer wrong even if everything else is right. Usually a confirmation card offered in place of an answer.",
+    "expect_text": "What the words have to contain to be correct. Phrases are indicative, not literal — a human or a judging model decides.",
+    "why": "What the case is protecting."
+  },
+  "scoring": "Each case is pass or fail on three counts, checked in this order: the tool calls, the forbidden calls, then the words. A case with the right words and a spurious confirmation card is a fail. Record the model name and the date with every run, because the same prompt scores differently on a different model.",
+  "cases": [
+    {
+      "id": "windows-castaway",
+      "screen": "tasks",
+      "ask": "When can we book the excursions for the cruise?",
+      "expect_tools": [],
+      "forbid_tools": ["add_task", "add_itinerary_item"],
+      "expect_text": [
+        "a date counted back from the Disney Dream sailing on 2026-11-27, not from the start of the trip",
+        "that Castaway Club Silver is what sets it",
+        "August 29 2026 if the researched window carries the level"
+      ],
+      "why": "The bug that started this: the window was counted from the first hotel night and the level was ignored, which is a week and a half early and reads as authoritative."
+    },
+    {
+      "id": "windows-tier-unknown",
+      "screen": "tasks",
+      "ask": "Is that the date for us or for everybody?",
+      "expect_tools": [],
+      "forbid_tools": [],
+      "expect_text": [
+        "says plainly whether the date on the tip carries their level",
+        "if it does not, calls the general date the latest it could be rather than theirs"
+      ],
+      "why": "A general date presented as theirs is worse than no date."
+    },
+    {
+      "id": "recall-operator",
+      "screen": "itinerary",
+      "ask": "Did we work out how far ahead Holland America opens shore excursions?",
+      "expect_tools": ["recall_lessons"],
+      "forbid_tools": ["add_task"],
+      "expect_text": [
+        "either what the note says, or that nothing is recorded about it"
+      ],
+      "why": "Asking whether something was worked out before is the whole reason the notes exist."
+    },
+    {
+      "id": "recall-nothing",
+      "screen": null,
+      "ask": "What did we decide about snorkeling in Curacao?",
+      "expect_tools": ["recall_lessons"],
+      "forbid_tools": ["add_itinerary_item"],
+      "expect_text": [
+        "that nothing is recorded about it",
+        "no invented recollection"
+      ],
+      "why": "The failure mode of a memory store is a confident memory of something that never happened."
+    },
+    {
+      "id": "record-operator",
+      "screen": "itinerary",
+      "ask": "Castaway Club Silver gets excursions at 90 days, not 75 — remember that for next time.",
+      "expect_tools": ["record_lesson"],
+      "forbid_tools": ["add_preference", "add_note"],
+      "expect_text": ["confirms it is kept as a note rather than as a preference"],
+      "why": "A durable fact about an operator is a lesson; the preferences table is for how the family likes to travel."
+    },
+    {
+      "id": "record-not-a-preference",
+      "screen": null,
+      "ask": "We always want a late checkout.",
+      "expect_tools": ["add_preference"],
+      "forbid_tools": ["record_lesson"],
+      "expect_text": ["says it is saved with their travel preferences"],
+      "why": "The two stores must not blur. A preference in the lessons table never reaches the screens that show preferences."
+    },
+    {
+      "id": "record-refuses-guess",
+      "screen": "itinerary",
+      "ask": "I think Baoase might do a free airport transfer, note that down.",
+      "expect_tools": [],
+      "forbid_tools": ["record_lesson"],
+      "expect_text": [
+        "declines to record it as known",
+        "offers to check, or suggests asking the resort"
+      ],
+      "why": "A store that accepts guesses becomes a store of confident mistakes, and it is read back as fact forever."
+    },
+    {
+      "id": "retire-wrong-note",
+      "screen": null,
+      "ask": "That note of yours about the camper buses is out of date, they take phone bookings now.",
+      "expect_tools": ["retire_lesson"],
+      "forbid_tools": [],
+      "expect_text": ["says the old note will stop being used"],
+      "why": "Nothing in the store can be permanent, or it decays into misinformation."
+    },
+    {
+      "id": "dinner-anchorage",
+      "screen": "itinerary",
+      "ask": "Where should we have dinner in Anchorage on the first night?",
+      "expect_tools": ["show_places"],
+      "forbid_tools": ["add_itinerary_item"],
+      "expect_text": [
+        "two to six real places as cards",
+        "a sentence or two on how they were chosen, without repeating the names"
+      ],
+      "why": "An answer, not a change. A confirmation card in place of a recommendation is the most annoying thing she can do."
+    },
+    {
+      "id": "dinner-avoids-reviewed",
+      "screen": "itinerary",
+      "ask": "Somewhere for dinner in Orlando the night we arrive.",
+      "expect_tools": ["show_places"],
+      "forbid_tools": ["add_itinerary_item"],
+      "expect_text": [
+        "nothing already on that day's itinerary",
+        "nothing they have reviewed badly"
+      ],
+      "why": "The point of having their own reviews is not offering them something they disliked."
+    },
+    {
+      "id": "packing-voltage",
+      "screen": "packing",
+      "ask": "Do I need an adapter for Europe?",
+      "expect_tools": [],
+      "forbid_tools": ["add_packing_item"],
+      "expect_text": [
+        "the voltage and plug types from the trip's fact sheet",
+        "names the heat appliance on the list if there is one"
+      ],
+      "why": "Answered from the researched fact sheet rather than from what a model half-remembers about European sockets."
+    },
+    {
+      "id": "packing-add-batch",
+      "screen": "packing",
+      "ask": "Add rain shells for all three of us and a dry bag to the Alaska list.",
+      "expect_tools": [
+        "add_packing_item",
+        "add_packing_item",
+        "add_packing_item",
+        "add_packing_item"
+      ],
+      "forbid_tools": ["clear_packing_list"],
+      "expect_text": ["names the trip"],
+      "why": "One call per change. Stopping after the first is the classic failure on a compound request."
+    },
+    {
+      "id": "packing-replace",
+      "screen": "packing",
+      "ask": "Throw the Curacao packing list away and use this one instead: swimsuits, reef shoes, rash guards, sunscreen.",
+      "expect_tools": [
+        "clear_packing_list",
+        "add_packing_item",
+        "add_packing_item",
+        "add_packing_item",
+        "add_packing_item"
+      ],
+      "forbid_tools": ["delete_packing_item"],
+      "expect_text": ["says the old list is being emptied"],
+      "why": "Clearing a list one row at a time is slow enough to fail outright."
+    },
+    {
+      "id": "task-fixed-date",
+      "screen": "tasks",
+      "ask": "The final payment for the cruise is due on the fourth of September.",
+      "expect_tools": ["add_task"],
+      "forbid_tools": [],
+      "expect_text": [
+        "a due date of 2026-09-04 rather than a stage",
+        "says everyone responsible is emailed that morning"
+      ],
+      "why": "A named day is a stronger promise than a stage, and it is what triggers the reminder email."
+    },
+    {
+      "id": "task-stage",
+      "screen": "tasks",
+      "ask": "Remind us to download the offline maps before we leave for Alaska.",
+      "expect_tools": ["add_task"],
+      "forbid_tools": [],
+      "expect_text": ["a stage such as the week before, not an invented date"],
+      "why": "A stage moves with the trip; a made-up date does not."
+    },
+    {
+      "id": "task-priority-restraint",
+      "screen": "tasks",
+      "ask": "Add the four things we need to do for Curacao: passports, the resort balance, the car, and travel insurance.",
+      "expect_tools": ["add_task", "add_task", "add_task", "add_task"],
+      "forbid_tools": [],
+      "expect_text": ["normal priority unless urgency was stated"],
+      "why": "High priority sprinkled across a batch makes the badge meaningless."
+    },
+    {
+      "id": "suggestion-is-optional",
+      "screen": "itinerary",
+      "ask": "What else could we do on the Curacao trip?",
+      "expect_tools": ["show_places"],
+      "forbid_tools": ["add_task", "add_itinerary_item"],
+      "expect_text": [
+        "says nothing is saved by showing them",
+        "no booking task for an idea they have not agreed to"
+      ],
+      "why": "Telling somebody to go and pay for an idea they have not chosen."
+    },
+    {
+      "id": "option-accepted",
+      "screen": "itinerary",
+      "ask": "Yes, put the Klein Curacao trip on the itinerary — we have not booked it yet.",
+      "expect_tools": ["add_itinerary_item"],
+      "forbid_tools": [],
+      "expect_text": ["status needs booking, and offers the Make this a task button"],
+      "why": "The moment an idea becomes a plan is the moment booking work becomes legitimate."
+    },
+    {
+      "id": "roster-cannot-change",
+      "screen": "itinerary",
+      "ask": "Take Veda off the Europe trip.",
+      "expect_tools": [],
+      "forbid_tools": ["update_trip", "delete_trip"],
+      "expect_text": [
+        "that she cannot change who is going",
+        "points at the names in the trip header or the People tab"
+      ],
+      "why": "The roster is deliberately outside her reach, and pretending otherwise produces a silent no-op."
+    },
+    {
+      "id": "passport-question",
+      "screen": null,
+      "ask": "Are our passports good for Curacao?",
+      "expect_tools": [],
+      "forbid_tools": ["add_task"],
+      "expect_text": [
+        "the six-month rule applied to each traveler's real expiry",
+        "names anybody who is short"
+      ],
+      "why": "Arithmetic the app does for itself; she must read it rather than recompute it loosely."
+    },
+    {
+      "id": "which-card",
+      "screen": "rewards",
+      "ask": "Which card should I put the Baoase balance on?",
+      "expect_tools": [],
+      "forbid_tools": ["add_rewards_program"],
+      "expect_text": [
+        "reads the earning rules on the cards they actually hold",
+        "says the balances are typed in by hand"
+      ],
+      "why": "The whole reason the earning rules are stored is questions like this one."
+    },
+    {
+      "id": "program-wrong-trip",
+      "screen": "rewards",
+      "ask": "Does our Castaway Club level help on the Alaska trip?",
+      "expect_tools": [],
+      "forbid_tools": [],
+      "expect_text": [
+        "no, because Alaska sails with Holland America",
+        "mentions the Mariner Society equivalent only if it is recorded"
+      ],
+      "why": "A level with one company says nothing about another company's window, which is exactly what went wrong before."
+    },
+    {
+      "id": "balance-update",
+      "screen": "rewards",
+      "ask": "Southwest is up to 41,300 points.",
+      "expect_tools": ["update_rewards_program"],
+      "forbid_tools": ["add_rewards_program"],
+      "expect_text": ["uses the existing program rather than adding a second one"],
+      "why": "Duplicate programs are how a rewards screen becomes useless."
+    },
+    {
+      "id": "trip-dates",
+      "screen": null,
+      "ask": "How many days until Disney?",
+      "expect_tools": [],
+      "forbid_tools": [],
+      "expect_text": ["counted from today to 2026-11-20"],
+      "why": "The simplest question in the app, and it must not come back with a paragraph."
+    },
+    {
+      "id": "next-trip-ignores-past",
+      "screen": null,
+      "ask": "What is our next trip?",
+      "expect_tools": [],
+      "forbid_tools": [],
+      "expect_text": [
+        "the next trip that has not happened and is not a draft",
+        "past trips spoken about in the past tense if mentioned at all"
+      ],
+      "why": "A finished trip or a draft offered as the next trip is a wrong answer that looks right."
+    },
+    {
+      "id": "draft-status",
+      "screen": "new_trip",
+      "ask": "We are toying with a Japan trip in 2028, nothing decided.",
+      "expect_tools": ["create_trip"],
+      "forbid_tools": [],
+      "expect_text": [
+        "status draft",
+        "says it sits in Drafts and is not on the calendar"
+      ],
+      "why": "An idea promoted to a real trip pollutes the calendar and the next-trip answer."
+    },
+    {
+      "id": "trip-and-contents",
+      "screen": "new_trip",
+      "ask": "Make a trip for Nashville in June and put these on it: flight down on the 12th, Hutton Hotel three nights, Grand Ole Opry on the 13th.",
+      "expect_tools": [
+        "create_trip",
+        "add_itinerary_item",
+        "add_itinerary_item",
+        "add_itinerary_item"
+      ],
+      "forbid_tools": [],
+      "expect_text": ["does not ask them to create the trip first and paste again"],
+      "why": "The pasted-itinerary case, which is how most trips actually get entered."
+    },
+    {
+      "id": "ambiguous-asks-once",
+      "screen": null,
+      "ask": "Move the dinner to Thursday.",
+      "expect_tools": [],
+      "forbid_tools": ["update_itinerary_item"],
+      "expect_text": ["one short question about which dinner or which trip"],
+      "why": "Guessing which row to edit is worse than asking, and a wrong edit is silent."
+    },
+    {
+      "id": "receipt-honesty",
+      "screen": "itinerary",
+      "ask": "Did that actually save?",
+      "expect_tools": [],
+      "forbid_tools": ["add_itinerary_item", "update_itinerary_item"],
+      "expect_text": [
+        "answers from the receipt line in the transcript",
+        "does not propose the change again unless asked"
+      ],
+      "why": "Re-proposing a change in answer to a question about it is how duplicates get created."
+    },
+    {
+      "id": "no-markdown",
+      "screen": "notes",
+      "ask": "Give me a rundown of everything still to do before Disney.",
+      "expect_tools": [],
+      "forbid_tools": [],
+      "expect_text": [
+        "plain sentences and short unadorned lines",
+        "no asterisks, hashes or bullet characters"
+      ],
+      "why": "The chat panel renders plain text, so markdown appears literally."
+    },
+    {
+      "id": "web-honesty",
+      "screen": "itinerary",
+      "ask": "Is the Anchorage Museum open on Sundays in late July?",
+      "expect_tools": [],
+      "forbid_tools": [],
+      "expect_text": [
+        "what was read rather than a flat assertion",
+        "tells them to confirm before counting on it",
+        "never claims she was not allowed to search"
+      ],
+      "why": "Opening hours go stale, and the app adds its own line when a search was refused."
+    },
+    {
+      "id": "screen-awareness",
+      "screen": "packing",
+      "ask": "Add sunscreen to the standing list.",
+      "expect_tools": ["add_template_item"],
+      "forbid_tools": ["add_packing_item"],
+      "expect_text": ["says which standing list"],
+      "why": "The rescue rules exist so that where they are standing does not change what the words mean."
+    }
+  ]
+}

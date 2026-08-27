@@ -19,6 +19,11 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { splitPlaceCalls } from "@/lib/places/cards";
+import {
+  splitRecallCalls,
+  matchLessons,
+  recallSection,
+} from "@/lib/agent/lessons";
 import { splitTipCalls, lookFrom, lookLine, stepsFor } from "@/lib/tips/ask";
 import { enrich } from "@/lib/places/photos";
 import { bias, hereLine, normalizeHere, withDistance } from "@/lib/places/here";
@@ -76,7 +81,12 @@ export async function POST(request) {
 
   // Aly always sees the whole app. A trip id only says which trip is open, so
   // it becomes the default target for anything the user does not pin elsewhere.
-  const snapshot = await loadEverything(supabase, userName, tripId || null);
+  const snapshot = await loadEverything(
+    supabase,
+    userName,
+    tripId || null,
+    said,
+  );
   if (tripId && !snapshot.focusTripId) {
     return NextResponse.json({ error: "Trip not found." }, { status: 404 });
   }
@@ -176,6 +186,60 @@ export async function POST(request) {
       { error: err.message || "The assistant is unavailable right now." },
       { status: status === 403 ? 500 : status },
     );
+  }
+
+  // Her notes, when the slice in the context was not enough. This is the one
+  // place the model gets a second turn: it asked a question of its own store, and
+  // an answer it cannot see is no use to it. Once only, and with the tool taken
+  // away the second time, so a recall cannot become a loop.
+  const { asked: recallAsk } = splitRecallCalls(result.calls);
+  if (recallAsk) {
+    let found = [];
+    try {
+      const { data: store } = await supabase
+        .from("lessons")
+        .select(
+          "id, trip_id, subject, body, kind, learned_from, status, times_recalled, created_at",
+        )
+        .eq("status", "active")
+        .limit(500);
+      found = matchLessons(store || [], recallAsk);
+      // Which notes keep proving useful, so the slice can favour them later.
+      if (found.length) {
+        await Promise.all(
+          found.map((row) =>
+            supabase
+              .from("lessons")
+              .update({
+                times_recalled: (Number(row.times_recalled) || 0) + 1,
+                last_recalled_at: new Date().toISOString(),
+              })
+              .eq("id", row.id),
+          ),
+        );
+      }
+    } catch {
+      found = [];
+    }
+    try {
+      const second = await generate({
+        system: `${system}\n\n${recallSection(found, recallAsk)}`,
+        messages,
+        tools: tools.filter((tool) => tool.name !== "recall_lessons"),
+        grounded: lookUp,
+      });
+      // Only take the second answer if there is one: a reply that came back empty
+      // would throw away a perfectly good first attempt.
+      if (second && (second.text || (second.calls || []).length))
+        result = second;
+    } catch {
+      // Keep the first reply. Its text will not mention the notes, which is
+      // a worse answer rather than a broken one.
+    }
+    result = {
+      ...result,
+      calls: splitRecallCalls(result.calls).calls,
+    };
   }
 
   // A shortlist of places is an answer, not a change, so it is taken out before
@@ -335,7 +399,7 @@ export async function POST(request) {
 }
 
 // Everything the family has, in one snapshot. RLS keeps it to their own rows.
-async function loadEverything(supabase, userName, focusTripId) {
+async function loadEverything(supabase, userName, focusTripId, said = "") {
   const [
     trips,
     itinerary,
@@ -348,6 +412,7 @@ async function loadEverything(supabase, userName, focusTripId) {
     rewards,
     templates,
     templateItems,
+    lessons,
   ] = await Promise.all([
     supabase.from("trips").select("*").order("start_date", { ascending: true }),
     supabase
@@ -394,6 +459,16 @@ async function loadEverything(supabase, userName, focusTripId) {
       .select("id, template_id, category, item, assignee, quantity")
       .order("category", { ascending: true })
       .order("sort_order", { ascending: true }),
+    // Her own notes. Ranked in lib/agent/lessons.js rather than here, because
+    // which ones matter depends on the question as much as on the trip.
+    supabase
+      .from("lessons")
+      .select(
+        "id, trip_id, subject, body, kind, learned_from, status, times_recalled, created_at",
+      )
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(300),
   ]);
 
   return buildContext({
@@ -409,6 +484,8 @@ async function loadEverything(supabase, userName, focusTripId) {
     rewards: rewards.data || [],
     templates: templates.data || [],
     templateItems: templateItems.data || [],
+    lessons: lessons.data || [],
+    message: said,
     userName,
   });
 }

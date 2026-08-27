@@ -4,6 +4,7 @@ import {
   validateAction,
   pendingTripNames,
   FAMILY_TABLES,
+  EDIT_TOOLS,
   REVIEW_TOOLS,
 } from "@/lib/agent/tools";
 import { appendMessage, ensureConversation } from "@/lib/agent/thread";
@@ -304,16 +305,20 @@ export async function POST(request) {
         if (tool.startsWith("delete_")) {
           const { error: e } = await supabase.from(table).delete().eq("id", id);
           dbError = e;
-        } else if (tool.startsWith("update_")) {
+        } else if (tool.startsWith("update_") || EDIT_TOOLS.has(tool)) {
           const { error: e } = await supabase
             .from(table)
             .update({ ...patch, updated_at: new Date().toISOString() })
             .eq("id", id);
           dbError = e;
         } else {
-          const { error: e } = await supabase
-            .from(table)
-            .insert({ ...patch, family_id: familyId });
+          const { error: e } = await supabase.from(table).insert({
+            ...patch,
+            family_id: familyId,
+            // Who pressed the card. On her own notes this is the only record of
+            // the fact that a person read it before it was kept.
+            ...(table === "lessons" ? { created_by: user.id } : {}),
+          });
           dbError = e;
         }
       } else if (REVIEW_TOOLS.has(tool)) {
