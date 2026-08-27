@@ -12,6 +12,7 @@ import { toolsForRequest } from "@/lib/agent/toolset";
 import {
   asksToSave,
   heldBackNote,
+  noSearchNote,
   holdBackChanges,
   shouldLookUp,
 } from "@/lib/agent/ideas";
@@ -180,6 +181,12 @@ export async function POST(request) {
   const { kept: actions, held } = holdBackChanges(proposed, { message: said });
 
   let reply = result.text;
+  // Asked to look something up, and the looking up did not happen: the allowance
+  // is spent or the vendor that answered cannot search. The answer still stands,
+  // but it is a recollection rather than a reading, and it says so.
+  if (lookUp && !result.searched && reply) {
+    reply = `${reply}\n\n${noSearchNote()}`;
+  }
   const note = heldBackNote(held);
   if (note && reply && !asksToSave(said)) {
     reply = `${reply}\n\n${note}`;
