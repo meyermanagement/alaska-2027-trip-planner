@@ -270,12 +270,14 @@ export default function ChatPanel({
         return;
       }
 
-      if (data.reply) {
+      // Cards with no words are still an answer. Keying this on the reply alone
+      // meant a card-only answer landed nowhere until the screen was reloaded.
+      if (data.reply || data.places?.length) {
         setMessages((m) => [
           ...m,
           {
             role: "assistant",
-            text: data.reply,
+            text: data.reply || "",
             sources: data.sources?.length ? data.sources : undefined,
             places: data.places?.length ? data.places : undefined,
           },

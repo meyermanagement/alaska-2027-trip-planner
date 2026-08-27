@@ -268,7 +268,12 @@ export async function POST(request) {
   }
 
   return NextResponse.json({
-    reply,
+    // The spoken line, not the raw reply: when the model answers entirely in
+    // cards it says nothing at all, and a reply of "" left the panel with
+    // nothing to hang the cards on until the screen was reloaded. Sending what
+    // was written to the transcript means the live answer and the reopened
+    // conversation read the same way.
+    reply: spoken,
     actions,
     problems,
     conversationId,
@@ -359,5 +364,7 @@ async function loadEverything(supabase, userName, focusTripId) {
 // What the transcript says when the answer was entirely cards. Reopening a
 // conversation to a blank assistant message would look like a fault.
 function placesLine(places) {
-  return `Suggested: ${places.map((p) => p.name).join("; ")}.`;
+  const names = places.map((p) => p.name).join("; ");
+  const tap = places.length === 1 ? "it" : "any one";
+  return `${names}. Tap Add to itinerary on ${tap}, or tell me which.`;
 }
