@@ -1,10 +1,9 @@
-// Clearing a tip, ignoring a tip, or changing your mind about one.
+// Clearing a tip, or changing your mind about one.
 //
-// The two words mean different things and the difference is the whole point of
-// keeping a log. Clearing is "read it, done with it". Ignoring is "not for us" —
-// and an ignored tip is the more interesting of the two, because six months later
-// the reason it was wrong may have stopped being true. So neither is a delete:
-// both are a status, both are reversible, and the ignored ones are listable.
+// Clearing is not a delete. It is a status, it is reversible, and the cleared ones
+// stay listable at the bottom of Reminders — because six months later the reason a
+// tip did not apply may have stopped being true, and because a family should be
+// able to see what the app stopped mentioning.
 //
 // Nothing is ever deleted from here, which also means a tip cannot come back: the
 // fingerprint stays in the table, and the next run finds it already there.
@@ -14,7 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const ALLOWED = new Set(["active", "cleared", "ignored"]);
+// Ignore was retired: one dismiss, and it is reversible. "ignored" is still read
+// from rows written while the button existed, but nothing writes it any more.
+const ALLOWED = new Set(["active", "cleared"]);
 
 export async function PATCH(request, { params }) {
   const { id } = await params;

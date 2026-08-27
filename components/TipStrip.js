@@ -99,13 +99,6 @@ export default function TipStrip({ tips = [], today }) {
                 >
                   Clear
                 </button>
-                <button
-                  type="button"
-                  onClick={() => resolve(tip, "ignored")}
-                  className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-ink-faint hover:text-ink-soft"
-                >
-                  Ignore
-                </button>
               </p>
             </div>
           );

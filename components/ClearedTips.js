@@ -4,18 +4,22 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 
 /**
- * The tips you waved off, kept where they can be found again.
+ * The tips you have put away, kept where they can be found again.
  *
  * At the bottom of Reminders and shut by default, because that is what it is for:
  * a record rather than a screen. Nothing is fetched until it is opened, so the
  * list costs nothing on the days nobody wonders.
  *
- * Worth keeping at all because ignoring a tip is a judgement about a moment. "We
+ * Worth keeping at all because clearing a tip is a judgement about a moment. "We
  * are not driving that road" is true until the itinerary changes; "we already have
  * a converter" is true until it is left in a drawer. Six months on, the list is
  * the only way to find out what the app stopped mentioning.
+ *
+ * It used to list only the tips pressed with Ignore, back when Clear and Ignore
+ * were different buttons. They are one button now, and it lists everything put
+ * away either way.
  */
-export default function IgnoredTips() {
+export default function ClearedTips() {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -25,7 +29,7 @@ export default function IgnoredTips() {
     setBusy(true);
     setProblem("");
     try {
-      const res = await fetch("/api/tips/ignored");
+      const res = await fetch("/api/tips/cleared");
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "");
       setRows(json.tips || []);
@@ -60,7 +64,7 @@ export default function IgnoredTips() {
       }}
     >
       <summary className="cursor-pointer list-none text-[0.72rem] font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
-        {open ? "Hide" : "Show"} tips you ignored
+        {open ? "Hide" : "Show"} tips you have cleared
       </summary>
 
       <div className="mt-4">
@@ -74,8 +78,8 @@ export default function IgnoredTips() {
         ) : null}
         {rows && !rows.length ? (
           <p className="text-[0.84rem] leading-relaxed text-ink-soft">
-            Nothing ignored yet. Anything you wave off with Ignore rather than
-            Clear ends up here, in case it stops being wrong.
+            Nothing cleared yet. Anything you clear ends up here, in case it
+            stops being wrong, and can be brought back.
           </p>
         ) : null}
         {rows && rows.length ? (

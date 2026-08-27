@@ -5,16 +5,18 @@ import { tipWhen } from "@/lib/tips/tip";
 import { runLook } from "@/lib/tips/run";
 
 /**
- * A tip, and the two ways of being done with it.
+ * A tip, and the two things worth doing with one.
  *
- * Clear means read and dealt with. Ignore means not for us. They look almost the
- * same on screen and they are not the same thing: the ignored ones are kept in a
- * list at the bottom of Reminders, because the reason a tip was wrong in August
- * may have stopped being true by March, and because a family should be able to
- * check what the app decided not to bother them about twice.
+ * Either it is worth remembering — Remind me turns it into a dated task the
+ * morning email will chase — or you are done with it, which is Clear. There used
+ * to be an Ignore alongside Clear, drawing a distinction between "read it" and
+ * "not for us" that nobody pressing a button actually feels. So there is one
+ * dismiss now, and it behaves the way the kinder of the two behaved: cleared tips
+ * are kept in a list at the bottom of Reminders and can be brought back, because
+ * the reason a tip was wrong in August may have stopped being true by March.
  *
- * Both are optimistic. The tip goes the moment it is pressed and comes back with
- * an apology if the save failed, because waiting on a round trip to make
+ * Clearing is optimistic. The tip goes the moment it is pressed and comes back
+ * with an apology if the save failed, because waiting on a round trip to make
  * something disappear feels like the button did not work.
  */
 export default function ProTips({
@@ -247,13 +249,6 @@ function TipCard({ tip, today, onResolve, onTask }) {
           className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
         >
           Clear
-        </button>
-        <button
-          type="button"
-          onClick={() => onResolve(tip, "ignored")}
-          className="px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-ink-faint underline decoration-transparent underline-offset-2 transition hover:text-ink-soft hover:decoration-ink-faint"
-        >
-          Ignore
         </button>
       </div>
     </li>

@@ -66,7 +66,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  // The tip has done its job. Cleared rather than ignored: it was useful, which
+  // The tip has done its job, so it is cleared: it stays in the cleared list, which
   // is exactly what ignoring it would tell the next look it was not.
   await supabase
     .from("pro_tips")

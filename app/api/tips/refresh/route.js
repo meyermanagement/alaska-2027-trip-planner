@@ -79,6 +79,7 @@ export async function POST(request) {
     { data: preferences },
     { data: existing },
     { data: facts },
+    { data: memberships },
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -104,6 +105,15 @@ export async function POST(request) {
       .select("fingerprint, title, scope, itinerary_item_id, status")
       .eq("family_id", trip.family_id),
     supabase.from("trip_facts").select("*").eq("trip_id", tripId).maybeSingle(),
+    // Loyalty standings, because a level changes when things can be booked. A
+    // Castaway Club level opens shore excursions in an earlier wave than the
+    // public one, and a window researched without it is not vague — it is late.
+    supabase
+      .from("rewards_programs")
+      .select(
+        "brand, program_name, kind, status_tier, perks, traveler_id, is_active",
+      )
+      .eq("family_id", trip.family_id),
   ]);
 
   const travelers = (going || []).map((row) => row.travelers).filter(Boolean);
@@ -115,7 +125,12 @@ export async function POST(request) {
   if (factsAreStale(facts)) {
     let researched;
     try {
-      researched = await researchFacts({ trip, itinerary: itinerary || [] });
+      researched = await researchFacts({
+        trip,
+        itinerary: itinerary || [],
+        memberships: memberships || [],
+        travelers,
+      });
     } catch (error) {
       return NextResponse.json(
         { error: error?.message || "Could not look that up.", step: "facts" },
@@ -183,7 +198,7 @@ export async function POST(request) {
     return bad("That itinerary item is not there.", 404);
 
   // What the model must not tell them: anything already written down, and any tip
-  // already offered here — including the ones they cleared or ignored, which is
+  // already offered here — including the ones they have cleared, which is
   // what stops a waved-off tip coming back next week.
   const placeKey = (row) =>
     row.scope === scope &&
@@ -218,6 +233,7 @@ export async function POST(request) {
       packing: packing || [],
       travelers,
       preferences: preferences || [],
+      memberships: memberships || [],
       reviews: (reviews || []).map((row) => ({
         ...row,
         tripName: row.trips?.name || null,
