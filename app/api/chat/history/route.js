@@ -53,6 +53,8 @@ export async function GET(request) {
       role: m.role,
       text: m.body,
       kind: m.kind || undefined,
+      sources:
+        Array.isArray(m.sources) && m.sources.length ? m.sources : undefined,
     })),
   });
 }

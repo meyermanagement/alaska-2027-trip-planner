@@ -81,6 +81,44 @@ async function readReply(res) {
   };
 }
 
+// Where a looked-up answer came from. Shown quietly under the reply rather than
+// woven into it: the family should be able to check a restaurant recommendation
+// without the answer reading like a bibliography.
+//
+// The links are Google's redirects, which is what they ask you to link to, and
+// they stop working after about a month - so an old conversation keeps the names
+// of the sites and loses the ability to open them, which is the right way round.
+function MessageSources({ sources }) {
+  if (!Array.isArray(sources) || !sources.length) return null;
+  return (
+    <span className="mt-2 block border-t border-ink-faint/25 pt-2 text-xs text-ink-soft">
+      <span className="mr-1">Looked up:</span>
+      {sources.map((source, i) => (
+        <span key={`${source?.url || i}`}>
+          {i > 0 ? <span aria-hidden="true"> · </span> : null}
+          <a
+            href={source?.url || "#"}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="underline decoration-ink-faint underline-offset-2 hover:text-teal"
+          >
+            {shortSource(source?.title)}
+          </a>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// Google hands back either a bare domain or a page title. A long title in a row
+// of links is unreadable, so it is cut at the first sensible break.
+function shortSource(title) {
+  const text = String(title || "").trim();
+  if (!text) return "source";
+  if (text.length <= 28) return text;
+  return `${text.slice(0, 27).trimEnd()}\u2026`;
+}
+
 export default function ChatPanel({
   trip,
   onApplied,
@@ -232,7 +270,14 @@ export default function ChatPanel({
       }
 
       if (data.reply) {
-        setMessages((m) => [...m, { role: "assistant", text: data.reply }]);
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            text: data.reply,
+            sources: data.sources?.length ? data.sources : undefined,
+          },
+        ]);
       }
       if (data.actions?.length) {
         setPending({ groups: groupActions(data.actions) });
@@ -510,7 +555,7 @@ export default function ChatPanel({
             }
           >
             <div
-              className={`max-w-[85%] whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                 m.role === "user"
                   ? "bg-teal text-white"
                   : m.kind === "receipt"
@@ -518,7 +563,8 @@ export default function ChatPanel({
                     : "bg-sand text-ink"
               }`}
             >
-              {m.text}
+              <span className="whitespace-pre-wrap">{m.text}</span>
+              <MessageSources sources={m.sources} />
             </div>
           </div>
         ))}

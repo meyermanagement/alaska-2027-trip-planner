@@ -10,6 +10,12 @@ import {
 import { validateAction, pendingTripNames } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
 import {
+  asksToSave,
+  heldBackNote,
+  holdBackChanges,
+  shouldLookUp,
+} from "@/lib/agent/ideas";
+import {
   CONTEXT_MESSAGES,
   appendMessage,
   ensureConversation,
@@ -123,6 +129,12 @@ export async function POST(request) {
 
   const messages = [...toModelMessages(past), { role: "user", text: said }];
 
+  // "Where should we have dinner in Anchorage" cannot be answered from the
+  // family's own trip data, and answering it from what a model half-remembers
+  // about a city is how you end up recommending a restaurant that closed in 2024.
+  // On these questions only, Aly is allowed to search.
+  const lookUp = shouldLookUp(said);
+
   // Store the question before answering it, so a failed or timed-out reply still
   // leaves the transcript honest about what was asked.
   await appendMessage(supabase, {
@@ -136,7 +148,7 @@ export async function POST(request) {
   let result;
   const askedAt = Date.now();
   try {
-    result = await generate({ system, messages, tools });
+    result = await generate({ system, messages, tools, grounded: lookUp });
   } catch (err) {
     const status = err instanceof ModelError ? err.status : 502;
     return NextResponse.json(
@@ -145,7 +157,7 @@ export async function POST(request) {
     );
   }
 
-  const actions = [];
+  const proposed = [];
   const problems = [];
   // A trip being created in this same turn has no id yet, so the itinerary and
   // packing rows that came with it are filed against its name instead.
@@ -159,11 +171,21 @@ export async function POST(request) {
       pendingTrips,
       newTripDraft: focus === NEW_TRIP_FOCUS,
     });
-    if (action) actions.push(action);
+    if (action) proposed.push(action);
     else if (error) problems.push(error);
   }
 
+  // Asked for ideas, and asked to save nothing: whatever she proposed goes no
+  // further than a sentence saying it is there for the asking.
+  const { kept: actions, held } = holdBackChanges(proposed, { message: said });
+
   let reply = result.text;
+  const note = heldBackNote(held);
+  if (note && reply && !asksToSave(said)) {
+    reply = `${reply}\n\n${note}`;
+  } else if (note && !reply) {
+    reply = note;
+  }
   if (!reply && actions.length === 0) {
     reply = problems.length
       ? Array.from(new Set(problems)).join(" ")
@@ -191,10 +213,19 @@ export async function POST(request) {
       model: result.model,
       latencyMs: Date.now() - askedAt,
       fallbackDepth: result.fallbackDepth,
+      // Where a looked-up answer came from, kept with the answer so it is still
+      // checkable when the conversation is reopened next week.
+      sources: result.sources,
     });
   }
 
-  return NextResponse.json({ reply, actions, problems, conversationId });
+  return NextResponse.json({
+    reply,
+    actions,
+    problems,
+    conversationId,
+    sources: result.sources || [],
+  });
 }
 
 // Everything the family has, in one snapshot. RLS keeps it to their own rows.
