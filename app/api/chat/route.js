@@ -13,6 +13,7 @@ import {
   asksToSave,
   heldBackNote,
   noSearchNote,
+  isClarifying,
   holdBackChanges,
   shouldLookUp,
 } from "@/lib/agent/ideas";
@@ -135,7 +136,7 @@ export async function POST(request) {
   // family's own trip data, and answering it from what a model half-remembers
   // about a city is how you end up recommending a restaurant that closed in 2024.
   // On these questions only, Aly is allowed to search.
-  const lookUp = shouldLookUp(said);
+  const lookUp = shouldLookUp(said, messages);
 
   // Store the question before answering it, so a failed or timed-out reply still
   // leaves the transcript honest about what was asked.
@@ -211,7 +212,7 @@ export async function POST(request) {
       refusals,
     });
   }
-  if (lookUp && !result.searched && reply) {
+  if (lookUp && !result.searched && reply && !isClarifying(reply)) {
     reply = `${reply}\n\n${noSearchNote()}`;
   }
   const note = heldBackNote(held);
