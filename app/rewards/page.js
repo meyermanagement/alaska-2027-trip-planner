@@ -21,26 +21,51 @@ export default async function RewardsPage() {
   if (!memberships || memberships.length === 0) redirect("/join");
   const familyId = memberships[0].family_id;
 
-  // Three independent reads, asked for together.
-  const [{ data: profile }, { data: travelers }, { data: programs }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("travelers")
-        .select("id, name, sort_order, is_person")
-        .eq("is_person", true)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("rewards_programs")
-        .select("*")
-        .order("kind", { ascending: true })
-        .order("sort_order", { ascending: true })
-        .order("brand", { ascending: true }),
-    ]);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // The programs, and enough of the trips to say which program belongs to which.
+  const [
+    { data: profile },
+    { data: travelers },
+    { data: programs },
+    { data: trips },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("travelers")
+      .select("id, name, sort_order, is_person")
+      .eq("is_person", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("rewards_programs")
+      .select("*")
+      .order("kind", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .order("brand", { ascending: true }),
+    supabase
+      .from("trips")
+      .select("id, name, slug, destination, start_date, end_date, status")
+      .eq("family_id", familyId)
+      .neq("status", "archived")
+      .or(`end_date.gte.${today},end_date.is.null`)
+      .order("start_date", { ascending: true }),
+  ]);
+
+  // The itinerary lines are what name the operators, so they are what the
+  // matching reads. Only the fields it looks at, and only for trips still ahead.
+  const tripIds = (trips || []).map((t) => t.id);
+  const { data: items } = tripIds.length
+    ? await supabase
+        .from("itinerary_items")
+        .select(
+          "id, trip_id, category, title, location, notes, confirmation_number, status",
+        )
+        .in("trip_id", tripIds)
+    : { data: [] };
 
   return (
     <>
@@ -54,14 +79,18 @@ export default async function RewardsPage() {
             Every program the family belongs to, what the balances are, and what
             each credit card earns. Aly reads all of it when she plans, so she
             can say when a stay is worth paying for with points and which card
-            to put a booking on. Membership numbers stay hidden until you tap to
-            show them.
+            to put a booking on. Each program also shows the trips it belongs
+            to, worked out from the airline, hotel, ship or car company written
+            on that trip&rsquo;s own plans. Membership numbers stay hidden until
+            you tap to show them.
           </p>
         </div>
         <RewardsBoard
           familyId={familyId}
           travelers={travelers || []}
           programs={programs || []}
+          trips={trips || []}
+          items={items || []}
         />
       </main>
       <AskAlyGeneral focus="rewards" />
