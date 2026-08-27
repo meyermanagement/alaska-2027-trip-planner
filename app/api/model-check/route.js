@@ -16,10 +16,17 @@ import { providerNames } from "@/lib/agent/llm";
 import { recordRefusals } from "@/lib/agent/refusals";
 
 export const dynamic = "force-dynamic";
+// Without these two lines the check is cut off at ten seconds and the page never
+// loads at all - which is a poor way to diagnose a timeout.
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // Small on purpose: this is a question about entitlement, not about quality.
 const PROBE = "Name one well known restaurant in Willemstad, Curaçao.";
-const PROBE_MS = 20000;
+// Two probes, one after the other, comfortably inside the sixty seconds above.
+// Sequential on purpose: two requests at once could trip a per-minute burst limit
+// and produce exactly the confusion this is meant to clear up.
+const PROBE_MS = 12000;
 
 async function probe({ grounded }) {
   const started = Date.now();
@@ -104,6 +111,17 @@ export async function GET() {
     });
   }
 
+  // Google says "FreeTier" right there in the name of the allowance it refused
+  // on. That is worth reading out loud rather than leaving in a field somebody
+  // has to know the meaning of.
+  const named = [
+    ...(withSearch.refusals || []),
+    ...(withoutSearch.refusals || []),
+  ]
+    .map((r) => r.quotaId || "")
+    .filter(Boolean);
+  const onFreeTier = named.some((id) => /freetier/i.test(id));
+
   const verdict = withSearch.worked
     ? withSearch.searched
       ? "Search is working."
@@ -112,8 +130,14 @@ export async function GET() {
       ? "Search is refused and so is the fallback for this key."
       : "Google is not answering at all right now.";
 
+  const because = onFreeTier
+    ? "Google refused on an allowance with FreeTier in its name, so the Google Cloud project behind this key is still on the free tier - where search is not available at any volume. An upgrade applies to a project, not to a key, so this is most likely a key belonging to a different project than the one that was upgraded."
+    : null;
+
   return NextResponse.json({
     verdict,
+    because,
+    onFreeTier,
     keySet: Boolean(process.env.GEMINI_API_KEY),
     providers: providerNames(),
     models: gemini.modelList(),
