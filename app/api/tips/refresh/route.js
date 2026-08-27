@@ -109,8 +109,9 @@ export async function POST(request) {
   const travelers = (going || []).map((row) => row.travelers).filter(Boolean);
 
   // Step one, and only when the fact sheet is missing or a week old. Everything
-  // the app works out for itself depends on these four answers, so there is no
-  // point running the rules before they exist.
+  // the app works out for itself sits on top of these answers — the passport
+  // arithmetic, the voltage tip, and every booking window with a date on it — so
+  // there is no point running the rules before they exist.
   if (factsAreStale(facts)) {
     let researched;
     try {
@@ -148,6 +149,7 @@ export async function POST(request) {
     trip,
     facts,
     packing: packing || [],
+    itinerary: itinerary || [],
     today,
   }).filter((tip) => tip.scope === scope);
   let housed = 0;
