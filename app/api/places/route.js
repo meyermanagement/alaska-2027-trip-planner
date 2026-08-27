@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { kindsForCategory, rankPlaces } from "@/lib/places/intent";
 import {
-  destinationAnchors,
+  biasPoint,
+  destinationStops,
   destinationUrl,
   fetchJson,
   makeCache,
   pointFrom,
   searchUrl,
+  withoutOutliers,
 } from "@/lib/places/photon";
 
 export const runtime = "nodejs";
@@ -17,7 +19,9 @@ export const maxDuration = 15;
 // type the same place names, and one person types the same name repeatedly while
 // making up their mind, so this is where most of the traffic goes to die.
 const results = makeCache({ ttlMs: 10 * 60 * 1000, max: 300 });
-// Destinations change about never, so their coordinates are worth keeping longer.
+// Destinations change about never, so the stops of a trip, once found, are worth
+// keeping for the day. This is what keeps a five-stop trip to five lookups
+// rather than five per search.
 const points = makeCache({ ttlMs: 12 * 60 * 60 * 1000, max: 50 });
 
 /**
@@ -48,28 +52,43 @@ export async function GET(request) {
   const cached = results.get(key);
   if (cached) return NextResponse.json({ places: cached, cached: true });
 
-  // Lean the search towards where the trip is. A failure here is not a failure
-  // of the search: an unbiased list is still a useful list.
-  let point = null;
+  // Every stop on the trip, not just the first one. The bias sent to Photon is
+  // the middle stop, and the ranking afterwards measures against all of them, so
+  // an Alaska trip that starts in Vancouver prefers Alaska without disowning the
+  // day it sails.
+  let stops = [];
   if (near) {
     const pointKey = near.toLowerCase();
     const known = points.get(pointKey);
     if (known !== undefined) {
-      point = known;
+      stops = known;
     } else {
-      // "Willemstad, Curacao" resolves whole; "Vancouver, Inside Passage,
-      // Denali, Anchorage & Girdwood" only resolves once it is cut down to its
-      // first stop. Two requests at most, then held for half a day.
-      for (const anchor of destinationAnchors(near)) {
-        point = pointFrom(await fetchJson(destinationUrl(anchor)));
-        if (point) break;
+      const found = [];
+      const segments = destinationStops(near);
+      if (segments.length > 1) {
+        // "Willemstad, Curacao" and "Springfield, IL" are one place written in two
+        // parts, and splitting them throws away the part that says which
+        // Springfield. So the whole thing is asked first, and only a destination
+        // that means nothing whole gets taken apart.
+        const one = pointFrom(await fetchJson(destinationUrl(near)), near);
+        if (one) found.push(one);
       }
-      points.set(pointKey, point || null);
+      if (!found.length) {
+        for (const stop of segments) {
+          // A name check on each one: "Inside Passage" comes back as a place in
+          // Brazil, and a stop in Brazil would poison every search on the trip.
+          const point = pointFrom(await fetchJson(destinationUrl(stop)), stop);
+          if (point) found.push(point);
+        }
+      }
+      stops = withoutOutliers(found);
+      points.set(pointKey, stops);
     }
   }
+  const bias = biasPoint(stops);
 
   const json = await fetchJson(
-    searchUrl({ q, lat: point?.lat ?? null, lon: point?.lon ?? null }),
+    searchUrl({ q, lat: bias?.lat ?? null, lon: bias?.lon ?? null }),
   );
   if (!json) {
     // The geocoder is down or slow. The box stays typeable, which is what it was
@@ -77,7 +96,11 @@ export async function GET(request) {
     return NextResponse.json({ places: [], unavailable: true });
   }
 
-  const places = rankPlaces(json.features || [], kindsForCategory(category));
+  const places = rankPlaces(
+    json.features || [],
+    kindsForCategory(category),
+    stops,
+  ).slice(0, 6);
   results.set(key, places);
   return NextResponse.json({ places });
 }
