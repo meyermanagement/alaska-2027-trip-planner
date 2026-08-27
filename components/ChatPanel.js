@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
 import PlaceCards, { addRequest } from "./PlaceCards";
+import WhereIAm, { readStored } from "./WhereIAm";
 
 // Prompts follow whichever section the user was looking at.
 const SUGGESTIONS = {
@@ -142,6 +143,9 @@ export default function ChatPanel({
   // Proposals are held as chunks: one per part of the app they touch, each
   // approved on its own. See lib/agent/groups.js.
   const [pending, setPending] = useState(null); // { groups: [...] }
+  // Where they are standing, when they have said so. Read back from the session
+  // so closing the drawer in a taxi does not mean saying it again.
+  const [here, setHere] = useState(null);
   const [applyingKey, setApplyingKey] = useState(null);
   const applying = applyingKey !== null;
   const [packingBusy, setPackingBusy] = useState(false);
@@ -158,6 +162,17 @@ export default function ChatPanel({
   useEffect(() => {
     conversationRef.current = conversationId;
   }, [conversationId]);
+  // Read after mounting rather than during, because the server has no session
+  // storage and rendering from it would not match.
+  useEffect(() => {
+    setHere(readStored());
+  }, []);
+  // Held in a ref as well, so a message sent the instant after the button is
+  // pressed still carries the position.
+  const hereRef = useRef(null);
+  useEffect(() => {
+    hereRef.current = here;
+  }, [here]);
   // A conversation that started here is already on screen. Remembering that it
   // was ours stops the id arriving from the server from reading the whole thing
   // back and throwing away what is already there.
@@ -252,6 +267,8 @@ export default function ChatPanel({
           focus,
           message: clean,
           conversationId: conversationRef.current,
+          // Only ever what they chose to share, and only for this question.
+          here: hereRef.current || undefined,
         }),
       });
       const data = await readReply(res);
@@ -280,6 +297,9 @@ export default function ChatPanel({
             text: data.reply || "",
             sources: data.sources?.length ? data.sources : undefined,
             places: data.places?.length ? data.places : undefined,
+            // Kept with the message so changing position later does not put new
+            // directions on an old answer.
+            here: hereRef.current || undefined,
           },
         ]);
       }
@@ -572,6 +592,7 @@ export default function ChatPanel({
               <PlaceCards
                 places={m.places}
                 busy={busy}
+                here={m.here || here}
                 onAdd={(place) => send(addRequest(place))}
               />
             </div>
@@ -726,6 +747,9 @@ export default function ChatPanel({
         }}
         className="shrink-0 border-t border-[var(--line)] bg-sand/50 px-3 py-3"
       >
+        <div className="mb-2">
+          <WhereIAm here={here} onChange={setHere} />
+        </div>
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}

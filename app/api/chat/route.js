@@ -20,6 +20,7 @@ import {
 import { recordRefusals } from "@/lib/agent/refusals";
 import { splitPlaceCalls } from "@/lib/places/cards";
 import { enrich } from "@/lib/places/photos";
+import { bias, hereLine, normalizeHere, withDistance } from "@/lib/places/here";
 import {
   CONTEXT_MESSAGES,
   appendMessage,
@@ -126,7 +127,13 @@ export async function POST(request) {
     extras = {};
   }
 
-  const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName, extras);
+  // Where they are standing, if they chose to say. Nothing infers it: the button
+  // and the typed override are the only two ways it arrives.
+  const here = normalizeHere(payload?.here);
+  const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName, {
+    ...extras,
+    here,
+  });
   // Not all 28 of them: the ones this screen and these words could plausibly
   // need. See lib/agent/toolset.js for why fewer is more accurate as well as
   // cheaper.
@@ -175,7 +182,10 @@ export async function POST(request) {
   const { calls: changeCalls, places: shortlist } = splitPlaceCalls(
     result.calls,
   );
-  const places = await enrich(shortlist);
+  const places = withDistance(
+    await enrich(shortlist, { bias: bias(here) }),
+    here,
+  );
 
   const proposed = [];
   const problems = [];

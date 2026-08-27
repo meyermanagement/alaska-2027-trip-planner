@@ -9,6 +9,7 @@
 // typed it. One path for every change, and the confirmation card still appears.
 
 import { KIND_LABELS, addRequest } from "@/lib/places/cards";
+import { directionsLink } from "@/lib/places/here";
 
 // A bare number in brackets is ambiguous - it could be a price or a distance -
 // so the count says what it counts. Grouped with commas, because 3140 reviews
@@ -33,8 +34,11 @@ function Stars({ rating, count }) {
   );
 }
 
-function Card({ place, onAdd, busy }) {
+function Card({ place, onAdd, busy, here }) {
   const label = KIND_LABELS[place.kind] || KIND_LABELS.do;
+  // Only offered when they have said where they are: directions from nowhere is
+  // just the map link with extra steps.
+  const directions = here ? directionsLink(place, here) : null;
   return (
     <li className="flex flex-col overflow-hidden rounded-xl border border-sand-deep bg-white">
       {place.photo ? (
@@ -61,15 +65,29 @@ function Card({ place, onAdd, busy }) {
             place by, so they belong together rather than stacked. */}
         <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs text-ink-soft">
           {place.area ? <span>{place.area}</span> : null}
-          {place.area && place.price ? <span aria-hidden="true">·</span> : null}
           {place.price ? (
-            <span className="tabular-nums">{place.price}</span>
-          ) : null}
-          {place.rating && (place.area || place.price) ? (
-            <span aria-hidden="true">·</span>
+            <span className="whitespace-nowrap tabular-nums">
+              {place.area ? <span aria-hidden="true">· </span> : null}
+              {place.price}
+            </span>
           ) : null}
           {place.rating ? (
-            <Stars rating={place.rating} count={place.ratingCount} />
+            <span className="whitespace-nowrap">
+              {place.area || place.price ? (
+                <span aria-hidden="true">· </span>
+              ) : null}
+              <Stars rating={place.rating} count={place.ratingCount} />
+            </span>
+          ) : null}
+          {place.distance ? (
+            <span className="whitespace-nowrap font-medium text-teal">
+              {place.area || place.price || place.rating ? (
+                <span aria-hidden="true" className="font-normal text-ink-soft">
+                  ·{" "}
+                </span>
+              ) : null}
+              <span className="tabular-nums">{place.distance}</span>
+            </span>
           ) : null}
         </p>
 
@@ -94,6 +112,16 @@ function Card({ place, onAdd, busy }) {
           >
             Add to itinerary
           </button>
+          {directions ? (
+            <a
+              href={directions}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink"
+            >
+              Directions
+            </a>
+          ) : null}
           {place.maps ? (
             <a
               href={place.maps}
@@ -120,7 +148,12 @@ function Card({ place, onAdd, busy }) {
   );
 }
 
-export default function PlaceCards({ places, onAdd, busy = false }) {
+export default function PlaceCards({
+  places,
+  onAdd,
+  busy = false,
+  here = null,
+}) {
   if (!Array.isArray(places) || !places.length) return null;
   return (
     <ul className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -130,6 +163,7 @@ export default function PlaceCards({ places, onAdd, busy = false }) {
           place={place}
           onAdd={onAdd}
           busy={busy}
+          here={here}
         />
       ))}
     </ul>
