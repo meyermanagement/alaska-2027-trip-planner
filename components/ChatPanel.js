@@ -6,6 +6,8 @@ import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
 import PlaceCards, { addRequest } from "./PlaceCards";
 import WhereIAm, { readStored } from "./WhereIAm";
+import { runLook } from "@/lib/tips/run";
+import { foundLine } from "@/lib/tips/ask";
 
 // Prompts follow whichever section the user was looking at.
 const SUGGESTIONS = {
@@ -140,6 +142,10 @@ export default function ChatPanel({
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // Progress while she is off researching. Separate from busy because the
+  // question has already been answered by then — what is still running is the
+  // looking, and the difference matters to whoever is reading the panel.
+  const [looking, setLooking] = useState("");
   // Proposals are held as chunks: one per part of the app they touch, each
   // approved on its own. See lib/agent/groups.js.
   const [pending, setPending] = useState(null); // { groups: [...] }
@@ -317,12 +323,46 @@ export default function ChatPanel({
       if (data.problems?.length && !data.reply) {
         setError(data.problems.join(" "));
       }
+      // She asked to go and look. The reply above already said she was going to,
+      // so this is the part that actually happens: the same loop the button
+      // drives, with the panel standing in for the button's progress line.
+      if (data.look) {
+        await carryOut(data.look);
+      }
     } catch {
       setError(
         "I could not reach the app just then. Check your signal and try again.",
       );
     }
     setBusy(false);
+  }
+
+  // Aly's own look, run from here for the same reason the button's is: one
+  // grounded question uses most of a route's sixty seconds, and walking a trip
+  // takes five. Whatever it finds is saved as it goes, so closing the drawer
+  // halfway costs the rest of the look and nothing that was already found.
+  async function carryOut(look) {
+    setLooking("Looking…");
+    const { found, error } = await runLook({
+      tripId: look.tripId,
+      steps: look.steps,
+      onNote: setLooking,
+    });
+    setLooking("");
+    setMessages((m) => [
+      ...m,
+      {
+        role: "assistant",
+        text: error
+          ? found
+            ? `${foundLine(found, look)} I stopped early though — ${error}`
+            : `I could not finish looking. ${error}`
+          : foundLine(found, look),
+      },
+    ]);
+    // The tips are rows on the page behind this drawer, so the page has to be
+    // told. Without this they appear on the next navigation and look late.
+    if (found) router.refresh();
   }
 
   // One chunk at a time. Everything else stays on screen, still pending, so a
@@ -599,10 +639,21 @@ export default function ChatPanel({
           </div>
         ))}
 
-        {busy && (
+        {busy && !looking && (
           <div className="flex justify-start">
             <div className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft">
               Thinking…
+            </div>
+          </div>
+        )}
+
+        {looking && (
+          <div className="flex justify-start">
+            <div
+              className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft"
+              aria-live="polite"
+            >
+              {looking}
             </div>
           </div>
         )}

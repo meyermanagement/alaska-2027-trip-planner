@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { tipWhen } from "@/lib/tips/tip";
+import { runLook } from "@/lib/tips/run";
 
 /**
  * A tip, and the two ways of being done with it.
@@ -65,59 +66,24 @@ export default function ProTips({
     }
   }, []);
 
-  // One press, several questions. The route deliberately does one model call per
-  // request — it is killed at sixty seconds and a grounded answer is allowed
-  // forty-six of them — so the work of walking a trip belongs here, in a loop
-  // that shows progress as it goes. A refresh that dies halfway still leaves
-  // whatever it found behind it.
+  // One press, several questions. The loop lives in lib/tips/run.js because Aly
+  // drives the same one when she decides to go and look herself.
   const look = useCallback(async () => {
     setBusy(true);
     setProblem("");
-    const steps = (chain && chain.length ? chain : [{ scope, itemId }]).slice(
-      0,
-      6,
-    );
-    let found = 0;
-    let asked = 0;
-    for (const step of steps) {
-      let pending = { ...step };
-      // Twice per step at most: once for the fact sheet, once for the tips.
-      for (let round = 0; round < 3 && pending; round++) {
-        setNote(
-          steps.length > 1
-            ? `Looking… ${asked + 1} of ${steps.length}`
-            : "Looking…",
-        );
-        let json;
-        try {
-          const res = await fetch("/api/tips/refresh", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tripId,
-              scope: pending.scope,
-              itemId: pending.itemId || null,
-            }),
-          });
-          json = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(json?.error || "");
-        } catch (error) {
-          setProblem(
-            error?.message || "That did not work. Try again in a minute.",
-          );
-          setNote("");
-          setBusy(false);
-          return;
-        }
-        if (json.step === "facts") {
-          setNote("Checking the place itself…");
-          pending = json.next;
-          continue;
-        }
-        found += json.added || 0;
-        pending = null;
-      }
-      asked++;
+    const steps = chain && chain.length ? chain : [{ scope, itemId }];
+    const { found, error } = await runLook({
+      tripId,
+      steps,
+      onNote: setNote,
+    });
+    if (error) {
+      setProblem(error);
+      setNote(
+        found ? `${found} found before that stopped. Reload to read them.` : "",
+      );
+      setBusy(false);
+      return;
     }
     setLooked(true);
     setNote(

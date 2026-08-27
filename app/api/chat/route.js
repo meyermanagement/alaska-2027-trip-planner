@@ -19,6 +19,7 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { splitPlaceCalls } from "@/lib/places/cards";
+import { splitTipCalls, lookFrom, lookLine, stepsFor } from "@/lib/tips/ask";
 import { enrich } from "@/lib/places/photos";
 import { bias, hereLine, normalizeHere, withDistance } from "@/lib/places/here";
 import {
@@ -179,9 +180,12 @@ export async function POST(request) {
 
   // A shortlist of places is an answer, not a change, so it is taken out before
   // anything here treats a tool call as something to save.
-  const { calls: changeCalls, places: shortlist } = splitPlaceCalls(
+  const { calls: withoutPlaces, places: shortlist } = splitPlaceCalls(
     result.calls,
   );
+  // Asking to go and research is neither a change nor an answer: it is a thing
+  // that happens after she has finished speaking, so it comes out here too.
+  const { calls: changeCalls, asked: tipCall } = splitTipCalls(withoutPlaces);
   const places = withDistance(
     await enrich(shortlist, { bias: bias(here) }),
     here,
@@ -208,6 +212,39 @@ export async function POST(request) {
   // Asked for ideas, and asked to save nothing: whatever she proposed goes no
   // further than a sentence saying it is there for the asking.
   const { kept: actions, held } = holdBackChanges(proposed, { message: said });
+
+  // The looking itself, worked out but not started. The route hands back the
+  // steps and the screen runs them, because one grounded look uses most of the
+  // sixty seconds this route is given and a trip takes five of them.
+  let look = null;
+  if (tipCall) {
+    const resolved = lookFrom(tipCall, {
+      tripId: ctx.focusTripId,
+      tripName: ctx.focusTripName,
+      known: ctx.known,
+    });
+    if (resolved.problem) problems.push(resolved.problem);
+    if (resolved.look) {
+      // Only a trip-level look needs to know which bookings are coming up, so
+      // the query for them is paid for only on that path.
+      let upcoming = [];
+      if (resolved.look.scope === "trip") {
+        const { data } = await supabase
+          .from("itinerary_items")
+          .select("id, item_date")
+          .eq("trip_id", resolved.look.tripId)
+          .not("item_date", "is", null)
+          .gte("item_date", new Date().toISOString().slice(0, 10))
+          .order("item_date", { ascending: true })
+          .limit(3);
+        upcoming = data || [];
+      }
+      look = {
+        ...resolved.look,
+        steps: stepsFor(resolved.look, upcoming),
+      };
+    }
+  }
 
   let reply = result.text;
   // Asked to look something up, and the looking up did not happen: the allowance
@@ -240,6 +277,9 @@ export async function POST(request) {
   } else if (note && !reply) {
     reply = note;
   }
+  // She called the tool and said nothing, which is common when the tool call was
+  // the whole answer. The waiting sentence has to come from somewhere.
+  if (look && !reply) reply = lookLine(look);
   if (!reply && actions.length === 0 && places.length === 0) {
     reply = problems.length
       ? Array.from(new Set(problems)).join(" ")
@@ -289,6 +329,8 @@ export async function POST(request) {
     conversationId,
     sources: result.sources || [],
     places,
+    // What the screen should go and do once the reply is on screen.
+    look,
   });
 }
 
