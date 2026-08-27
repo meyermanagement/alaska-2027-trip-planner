@@ -16,6 +16,7 @@ import {
   holdBackChanges,
   shouldLookUp,
 } from "@/lib/agent/ideas";
+import { recordRefusals } from "@/lib/agent/refusals";
 import {
   CONTEXT_MESSAGES,
   appendMessage,
@@ -152,6 +153,14 @@ export async function POST(request) {
     result = await generate({ system, messages, tools, grounded: lookUp });
   } catch (err) {
     const status = err instanceof ModelError ? err.status : 502;
+    // Why it failed, kept where it can be looked up tomorrow.
+    await recordRefusals(supabase, {
+      userId: user.id,
+      asked: said,
+      wantedSearch: lookUp,
+      searched: false,
+      refusals: err?.refusals,
+    });
     return NextResponse.json(
       { error: err.message || "The assistant is unavailable right now." },
       { status: status === 403 ? 500 : status },
@@ -184,6 +193,24 @@ export async function POST(request) {
   // Asked to look something up, and the looking up did not happen: the allowance
   // is spent or the vendor that answered cannot search. The answer still stands,
   // but it is a recollection rather than a reading, and it says so.
+  // Worth writing down whenever a look-up was wanted and did not happen, even
+  // when nobody refused us: a row with no refusal in it means the vendor that
+  // answered cannot search at all, which is a different problem with a different
+  // fix, and guessing between the two is what cost this evening.
+  const refusals = result.refusals?.length
+    ? result.refusals
+    : lookUp && !result.searched
+      ? [{ model: result.model, grounded: false }]
+      : [];
+  if (refusals.length) {
+    await recordRefusals(supabase, {
+      userId: user.id,
+      asked: said,
+      wantedSearch: lookUp,
+      searched: result.searched,
+      refusals,
+    });
+  }
   if (lookUp && !result.searched && reply) {
     reply = `${reply}\n\n${noSearchNote()}`;
   }
