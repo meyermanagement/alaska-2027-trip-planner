@@ -7,7 +7,14 @@ const PUBLIC_PATHS = ["/login", "/auth"];
 // person — so it has to get past the redirect below. It is not open: the route
 // itself demands the shared secret Vercel signs the request with, and refuses to
 // do anything when that secret has not been configured.
-const MACHINE_PATHS = ["/api/tasks/remind"];
+const MACHINE_PATHS = ["/api/tasks/remind", "/api/mail/check"];
+
+// The calendar subscription is read by Google Calendar, Apple Calendar or
+// Outlook, which have no session and no way of being given one, so a redirect to
+// the login page would simply look to them like a broken calendar. The random
+// token in the path is the credential, and the route refuses anything shorter
+// than one.
+const MACHINE_PREFIXES = ["/api/calendar/"];
 
 export async function middleware(request) {
   let response = NextResponse.next({ request });
@@ -40,7 +47,8 @@ export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
-    MACHINE_PATHS.includes(pathname);
+    MACHINE_PATHS.includes(pathname) ||
+    MACHINE_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
