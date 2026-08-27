@@ -13,7 +13,7 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * each other rather than a row of unrelated buttons. The top of every screen is
  * left to the Alyeska mark and Ask Aly.
  *
- * Trips is home; Reminders and Packing lists cut across all of them; the last
+ * Trips is home; Reminders and Packing templates cut across all of them; the last
  * three are for looking things up.
  *
  * Half of these screens hold more than their name admits — Reviews is also
@@ -60,7 +60,7 @@ const TABS = [
     href: "/packing",
     label: "Packing",
     short: "Packing",
-    sub: "Standing lists",
+    sub: "Packing templates",
     Icon: ShirtIcon,
   },
   {
@@ -205,7 +205,7 @@ function BackIcon({ className }) {
   );
 }
 
-// A folded shirt: the standing lists of what everyone always takes. Deliberately
+// A folded shirt: the packing templates of what everyone always takes. Deliberately
 // not a suitcase, which is already the whole trip, and not a checklist, which is
 // already Reminders.
 function ShirtIcon({ className }) {

@@ -1,6 +1,6 @@
 # Judging Aly
 
-`aly.json` is thirty-two real questions with what a good answer does. It exists so
+`aly.json` is thirty-three real questions with what a good answer does. It exists so
 that a change to her prompt, her tool set or her context can be judged against the
 same questions every time, instead of against whichever one somebody happened to
 type after making the change.
@@ -30,7 +30,7 @@ words. A case with the right words and a spurious confirmation card is a fail â€
 that is the failure the family notices most.
 
 The first two counts can be checked mechanically. The third needs a person or a
-judging model, so keep the run small enough that reading thirty answers is not a
+judging model, so keep the run small enough that reading thirty-odd answers is not a
 chore.
 
 Record the model and the date with every run. The same prompt scores differently

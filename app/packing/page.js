@@ -6,7 +6,7 @@ import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import Templates from "./Templates";
 
-export const metadata = { title: "Packing lists · Alyeska" };
+export const metadata = { title: "Packing templates · Alyeska" };
 
 export default async function PackingTemplatesPage() {
   const supabase = await createClient();
@@ -59,12 +59,14 @@ export default async function PackingTemplatesPage() {
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-28 pt-7">
         <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">Packing lists</h1>
+          <h1 className="font-display text-3xl font-semibold">
+            Packing templates
+          </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            The standing lists every trip starts from, sorted by who packs what.
-            Change something here and it applies to the next trip you create —
-            trips already on the board keep the lists they have, so nothing you
-            have already ticked off gets rewritten underneath you.
+            The packing templates every trip starts from, sorted by who packs
+            what. Change something here and it applies to the next trip you
+            create — trips already on the board keep the lists they have, so
+            nothing you have already ticked off gets rewritten underneath you.
           </p>
         </div>
         <Templates

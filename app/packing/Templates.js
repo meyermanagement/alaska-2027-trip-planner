@@ -14,7 +14,7 @@ function whosePhrase(person) {
 const EMPTY_DRAFT = { item: "", category: "", quantity: "", assignee: SHARED };
 
 /**
- * The standing packing lists, arranged by who packs what rather than by
+ * The packing templates, arranged by who packs what rather than by
  * category. A trip's own list is grouped by category, because when you are
  * standing over an open suitcase you want all the toiletries together; here the
  * question being asked is a different one — "what does Veda always take?" — so
@@ -123,7 +123,7 @@ export default function Templates({ travelers, templates, items }) {
         sort_order: nextSort(),
       }),
     );
-    // Left open on purpose: adding to a standing list is usually adding several.
+    // Left open on purpose: adding to a packing template is usually adding several.
     if (ok) setAddDraft({ ...EMPTY_DRAFT, assignee: addDraft.assignee });
   }
 
@@ -156,7 +156,7 @@ export default function Templates({ travelers, templates, items }) {
   }
 
   async function remove(row) {
-    if (!window.confirm(`Take “${row.item}” off the standing list?`)) return;
+    if (!window.confirm(`Take “${row.item}” off the packing template?`)) return;
     await run(() =>
       supabase.from("packing_template_items").delete().eq("id", row.id),
     );
@@ -188,8 +188,8 @@ export default function Templates({ travelers, templates, items }) {
   if (!template) {
     return (
       <p className="card p-6 text-center text-sm text-ink-soft">
-        There are no packing lists saved yet. Create a trip and Aly will build
-        one, or ask her to start a standing list for the family.
+        There are no packing templates saved yet. Create a trip and Aly will
+        build one, or ask her to start a packing template for the family.
       </p>
     );
   }

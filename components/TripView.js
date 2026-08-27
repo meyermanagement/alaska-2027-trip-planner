@@ -32,6 +32,7 @@ export default function TripView({
   initialGoing = [],
   tips = [],
   everLooked = false,
+  packingTemplates = [],
   userId,
   userName,
   // Worked out on the server and handed down, so "overdue" means the same thing
@@ -400,6 +401,7 @@ export default function TripView({
             everLooked={everLooked}
             travelers={travelers}
             userId={userId}
+            templates={packingTemplates}
             onChange={() => refetch("packing_items")}
           />
         )}

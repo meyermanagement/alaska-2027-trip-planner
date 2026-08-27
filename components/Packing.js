@@ -12,6 +12,7 @@ export default function Packing({
   travelers,
   userId,
   onChange,
+  templates = [],
   tips = [],
   today,
   everLooked = false,
@@ -23,6 +24,12 @@ export default function Packing({
   const [newCategory, setNewCategory] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
   const [editingId, setEditingId] = useState(null);
+  // Sending the item being edited to a packing template. Held per item so the
+  // message stays attached to the row it belongs to, and cleared when another
+  // row is opened.
+  const base = templates.find((t) => t.is_base) || templates[0] || null;
+  const [templateId, setTemplateId] = useState(base?.id || "");
+  const [toTemplate, setToTemplate] = useState(null);
   const [editDraft, setEditDraft] = useState({
     item: "",
     category: "",
@@ -79,6 +86,7 @@ export default function Packing({
 
   function startEdit(item) {
     setEditingId(item.id);
+    setToTemplate(null);
     setEditDraft({
       item: item.item || "",
       category: item.category || "",
@@ -102,6 +110,80 @@ export default function Packing({
       })
       .eq("id", editingId);
     setEditingId(null);
+    onChange();
+  }
+
+  /**
+   * Put the item being edited on a packing template as well.
+   *
+   * Things are invented while packing for a real trip — that is when you notice
+   * the thing you always forget — and until now the only way to keep one was to
+   * remember it, walk to the Packing templates screen, and type it again. The
+   * edits on screen are saved first so what lands on the template is what is
+   * being looked at rather than what was there when the form opened.
+   *
+   * The trip's own copy stays exactly where it is. Nothing about this trip
+   * changes, and neither does any trip that already exists: a template is only
+   * read when a new trip is built.
+   */
+  async function alsoAddToTemplate() {
+    const chosen = templates.find((t) => t.id === templateId);
+    const name = editDraft.item.trim();
+    if (!chosen || !name) return;
+    setToTemplate({ state: "saving" });
+
+    const patch = {
+      item: name,
+      category: (editDraft.category || "General").trim(),
+      assignee: editDraft.assignee,
+      quantity: editDraft.quantity.trim() || null,
+      notes: editDraft.notes.trim() || null,
+    };
+    const { error: editError } = await supabase
+      .from("packing_items")
+      .update(patch)
+      .eq("id", editingId);
+    if (editError) {
+      setToTemplate({ state: "error", message: "That did not save." });
+      return;
+    }
+
+    // Already on that template, by name and person? Say so rather than adding a
+    // second one — a template with the same thing twice on it quietly puts it on
+    // every future trip twice.
+    const { data: already } = await supabase
+      .from("packing_template_items")
+      .select("id")
+      .eq("template_id", chosen.id)
+      .ilike("item", name)
+      .eq("assignee", patch.assignee)
+      .limit(1);
+    if (already && already.length) {
+      setToTemplate({
+        state: "done",
+        message: `Already on ${chosen.name} for ${patch.assignee}.`,
+      });
+      onChange();
+      return;
+    }
+
+    const { error } = await supabase.from("packing_template_items").insert({
+      template_id: chosen.id,
+      item: name,
+      category: patch.category,
+      assignee: patch.assignee,
+      quantity: patch.quantity,
+      sort_order: 999,
+      created_by: userId,
+    });
+    setToTemplate(
+      error
+        ? { state: "error", message: "That did not save to the template." }
+        : {
+            state: "done",
+            message: `Added to ${chosen.name}. Trips you create from now on will start with it.`,
+          },
+    );
     onChange();
   }
 
@@ -185,13 +267,13 @@ export default function Packing({
       </div>
 
       <p className="no-print mb-4 text-xs text-ink-soft">
-        This list started from the family&rsquo;s standing lists. Changes here
-        stay on this trip &mdash;{" "}
+        This list started from the family&rsquo;s packing templates. Changes
+        here stay on this trip &mdash;{" "}
         <Link
           href="/packing"
           className="font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
         >
-          edit the standing lists
+          edit the packing templates
         </Link>{" "}
         to change what every future trip starts with.
       </p>
@@ -324,6 +406,58 @@ export default function Packing({
                           Cancel
                         </button>
                       </div>
+                      {templates.length > 0 && (
+                        <div className="border-t border-sand pt-2">
+                          <label
+                            className="text-xs font-semibold text-ink-soft"
+                            htmlFor="packing-to-template"
+                          >
+                            Keep this for future trips
+                          </label>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <select
+                              id="packing-to-template"
+                              className="field text-sm"
+                              style={{ width: "auto", maxWidth: "100%" }}
+                              value={templateId}
+                              onChange={(e) => {
+                                setTemplateId(e.target.value);
+                                setToTemplate(null);
+                              }}
+                            >
+                              {templates.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name}
+                                  {t.is_base ? " (base)" : ""}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="btn btn-ghost whitespace-nowrap text-sm"
+                              onClick={alsoAddToTemplate}
+                              disabled={
+                                toTemplate?.state === "saving" ||
+                                !editDraft.item.trim()
+                              }
+                            >
+                              {toTemplate?.state === "saving"
+                                ? "Adding\u2026"
+                                : "Add to packing template"}
+                            </button>
+                          </div>
+                          <p
+                            className={`mt-1.5 text-xs ${
+                              toTemplate?.state === "error"
+                                ? "text-rose"
+                                : "text-ink-soft"
+                            }`}
+                          >
+                            {toTemplate?.message ||
+                              "Saves your edits and puts this on the chosen template as well. Trips that already exist are left alone."}
+                          </p>
+                        </div>
+                      )}
                     </form>
                   </li>
                 ) : (

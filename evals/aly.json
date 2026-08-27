@@ -64,7 +64,9 @@
       "ask": "Castaway Club Silver gets excursions at 90 days, not 75 — remember that for next time.",
       "expect_tools": ["record_lesson"],
       "forbid_tools": ["add_preference", "add_note"],
-      "expect_text": ["confirms it is kept as a note rather than as a preference"],
+      "expect_text": [
+        "confirms it is kept as a note rather than as a preference"
+      ],
       "why": "A durable fact about an operator is a lesson; the preferences table is for how the family likes to travel."
     },
     {
@@ -210,7 +212,9 @@
       "ask": "Yes, put the Klein Curacao trip on the itinerary — we have not booked it yet.",
       "expect_tools": ["add_itinerary_item"],
       "forbid_tools": [],
-      "expect_text": ["status needs booking, and offers the Make this a task button"],
+      "expect_text": [
+        "status needs booking, and offers the Make this a task button"
+      ],
       "why": "The moment an idea becomes a plan is the moment booking work becomes legitimate."
     },
     {
@@ -267,7 +271,9 @@
       "ask": "Southwest is up to 41,300 points.",
       "expect_tools": ["update_rewards_program"],
       "forbid_tools": ["add_rewards_program"],
-      "expect_text": ["uses the existing program rather than adding a second one"],
+      "expect_text": [
+        "uses the existing program rather than adding a second one"
+      ],
       "why": "Duplicate programs are how a rewards screen becomes useless."
     },
     {
@@ -314,7 +320,9 @@
         "add_itinerary_item"
       ],
       "forbid_tools": [],
-      "expect_text": ["does not ask them to create the trip first and paste again"],
+      "expect_text": [
+        "does not ask them to create the trip first and paste again"
+      ],
       "why": "The pasted-itinerary case, which is how most trips actually get entered."
     },
     {
@@ -366,11 +374,20 @@
     {
       "id": "screen-awareness",
       "screen": "packing",
-      "ask": "Add sunscreen to the standing list.",
+      "ask": "Add sunscreen to the packing template.",
       "expect_tools": ["add_template_item"],
       "forbid_tools": ["add_packing_item"],
-      "expect_text": ["says which standing list"],
+      "expect_text": ["says which packing template"],
       "why": "The rescue rules exist so that where they are standing does not change what the words mean."
+    },
+    {
+      "id": "old-name-still-works",
+      "screen": "notes",
+      "ask": "Put insect repellent on the standing list.",
+      "expect_tools": ["add_template_item"],
+      "forbid_tools": ["add_packing_item"],
+      "expect_text": ["says which packing template it went on"],
+      "why": "These were called standing lists until they were renamed, and people go on saying the old name for a long time after a label changes."
     }
   ]
 }

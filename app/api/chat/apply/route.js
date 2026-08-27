@@ -436,7 +436,7 @@ function slugify(value) {
 
 // Create, rename or delete a whole trip. Deleting cascades to the itinerary,
 // packing list, tasks and notes at the database level.
-// A standing packing list, and whatever it was asked to start from. The copy
+// A packing template, and whatever it was asked to start from. The copy
 // reads the source here rather than trusting anything the model sent, so what
 // lands on the new list is what is actually on the old one.
 async function writeTemplate({ supabase, patch, familyId }) {
@@ -484,7 +484,7 @@ async function writeTemplate({ supabase, patch, familyId }) {
 
   // Copying a trip's list brings the base list along with it, because that is
   // what the trip was built from. An add-on list has to hold only the extras.
-  // Copying from another standing list is left alone: that is deliberate
+  // Copying from another packing template is left alone: that is deliberate
   // reorganizing, and an add-on's contents are already additional.
   let excludeItems = null;
   if (fromTrip) {
