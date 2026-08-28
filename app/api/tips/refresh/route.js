@@ -44,6 +44,11 @@ export const maxDuration = 120;
 // worse than a slightly shorter search: the writes happen at the end, so nothing
 // is kept. This leaves room to answer well inside what a phone will wait.
 const MODEL_BUDGET_MS = 55000;
+// Researching the destination gets longer than that, because it is a bigger
+// question and it is only asked when the sheet is missing or a week old: measured
+// against the real Disney trip it takes about forty seconds, and giving it the
+// same allowance as a tips call is what made it fail at the last fence.
+const FACTS_BUDGET_MS = 80000;
 
 /** Everything except the working fields the rules pass alongside a tip. */
 const columnsOnly = (tip) =>
@@ -252,11 +257,16 @@ export async function POST(request) {
         itinerary: itinerary || [],
         memberships: memberships || [],
         travelers,
-        deadline: startedAt + MODEL_BUDGET_MS,
+        deadline: startedAt + FACTS_BUDGET_MS,
       });
     } catch (error) {
       return NextResponse.json(
-        { error: error?.message || "Could not look that up.", step: "facts" },
+        {
+          error: error?.timedOut
+            ? `${error.message} Checking the destination is the long one — it reads the whole itinerary and every rewards level and works out the booking windows. Press Look for tips again; the rest of the trip does not have to wait for it.`
+            : error?.message || "Could not look that up.",
+          step: "facts",
+        },
         { status: error?.status || 502 },
       );
     }
@@ -288,19 +298,25 @@ export async function POST(request) {
     // The write is checked. An upsert that fails silently leaves the sheet at its
     // old version, which the next round reads as stale all over again: the same
     // question asked until the rounds run out, and no tip to show for it.
-    const { error: kept } = await supabase.from("trip_facts").upsert(
-      {
-        trip_id: tripId,
-        family_id: trip.family_id,
-        ...researched.facts,
-        sources: researched.sources,
-        model: researched.model,
-        checked_at: new Date().toISOString(),
-        windows_version: WINDOWS_VERSION,
-        standings_key: standingsKey(memberships || []),
-      },
-      { onConflict: "trip_id" },
-    );
+    // A sheet the model wrote without searching is used for this look and then
+    // thrown away. It is good enough to hang tips on now, and not good enough to
+    // stand as the family's verified answer for a week: the next press should get
+    // a chance to go and check rather than reading back an unchecked guess.
+    const { error: kept } = !researched.searched
+      ? { error: null }
+      : await supabase.from("trip_facts").upsert(
+          {
+            trip_id: tripId,
+            family_id: trip.family_id,
+            ...researched.facts,
+            sources: researched.sources,
+            model: researched.model,
+            checked_at: new Date().toISOString(),
+            windows_version: WINDOWS_VERSION,
+            standings_key: standingsKey(memberships || []),
+          },
+          { onConflict: "trip_id" },
+        );
     // Filed in the same call. The rules ask no model, so the corrected date
     // reaches the screen now rather than after another round trip — and it reaches
     // it even when the sheet itself could not be saved.
