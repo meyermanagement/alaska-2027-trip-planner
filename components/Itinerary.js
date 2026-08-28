@@ -413,9 +413,24 @@ export default function Itinerary({
     ro.observe(rail);
     return () => ro.disconnect();
   }, [railKeys.length]);
+  // Center the chosen day inside the rail by moving the rail's own horizontal
+  // scroll, never the page's. scrollIntoView() here also scrolled the window
+  // down far enough to show the rail, so opening a trip landed on the pro tips
+  // instead of the top of the page.
   useEffect(() => {
-    const tile = railRef.current?.querySelector('[data-active="true"]');
-    tile?.scrollIntoView({ block: "nearest", inline: "center" });
+    const rail = railRef.current;
+    const tile = rail?.querySelector('[data-active="true"]');
+    if (!rail || !tile) return;
+    // Measured, not offsetLeft: the rail is not a positioned ancestor, so
+    // offsets would be read against whatever box above it is.
+    const railBox = rail.getBoundingClientRect();
+    const tileBox = tile.getBoundingClientRect();
+    const left =
+      rail.scrollLeft +
+      (tileBox.left - railBox.left) -
+      (rail.clientWidth - tileBox.width) / 2;
+    const max = rail.scrollWidth - rail.clientWidth;
+    rail.scrollLeft = Math.max(0, Math.min(left, max));
   }, [selected]);
 
   const index = railKeys.indexOf(selected);
