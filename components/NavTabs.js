@@ -33,7 +33,11 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * One exception, and it matters: while you are inside a single trip, the first
  * item stops pretending to be where you already are and becomes the way out —
  * an arrow and the words "All trips". Filling it in like a current page made it
- * look like a label rather than a door.
+ * look like a label rather than a door. Those two words are wider than a sixth of
+ * a phone at the size the other labels use, so this one label alone steps down
+ * until it fits on one line — the alternatives were shortening it to "Back",
+ * which read as a browser control rather than a place, or letting it wrap and
+ * making the whole bar taller than the five items beside it.
  *
  * While you are typing on a phone the menu gets out of the way. Left alone, iOS
  * lifts anything pinned to the bottom of the screen up on top of the keyboard as
@@ -139,8 +143,18 @@ export default function NavTabs({ attention = 0 }) {
                   </span>
                 )}
               </span>
-              <span className="w-full truncate text-center leading-tight lg:hidden">
-                {isWayOut ? "Back" : tab.short}
+              <span
+                className={`w-full text-center leading-tight lg:hidden ${
+                  // Two words in a column sized for one: the way out is the only
+                  // label that needs a step down to stay on a single line, and it
+                  // gets one rather than being shortened or allowed to wrap and
+                  // make the whole bar taller.
+                  isWayOut
+                    ? "whitespace-nowrap text-[0.44rem] tracking-tight min-[375px]:text-[0.48rem] min-[430px]:text-[0.55rem]"
+                    : "truncate"
+                }`}
+              >
+                {isWayOut ? "All trips" : tab.short}
               </span>
               <span className="hidden text-left lg:flex lg:flex-col lg:leading-[1.15]">
                 <span>{isWayOut ? "All trips" : tab.label}</span>
