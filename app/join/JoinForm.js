@@ -19,7 +19,7 @@ export default function JoinForm() {
     if (error || !data) {
       setError(
         error?.message ||
-          "No one has added this email address to a family's People list yet. Ask whoever set up the trips to add it, then try again.",
+          "No one has added this email address to a family yet. Ask whoever set up the trips to add you on their Family tab, then try again.",
       );
       return;
     }

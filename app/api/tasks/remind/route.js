@@ -53,7 +53,7 @@ export async function GET(request) {
 }
 
 /**
- * "Send me mine now" — the same email, to yourself, from the People tab.
+ * "Send me mine now" — the same email, to yourself, from the Family tab.
  *
  * Reads go through the visitor's own session, so this can only ever surface work
  * they were allowed to see anyway, and it only ever emails the address on their

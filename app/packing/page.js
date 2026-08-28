@@ -5,6 +5,7 @@ import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import Templates from "./Templates";
+import PetTemplates from "./PetTemplates";
 
 export const metadata = { title: "Packing templates · Alyeska" };
 
@@ -22,24 +23,36 @@ export default async function PackingTemplatesPage() {
   if (!memberships || memberships.length === 0) redirect("/join");
   const familyId = memberships[0].family_id;
 
-  const [{ data: profile }, { data: travelers }, { data: templates }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("travelers")
-        .select("id, name, sort_order, is_person")
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("packing_templates")
-        .select("id, name, description, is_base")
-        .eq("family_id", familyId)
-        .order("is_base", { ascending: false })
-        .order("name", { ascending: true }),
-    ]);
+  const [
+    { data: profile },
+    { data: travelers },
+    { data: templates },
+    { data: pets },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("travelers")
+      .select("id, name, sort_order, is_person")
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("packing_templates")
+      .select("id, name, description, is_base, pet_id")
+      .eq("family_id", familyId)
+      .order("is_base", { ascending: false })
+      .order("name", { ascending: true }),
+    // The animals, so each one's list can be shown under its own name rather
+    // than as another add-on with a person's chip on it.
+    supabase
+      .from("pets")
+      .select("id, name, species, color, sort_order")
+      .eq("family_id", familyId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+  ]);
 
   // The items for every template at once: there are a few hundred at most, and
   // one read means switching between lists is instant rather than a spinner.
@@ -53,6 +66,14 @@ export default async function PackingTemplatesPage() {
         .in("template_id", ids)
         .order("sort_order", { ascending: true })
     : { data: [] };
+
+  // A pet's list is not an add-on the family picks between: it applies whenever
+  // that animal is coming. So it is split out here and shown in its own panel
+  // rather than sitting in the same row of chips as the destination add-ons,
+  // where the person-by-person grouping would also mark the pet's own name as
+  // somebody who is not on the People list.
+  const petTemplates = (templates || []).filter((t) => t.pet_id);
+  const familyTemplates = (templates || []).filter((t) => !t.pet_id);
 
   return (
     <>
@@ -73,8 +94,18 @@ export default async function PackingTemplatesPage() {
           travelers={(travelers || [])
             .filter((t) => t.is_person)
             .map((t) => t.name)}
-          templates={templates || []}
+          templates={familyTemplates}
           items={items || []}
+        />
+        <PetTemplates
+          pets={pets || []}
+          templates={petTemplates}
+          items={(items || []).filter((i) =>
+            petTemplates.some((t) => t.id === i.template_id),
+          )}
+          people={(travelers || [])
+            .filter((t) => t.is_person)
+            .map((t) => t.name)}
         />
       </main>
       <AskAlyGeneral focus={TEMPLATES_FOCUS} />

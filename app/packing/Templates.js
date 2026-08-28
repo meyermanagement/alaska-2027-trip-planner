@@ -289,7 +289,7 @@ export default function Templates({ travelers, templates, items }) {
               </span>
               {section.stray && (
                 <span className="text-xs text-ink-soft">
-                  Not on the People list — reassign these to fold them in.
+                  Not on the Family tab — reassign these to fold them in.
                 </span>
               )}
               <button

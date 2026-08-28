@@ -24,6 +24,7 @@ export default function Packing({
   tips = [],
   today,
   everLooked = false,
+  pets = [],
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
@@ -31,6 +32,11 @@ export default function Packing({
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
+  // Which animal a new line is about, when there is an animal on this trip to
+  // pick. Separate from who packs it on purpose: "the horse's feed" and "Mark is
+  // bringing it" are two different facts, and the old shape could only hold one
+  // of them by making the horse the owner of its own hay.
+  const [newPetId, setNewPetId] = useState("");
   const [editingId, setEditingId] = useState(null);
   // Sending the item being edited to a packing template. One pill per template,
   // pressed on and pressed off, because the old shape — a dropdown of templates
@@ -55,6 +61,7 @@ export default function Packing({
     assignee: "Shared",
     quantity: "",
     notes: "",
+    petId: "",
   });
 
   const people = travelers.length
@@ -201,6 +208,7 @@ export default function Packing({
       assignee: oneOrShared(item.assignee, people),
       quantity: item.quantity || "",
       notes: item.notes || "",
+      petId: item.pet_id || "",
     });
   }
 
@@ -215,6 +223,7 @@ export default function Packing({
         assignee: editDraft.assignee,
         quantity: editDraft.quantity.trim() || null,
         notes: editDraft.notes.trim() || null,
+        pet_id: editDraft.petId || null,
       })
       .eq("id", editingId);
     setEditingId(null);
@@ -250,6 +259,7 @@ export default function Packing({
       assignee: editDraft.assignee,
       quantity: editDraft.quantity.trim() || null,
       notes: editDraft.notes.trim() || null,
+      pet_id: editDraft.petId || null,
     };
     const { error: editError } = await supabase
       .from("packing_items")
@@ -329,6 +339,9 @@ export default function Packing({
       item: name,
       category: patch.category,
       assignee: patch.assignee,
+      // Which animal it is for travels with it onto the template, so a line
+      // invented mid-trip keeps its meaning on every trip after this one.
+      pet_id: patch.pet_id,
       quantity: patch.quantity,
       sort_order: 999,
       created_by: userId,
@@ -357,6 +370,15 @@ export default function Packing({
     onChange();
   }
 
+  // The animal a line is about, if any. Shown beside who packs it rather than
+  // instead of it, because "the horse's feed" and "Mark is bringing it" are both
+  // worth reading at a glance and neither one replaces the other.
+  const petById = useMemo(
+    () => new Map((pets || []).map((pet) => [pet.id, pet])),
+    [pets],
+  );
+  const petFor = (item) => (item?.pet_id ? petById.get(item.pet_id) : null);
+
   async function add(e) {
     e.preventDefault();
     if (!newItem.trim()) return;
@@ -365,9 +387,11 @@ export default function Packing({
       item: newItem.trim(),
       category: (newCategory || "General").trim(),
       assignee: newAssignee,
+      pet_id: newPetId || null,
       sort_order: 999,
     });
     setNewItem("");
+    setNewPetId("");
     onChange();
   }
 
@@ -523,7 +547,11 @@ export default function Packing({
 
       <form
         onSubmit={add}
-        className="card no-print mb-5 grid gap-2 p-4 sm:grid-cols-[2fr_1fr_auto_auto]"
+        className={`card no-print mb-5 grid gap-2 p-4 ${
+          pets.length
+            ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
+            : "sm:grid-cols-[2fr_1fr_auto_auto]"
+        }`}
       >
         <input
           className="field"
@@ -554,6 +582,22 @@ export default function Packing({
             </option>
           ))}
         </select>
+        {pets.length > 0 && (
+          <select
+            className="field"
+            value={newPetId}
+            onChange={(e) => setNewPetId(e.target.value)}
+            aria-label="Which pet is this for"
+            title="Is this item for one of the animals?"
+          >
+            <option value="">Not for a pet</option>
+            {pets.map((pet) => (
+              <option key={pet.id} value={pet.id}>
+                For {pet.name}
+              </option>
+            ))}
+          </select>
+        )}
         <button className="btn btn-primary">Add</button>
       </form>
 
@@ -631,6 +675,30 @@ export default function Packing({
                           }
                         />
                       </div>
+                      {pets.length > 0 && (
+                        <select
+                          className="field"
+                          value={editDraft.petId}
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft,
+                              petId: e.target.value,
+                            })
+                          }
+                          aria-label="Which pet is this for"
+                        >
+                          {/* Which animal it is for, kept apart from who packs
+                              it. The two answers used to be crushed into one
+                              field, which made the horse the owner of its own
+                              hay and left nobody actually responsible for it. */}
+                          <option value="">Not for a pet</option>
+                          {pets.map((pet) => (
+                            <option key={pet.id} value={pet.id}>
+                              For {pet.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <input
                         className="field"
                         placeholder="Notes"
@@ -741,6 +809,21 @@ export default function Packing({
                         >
                           {item.assignee}
                         </span>
+                        {petFor(item) && (
+                          <span
+                            className="chip border border-[var(--line)] bg-white text-ink-soft"
+                            title={`For ${petFor(item).name}`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                              style={{
+                                background: petFor(item).color || "var(--teal)",
+                              }}
+                            />
+                            For {petFor(item).name}
+                          </span>
+                        )}
                       </div>
                       {item.notes && (
                         <p className="mt-0.5 text-xs text-ink-soft">

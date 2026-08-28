@@ -14,14 +14,14 @@ import WarningTask from "./WarningTask";
  * No dismiss button, and that is on purpose. There is nothing here to weigh up,
  * and the band is not stored anywhere: it is worked out from the passport dates
  * and the return date every time a page is drawn, so putting the new expiry date
- * in on the People tab makes it disappear by itself. A dismiss button would only
+ * in on the Family tab makes it disappear by itself. A dismiss button would only
  * let it be hidden while still being true.
  */
 export default function PassportWarning({ warnings = [], compact = true }) {
   if (!warnings.length) return null;
 
   // Two at most in the band. Somebody with three trips in trouble needs the
-  // People tab, not a taller band — and a band that grows without limit is a band
+  // Family tab, not a taller band — and a band that grows without limit is a band
   // that pushes the app off the screen.
   const lead = warnings.slice(0, 2);
   const rest = warnings.length - lead.length;
@@ -57,7 +57,7 @@ export default function PassportWarning({ warnings = [], compact = true }) {
           ) : null}
           {compact ? (
             <Link
-              href="/people"
+              href="/family"
               className="font-semibold underline decoration-white/60 underline-offset-2 hover:decoration-white"
             >
               Check the passports
@@ -70,7 +70,7 @@ export default function PassportWarning({ warnings = [], compact = true }) {
 }
 
 /**
- * The same warnings on the People tab, where there is room to name everybody and
+ * The same warnings on the Family tab, where there is room to name everybody and
  * say what to do about it. Shown above the list of people, because the list is
  * where the fix goes in.
  */

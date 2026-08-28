@@ -1,4 +1,5 @@
 import { syncPackingForPet } from "@/lib/pets/packing";
+import { isComing } from "@/lib/pets/pets";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -49,15 +50,14 @@ const TAB_WORDS = {
 };
 
 const LANDING_PATH = {
-  add_pet: ["/people", "the People tab"],
-  update_pet: ["/people", "the People tab"],
-  delete_pet: ["/people", "the People tab"],
-  set_pet_trip: ["/people", "the People tab"],
-  add_preference: ["/people", "the People tab"],
-  update_preference: ["/people", "the People tab"],
-  delete_preference: ["/people", "the People tab"],
-  set_person_details: ["/people", "the People tab"],
-  set_person_email: ["/people", "the People tab"],
+  add_pet: ["/family", "the Family tab"],
+  update_pet: ["/family", "the Family tab"],
+  delete_pet: ["/family", "the Family tab"],
+  add_preference: ["/family", "the Family tab"],
+  update_preference: ["/family", "the Family tab"],
+  delete_preference: ["/family", "the Family tab"],
+  set_person_details: ["/family", "the Family tab"],
+  set_person_email: ["/family", "the Family tab"],
   add_rewards_program: ["/wallet", "the Wallet"],
   update_rewards_program: ["/wallet", "the Wallet"],
   delete_rewards_program: ["/wallet", "the Wallet"],
@@ -386,7 +386,7 @@ export async function POST(request) {
       } else if (tool === "set_person_details") {
         // traveler_id is the key, not a column, and only the groups the user
         // actually mentioned are in the patch — so an unmentioned column keeps
-        // whatever the People tab already holds.
+        // whatever the Family tab already holds.
         const { traveler_id: personId, ...columns } = patch;
         const { error: e } = await supabase
           .from("travelers")
@@ -431,13 +431,18 @@ export async function POST(request) {
         if (!dbError) {
           const { data: petRow } = await supabase
             .from("pets")
-            .select("name, species, travel_style, medications")
+            // The id and the family are not optional here: the sync keys a
+            // pet's packing lines on `pet_id`, and it has to be able to find or
+            // make that pet's template. Selecting only the descriptive fields
+            // meant this whole branch quietly did nothing when Aly ran it.
+            .select("id, family_id, name, species, travel_style, medications")
             .eq("id", petRowId)
             .maybeSingle();
           if (petRow) {
             const outcome = await syncPackingForPet({
               supabase,
               tripId: petTripId,
+              familyId: petRow.family_id,
               pet: petRow,
               arrangement: patch.arrangement ?? null,
             });
@@ -782,6 +787,13 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
   // who are actually going, so it is read here and never written.
   const going = Array.isArray(row.travelers) ? row.travelers : null;
   delete row.travelers;
+  // Same again for the animals: ids, already checked against the family's own
+  // pets, carried on the patch because a pet on a trip is a trip_pets row rather
+  // than a column. set_pet_trip cannot do this job at creation time — it needs a
+  // trip_id, and the trip does not exist until three lines below.
+  const petIds = Array.isArray(row.pets) ? row.pets : null;
+  delete row.pets;
+  delete row.pet_names;
 
   row.family_id = familyId;
   row.slug = await freeSlug(supabase, slugify(row.name) || "trip", null);
@@ -810,6 +822,29 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
     await supabase
       .from("trip_travelers")
       .insert(roster.map((p) => ({ trip_id: trip.id, traveler_id: p.id })));
+  }
+
+  // The animals go on last, once the trip has an id. Their packing lines are
+  // deliberately NOT written here: a new trip has no packing list at all until
+  // the family approves start_packing_list, and syncPackingForPet refuses to
+  // invent one. fillPackingFromBase picks the animals up when the list is built,
+  // so the dog's things arrive with everyone else's rather than as five orphan
+  // lines on an otherwise empty list. A pet that fails here does not undo the
+  // trip: a trip with the dog missing is still the trip they asked for.
+  if (petIds?.length) {
+    const { data: petRows } = await supabase
+      .from("pets")
+      .select("id, family_id, name, species, travel_style, medications")
+      .eq("family_id", familyId)
+      .in("id", petIds);
+    for (const pet of petRows || []) {
+      await supabase
+        .from("trip_pets")
+        .upsert(
+          { trip_id: trip.id, pet_id: pet.id, arrangement: "coming" },
+          { onConflict: "trip_id,pet_id" },
+        );
+    }
   }
 
   return { error: null, slug: trip.slug, id: trip.id };
@@ -869,7 +904,32 @@ async function fillPackingFromBase({ supabase, tripId, familyId }) {
   const { error } = await supabase
     .from("packing_items")
     .insert(wanted.map((i) => ({ ...i, trip_id: tripId })));
-  return { error, copied: error ? 0 : wanted.length };
+  if (error) return { error, copied: 0 };
+
+  // The animals on this trip get their own lines too, from each one's own
+  // template. This runs after the insert above on purpose: syncPackingForPet
+  // will not start a list from nothing, so there has to be a list first. Every
+  // line it writes is owned by a person or Shared and merely tagged with the
+  // pet — the dog is not answerable for its own luggage.
+  let pets = 0;
+  const { data: onTrip } = await supabase
+    .from("trip_pets")
+    .select(
+      "arrangement, pets (id, family_id, name, species, travel_style, medications)",
+    )
+    .eq("trip_id", tripId);
+  for (const link of onTrip || []) {
+    if (!link.pets || !isComing(link.arrangement)) continue;
+    const outcome = await syncPackingForPet({
+      supabase,
+      tripId,
+      familyId,
+      pet: link.pets,
+      arrangement: link.arrangement,
+    });
+    pets += outcome.added || 0;
+  }
+  return { error: null, copied: wanted.length + pets };
 }
 
 // Slugs are how trips are addressed in the URL, so keep them unique.

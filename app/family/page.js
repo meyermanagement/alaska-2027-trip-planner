@@ -8,7 +8,7 @@ import Pets from "./Pets";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 
-export const metadata = { title: "People · Alyeska" };
+export const metadata = { title: "Family · Alyeska" };
 
 export default async function PeoplePage() {
   const supabase = await createClient();
@@ -97,12 +97,13 @@ export default async function PeoplePage() {
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
         <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">People</h1>
+          <h1 className="font-display text-3xl font-semibold">Family</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Passports, licenses, Known Traveler and Global Entry numbers — kept
-            in one place so nobody is digging through a drawer at booking time.
-            Numbers stay hidden until you tap to show them, and only our family
-            group can open this page.
+            Everyone who travels, and every animal that does or does not — with
+            the passports, licenses, Known Traveler and Global Entry numbers
+            kept in one place so nobody is digging through a drawer at booking
+            time. Numbers stay hidden until you tap to show them, and only our
+            family group can open this page.
           </p>
         </div>
         <People

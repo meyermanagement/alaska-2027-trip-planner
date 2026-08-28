@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { syncPackingForPet } from "@/lib/pets/packing";
+import { ensurePetTemplate, renamePetTemplate } from "@/lib/pets/template";
 import {
   formatDayYear,
   formatRange,
@@ -11,7 +12,6 @@ import {
   isPastTrip,
 } from "@/lib/format";
 import {
-  ARRANGEMENTS,
   SPECIES,
   TRAVEL_STYLES,
   arrangementLabel,
@@ -79,6 +79,7 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
     setBusy(id || "new");
     setNote("");
     if (id) {
+      const before = rows.find((p) => p.id === id);
       const { error } = await supabase.from("pets").update(patch).eq("id", id);
       setBusy(null);
       if (error) return error.message;
@@ -86,6 +87,15 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
         prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
       );
       setEditing(null);
+      // Renaming Bella to Bells and leaving "Bella's things" sitting on the
+      // Packing templates screen is the small wrongness that makes a family
+      // stop trusting the rest of it.
+      if (patch.name && before?.name && patch.name !== before.name)
+        await renamePetTemplate({
+          supabase,
+          pet: { ...before, ...patch, id },
+          previousName: before.name,
+        });
     } else {
       const next = {
         ...patch,
@@ -102,6 +112,18 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
       if (error) return error.message;
       if (data) setRows((prev) => [...prev, data]);
       setAdding(false);
+      // The list is made now rather than the first time this animal is put on a
+      // trip, so it is there to be looked at and edited before anybody needs it.
+      // A cat's things and a horse's things are not the same five lines.
+      if (data) {
+        const made = await ensurePetTemplate({ supabase, familyId, pet: data });
+        if (made.templateId && made.created)
+          setNote(
+            `${data.name} added, with a packing list of ${made.items.length} ${
+              made.items.length === 1 ? "line" : "lines"
+            } you can edit on the Packing templates screen.`,
+          );
+      }
     }
     router.refresh();
     return "";
@@ -121,70 +143,6 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
     router.refresh();
   }
 
-  // One row per pet per trip, so changing an arrangement is an upsert rather
-  // than a delete and an insert — the row is the decision, not its absence.
-  async function setArrangement(pet, trip, arrangement) {
-    const key = `${pet.id}:${trip.id}`;
-    setBusy(key);
-    setNote("");
-    const existing = links.find(
-      (l) => l.pet_id === pet.id && l.trip_id === trip.id,
-    );
-    if (arrangement === "none") {
-      if (existing) {
-        const { error } = await supabase
-          .from("trip_pets")
-          .delete()
-          .eq("trip_id", trip.id)
-          .eq("pet_id", pet.id);
-        setBusy(null);
-        if (error) {
-          setNote(error.message);
-          return;
-        }
-        setLinks((prev) =>
-          prev.filter((l) => !(l.pet_id === pet.id && l.trip_id === trip.id)),
-        );
-        const gone = await syncPackingForPet({
-          supabase,
-          tripId: trip.id,
-          pet,
-          arrangement: null,
-        });
-        if (gone.message) setNote(`${trip.name}: ${gone.message}.`);
-        router.refresh();
-      } else setBusy(null);
-      return;
-    }
-    const { error } = await supabase
-      .from("trip_pets")
-      .upsert(
-        { trip_id: trip.id, pet_id: pet.id, arrangement },
-        { onConflict: "trip_id,pet_id" },
-      );
-    setBusy(null);
-    if (error) {
-      setNote(error.message);
-      return;
-    }
-    setLinks((prev) => {
-      const rest = prev.filter(
-        (l) => !(l.pet_id === pet.id && l.trip_id === trip.id),
-      );
-      return [...rest, { trip_id: trip.id, pet_id: pet.id, arrangement }];
-    });
-    // Their things follow them, exactly as a person's do when the roster changes.
-    const sync = await syncPackingForPet({
-      supabase,
-      tripId: trip.id,
-      pet,
-      arrangement,
-    });
-    if (sync.message) setNote(`${trip.name}: ${sync.message}.`);
-    else if (sync.error) setNote(sync.error);
-    router.refresh();
-  }
-
   return (
     <section className="mt-10">
       <div className="mb-4">
@@ -193,8 +151,8 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
           Who else is in the family, and what happens to them when we go away.
           The weight and the rabies date are the two that decide things: one
           sets whether a flight is even possible, the other can stop a pet at a
-          counter. Tell Aly which trips they are on and she will only suggest
-          places that take them.
+          counter. Whether one is coming is set on the trip itself, or just tell
+          Aly.
         </p>
       </div>
 
@@ -291,53 +249,60 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
 
               <div className="mt-4 border-t border-sand-deep pt-3">
                 <p className="section-label">Trips</p>
-                {upcoming.length === 0 ? (
-                  <p className="mt-1 text-sm text-ink-soft">
-                    Nothing coming up to decide about yet.
-                  </p>
-                ) : (
-                  <div className="mt-2 space-y-2">
-                    {upcoming.map((trip) => {
-                      const link = links.find(
-                        (l) => l.pet_id === pet.id && l.trip_id === trip.id,
-                      );
-                      const key = `${pet.id}:${trip.id}`;
-                      return (
-                        <div
-                          key={trip.id}
-                          className="flex flex-wrap items-center gap-x-3 gap-y-1"
-                        >
-                          <span className="text-sm font-semibold">
-                            {trip.name}
-                            {isDraftTrip(trip) ? " (draft)" : ""}
-                          </span>
-                          <span className="text-xs text-ink-soft">
-                            {formatRange(trip.start_date, trip.end_date)}
-                          </span>
-                          <select
-                            className="field no-print ml-auto w-auto py-1 text-xs"
-                            value={link?.arrangement || "none"}
-                            disabled={busy === key}
-                            onChange={(e) =>
-                              setArrangement(pet, trip, e.target.value)
-                            }
-                            aria-label={`What happens to ${pet.name} for ${trip.name}`}
+                {(() => {
+                  // Read-only on purpose. Whether an animal is coming is a fact
+                  // about the trip, not about the animal, and deciding it here
+                  // meant scrolling every upcoming trip inside every pet's card
+                  // to answer a question you only ever ask while looking at one
+                  // trip. So this reports, and the trip screen decides.
+                  if (upcoming.length === 0)
+                    return (
+                      <p className="mt-1 text-sm text-ink-soft">
+                        Nothing coming up to decide about yet.
+                      </p>
+                    );
+                  const on = upcoming.filter((trip) =>
+                    links.some(
+                      (l) => l.pet_id === pet.id && l.trip_id === trip.id,
+                    ),
+                  );
+                  if (on.length === 0)
+                    return (
+                      <p className="mt-1 text-sm text-ink-soft">
+                        Not on any upcoming trip. Open a trip and say whether{" "}
+                        {pet.name} is coming.
+                      </p>
+                    );
+                  return (
+                    <ul className="mt-1 space-y-1">
+                      {on.map((trip) => {
+                        const link = links.find(
+                          (l) => l.pet_id === pet.id && l.trip_id === trip.id,
+                        );
+                        return (
+                          <li
+                            key={trip.id}
+                            className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm"
                           >
-                            <option value="none">Not on this trip</option>
-                            {ARRANGEMENTS.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.label}
-                              </option>
-                            ))}
-                          </select>
-                          <span className="sr-only print:not-sr-only">
-                            {link ? arrangementLabel(link.arrangement) : ""}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                            <Link
+                              href={`/trips/${trip.slug}`}
+                              className="font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                            >
+                              {trip.name}
+                              {isDraftTrip(trip) ? " (draft)" : ""}
+                            </Link>
+                            <span className="text-xs text-ink-soft">
+                              {formatRange(trip.start_date, trip.end_date)}
+                            </span>
+                            <span className="chip border border-[var(--line)] bg-white text-xs text-ink-soft">
+                              {arrangementLabel(link?.arrangement)}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  );
+                })()}
               </div>
 
               {editing === pet.id && (

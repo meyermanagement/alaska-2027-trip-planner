@@ -4,7 +4,7 @@ import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 
 export const maxDuration = 30;
 
-/** The People tab's "Send sign-in email" button. */
+/** The Family tab's "Send sign-in email" button. */
 export async function POST(request) {
   const supabase = await createClient();
   const {

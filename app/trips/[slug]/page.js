@@ -50,6 +50,8 @@ export default async function TripPage({ params }) {
     facts,
     templates,
     templateItems,
+    pets,
+    petLinks,
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -114,6 +116,19 @@ export default async function TripPage({ params }) {
     supabase
       .from("packing_template_items")
       .select("template_id, item, assignee"),
+    // The family's animals, and which of them are on this trip. Whether the dog
+    // is coming is a fact about the trip, so it is decided here rather than
+    // inside the dog's card on the Family tab.
+    supabase
+      .from("pets")
+      .select("id, name, species, color, weight_lb, travel_style, family_id")
+      .eq("family_id", trip.family_id)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("trip_pets")
+      .select("pet_id, arrangement")
+      .eq("trip_id", trip.id),
   ]);
 
   return (
@@ -128,6 +143,8 @@ export default async function TripPage({ params }) {
         travelers={(travelers.data || []).map((t) => t.name)}
         people={(travelers.data || []).filter((t) => t.is_person)}
         initialGoing={(roster.data || []).map((r) => r.traveler_id)}
+        pets={pets.data || []}
+        initialPetLinks={petLinks.data || []}
         tips={tips.data || []}
         everLooked={Boolean(facts.data?.checked_at)}
         packingTemplates={templates.data || []}

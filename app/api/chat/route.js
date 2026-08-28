@@ -141,16 +141,18 @@ export async function POST(request) {
   // Where they are standing, if they chose to say. Nothing infers it: the button
   // and the typed override are the only two ways it arrives.
   const here = normalizeHere(payload?.here);
+  // A pet's own name is often the only clue that a question is about an animal,
+  // so the names on file go in with the message — and into the prompt, so the
+  // new-trip questions can ask about the dog by name instead of in the abstract.
+  const petNames = ctx.known?.pets ? Array.from(ctx.known.pets.values()) : [];
   const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName, {
     ...extras,
     here,
+    petNames,
   });
   // Not all 28 of them: the ones this screen and these words could plausibly
   // need. See lib/agent/toolset.js for why fewer is more accurate as well as
   // cheaper.
-  // A pet's own name is often the only clue that a question is about an animal,
-  // so the names on file go in with the message.
-  const petNames = ctx.known?.pets ? Array.from(ctx.known.pets.values()) : [];
   const tools = toolsForRequest({ focus, message: said, petNames });
 
   const messages = [...toModelMessages(past), { role: "user", text: said }];

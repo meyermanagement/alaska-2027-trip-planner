@@ -82,10 +82,10 @@ const TABS = [
     Icon: StarIcon,
   },
   {
-    href: "/people",
-    label: "People",
-    short: "People",
-    sub: "Travelers & ages",
+    href: "/family",
+    label: "Family",
+    short: "Family",
+    sub: "People & pets",
     Icon: PeopleIcon,
   },
 ];
