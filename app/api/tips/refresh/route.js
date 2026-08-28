@@ -25,7 +25,7 @@ import {
   tipsForPlace,
   rulesTips,
 } from "@/lib/tips/generate";
-import { SCOPES } from "@/lib/tips/tip";
+import { SCOPES, sameWindowTitle } from "@/lib/tips/tip";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -35,17 +35,6 @@ const columnsOnly = (tip) =>
   Object.fromEntries(
     Object.entries(tip).filter(([key]) => !key.startsWith("_")),
   );
-
-/** Is this tip about that booking window? Titles here start with the window name. */
-const startsWithWindow = (title, window) =>
-  String(title || "")
-    .trim()
-    .toLowerCase()
-    .startsWith(
-      String(window || "")
-        .trim()
-        .toLowerCase(),
-    );
 
 const bad = (message, status = 400) =>
   NextResponse.json({ error: message }, { status });
@@ -70,6 +59,82 @@ export function factsAreStale(facts, now = Date.now(), memberships = null) {
   const at = Date.parse(facts.checked_at);
   if (Number.isNaN(at)) return true;
   return now - at > FACTS_STALE_DAYS * 86400000;
+}
+
+/**
+ * The app's own tips, written and filed.
+ *
+ * Pulled out of the route because it now runs in two places. A refresh that has
+ * just researched a fact sheet should not have to wait for the next round trip
+ * before the arithmetic on top of that sheet reaches the screen — the rules cost
+ * nothing and ask no model, so the corrected date can be filed in the same call
+ * that learned it. That also means a fact sheet the database refuses to keep
+ * still produces the right tip today.
+ */
+async function writeHouseTips({
+  supabase,
+  trip,
+  tripId,
+  facts,
+  packing,
+  itinerary,
+  today,
+  memberships,
+  scope,
+  existing,
+}) {
+  const house = rulesTips({
+    trip,
+    facts,
+    packing: packing || [],
+    itinerary: itinerary || [],
+    today,
+    memberships: memberships || [],
+  }).filter((tip) => tip.scope === scope);
+  let housed = 0;
+  if (house.length) {
+    const fresh = house.filter(
+      (tip) =>
+        !(existing || []).some((row) => row.fingerprint === tip.fingerprint),
+    );
+    if (fresh.length) {
+      const { data: inserted } = await supabase
+        .from("pro_tips")
+        .insert(fresh.map(columnsOnly))
+        .select("id");
+      housed = (inserted || []).length;
+    }
+    // A window whose date has changed produces a new tip rather than an edited
+    // one, because the date is in the title. Retire the earlier ones for the same
+    // window so the wrong date does not sit beside the right one. Cleared, not
+    // deleted: the same state a waved-off tip ends in, so it cannot come back.
+    const superseded = house
+      .flatMap((tip) => {
+        const window = tip._supersedes;
+        if (!window) return [];
+        return (existing || [])
+          .filter(
+            (row) =>
+              row.scope === tip.scope &&
+              row.status === "active" &&
+              row.fingerprint !== tip.fingerprint &&
+              sameWindowTitle(row.title, window) &&
+              house.every((other) => other.fingerprint !== row.fingerprint),
+          )
+          .map((row) => row.fingerprint);
+      })
+      .filter(Boolean);
+    if (superseded.length) {
+      await supabase
+        .from("pro_tips")
+        .update({ status: "cleared", resolved_at: new Date().toISOString() })
+        .eq("trip_id", tripId)
+        .eq("status", "active")
+        .in("fingerprint", [...new Set(superseded)]);
+    }
+  }
+
+  return { house, housed };
 }
 
 export async function POST(request) {
@@ -151,10 +216,16 @@ export async function POST(request) {
 
   const travelers = (going || []).map((row) => row.travelers).filter(Boolean);
 
-  // Step one, and only when the fact sheet is missing or a week old. Everything
-  // the app works out for itself sits on top of these answers — the passport
-  // arithmetic, the voltage tip, and every booking window with a date on it — so
-  // there is no point running the rules before they exist.
+  // The sheet the rest of this call works from. Reassigned rather than re-read
+  // when it has just been researched, so the rules below run on today's answers
+  // even if the database refused to keep them.
+  let sheet = facts;
+
+  // Step one, and only when the fact sheet is missing, a week old, older than the
+  // shape the arithmetic needs, or researched without a level this family now
+  // holds. Everything the app works out for itself sits on top of these answers —
+  // the passport arithmetic, the voltage tip, and every booking window with a
+  // date on it.
   if (factsAreStale(facts, Date.now(), memberships || [])) {
     let researched;
     try {
@@ -170,81 +241,81 @@ export async function POST(request) {
         { status: error?.status || 502 },
       );
     }
-    if (researched.facts) {
-      await supabase.from("trip_facts").upsert(
+    // Asked and answered, but not with a fact sheet. Said out loud rather than
+    // returned as a quiet no-op: the screen would otherwise ask the same question
+    // twice more and finish looking as though nothing was wrong, which is exactly
+    // how a stale Disney date survived three refreshes.
+    if (!researched.facts) {
+      return NextResponse.json(
         {
-          trip_id: tripId,
-          family_id: trip.family_id,
-          ...researched.facts,
-          sources: researched.sources,
-          model: researched.model,
-          checked_at: new Date().toISOString(),
-          windows_version: WINDOWS_VERSION,
-          standings_key: standingsKey(memberships || []),
+          error: `${researched.model || "The model"} answered without a fact sheet, so the dates on this trip could not be re-checked. Try again in a moment.`,
+          step: "facts",
         },
-        { onConflict: "trip_id" },
+        { status: 502 },
       );
     }
+    sheet = {
+      ...researched.facts,
+      sources: researched.sources,
+      model: researched.model,
+    };
+    // The write is checked. An upsert that fails silently leaves the sheet at its
+    // old version, which the next round reads as stale all over again: the same
+    // question asked until the rounds run out, and no tip to show for it.
+    const { error: kept } = await supabase.from("trip_facts").upsert(
+      {
+        trip_id: tripId,
+        family_id: trip.family_id,
+        ...researched.facts,
+        sources: researched.sources,
+        model: researched.model,
+        checked_at: new Date().toISOString(),
+        windows_version: WINDOWS_VERSION,
+        standings_key: standingsKey(memberships || []),
+      },
+      { onConflict: "trip_id" },
+    );
+    // Filed in the same call. The rules ask no model, so the corrected date
+    // reaches the screen now rather than after another round trip — and it reaches
+    // it even when the sheet itself could not be saved.
+    const { housed: filed } = await writeHouseTips({
+      supabase,
+      trip,
+      tripId,
+      facts: sheet,
+      packing: packing || [],
+      itinerary: itinerary || [],
+      today,
+      memberships: memberships || [],
+      scope,
+      existing,
+    });
     return NextResponse.json({
       step: "facts",
       facts: researched.facts,
+      found: filed,
+      // Not fatal, and not hidden either: the tips above are right, they will
+      // just be worked out again next time.
+      warning: kept
+        ? `The tips are right, but this trip's fact sheet could not be saved: ${kept.message}`
+        : undefined,
       next: { scope, itemId },
       done: false,
     });
   }
 
-  // The app's own tips. Cheap, certain, and written before the model is asked
-  // anything, so its own suggestions can be checked against them.
-  const house = rulesTips({
+  const { house, housed } = await writeHouseTips({
+    supabase,
     trip,
-    facts,
+    tripId,
+    facts: sheet,
     packing: packing || [],
     itinerary: itinerary || [],
     today,
     memberships: memberships || [],
-  }).filter((tip) => tip.scope === scope);
-  let housed = 0;
-  if (house.length) {
-    const fresh = house.filter(
-      (tip) =>
-        !(existing || []).some((row) => row.fingerprint === tip.fingerprint),
-    );
-    if (fresh.length) {
-      const { data: inserted } = await supabase
-        .from("pro_tips")
-        .insert(fresh.map(columnsOnly))
-        .select("id");
-      housed = (inserted || []).length;
-    }
-    // A window whose date has changed produces a new tip rather than an edited
-    // one, because the date is in the title. Retire the earlier ones for the same
-    // window so the wrong date does not sit beside the right one. Cleared, not
-    // deleted: the same state a waved-off tip ends in, so it cannot come back.
-    const superseded = house
-      .flatMap((tip) => {
-        const window = tip._supersedes;
-        if (!window) return [];
-        return (existing || [])
-          .filter(
-            (row) =>
-              row.scope === tip.scope &&
-              row.status === "active" &&
-              row.fingerprint !== tip.fingerprint &&
-              startsWithWindow(row.title, window) &&
-              house.every((other) => other.fingerprint !== row.fingerprint),
-          )
-          .map((row) => row.fingerprint);
-      })
-      .filter(Boolean);
-    if (superseded.length) {
-      await supabase
-        .from("pro_tips")
-        .update({ status: "cleared", resolved_at: new Date().toISOString() })
-        .eq("trip_id", tripId)
-        .eq("status", "active")
-        .in("fingerprint", [...new Set(superseded)]);
-    }
-  }
+    scope,
+    existing,
+  });
 
   // Reviews are read across every trip, not just this one, because what they
   // thought of a lodge in 2019 is the best evidence there is about 2027.
