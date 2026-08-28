@@ -5,6 +5,7 @@ import { PassportWarningPanel } from "@/components/PassportWarning";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
+import { ageToday } from "@/lib/travelers/ages";
 import {
   MOBILITY_AIDS,
   aidLabel,
@@ -34,6 +35,9 @@ export default function People({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+  // Worked out once per render rather than per person, and on the client's own
+  // clock, which is the one whose today the reader means.
+  const todayISO = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
 
   const [addingFor, setAddingFor] = useState(null); // traveler id
   const [editingDoc, setEditingDoc] = useState(null); // document id
@@ -297,7 +301,13 @@ export default function People({
                   </h2>
                   <p className="text-xs text-ink-soft">
                     {person.date_of_birth
-                      ? `Born ${formatDayYear(person.date_of_birth)}`
+                      ? `Born ${formatDayYear(person.date_of_birth)}${
+                          // The number nobody wants to work out in their head,
+                          // and the one that decides what is bookable.
+                          ageToday(person.date_of_birth, todayISO) === null
+                            ? ""
+                            : ` · ${ageToday(person.date_of_birth, todayISO)} years old`
+                        }`
                       : "No date of birth saved"}
                     <span aria-hidden="true"> · </span>
                     {docs.length} {docs.length === 1 ? "document" : "documents"}
