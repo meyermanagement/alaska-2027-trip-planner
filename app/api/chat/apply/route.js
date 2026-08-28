@@ -10,6 +10,7 @@ import {
 import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
+import { tidyStranded } from "@/lib/packing/roster";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 
 export const runtime = "nodejs";
@@ -266,6 +267,30 @@ export async function POST(request) {
             ? ` — ${outcome.copied} item${outcome.copied === 1 ? "" : "s"} from your base list to start with`
             : " — nothing on your base list to start from";
         }
+      } else if (tool === "tidy_packing_list") {
+        // Worked out here rather than promised in the summary: the roster is read
+        // at the moment this runs, so what comes off the list is what is actually
+        // stranded now.
+        const [{ data: roster }, { data: family }] = await Promise.all([
+          supabase
+            .from("trip_travelers")
+            .select("travelers (name)")
+            .eq("trip_id", patch.trip_id),
+          supabase.from("travelers").select("name").eq("family_id", familyId),
+        ]);
+        const outcome = await tidyStranded({
+          supabase,
+          tripId: patch.trip_id,
+          goingNames: (roster || [])
+            .map((row) => row?.travelers?.name)
+            .filter(Boolean),
+          familyNames: (family || []).map((row) => row?.name).filter(Boolean),
+        });
+        dbError = outcome.error ? { message: outcome.error } : null;
+        if (!outcome.error && outcome.message) extra = ` — ${outcome.message}`;
+        // Deliberately NOT setting packingTripId: that asks the model to work out
+        // a fuller list, which is the opposite of what was just asked for and
+        // would put some of the removed lines straight back.
       } else if (tool === "clear_packing_list") {
         // One statement instead of forty deletes.
         const { error: e } = await supabase

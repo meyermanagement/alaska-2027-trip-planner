@@ -432,6 +432,7 @@ export default function TripView({
             today={today}
             everLooked={everLooked}
             travelers={travelers}
+            going={goingNames}
             userId={userId}
             templates={packingTemplates}
             templateItems={packingTemplateItems}

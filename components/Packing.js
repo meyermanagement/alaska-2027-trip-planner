@@ -5,12 +5,18 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 import { oneOrShared } from "@/lib/people";
+import {
+  strandedGroups,
+  strandedWords,
+  tidyStranded,
+} from "@/lib/packing/roster";
 import ProTips from "./ProTips";
 
 export default function Packing({
   items,
   tripId,
   travelers,
+  going = null,
   userId,
   onChange,
   templates = [],
@@ -41,6 +47,8 @@ export default function Packing({
   // page; the copy here only exists so a row written from this form shows up in
   // the labels without another read.
   const [templateItems, setTemplateItems] = useState(initialTemplateItems);
+  const [tidying, setTidying] = useState(false);
+  const [tidyNote, setTidyNote] = useState("");
   const [editDraft, setEditDraft] = useState({
     item: "",
     category: "",
@@ -334,6 +342,42 @@ export default function Packing({
     onChange();
   }
 
+  // The list checked against the roster, every time it is drawn. A tap that took
+  // somebody off the trip is supposed to take their things with it, but that is
+  // one moment on one device — and every list made before that behaviour existed
+  // never got the message at all. So the question is asked here too, where it
+  // cannot be missed, and answered by a button rather than silently: deleting
+  // twenty-two lines because a page loaded would be the wrong kind of helpful.
+  const stranded = useMemo(
+    () =>
+      going
+        ? strandedGroups({
+            tripItems: items,
+            goingNames: going,
+            familyNames: travelers,
+          })
+        : [],
+    [going, items, travelers],
+  );
+  const strandedRemovable = stranded.reduce(
+    (sum, group) => sum + group.remove.length,
+    0,
+  );
+
+  async function tidy() {
+    setTidying(true);
+    setTidyNote("");
+    const result = await tidyStranded({
+      supabase,
+      tripId,
+      goingNames: going || [],
+      familyNames: travelers,
+    });
+    setTidyNote(result.message || "");
+    setTidying(false);
+    if (result.removed) onChange?.();
+  }
+
   const packed = items.filter((i) => i.is_packed).length;
   const pct = items.length ? Math.round((packed / items.length) * 100) : 0;
 
@@ -349,6 +393,42 @@ export default function Packing({
         everLooked={everLooked}
         heading="Before you pack"
       />
+      {stranded.length > 0 && (
+        <div
+          // Not .card: that class sets a white background later in the sheet than
+          // the utilities, so a tinted card has to draw its own box.
+          className="no-print mb-4 rounded-[0.875rem] border border-amber/35 bg-amber/10 p-4"
+        >
+          <p className="text-sm font-semibold text-ink">
+            {strandedWords(stranded)}
+          </p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Their lines still count against the packed total. Anything already
+            packed or written on stays behind either way.
+          </p>
+          {strandedRemovable > 0 && (
+            <button
+              onClick={tidy}
+              disabled={tidying}
+              className="btn btn-primary mt-3"
+            >
+              {tidying
+                ? "Taking them off…"
+                : `Take ${strandedRemovable} ${strandedRemovable === 1 ? "item" : "items"} off the list`}
+            </button>
+          )}
+          {tidyNote && (
+            <p className="mt-2 text-xs font-semibold text-ink-soft">
+              {tidyNote}
+            </p>
+          )}
+        </div>
+      )}
+      {!stranded.length && tidyNote && (
+        <p className="no-print mb-4 text-xs font-semibold text-ink-soft">
+          {tidyNote}
+        </p>
+      )}
       <div className="card mb-4 p-4">
         <div className="flex items-center justify-between text-sm font-semibold">
           <span>
