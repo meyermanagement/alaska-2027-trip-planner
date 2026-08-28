@@ -183,7 +183,14 @@ export async function POST(request) {
       refusals: err?.refusals,
     });
     return NextResponse.json(
-      { error: err.message || "The assistant is unavailable right now." },
+      {
+        error: err.timedOut
+          ? // The provider says only that it ran out of time. What to do about it
+            // depends on what was asked, and in chat the thing that reliably runs
+            // long is a very large paste.
+            `${err.message} Ask for a little less at a time — and if you were pasting a long list, paste it in two halves.`
+          : err.message || "The assistant is unavailable right now.",
+      },
       { status: status === 403 ? 500 : status },
     );
   }

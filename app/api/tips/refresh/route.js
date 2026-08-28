@@ -28,14 +28,18 @@ import {
 import { SCOPES, sameWindowTitle } from "@/lib/tips/tip";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Longer than the platform's default because a grounded look genuinely takes
+// half a minute: the model reads the trip, runs its own searches, and thinks. The
+// budget below is what the model gets of it; the rest pays for the reads before
+// and the writes after.
+export const maxDuration = 120;
 
 // How much of that minute the model may have. The rest pays for the eight reads
 // this route makes before it asks anything, the writes afterwards, and the cold
 // start. A model call allowed to run right up to the ceiling is worse than one cut
 // short: when the platform stops listening the browser is told only that the load
 // failed, which is not something the app can explain or even see.
-const MODEL_BUDGET_MS = 38000;
+const MODEL_BUDGET_MS = 95000;
 
 /** Everything except the working fields the rules pass alongside a tip. */
 const columnsOnly = (tip) =>
@@ -401,7 +405,9 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error?.message || "The assistant could not be reached.",
+        error: error?.timedOut
+          ? `${error.message} This look asks the model to read the whole ${scope === "packing" ? "packing list" : "trip"} and go and check what it finds, and that can run past what one request is allowed. Press Look for tips again — anything already found is saved.`
+          : error?.message || "The assistant could not be reached.",
         step: scope,
         housed,
       },
