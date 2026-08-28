@@ -89,6 +89,27 @@ async function readReply(res) {
 // woven into it: the family should be able to check a restaurant recommendation
 // without the answer reading like a bibliography.
 //
+// Somewhere to go once a change has been saved. A receipt that only says
+// "Saved 3 changes" makes the family go and find the thing they just asked for,
+// so every applied batch offers the screen its result is actually on.
+function ReceiptLinks({ links, onGo }) {
+  if (!links?.length) return null;
+  return (
+    <div className="mt-2.5 flex flex-wrap gap-1.5">
+      {links.map((l) => (
+        <button
+          key={l.href}
+          type="button"
+          onClick={() => onGo(l.href)}
+          className="rounded-full border border-teal/25 bg-white/80 px-2.5 py-1 text-xs font-semibold text-teal transition hover:bg-white"
+        >
+          {l.label} →
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // The links are Google's redirects, which is what they ask you to link to, and
 // they stop working after about a month - so an old conversation keeps the names
 // of the sites and loses the ability to open them, which is the right way round.
@@ -405,7 +426,12 @@ export default function ChatPanel({
 
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: data.receipt || fallback, kind: "receipt" },
+        {
+          role: "assistant",
+          text: data.receipt || fallback,
+          kind: "receipt",
+          links: data.links || [],
+        },
       ]);
       // Drop just the chunk that went through; keep the rest waiting.
       setPending((p) => {
@@ -628,6 +654,16 @@ export default function ChatPanel({
               }`}
             >
               <span className="whitespace-pre-wrap">{m.text}</span>
+              <ReceiptLinks
+                links={m.links}
+                onGo={(href) => {
+                  // Close first: the drawer sits over the screen being opened,
+                  // and the refresh the drawer holds back until it closes is
+                  // exactly what makes the new row show up on arrival.
+                  onClose?.();
+                  router.push(href);
+                }}
+              />
               <MessageSources sources={m.sources} />
               <PlaceCards
                 places={m.places}

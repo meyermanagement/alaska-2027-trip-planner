@@ -18,6 +18,55 @@ export const runtime = "nodejs";
 // timeout here reads to the family as a network error.
 export const maxDuration = 60;
 
+// Where the result of each change is actually visible. A confirmation that does
+// not say "and here it is" leaves the family to go and find it, which is the
+// difference between being told something was saved and being shown it.
+// Trip-scoped tools name a tab on the trip screen; the rest name a whole screen.
+const LANDING_TAB = {
+  add_itinerary_item: "itinerary",
+  update_itinerary_item: "itinerary",
+  delete_itinerary_item: "itinerary",
+  add_packing_item: "packing",
+  update_packing_item: "packing",
+  delete_packing_item: "packing",
+  start_packing_list: "packing",
+  clear_packing_list: "packing",
+  tidy_packing_list: "packing",
+  add_task: "tasks",
+  update_task: "tasks",
+  delete_task: "tasks",
+  add_note: "notes",
+  update_note: "notes",
+  delete_note: "notes",
+};
+
+const TAB_WORDS = {
+  itinerary: "itinerary",
+  packing: "packing list",
+  tasks: "tasks",
+  notes: "notes",
+};
+
+const LANDING_PATH = {
+  add_preference: ["/people", "the People tab"],
+  update_preference: ["/people", "the People tab"],
+  delete_preference: ["/people", "the People tab"],
+  set_person_details: ["/people", "the People tab"],
+  set_person_email: ["/people", "the People tab"],
+  add_rewards_program: ["/wallet", "the Wallet"],
+  update_rewards_program: ["/wallet", "the Wallet"],
+  delete_rewards_program: ["/wallet", "the Wallet"],
+  create_template: ["/packing", "the packing templates"],
+  add_template_item: ["/packing", "the packing templates"],
+  update_template_item: ["/packing", "the packing templates"],
+  delete_template_item: ["/packing", "the packing templates"],
+  update_review: ["/reviews", "the reviews"],
+};
+
+// Three is enough to cover a trip, its itinerary and its packing list without
+// turning the receipt into a menu.
+const MAX_LINKS = 3;
+
 // High enough that a whole pasted itinerary or a full family packing list goes
 // in one card, low enough that a runaway model cannot rewrite the trip.
 const MAX_ACTIONS = 80;
@@ -100,7 +149,7 @@ export async function POST(request) {
     supabase.from("predeparture_tasks").select("id, title, trip_id"),
     supabase.from("trip_notes").select("id, title, body, trip_id"),
     supabase.from("travelers").select("id, name").order("sort_order"),
-    supabase.from("trips").select("id, name"),
+    supabase.from("trips").select("id, name, slug"),
     supabase.from("travel_preferences").select("id, body"),
     supabase.from("packing_templates").select("id, name, is_base"),
     supabase.from("packing_template_items").select("id, item, template_id"),
@@ -124,6 +173,13 @@ export async function POST(request) {
       ]),
     ),
     trips: new Map((trips.data || []).map((r) => [r.id, r.name])),
+    // Not part of validation: carried alongside it so the receipt can build a
+    // link without a second read of the table.
+  };
+  const tripSlug = new Map(
+    (trips.data || []).map((r) => [r.id, { slug: r.slug, name: r.name }]),
+  );
+  Object.assign(known, {
     travel_preferences: new Map(
       (prefs.data || []).map((r) => [r.id, (r.body || "").slice(0, 60)]),
     ),
@@ -140,7 +196,7 @@ export async function POST(request) {
       ]),
     ),
     rowTrip,
-  };
+  });
   const travelerNames = Array.from(
     new Set([...(travelers.data || []).map((t) => t.name), "Shared"]),
   );
@@ -159,6 +215,7 @@ export async function POST(request) {
   const results = [];
   // Trips created in this batch, so the client can navigate to a new one.
   let createdSlug = null;
+  let createdTripId = null;
   // A new trip whose packing list is currently just the family base template.
   // Generating a real one takes a model call, and making the family wait for it
   // behind the Apply button would be the wrong trade — so the trip is saved with
@@ -168,6 +225,8 @@ export async function POST(request) {
   // they are standing on no longer exists. The client has to be told so it can
   // move them, rather than refreshing into a 404.
   const deletedTripIds = [];
+  // { href, label } per change that worked, in the order they were applied.
+  const landed = [];
 
   // A trip has to exist before anything can go inside it, so new trips are
   // written first no matter what order they arrived in. Emptying a list comes
@@ -226,6 +285,10 @@ export async function POST(request) {
         });
         dbError = outcome.error;
         if (outcome.slug) createdSlug = outcome.slug;
+        if (!outcome.error && tool === "create_trip" && outcome.id) {
+          tripSlug.set(outcome.id, { slug: outcome.slug, name: patch.name });
+          createdTripId = outcome.id;
+        }
         if (!outcome.error && tool === "delete_trip" && id) {
           deletedTripIds.push(id);
           known.trips.delete(id);
@@ -402,6 +465,18 @@ export async function POST(request) {
       dbError = { message: err?.message || "Unexpected error." };
     }
 
+    if (!dbError) {
+      const spot = landingFor({
+        tool,
+        action,
+        tripSlug,
+        rowTrip,
+        focusTripId: tripId,
+        createdTripId,
+      });
+      if (spot) landed.push(spot);
+    }
+
     results.push(
       dbError
         ? { ok: false, summary: action.summary, error: dbError.message }
@@ -445,11 +520,68 @@ export async function POST(request) {
     applied,
     results,
     createdSlug,
+    links: pickLinks(landed, deletedTripIds, tripSlug),
     packingTripId,
     deletedTripIds,
     receipt,
     conversationId,
   });
+}
+
+// Which screen a single change is visible on. Trip-scoped tools resolve their
+// trip three ways, in order of how trustworthy each one is: the trip the
+// validated patch names, the trip the edited row already sits in, then the trip
+// the panel is open on.
+function landingFor({
+  tool,
+  action,
+  tripSlug,
+  rowTrip,
+  focusTripId,
+  createdTripId,
+}) {
+  const flat = LANDING_PATH[tool];
+  if (flat) return { href: flat[0], label: `Open ${flat[1]}` };
+
+  if (tool === "delete_trip") return { href: "/trips", label: "Open Trips" };
+
+  const patch = action?.patch || {};
+  const tripId =
+    tool === "create_trip"
+      ? createdTripId
+      : patch.trip_id ||
+        (action?.id ? rowTrip.get(action.id) : null) ||
+        focusTripId;
+  const trip = tripId ? tripSlug.get(tripId) : null;
+  if (!trip?.slug) return null;
+
+  const tab = LANDING_TAB[tool];
+  if (!tab) return { href: `/trips/${trip.slug}`, label: `Open ${trip.name}` };
+  return {
+    href: `/trips/${trip.slug}?tab=${tab}`,
+    label: `Open the ${TAB_WORDS[tab]}`,
+  };
+}
+
+// One link per destination, newest trip first, and never a link to a trip this
+// same batch deleted — that is a promise straight to a 404.
+function pickLinks(landed, deletedTripIds, tripSlug) {
+  const dead = new Set(
+    deletedTripIds
+      .map((id) => tripSlug.get(id)?.slug)
+      .filter(Boolean)
+      .map((slug) => `/trips/${slug}`),
+  );
+  const seen = new Set();
+  const out = [];
+  for (const spot of landed) {
+    if (out.length >= MAX_LINKS) break;
+    if (seen.has(spot.href)) continue;
+    if ([...dead].some((base) => spot.href.startsWith(base))) continue;
+    seen.add(spot.href);
+    out.push(spot);
+  }
+  return out;
 }
 
 // Plain language, and specific about what failed.
