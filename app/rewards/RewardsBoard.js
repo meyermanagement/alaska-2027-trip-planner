@@ -692,6 +692,10 @@ function ProgramForm({
   const set = (patch) => onChange({ ...values, ...patch });
   const isCard = values.kind === "credit_card";
   const grouped = catalogByKind();
+  // The program's ladder, shown beside the status field where it answers a
+  // question. It used to be seeded into "Perks worth remembering", where it read
+  // as a level the family held — and Aly read it that way too.
+  const ladder = catalogEntry(values.brand)?.tiers || null;
 
   return (
     <form
@@ -845,6 +849,12 @@ function ProgramForm({
             onChange={(e) => set({ status_tier: e.target.value })}
             placeholder="Gold Elite"
           />
+          {ladder && (
+            <span className="mt-1 block text-xs text-ink-soft">
+              Levels in this program: {ladder}. Leave this empty if you have
+              none — nothing will assume one.
+            </span>
+          )}
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
