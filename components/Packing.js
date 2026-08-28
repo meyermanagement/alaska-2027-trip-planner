@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
+import { oneOrShared } from "@/lib/people";
 import ProTips from "./ProTips";
 
 export default function Packing({
@@ -25,11 +26,12 @@ export default function Packing({
   const [newCategory, setNewCategory] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
   const [editingId, setEditingId] = useState(null);
-  // Sending the item being edited to a packing template. Held per item so the
-  // message stays attached to the row it belongs to, and cleared when another
-  // row is opened.
-  const base = templates.find((t) => t.is_base) || templates[0] || null;
-  const [templateId, setTemplateId] = useState(base?.id || "");
+  // Sending the item being edited to a packing template. One pill per template,
+  // pressed on and pressed off, because the old shape — a dropdown of templates
+  // beside a button called "Add to packing template" — asked you to read two
+  // controls and a paragraph to answer one question: is this thing kept, or not?
+  // A pill answers it by looking like it. Held per item so the message stays
+  // attached to the row it belongs to, and cleared when another row is opened.
   const [toTemplate, setToTemplate] = useState(null);
   // What the packing templates already hold. Without this the offer to keep an
   // item for future trips is made blind: the thing you are looking at may well
@@ -100,21 +102,11 @@ export default function Packing({
     return `Kept on ${said.join(", ")}${rest > 0 ? ` and ${rest} more` : ""}`;
   }
 
-  const chosenTemplate = templates.find((t) => t.id === templateId) || null;
-  const alreadyKept = keptFor(editDraft.item).some(
-    (k) => k.id === templateId && k.assignee === editDraft.assignee,
-  );
-  // The other templates holding it, for the line under the button. Worth saying
-  // even when the chosen template does not have it: knowing it is on the base
-  // list changes whether you want it on a second one at all.
-  const keptElsewhere = (() => {
-    const others = keptFor(editDraft.item).filter((k) => k.id !== templateId);
-    if (!others.length) return null;
-    const names = [...new Set(others.map((k) => k.name))];
-    const said = names.slice(0, 2).join(", ");
-    const rest = names.length - Math.min(names.length, 2);
-    return `Kept on ${said}${rest > 0 ? ` and ${rest} more` : ""}`;
-  })();
+  /** Is the thing being edited already on this template, for this person? */
+  const keptOnTemplate = (templateId) =>
+    keptFor(editDraft.item).some(
+      (k) => k.id === templateId && k.assignee === editDraft.assignee,
+    );
 
   const categories = useMemo(() => {
     const list = Array.from(new Set(items.map((i) => i.category)));
@@ -122,9 +114,12 @@ export default function Packing({
   }, [items]);
 
   const visible = items.filter((i) => {
+    // An exact name, now that an item belongs to one person or to everybody. The
+    // loose match this replaces existed to catch names like "Steph & Veda", which
+    // the app no longer writes and no longer keeps.
     if (
       who !== "all" &&
-      !(i.assignee || "").toLowerCase().includes(who.toLowerCase())
+      (i.assignee || "").trim().toLowerCase() !== who.toLowerCase()
     )
       return false;
     if (hidePacked && i.is_packed) return false;
@@ -164,7 +159,9 @@ export default function Packing({
     setEditDraft({
       item: item.item || "",
       category: item.category || "",
-      assignee: item.assignee || "Shared",
+      // Settled to one traveler or Shared as the form opens, so an older row
+      // written before that rule cannot be saved back as it was.
+      assignee: oneOrShared(item.assignee, people),
       quantity: item.quantity || "",
       notes: item.notes || "",
     });
@@ -188,7 +185,7 @@ export default function Packing({
   }
 
   /**
-   * Put the item being edited on a packing template as well.
+   * Put the item being edited on a packing template, or take it off again.
    *
    * Things are invented while packing for a real trip — that is when you notice
    * the thing you always forget — and until now the only way to keep one was to
@@ -196,15 +193,19 @@ export default function Packing({
    * edits on screen are saved first so what lands on the template is what is
    * being looked at rather than what was there when the form opened.
    *
-   * The trip's own copy stays exactly where it is. Nothing about this trip
-   * changes, and neither does any trip that already exists: a template is only
-   * read when a new trip is built.
+   * Taking it off again is here for the same reason: the pill that can only be
+   * pressed one way is a trap, and the alternative was another walk to another
+   * screen to undo a press you made by accident.
+   *
+   * The trip's own copy stays exactly where it is either way. Nothing about this
+   * trip changes, and neither does any trip that already exists: a template is
+   * only read when a new trip is built.
    */
-  async function alsoAddToTemplate() {
-    const chosen = templates.find((t) => t.id === templateId);
+  async function toggleTemplate(chosen) {
     const name = editDraft.item.trim();
     if (!chosen || !name) return;
-    setToTemplate({ state: "saving" });
+    const removing = keptOnTemplate(chosen.id);
+    setToTemplate({ state: "saving", id: chosen.id, removing });
 
     const patch = {
       item: name,
@@ -218,7 +219,47 @@ export default function Packing({
       .update(patch)
       .eq("id", editingId);
     if (editError) {
-      setToTemplate({ state: "error", message: "That did not save." });
+      setToTemplate({
+        state: "error",
+        id: chosen.id,
+        message: "That did not save.",
+      });
+      return;
+    }
+
+    if (removing) {
+      const { error } = await supabase
+        .from("packing_template_items")
+        .delete()
+        .eq("template_id", chosen.id)
+        .ilike("item", name)
+        .eq("assignee", patch.assignee);
+      if (error) {
+        setToTemplate({
+          state: "error",
+          id: chosen.id,
+          message: `That did not come off ${chosen.name}.`,
+        });
+        return;
+      }
+      // The labels on this form read from this copy, so it is kept in step with
+      // what was just written rather than waiting for the page to be read again.
+      setTemplateItems((rows) =>
+        rows.filter(
+          (r) =>
+            !(
+              r.template_id === chosen.id &&
+              String(r.item || "").toLowerCase() === name.toLowerCase() &&
+              r.assignee === patch.assignee
+            ),
+        ),
+      );
+      setToTemplate({
+        state: "done",
+        id: chosen.id,
+        message: `Off ${chosen.name}. New trips will not start with it.`,
+      });
+      onChange();
       return;
     }
 
@@ -233,8 +274,13 @@ export default function Packing({
       .eq("assignee", patch.assignee)
       .limit(1);
     if (already && already.length) {
+      setTemplateItems((rows) => [
+        ...rows,
+        { template_id: chosen.id, item: name, assignee: patch.assignee },
+      ]);
       setToTemplate({
         state: "done",
+        id: chosen.id,
         message: `Already on ${chosen.name} for ${patch.assignee}.`,
       });
       onChange();
@@ -251,7 +297,7 @@ export default function Packing({
       created_by: userId,
     });
     if (!error) {
-      // Kept alongside the row that was written so the labels on this form, and
+      // Kept alongside the row that was written so the pills on this form, and
       // the line under the item, tell the truth without another read.
       setTemplateItems((rows) => [
         ...rows,
@@ -260,10 +306,15 @@ export default function Packing({
     }
     setToTemplate(
       error
-        ? { state: "error", message: "That did not save to the template." }
+        ? {
+            state: "error",
+            id: chosen.id,
+            message: `That did not save to ${chosen.name}.`,
+          }
         : {
             state: "done",
-            message: `Added to ${chosen.name}. Trips you create from now on will start with it.`,
+            id: chosen.id,
+            message: `Kept on ${chosen.name}. New trips will start with it.`,
           },
     );
     onChange();
@@ -447,16 +498,16 @@ export default function Packing({
                             })
                           }
                         >
+                          {/* One traveler, or Shared. A name belonging to two
+                              people used to be offered back as an option here,
+                              which is how "Steph & Veda" survived every edit it
+                              was ever given: invisible under Steph, invisible
+                              under Veda, and copied onto every future trip. */}
                           {people.map((p) => (
                             <option key={p} value={p}>
                               {p}
                             </option>
                           ))}
-                          {!people.includes(editDraft.assignee) && (
-                            <option value={editDraft.assignee}>
-                              {editDraft.assignee}
-                            </option>
-                          )}
                         </select>
                         <input
                           className="field"
@@ -490,54 +541,47 @@ export default function Packing({
                       </div>
                       {templates.length > 0 && (
                         <div className="border-t border-sand pt-2">
-                          <label
+                          <p
                             className="text-xs font-semibold text-ink-soft"
-                            htmlFor="packing-to-template"
+                            id="packing-keep-label"
                           >
-                            Keep this for future trips
-                          </label>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                            <select
-                              id="packing-to-template"
-                              className="field text-sm"
-                              style={{ width: "auto", maxWidth: "100%" }}
-                              value={templateId}
-                              onChange={(e) => {
-                                setTemplateId(e.target.value);
-                                setToTemplate(null);
-                              }}
-                            >
-                              {templates.map((t) => (
-                                <option key={t.id} value={t.id}>
-                                  {/* The mark goes first because a select
-                                      truncates from the right on a phone, and
-                                      "already on it" is the part worth keeping. */}
-                                  {keptFor(editDraft.item).some(
-                                    (k) =>
-                                      k.id === t.id &&
-                                      k.assignee === editDraft.assignee,
-                                  )
-                                    ? "\u2713 "
-                                    : ""}
+                            Keep for future trips
+                          </p>
+                          <div
+                            className="mt-1.5 flex flex-wrap gap-1.5"
+                            role="group"
+                            aria-labelledby="packing-keep-label"
+                          >
+                            {templates.map((t) => {
+                              const on = keptOnTemplate(t.id);
+                              const busy =
+                                toTemplate?.state === "saving" &&
+                                toTemplate?.id === t.id;
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  aria-pressed={on}
+                                  disabled={busy || !editDraft.item.trim()}
+                                  onClick={() => toggleTemplate(t)}
+                                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                                    on
+                                      ? "border-teal bg-teal text-white"
+                                      : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
+                                  }`}
+                                >
+                                  {/* The mark carries the state as well as the
+                                      color, because a filled pill and an empty
+                                      one are the same pill to anyone who does
+                                      not see color. */}
+                                  <span aria-hidden="true">
+                                    {busy ? "\u2026" : on ? "\u2713" : "+"}
+                                  </span>
                                   {t.name}
                                   {t.is_base ? " (base)" : ""}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              className="btn btn-ghost whitespace-nowrap text-sm"
-                              onClick={alsoAddToTemplate}
-                              disabled={
-                                toTemplate?.state === "saving" ||
-                                !editDraft.item.trim() ||
-                                alreadyKept
-                              }
-                            >
-                              {toTemplate?.state === "saving"
-                                ? "Adding\u2026"
-                                : "Add to packing template"}
-                            </button>
+                                </button>
+                              );
+                            })}
                           </div>
                           <p
                             className={`mt-1.5 text-xs ${
@@ -547,11 +591,11 @@ export default function Packing({
                             }`}
                           >
                             {toTemplate?.message ||
-                              (alreadyKept
-                                ? `Already on ${chosenTemplate?.name} for ${editDraft.assignee}, so there is nothing to add. Pick another template to keep it somewhere else as well.`
-                                : keptElsewhere
-                                  ? `${keptElsewhere} already. Adding it here keeps it on this one too.`
-                                  : "Saves your edits and puts this on the chosen template as well. Trips that already exist are left alone.")}
+                              `Saves your edits, then keeps ${
+                                editDraft.assignee === "Shared"
+                                  ? "this"
+                                  : `${editDraft.assignee}\u2019s`
+                              } item on the lists you pick. Press a pill again to take it off. Trips that already exist are left alone.`}
                           </p>
                         </div>
                       )}

@@ -503,10 +503,19 @@ async function writeTemplate({ supabase, patch, familyId }) {
     }
   }
 
+  // The family's travelers, so a copied row assigned to two people, or to somebody
+  // who left, lands on "Shared" instead of being carried onto every future trip.
+  const { data: family } = await supabase
+    .from("travelers")
+    .select("name")
+    .eq("family_id", familyId);
+  const travelerNames = (family || []).map((t) => t.name).filter(Boolean);
+
   const { items, skipped } = copiedTemplateItems(source, {
     templateId: id,
     categories,
     excludeItems,
+    travelerNames,
   });
   if (!items.length) {
     return rollback(supabase, id, {
