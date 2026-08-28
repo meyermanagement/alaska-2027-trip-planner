@@ -103,15 +103,20 @@ export default function ProTips({
     setBusy(true);
     setProblem("");
     const steps = chain && chain.length ? chain : [{ scope, itemId }];
-    const { found, error } = await runLook({
+    const { found, error, tookMs } = await runLook({
       tripId,
       steps,
       onNote: setNote,
     });
+    // Said out loud, because a look that takes twenty seconds and says so reads as
+    // work being done, while the same twenty seconds in silence reads as broken.
+    const took = tookMs ? ` (${Math.max(1, Math.round(tookMs / 1000))}s)` : "";
     if (error) {
       setProblem(error);
       setNote(
-        found ? `${found} found before that stopped. Reload to read them.` : "",
+        found
+          ? `${found} found before that stopped${took}. Reload to read them.`
+          : "",
       );
       setBusy(false);
       return;
@@ -120,9 +125,9 @@ export default function ProTips({
     setNote(
       found
         ? found === 1
-          ? "One tip. Reload to read it."
-          : `${found} tips. Reload to read them.`
-        : "Nothing worth telling you right now.",
+          ? `One tip${took}. Reload to read it.`
+          : `${found} tips${took}. Reload to read them.`
+        : `Nothing worth telling you right now${took}.`,
     );
     setBusy(false);
   }, [chain, scope, itemId, tripId]);
