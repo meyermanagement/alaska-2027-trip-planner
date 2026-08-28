@@ -1,3 +1,4 @@
+import { syncPackingForPet } from "@/lib/pets/packing";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -48,6 +49,10 @@ const TAB_WORDS = {
 };
 
 const LANDING_PATH = {
+  add_pet: ["/people", "the People tab"],
+  update_pet: ["/people", "the People tab"],
+  delete_pet: ["/people", "the People tab"],
+  set_pet_trip: ["/people", "the People tab"],
   add_preference: ["/people", "the People tab"],
   update_preference: ["/people", "the People tab"],
   delete_preference: ["/people", "the People tab"],
@@ -401,6 +406,44 @@ export async function POST(request) {
           extra = outcome.test
             ? ` — test copy sent to ${outcome.to}`
             : ` — sent to ${outcome.to}`;
+      } else if (tool === "set_pet_trip") {
+        // One row per pet per trip is the decision itself, so recording a new
+        // arrangement replaces the old one rather than adding a second answer.
+        const { trip_id: petTripId, pet_id: petRowId, ...rest } = patch;
+        if (patch.arrangement === undefined) {
+          const { error: e } = await supabase
+            .from("trip_pets")
+            .delete()
+            .eq("trip_id", petTripId)
+            .eq("pet_id", petRowId);
+          dbError = e;
+        } else {
+          const { error: e } = await supabase
+            .from("trip_pets")
+            .upsert(
+              { trip_id: petTripId, pet_id: petRowId, ...rest },
+              { onConflict: "trip_id,pet_id" },
+            );
+          dbError = e;
+        }
+        // The packing list follows the decision, the same way it follows a
+        // person joining or leaving a trip.
+        if (!dbError) {
+          const { data: petRow } = await supabase
+            .from("pets")
+            .select("name, species, travel_style, medications")
+            .eq("id", petRowId)
+            .maybeSingle();
+          if (petRow) {
+            const outcome = await syncPackingForPet({
+              supabase,
+              tripId: petTripId,
+              pet: petRow,
+              arrangement: patch.arrangement ?? null,
+            });
+            if (outcome.message) extra = ` — ${outcome.message}`;
+          }
+        }
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.
         if (tool.startsWith("delete_")) {

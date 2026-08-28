@@ -4,6 +4,7 @@ import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import People from "./People";
+import Pets from "./Pets";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 
@@ -23,13 +24,15 @@ export default async function PeoplePage() {
   if (!memberships || memberships.length === 0) redirect("/join");
   const familyId = memberships[0].family_id;
 
-  // Five independent reads, asked for at once rather than in a queue.
+  // Seven independent reads, asked for at once rather than in a queue.
   const [
     { data: profile },
     { data: travelers },
     { data: trips },
     { data: rosters },
     { data: documents },
+    { data: pets },
+    { data: tripPets },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -56,6 +59,15 @@ export default async function PeoplePage() {
         "id, traveler_id, doc_type, label, number, issuing_authority, issue_date, expiration_date, notes, sort_order",
       )
       .order("sort_order", { ascending: true }),
+    supabase
+      .from("pets")
+      .select(
+        "id, name, species, breed, color, sort_order, date_of_birth, weight_lb, travel_style, carrier_size, is_service_animal, microchip_number, rabies_expiration, health_certificate_expiration, vet_name, vet_phone, medications, dietary_notes, temperament_notes, notes",
+      )
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("trip_pets")
+      .select("trip_id, pet_id, arrangement, arrangement_notes"),
   ]);
 
   // The passport warning is worked out here rather than fetched, from the trips,
@@ -102,6 +114,12 @@ export default async function PeoplePage() {
           trips={trips || []}
           rosters={rosters || []}
           warnings={warnings}
+        />
+        <Pets
+          familyId={familyId}
+          pets={pets || []}
+          trips={trips || []}
+          tripPets={tripPets || []}
         />
       </main>
       <AskAlyGeneral />

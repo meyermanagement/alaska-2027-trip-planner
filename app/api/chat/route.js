@@ -148,7 +148,10 @@ export async function POST(request) {
   // Not all 28 of them: the ones this screen and these words could plausibly
   // need. See lib/agent/toolset.js for why fewer is more accurate as well as
   // cheaper.
-  const tools = toolsForRequest({ focus, message: said });
+  // A pet's own name is often the only clue that a question is about an animal,
+  // so the names on file go in with the message.
+  const petNames = ctx.known?.pets ? Array.from(ctx.known.pets.values()) : [];
+  const tools = toolsForRequest({ focus, message: said, petNames });
 
   const messages = [...toModelMessages(past), { role: "user", text: said }];
 
@@ -420,6 +423,8 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     templates,
     templateItems,
     lessons,
+    pets,
+    tripPets,
   ] = await Promise.all([
     supabase.from("trips").select("*").order("start_date", { ascending: true }),
     supabase
@@ -483,6 +488,15 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
       .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(300),
+    supabase
+      .from("pets")
+      .select(
+        "id, name, species, breed, date_of_birth, weight_lb, travel_style, carrier_size, is_service_animal, rabies_expiration, health_certificate_expiration, medications, dietary_notes, temperament_notes, notes",
+      )
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("trip_pets")
+      .select("trip_id, pet_id, arrangement, arrangement_notes"),
   ]);
 
   return buildContext({
@@ -499,6 +513,8 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     templates: templates.data || [],
     templateItems: templateItems.data || [],
     lessons: lessons.data || [],
+    pets: pets.data || [],
+    tripPets: tripPets.data || [],
     message: said,
     userName,
   });
