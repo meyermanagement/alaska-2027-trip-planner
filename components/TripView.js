@@ -13,6 +13,7 @@ import Tasks from "./Tasks";
 import Notes from "./Notes";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
+import { syncPackingForTraveler } from "@/lib/packing/roster";
 
 const TABS = [
   { id: "itinerary", label: "Itinerary" },
@@ -57,6 +58,10 @@ export default function TripView({
   const [notes, setNotes] = useState(initialNotes);
   const [going, setGoing] = useState(initialGoing);
   const [rosterBusy, setRosterBusy] = useState(null);
+  // What the packing list did about it, said out loud. A list that grows by six
+  // lines while you tap a name is unnerving otherwise, and the reason two of
+  // somebody's things survived being taken off has to be visible to be trusted.
+  const [rosterNote, setRosterNote] = useState("");
   // The trip row itself can change under us: the database keeps the dates in
   // step with the itinerary, and anyone in the family can edit the details.
   const [info, setInfo] = useState(trip);
@@ -180,6 +185,7 @@ export default function TripView({
     setGoing((prev) =>
       nowGoing ? [...prev, person.id] : prev.filter((id) => id !== person.id),
     );
+    setRosterNote("");
     if (nowGoing) {
       await supabase
         .from("trip_travelers")
@@ -191,6 +197,18 @@ export default function TripView({
         .eq("trip_id", trip.id)
         .eq("traveler_id", person.id);
     }
+    // The roster and the packing list were two facts that only agreed at the
+    // moment the trip was made. Now the tap carries both: their own lines from
+    // the base list arrive with them, and go when they do.
+    const sync = await syncPackingForTraveler({
+      supabase,
+      tripId: trip.id,
+      familyId: trip.family_id,
+      person,
+      going: nowGoing,
+    });
+    if (sync.added || sync.removed) await refetch("packing_items");
+    setRosterNote(sync.message || "");
     setRosterBusy(null);
   }
 
@@ -324,6 +342,14 @@ export default function TripView({
                       onToggle={toggleTraveler}
                     />
                   </div>
+                  {rosterNote && (
+                    <p
+                      aria-live="polite"
+                      className="no-print mt-1.5 text-[0.82rem] text-ink-soft"
+                    >
+                      {rosterNote}
+                    </p>
+                  )}
                   <p className="mt-1.5 hidden text-sm text-ink-soft print:block">
                     {goingNames.length ? goingNames.join(", ") : "Nobody yet"}
                   </p>

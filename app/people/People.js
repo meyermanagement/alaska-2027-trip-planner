@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { syncPackingForTraveler } from "@/lib/packing/roster";
 import {
   DOC_TYPES,
   docType,
@@ -33,6 +34,9 @@ export default function People({
   const [addingPerson, setAddingPerson] = useState(false);
   const [revealed, setRevealed] = useState({});
   const [rosterBusy, setRosterBusy] = useState(null);
+  // What the trip's packing list did about the tap, kept per trip so the line
+  // appears under the trip it is about.
+  const [rosterNote, setRosterNote] = useState({});
   const [editingTripsFor, setEditingTripsFor] = useState(null);
   const [inviteBusy, setInviteBusy] = useState(null);
   const [inviteNote, setInviteNote] = useState(null);
@@ -60,6 +64,7 @@ export default function People({
 
   async function toggleTrip(travelerId, tripId, nowOn) {
     setRosterBusy(tripId);
+    setRosterNote((prev) => ({ ...prev, [tripId]: "" }));
     setRoster((prev) =>
       nowOn
         ? [...prev, { trip_id: tripId, traveler_id: travelerId }]
@@ -78,6 +83,17 @@ export default function People({
         .eq("trip_id", tripId)
         .eq("traveler_id", travelerId);
     }
+    // Same rule as the trip header: their own lines from the base list arrive
+    // when they do and leave when they do, and anything already packed or
+    // written on stays.
+    const sync = await syncPackingForTraveler({
+      supabase,
+      tripId,
+      familyId,
+      person: travelers.find((t) => t.id === travelerId),
+      going: nowOn,
+    });
+    setRosterNote((prev) => ({ ...prev, [tripId]: sync.message || "" }));
     setRosterBusy(null);
     router.refresh();
   }
@@ -452,6 +468,14 @@ export default function People({
                                       </span>
                                     </span>
                                   </button>
+                                  {rosterNote[trip.id] ? (
+                                    <p
+                                      aria-live="polite"
+                                      className="px-3 pb-2.5 text-xs text-ink-soft"
+                                    >
+                                      {rosterNote[trip.id]}
+                                    </p>
+                                  ) : null}
                                 </li>
                               );
                             })}
