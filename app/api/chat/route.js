@@ -442,7 +442,11 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
       .order("created_at", { ascending: false }),
     supabase
       .from("travelers")
-      .select("id, name, email, user_id, invited_at")
+      .select(
+        // The three profile groups ride along, because they are what turns
+        // Aly's advice from a travel article into advice about these people.
+        "id, name, email, user_id, invited_at, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages",
+      )
       .order("sort_order"),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
     supabase

@@ -6,6 +6,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
 import {
+  MOBILITY_AIDS,
+  aidLabel,
+  cleanAids,
+  languageField,
+  parseLanguages,
+} from "@/lib/travelers/profile";
+import {
   DOC_TYPES,
   docType,
   formatDayYear,
@@ -327,6 +334,8 @@ export default function People({
                 {person.notes}
               </p>
             )}
+
+            <ProfileLines person={person} />
 
             <AccessRow
               person={person}
@@ -871,16 +880,67 @@ export function AccessRow({
   );
 }
 
+// The three new facts, read back on the card so it is obvious they were saved
+// and obvious when they are missing. One line each rather than a table: they are
+// short, and a table of two filled cells and four empty ones looks broken.
+function ProfileLines({ person }) {
+  const aids = cleanAids(person?.mobility_aids).map(aidLabel);
+  const langs = (
+    Array.isArray(person?.languages) ? person.languages : []
+  ).filter(Boolean);
+  const phone = [person?.phone_carrier, person?.phone_device]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+  const rows = [
+    phone ? ["Phone", phone] : null,
+    aids.length ? ["Travels with", aids.join(", ")] : null,
+    person?.accessibility_notes
+      ? ["Getting around", person.accessibility_notes]
+      : null,
+    langs.length ? ["Speaks", langs.join(", ")] : null,
+  ].filter(Boolean);
+  if (!rows.length) return null;
+
+  return (
+    <dl className="mt-2.5 space-y-1 text-sm">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex flex-wrap gap-x-2">
+          <dt className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            {label}
+          </dt>
+          <dd className="min-w-0 flex-1 text-ink-soft">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function PersonForm({ person, onCancel, onSave }) {
   const [form, setForm] = useState({
     name: person?.name || "",
     email: person?.email || "",
     date_of_birth: person?.date_of_birth || "",
     notes: person?.notes || "",
+    phone_carrier: person?.phone_carrier || "",
+    phone_device: person?.phone_device || "",
+    // The stored list, kept as a list while the boxes are being ticked.
+    mobility_aids: cleanAids(person?.mobility_aids),
+    accessibility_notes: person?.accessibility_notes || "",
+    // Typed as one line and stored as a list, so what somebody types reads back
+    // the way they typed it while the record stays comparable between people.
+    languages: languageField(person?.languages),
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const toggleAid = (value) =>
+    setForm((prev) => ({
+      ...prev,
+      mobility_aids: prev.mobility_aids.includes(value)
+        ? prev.mobility_aids.filter((v) => v !== value)
+        : [...prev.mobility_aids, value],
+    }));
 
   async function submit(e) {
     e.preventDefault();
@@ -892,6 +952,13 @@ function PersonForm({ person, onCancel, onSave }) {
       email: form.email.trim().toLowerCase() || null,
       date_of_birth: form.date_of_birth || null,
       notes: form.notes.trim() || null,
+      phone_carrier: form.phone_carrier.trim() || null,
+      phone_device: form.phone_device.trim() || null,
+      // Both lists are not-null columns, so an empty one is an empty array
+      // rather than a null — otherwise clearing the last box fails the write.
+      mobility_aids: cleanAids(form.mobility_aids),
+      accessibility_notes: form.accessibility_notes.trim() || null,
+      languages: parseLanguages(form.languages),
     });
     setBusy(false);
     if (message) setError(message);
@@ -946,6 +1013,89 @@ function PersonForm({ person, onCancel, onSave }) {
             value={form.notes}
             onChange={set("notes")}
           />
+        </label>
+      </div>
+
+      <div className="space-y-3 border-t border-teal/30 pt-3">
+        <p className="section-label">
+          What Aly needs to make the advice specific
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-semibold">
+            Cell phone provider (optional)
+            <input
+              className="field mt-1 text-sm"
+              placeholder="Verizon"
+              value={form.phone_carrier}
+              onChange={set("phone_carrier")}
+              autoComplete="off"
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Phone or device (optional)
+            <input
+              className="field mt-1 text-sm"
+              placeholder="iPhone 15 Pro"
+              value={form.phone_device}
+              onChange={set("phone_device")}
+              autoComplete="off"
+            />
+          </label>
+          <p className="text-xs font-normal text-ink-soft sm:col-span-2">
+            The provider decides whether a day pass, a plan add-on, or an eSIM
+            is the right answer abroad, and the device decides whether an eSIM
+            is possible at all.
+          </p>
+        </div>
+
+        <fieldset>
+          <legend className="text-xs font-semibold">
+            Travels with (optional)
+          </legend>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {MOBILITY_AIDS.map((aid) => {
+              const on = form.mobility_aids.includes(aid.value);
+              return (
+                <button
+                  key={aid.value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleAid(aid.value)}
+                  className={`btn px-2.5 py-1 text-xs ${
+                    on ? "btn-primary" : "btn-ghost"
+                  }`}
+                >
+                  {aid.label}
+                </button>
+              );
+            })}
+          </div>
+          <label className="mt-2 block text-xs font-semibold">
+            Anything else about getting around (optional)
+            <textarea
+              className="field mt-1 text-sm"
+              rows={2}
+              placeholder="Cannot manage long stairs; needs a seat near the front on tours."
+              value={form.accessibility_notes}
+              onChange={set("accessibility_notes")}
+            />
+          </label>
+        </fieldset>
+
+        <label className="block text-xs font-semibold">
+          Languages spoken (optional)
+          <input
+            className="field mt-1 text-sm"
+            placeholder="English, Spanish"
+            value={form.languages}
+            onChange={set("languages")}
+            autoComplete="off"
+          />
+          <span className="mt-1 block font-normal text-ink-soft">
+            Separate them with commas. Used to pick the language a tour is given
+            in, and to work out which translation packs are worth downloading
+            before you lose the signal.
+          </span>
         </label>
       </div>
       {error && (

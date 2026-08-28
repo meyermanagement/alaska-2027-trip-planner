@@ -100,6 +100,7 @@ async function writeHouseTips({
   itinerary,
   today,
   memberships,
+  travelers,
   scope,
   existing,
 }) {
@@ -110,6 +111,9 @@ async function writeHouseTips({
     itinerary: itinerary || [],
     today,
     memberships: memberships || [],
+    // The roaming, translation and equipment rules all read the people rather
+    // than the trip, so they are useless without this.
+    travelers: travelers || [],
   }).filter((tip) => tip.scope === scope);
   let housed = 0;
   if (house.length) {
@@ -215,7 +219,9 @@ export async function POST(request) {
     supabase.from("packing_items").select("*").eq("trip_id", tripId),
     supabase
       .from("trip_travelers")
-      .select("travelers (id, name, is_person)")
+      .select(
+        "travelers (id, name, is_person, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages)",
+      )
       .eq("trip_id", tripId),
     supabase
       .from("travel_preferences")
@@ -333,6 +339,7 @@ export async function POST(request) {
       itinerary: itinerary || [],
       today,
       memberships: memberships || [],
+      travelers,
       scope,
       existing,
     });
@@ -359,6 +366,7 @@ export async function POST(request) {
     itinerary: itinerary || [],
     today,
     memberships: memberships || [],
+    travelers,
     scope,
     existing,
   });

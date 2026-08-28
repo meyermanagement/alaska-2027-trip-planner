@@ -287,6 +287,16 @@ export async function POST(request) {
                   "Someone else in the family already uses that email address.",
               }
             : e;
+      } else if (tool === "set_person_details") {
+        // traveler_id is the key, not a column, and only the groups the user
+        // actually mentioned are in the patch — so an unmentioned column keeps
+        // whatever the People tab already holds.
+        const { traveler_id: personId, ...columns } = patch;
+        const { error: e } = await supabase
+          .from("travelers")
+          .update(columns)
+          .eq("id", personId);
+        dbError = e;
       } else if (tool === "invite_person") {
         const outcome = await sendTravelerInvite({
           supabase,
