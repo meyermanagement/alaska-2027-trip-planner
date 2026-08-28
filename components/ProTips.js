@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compareTips, tipWhen } from "@/lib/tips/tip";
 import { runLook } from "@/lib/tips/run";
+import { Spinner } from "./LinkPending";
 
 /**
  * A tip, and the two things worth doing with one.
@@ -46,6 +47,25 @@ export default function ProTips({
   const [note, setNote] = useState("");
   const [problem, setProblem] = useState("");
   const [looked, setLooked] = useState(everLooked);
+  // A look is the slowest thing in the app — five grounded model calls, most of a
+  // minute on a bad day — so it has to keep proving it is alive. A turning ring, a
+  // bar that fills a fifth at a time, and a second count that climbs are three
+  // different ways of saying the same thing, and between them nobody has to guess
+  // whether the button worked.
+  const [progress, setProgress] = useState(null); // null | {done, total}
+  const [elapsed, setElapsed] = useState(0);
+  const startedRef = useRef(0);
+
+  useEffect(() => {
+    if (!busy) return;
+    startedRef.current = Date.now();
+    setElapsed(0);
+    const tick = setInterval(
+      () => setElapsed(Math.round((Date.now() - startedRef.current) / 1000)),
+      1000,
+    );
+    return () => clearInterval(tick);
+  }, [busy]);
 
   // Soonest first. They arrive in the order they were found, which is the order
   // a model happened to say them in and means nothing to anyone reading.
@@ -121,6 +141,7 @@ export default function ProTips({
       tripId,
       steps,
       onNote: setNote,
+      onProgress: setProgress,
     });
     // Said out loud, because a look that takes twenty seconds and says so reads as
     // work being done, while the same twenty seconds in silence reads as broken.
@@ -133,6 +154,7 @@ export default function ProTips({
           : "",
       );
       setBusy(false);
+      setProgress(null);
       return;
     }
     setLooked(true);
@@ -144,6 +166,7 @@ export default function ProTips({
         : `Nothing worth telling you right now${took}.`,
     );
     setBusy(false);
+    setProgress(null);
   }, [chain, scope, itemId, tripId]);
 
   if (!shown.length && compact && looked) return null;
@@ -168,7 +191,16 @@ export default function ProTips({
             disabled={busy}
             className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] disabled:opacity-50"
           >
-            {busy ? "Looking…" : shown.length ? "Look again" : "Look for tips"}
+            {busy ? (
+              <span className="flex items-center gap-1.5">
+                <Spinner className="h-3.5 w-3.5" />
+                Looking…
+              </span>
+            ) : shown.length ? (
+              "Look again"
+            ) : (
+              "Look for tips"
+            )}
           </button>
         ) : null}
       </div>
@@ -178,7 +210,40 @@ export default function ProTips({
           {problem}
         </p>
       ) : null}
-      {note ? (
+      {busy ? (
+        <div className="mb-3">
+          <p
+            aria-live="polite"
+            className="flex items-center gap-2 text-[0.82rem] text-ink-soft"
+          >
+            <Spinner className="h-4 w-4 shrink-0 text-teal" />
+            <span>
+              {note || "Looking…"}
+              {elapsed ? ` · ${elapsed}s` : ""}
+            </span>
+          </p>
+          {/* The bar is both: a fill for how many places are done, and a shimmer
+              across the rest so the middle of a check still moves. */}
+          <div
+            className="sk mt-2 h-1.5 overflow-hidden rounded-full bg-sand-deep"
+            role="progressbar"
+            aria-label="How far the look has got"
+            aria-valuemin={0}
+            aria-valuemax={progress?.total || 1}
+            aria-valuenow={progress?.done || 0}
+          >
+            <div
+              className="h-full rounded-full bg-teal transition-[width] duration-500 ease-out"
+              style={{
+                width: `${Math.round(
+                  ((progress?.done || 0) / Math.max(1, progress?.total || 1)) *
+                    100,
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      ) : note ? (
         <p aria-live="polite" className="mb-2 text-[0.82rem] text-ink-soft">
           {note}
         </p>

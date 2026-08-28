@@ -129,6 +129,11 @@ time {
   .sk {
     animation: none;
   }
+  /* The turning ring is the only sign a look is alive, so it slows rather than
+     stops: still honest about the preference, still not a frozen screen. */
+  .animate-spin {
+    animation-duration: 2.4s;
+  }
 }
 
 /* Ask Aly slide-over */
