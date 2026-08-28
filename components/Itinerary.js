@@ -1029,6 +1029,7 @@ export default function Itinerary({
                             tripId={tripId}
                             scope="item"
                             itemId={item.id}
+                            relatedDate={item.start_date}
                             everLooked
                             compact
                             heading="Worth knowing"

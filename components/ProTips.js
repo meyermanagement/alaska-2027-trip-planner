@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { tipWhen } from "@/lib/tips/tip";
+import { compareTips, tipWhen } from "@/lib/tips/tip";
 import { runLook } from "@/lib/tips/run";
 
 /**
@@ -35,6 +35,10 @@ export default function ProTips({
   chain = null,
   heading = "Pro tips",
   compact = false,
+  // The date of the thing these tips are about, when they hang off something
+  // dated — an itinerary item. A tip with no deadline of its own is read and
+  // sorted against this rather than being filed under "later".
+  relatedDate = null,
 }) {
   const [tips, setTips] = useState(initial);
   const [gone, setGone] = useState({});
@@ -43,9 +47,19 @@ export default function ProTips({
   const [problem, setProblem] = useState("");
   const [looked, setLooked] = useState(everLooked);
 
+  // Soonest first. They arrive in the order they were found, which is the order
+  // a model happened to say them in and means nothing to anyone reading.
   const shown = useMemo(
-    () => tips.filter((tip) => !gone[tip.id]),
-    [tips, gone],
+    () =>
+      tips
+        .filter((tip) => !gone[tip.id])
+        .map((tip) =>
+          relatedDate && !tip.act_by
+            ? { ...tip, related_date: relatedDate }
+            : tip,
+        )
+        .sort(compareTips),
+    [tips, gone, relatedDate],
   );
 
   const resolve = useCallback(async (tip, status) => {
