@@ -216,7 +216,11 @@ export async function POST(request) {
       .select("title, assignee, due_date, timing, is_done")
       .eq("trip_id", tripId)
       .eq("is_done", false),
-    supabase.from("packing_items").select("*").eq("trip_id", tripId),
+    supabase
+      .from("packing_items")
+      .select("*")
+      .eq("trip_id", tripId)
+      .is("stashed_at", null),
     supabase
       .from("trip_travelers")
       .select(

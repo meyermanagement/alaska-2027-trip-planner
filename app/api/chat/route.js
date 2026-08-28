@@ -430,6 +430,9 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     supabase
       .from("packing_items")
       .select("*")
+      // Rows set aside when somebody came off a roster are not on any list, so
+      // they are not part of what Aly is looking at either.
+      .is("stashed_at", null)
       .order("category", { ascending: true })
       .order("sort_order", { ascending: true }),
     supabase

@@ -93,7 +93,10 @@ export async function POST(request) {
     templateItems,
   ] = await Promise.all([
     supabase.from("itinerary_items").select("id, title, trip_id"),
-    supabase.from("packing_items").select("id, item, trip_id"),
+    supabase
+      .from("packing_items")
+      .select("id, item, trip_id")
+      .is("stashed_at", null),
     supabase.from("predeparture_tasks").select("id, title, trip_id"),
     supabase.from("trip_notes").select("id, title, body, trip_id"),
     supabase.from("travelers").select("id, name").order("sort_order"),
@@ -499,6 +502,7 @@ async function writeTemplate({ supabase, patch, familyId }) {
         .from("packing_items")
         .select(columns)
         .eq("trip_id", fromTrip)
+        .is("stashed_at", null)
         .order("category")
         .order("sort_order")
     : await supabase
@@ -645,7 +649,8 @@ async function fillPackingFromBase({ supabase, tripId, familyId }) {
   const { count } = await supabase
     .from("packing_items")
     .select("id", { count: "exact", head: true })
-    .eq("trip_id", tripId);
+    .eq("trip_id", tripId)
+    .is("stashed_at", null);
   if (count) {
     return {
       error: {

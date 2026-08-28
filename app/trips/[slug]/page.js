@@ -61,6 +61,7 @@ export default async function TripPage({ params }) {
       .from("packing_items")
       .select("*")
       .eq("trip_id", trip.id)
+      .is("stashed_at", null)
       .order("category", { ascending: true })
       .order("sort_order", { ascending: true }),
     supabase

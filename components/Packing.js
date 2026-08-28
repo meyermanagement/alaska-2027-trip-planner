@@ -62,6 +62,35 @@ export default function Packing({
     : ["Mark", "Steph", "Veda", "Shared"];
 
   /**
+   * The filter pills follow the roster, not the family.
+   *
+   * A pill for somebody who is not on this trip is a dead end: their lines are
+   * set aside the moment they come off, so tapping their name showed an empty
+   * list and left you wondering what you had broken. Shared always stays,
+   * because everybody's shared things are on every list.
+   */
+  const filterNames = useMemo(() => {
+    const keyName = (v) =>
+      String(v || "")
+        .trim()
+        .toLowerCase();
+    const roster = (going || []).filter(Boolean);
+    if (!roster.length) return people;
+    const names = [];
+    for (const name of people) {
+      if (name === "Shared") continue;
+      if (roster.some((r) => keyName(r) === keyName(name))) names.push(name);
+    }
+    // Anyone on the roster the family list does not know about — a guest added
+    // by name — still gets a pill, since their things are on the list.
+    for (const name of roster) {
+      if (keyName(name) === keyName("Shared")) continue;
+      if (!names.some((n) => keyName(n) === keyName(name))) names.push(name);
+    }
+    return [...names, "Shared"];
+  }, [going, people]);
+
+  /**
    * Which packing templates already hold a given item.
    *
    * Matched on the name without regard to case, because "Rain shell" and "rain
@@ -403,8 +432,9 @@ export default function Packing({
             {strandedWords(stranded)}
           </p>
           <p className="mt-1 text-xs text-ink-soft">
-            Their lines still count against the packed total. Anything already
-            packed or written on stays behind either way.
+            Their lines still count against the packed total. Taking them off
+            sets them aside rather than deleting them — packed state and notes
+            included — so everything returns if you add them to this trip again.
           </p>
           {strandedRemovable > 0 && (
             <button
@@ -455,7 +485,7 @@ export default function Packing({
         >
           Everyone
         </button>
-        {people.map((p) => (
+        {filterNames.map((p) => (
           <button
             key={p}
             onClick={() => setWho(p)}

@@ -48,7 +48,10 @@ export default async function TripsPage() {
         "id, name, slug, destination, start_date, end_date, cover_emoji, summary, status",
       )
       .order("start_date", { ascending: true }),
-    supabase.from("packing_items").select("trip_id, is_packed"),
+    supabase
+      .from("packing_items")
+      .select("trip_id, is_packed")
+      .is("stashed_at", null),
     supabase.from("predeparture_tasks").select("trip_id, is_done"),
     supabase.from("itinerary_items").select("trip_id"),
     supabase

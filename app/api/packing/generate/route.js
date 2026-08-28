@@ -53,7 +53,8 @@ export async function POST(request) {
   const { data: existing } = await supabase
     .from("packing_items")
     .select("id, is_packed")
-    .eq("trip_id", trip.id);
+    .eq("trip_id", trip.id)
+    .is("stashed_at", null);
   if (existing?.length) {
     const untouched = existing.every((row) => !row.is_packed);
     if (!replace || !untouched) {
