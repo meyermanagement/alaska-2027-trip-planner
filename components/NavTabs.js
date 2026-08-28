@@ -18,7 +18,7 @@ import useSoftKeyboard from "./useSoftKeyboard";
  *
  * Half of these screens hold more than their name admits — Reviews is also
  * where the family's standing travel preferences live, and what used to be
- * called Rewards is really the record of every program the family belongs to —
+ * called Rewards is now the Wallet, holding every program the family belongs to —
  * so the broad noun leads and a second, quieter line carries what is inside.
  * The first line stays short so the dock is no wider than it was when the words
  * were crammed onto one line. On a phone there is no room for two lines at a
@@ -68,9 +68,9 @@ const TABS = [
     Icon: ShirtIcon,
   },
   {
-    href: "/rewards",
-    label: "Travel programs",
-    short: "Programs",
+    href: "/wallet",
+    label: "Wallet",
+    short: "Wallet",
     sub: "Points, miles & cards",
     Icon: RewardsIcon,
   },
