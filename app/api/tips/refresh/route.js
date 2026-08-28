@@ -39,7 +39,11 @@ export const maxDuration = 120;
 // start. A model call allowed to run right up to the ceiling is worse than one cut
 // short: when the platform stops listening the browser is told only that the load
 // failed, which is not something the app can explain or even see.
-const MODEL_BUDGET_MS = 95000;
+// Not the whole two minutes. A browser gives up on a request that has said
+// nothing for about a minute and a half, and a request the browser abandons is
+// worse than a slightly shorter search: the writes happen at the end, so nothing
+// is kept. This leaves room to answer well inside what a phone will wait.
+const MODEL_BUDGET_MS = 55000;
 
 /** Everything except the working fields the rules pass alongside a tip. */
 const columnsOnly = (tip) =>
