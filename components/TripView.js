@@ -181,7 +181,16 @@ export default function TripView({
   }, [supabase, trip.id, refetch]);
 
   // Who is on the trip. Tapping a name saves straight away.
-  async function toggleTraveler(person, nowGoing) {
+  //
+  // The chip hands back its own shape — { id, label, color } — not the traveler
+  // it was built from, so the real person has to be looked up here. Passing the
+  // chip straight through was the whole reason a roster tap on this page never
+  // touched the packing list: the sync had no name to work with and quietly did
+  // nothing, which is how somebody's things came to sit on a list they were not
+  // travelling on.
+  async function toggleTraveler(chip, nowGoing) {
+    const person = people.find((p) => p.id === chip?.id) || chip;
+    if (!person?.id || !person?.name) return;
     setRosterBusy(person.id);
     setGoing((prev) =>
       nowGoing ? [...prev, person.id] : prev.filter((id) => id !== person.id),
