@@ -5,7 +5,7 @@ import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
 import Preferences from "./Preferences";
-import { isPastTrip } from "@/lib/format";
+import { isDraftTrip, isPastTrip } from "@/lib/format";
 
 export const metadata = { title: "Preferences & Reviews · Alyeska" };
 
@@ -65,11 +65,21 @@ export default async function HistoryPage() {
       .order("sort_order", { ascending: true }),
   ]);
 
-  const { data: trips } = await supabase
-    .from("trips")
-    .select(
-      "id, name, slug, destination, start_date, end_date, cover_emoji, status",
-    );
+  const [{ data: trips }, { data: rosters }] = await Promise.all([
+    supabase
+      .from("trips")
+      .select(
+        "id, name, slug, destination, start_date, end_date, cover_emoji, status",
+      ),
+    supabase.from("trip_travelers").select("trip_id, traveler_id"),
+  ]);
+
+  // The trips worth filtering preferences by are the ones still to come, soonest
+  // first: the question this answers is "what will Aly plan Alaska with", and a
+  // trip already taken cannot be planned.
+  const prefTrips = (trips || [])
+    .filter((t) => !isPastTrip(t) && !isDraftTrip(t))
+    .sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
 
   const pastTrips = (trips || [])
     .filter((t) => isPastTrip(t))
@@ -153,6 +163,8 @@ export default async function HistoryPage() {
             familyId={familyId}
             travelers={people || []}
             preferences={preferences || []}
+            trips={prefTrips}
+            rosters={rosters || []}
           />
         </div>
 

@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { assigneeColor } from "@/lib/format";
+import {
+  SHARED_LABEL,
+  goingIds,
+  prefsForTrip,
+  setAsideSentence,
+  whoseCounts,
+  whoseName,
+} from "@/lib/preferences/scope";
 
 // Suggestions only — the topic is a free text field, so anything goes.
 const TOPIC_IDEAS = [
@@ -31,6 +40,8 @@ export default function Preferences({
   familyId,
   travelers,
   preferences: initial,
+  trips = [],
+  rosters = [],
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -38,12 +49,41 @@ export default function Preferences({
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [busy, setBusy] = useState(false);
+  // "" is everyone; otherwise a traveler id, or SHARED for the family's own.
+  const [whose, setWhose] = useState("");
+  const [tripId, setTripId] = useState("");
 
-  const nameFor = (id) => travelers.find((t) => t.id === id)?.name;
+  const counts = useMemo(
+    () => whoseCounts(prefs, travelers),
+    [prefs, travelers],
+  );
+
+  // The people going on the trip being filtered by, if any.
+  const going = useMemo(
+    () => (tripId ? goingIds(rosters, tripId) : null),
+    [rosters, tripId],
+  );
+
+  // Two filters, applied in the order they read on the screen: whose it is, then
+  // whether the trip in question carries it at all.
+  const shown = useMemo(() => {
+    let list = prefs;
+    if (whose === SHARED_LABEL) list = list.filter((p) => !p.traveler_id);
+    else if (whose) list = list.filter((p) => p.traveler_id === whose);
+    if (going) list = prefsForTrip(list, going);
+    return list;
+  }, [prefs, whose, going]);
+
+  const aside = useMemo(
+    () => (going ? setAsideSentence(prefs, going, travelers) : ""),
+    [going, prefs, travelers],
+  );
+
+  const tripName = trips.find((t) => t.id === tripId)?.name || "";
 
   // Group under whatever topics have been used, in the order they appear.
   const groups = [];
-  for (const p of prefs) {
+  for (const p of shown) {
     const key = p.topic?.trim() || "";
     let group = groups.find((g) => g.key === key);
     if (!group) {
@@ -129,6 +169,51 @@ export default function Preferences({
         </div>
       )}
 
+      {prefs.length > 0 && (
+        <div className="no-print mt-4 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="section-label">Show</span>
+            <Chip on={!whose} onClick={() => setWhose("")}>
+              Everyone · {prefs.length}
+            </Chip>
+            {counts.map((row) => (
+              <Chip
+                key={row.id || "_shared"}
+                on={whose === (row.id || SHARED_LABEL)}
+                onClick={() => setWhose(row.id || SHARED_LABEL)}
+              >
+                {row.name} · {row.count}
+              </Chip>
+            ))}
+          </div>
+          {trips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="section-label">Used on</span>
+              <Chip on={!tripId} onClick={() => setTripId("")}>
+                Every trip
+              </Chip>
+              {trips.map((t) => (
+                <Chip
+                  key={t.id}
+                  on={tripId === t.id}
+                  onClick={() => setTripId(t.id)}
+                >
+                  {t.cover_emoji ? `${t.cover_emoji} ` : ""}
+                  {t.name}
+                </Chip>
+              ))}
+            </div>
+          )}
+          {tripId && (
+            <p className="text-sm text-ink-soft">
+              {aside
+                ? `What ${tripName} is planned with: everything shared, plus the people going. ${aside}`
+                : `Everyone who has a preference saved is going on ${tripName}, so all of them apply.`}
+            </p>
+          )}
+        </div>
+      )}
+
       {prefs.length === 0 && !adding ? (
         <div className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4">
           <p className="text-sm text-ink-soft">
@@ -145,13 +230,17 @@ export default function Preferences({
             ))}
           </ul>
         </div>
+      ) : shown.length === 0 ? (
+        <p className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4 text-sm text-ink-soft">
+          Nothing saved under that. {prefs.length}{" "}
+          {prefs.length === 1 ? "preference" : "preferences"} in all — clear the
+          filters above to see them.
+        </p>
       ) : (
         <div className="mt-4 space-y-5">
           {groups.map((group) => (
             <div key={group.key || "_none"}>
-              <p className="section-label">
-                {group.label}
-              </p>
+              <p className="section-label">{group.label}</p>
               <ul className="mt-1.5 space-y-2">
                 {group.items.map((pref) =>
                   editing === pref.id ? (
@@ -175,12 +264,14 @@ export default function Preferences({
                       <p className="text-sm leading-relaxed whitespace-pre-line">
                         {pref.body}
                       </p>
-                      <div className="mt-1.5 flex items-center gap-3">
-                        {pref.traveler_id && nameFor(pref.traveler_id) && (
-                          <span className="text-xs font-semibold text-ink-soft">
-                            {nameFor(pref.traveler_id)}
-                          </span>
-                        )}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                        <span
+                          className={`chip ${assigneeColor(
+                            whoseName(pref, travelers),
+                          )}`}
+                        >
+                          {whoseName(pref, travelers)}
+                        </span>
                         <button
                           type="button"
                           className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
@@ -211,6 +302,24 @@ export default function Preferences({
   );
 }
 
+/** The filter and picker pill, in the one shape the rest of the app uses. */
+function Chip({ on, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`chip border ${
+        on
+          ? "border-teal bg-teal text-white"
+          : "border-[var(--line)] bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function PreferenceForm({ pref, travelers, busy, onCancel, onSave }) {
   const [body, setBody] = useState(pref?.body || "");
   const [topic, setTopic] = useState(pref?.topic || "");
@@ -229,9 +338,7 @@ function PreferenceForm({ pref, travelers, busy, onCancel, onSave }) {
   return (
     <form onSubmit={submit} className="no-print space-y-3">
       <label className="block">
-        <span className="block section-label">
-          The preference
-        </span>
+        <span className="block section-label">The preference</span>
         <textarea
           className="field mt-1 min-h-24"
           value={body}
@@ -244,9 +351,7 @@ function PreferenceForm({ pref, travelers, busy, onCancel, onSave }) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label>
-          <span className="block section-label">
-            Topic (optional)
-          </span>
+          <span className="block section-label">Topic (optional)</span>
           <input
             className="field mt-1"
             value={topic}
@@ -260,23 +365,28 @@ function PreferenceForm({ pref, travelers, busy, onCancel, onSave }) {
             ))}
           </datalist>
         </label>
-        <label>
-          <span className="block section-label">
-            Whose
-          </span>
-          <select
-            className="field mt-1"
-            value={travelerId}
-            onChange={(e) => setTravelerId(e.target.value)}
-          >
-            <option value="">All of us</option>
+        <div>
+          <span className="block section-label">Whose</span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <Chip on={!travelerId} onClick={() => setTravelerId("")}>
+              {SHARED_LABEL}
+            </Chip>
             {travelers.map((t) => (
-              <option key={t.id} value={t.id}>
+              <Chip
+                key={t.id}
+                on={travelerId === t.id}
+                onClick={() => setTravelerId(t.id)}
+              >
                 {t.name}
-              </option>
+              </Chip>
             ))}
-          </select>
-        </label>
+          </div>
+          <p className="mt-1 text-xs text-ink-soft">
+            One person, or {SHARED_LABEL} for something true of the family. A
+            person&apos;s own preference is only used on the trips they are
+            actually on.
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-2">
