@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { compareTips, tipWhen } from "@/lib/tips/tip";
 import { runLook } from "@/lib/tips/run";
 import { Spinner } from "./LinkPending";
@@ -41,6 +42,7 @@ export default function ProTips({
   // sorted against this rather than being filed under "later".
   relatedDate = null,
 }) {
+  const router = useRouter();
   const [tips, setTips] = useState(initial);
   const [gone, setGone] = useState({});
   const [busy, setBusy] = useState(false);
@@ -55,6 +57,15 @@ export default function ProTips({
   const [progress, setProgress] = useState(null); // null | {done, total}
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef(0);
+
+  // A look writes its tips to the database, not to this component, so the way
+  // they arrive on screen is the server sending the list down again. That only
+  // helps if this list follows the props it was given: holding the first render
+  // in state forever is what used to make a reload necessary to read a tip that
+  // had already been found and saved.
+  useEffect(() => {
+    setTips(initial);
+  }, [initial]);
 
   useEffect(() => {
     if (!busy) return;
@@ -146,13 +157,12 @@ export default function ProTips({
     // Said out loud, because a look that takes twenty seconds and says so reads as
     // work being done, while the same twenty seconds in silence reads as broken.
     const took = tookMs ? ` (${Math.max(1, Math.round(tookMs / 1000))}s)` : "";
+    // Whatever was found is already saved, so ask the server for the list again
+    // either way — a look that stopped halfway still has something to show.
+    if (found) router.refresh();
     if (error) {
       setProblem(error);
-      setNote(
-        found
-          ? `${found} found before that stopped${took}. Reload to read them.`
-          : "",
-      );
+      setNote(found ? `${found} found before that stopped${took}.` : "");
       setBusy(false);
       setProgress(null);
       return;
@@ -161,13 +171,13 @@ export default function ProTips({
     setNote(
       found
         ? found === 1
-          ? `One tip${took}. Reload to read it.`
-          : `${found} tips${took}. Reload to read them.`
+          ? `One tip${took}.`
+          : `${found} tips${took}.`
         : `Nothing worth telling you right now${took}.`,
     );
     setBusy(false);
     setProgress(null);
-  }, [chain, scope, itemId, tripId]);
+  }, [chain, scope, itemId, tripId, router]);
 
   if (!shown.length && compact && looked) return null;
 
