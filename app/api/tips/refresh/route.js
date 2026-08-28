@@ -30,6 +30,13 @@ import { SCOPES, sameWindowTitle } from "@/lib/tips/tip";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// How much of that minute the model may have. The rest pays for the eight reads
+// this route makes before it asks anything, the writes afterwards, and the cold
+// start. A model call allowed to run right up to the ceiling is worse than one cut
+// short: when the platform stops listening the browser is told only that the load
+// failed, which is not something the app can explain or even see.
+const MODEL_BUDGET_MS = 38000;
+
 /** Everything except the working fields the rules pass alongside a tip. */
 const columnsOnly = (tip) =>
   Object.fromEntries(
@@ -138,6 +145,9 @@ async function writeHouseTips({
 }
 
 export async function POST(request) {
+  // Everything below is measured against this: whatever the model is asked, it is
+  // asked with a deadline that leaves the route time to answer in words.
+  const startedAt = Date.now();
   let body;
   try {
     body = await request.json();
@@ -234,6 +244,7 @@ export async function POST(request) {
         itinerary: itinerary || [],
         memberships: memberships || [],
         travelers,
+        deadline: startedAt + MODEL_BUDGET_MS,
       });
     } catch (error) {
       return NextResponse.json(
@@ -254,6 +265,13 @@ export async function POST(request) {
         { status: 502 },
       );
     }
+    // One line in the platform's log per research pass. Not for the person using
+    // the app — for the next time a refresh appears to do nothing, when the
+    // question is whether the model was asked, how long it took, whether it
+    // searched, and whether the answer was kept.
+    console.log(
+      `[tips/refresh] facts researched trip=${tripId} model=${researched.model || "none"} searched=${researched.searched} windows=${researched.facts.booking_windows.length} ms=${Date.now() - startedAt}`,
+    );
     sheet = {
       ...researched.facts,
       sources: researched.sources,
@@ -278,6 +296,10 @@ export async function POST(request) {
     // Filed in the same call. The rules ask no model, so the corrected date
     // reaches the screen now rather than after another round trip — and it reaches
     // it even when the sheet itself could not be saved.
+    if (kept)
+      console.log(
+        `[tips/refresh] facts NOT saved trip=${tripId}: ${kept.message}`,
+      );
     const { housed: filed } = await writeHouseTips({
       supabase,
       trip,
@@ -348,6 +370,7 @@ export async function POST(request) {
   let produced;
   try {
     produced = await tipsForPlace({
+      deadline: startedAt + MODEL_BUDGET_MS,
       place: {
         family_id: trip.family_id,
         trip_id: tripId,
