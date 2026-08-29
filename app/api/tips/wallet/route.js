@@ -99,14 +99,18 @@ export async function POST(request) {
       .in("scope", WALLET_SCOPES),
   ]);
 
-  if (!programs?.length) {
+  // An empty Wallet stops only half the question. There is nothing to say about
+  // programs they do not have, but "which card should we open first" is exactly
+  // the question somebody with nothing asks, and the offers pass answers it -- the
+  // brief and the rules switch to a first-card footing rather than refusing.
+  if (!programs?.length && scope === "wallet") {
     return NextResponse.json({
       step: scope,
       done: true,
       added: 0,
       considered: 0,
       dropped: [],
-      note: "There is nothing in the Wallet yet, so there is nothing to look at. Add a card or a program first.",
+      note: "Nothing is saved in the Wallet yet, so there was nothing to say about what you already hold. The card offers were still checked, and nothing on offer today was worth telling you to open — which happens, and is a real answer.",
     });
   }
 
