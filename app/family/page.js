@@ -4,6 +4,7 @@ import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
+import HouseholdName from "./HouseholdName";
 import People from "./People";
 import Pets from "./Pets";
 import { todayISO } from "@/lib/reminders";
@@ -20,7 +21,7 @@ export default async function PeoplePage() {
 
   const { data: memberships } = await supabase
     .from("family_members")
-    .select("family_id")
+    .select("family_id, families (id, name)")
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
 
@@ -30,6 +31,7 @@ export default async function PeoplePage() {
   const access = await resolveAccess(supabase, user);
   if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
+  const household = memberships[0].families;
 
   // Seven independent reads, asked for at once rather than in a queue.
   const [
@@ -116,6 +118,7 @@ export default async function PeoplePage() {
             time. Numbers stay hidden until you tap to show them, and only our
             family group can open this page.
           </p>
+          <HouseholdName familyId={familyId} name={household?.name || ""} />
         </div>
         <People
           familyId={familyId}

@@ -26,13 +26,13 @@ export default async function TripsPage() {
 
   const { data: memberships } = await supabase
     .from("family_members")
-    .select("family_id, families(id, name, invite_code)")
+    .select("family_id")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/join");
 
   const access = await resolveAccess(supabase, user);
-  const family = memberships[0].families;
+  const familyId = memberships[0].family_id;
 
   // None of these depend on each other, so they go together rather than one
   // after another: seven round trips to the database stacked end to end is
@@ -152,7 +152,7 @@ export default async function TripsPage() {
               Everything here is shared live with everyone in the family group.
             </p>
           </div>
-          {!access?.can.isSecondary && <NewTripButton familyId={family.id} />}
+          {!access?.can.isSecondary && <NewTripButton familyId={familyId} />}
         </div>
 
         <TripBoard
