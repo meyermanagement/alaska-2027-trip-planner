@@ -40,6 +40,9 @@ import {
  */
 const NO_TOPIC_KEY = "\u0000none";
 
+/** Where the shut topic headings are remembered between visits. */
+const FOLD_KEY = "alyeska.preferences.shut";
+
 const EXAMPLES = [
   "Public transport over a rental car in cities, rental car anywhere rural.",
   "Hotels, not camping. A resort we do not have to leave beats a cheaper room in town.",
@@ -84,6 +87,14 @@ export default function Preferences({
   // Which button is running, so the one that was pressed is the one that says so.
   const [asking, setAsking] = useState("");
   const [askError, setAskError] = useState("");
+  // The three filter rows, folded away until somebody wants them. Open when a
+  // filter is already on, so a list narrowed by a filter never hides the control
+  // that narrowed it.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Topic headings folded shut, by group key. Kept in the browser so a family who
+  // collapses Accommodations finds it collapsed tomorrow: a fold somebody chose
+  // is a preference, and forgetting it every reload would make the control a toy.
+  const [shut, setShut] = useState(() => new Set());
 
   const counts = useMemo(
     () => whoseCounts(prefs, travelers),
@@ -158,6 +169,85 @@ export default function Preferences({
       (row) => !ignored.includes(`${row.kind}:${row.fromKey}`),
     );
   }, [prefs, ignored]);
+
+  // Which folds were shut last time. Read after mount rather than in the state
+  // initialiser, because the server renders this too and localStorage is not
+  // there: initialising from it would make the first paint disagree with the
+  // second and React would throw the whole list away.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(FOLD_KEY);
+      if (saved) setShut(new Set(JSON.parse(saved)));
+    } catch {
+      // A browser that will not give us localStorage just gets everything open.
+    }
+  }, []);
+
+  function fold(next) {
+    setShut(next);
+    try {
+      window.localStorage.setItem(FOLD_KEY, JSON.stringify([...next]));
+    } catch {
+      // Not being able to remember the fold is not a reason to refuse to fold.
+    }
+  }
+
+  function toggleGroup(key) {
+    const next = new Set(shut);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    fold(next);
+  }
+
+  // Every heading currently on screen, so "Collapse all" means all of these and
+  // not a remembered fold for a topic that no longer exists.
+  const allShut = groups.length > 0 && groups.every((g) => shut.has(g.key));
+
+  const filtered = Boolean(whose || tripId || topicKey);
+
+  // A filtered list ignores the folds. Somebody who asks for Food has asked for
+  // those three preferences by name, and honouring a fold set while browsing the
+  // whole list would answer that with a heading and nothing under it \u2014 a filter
+  // that looks like it found nothing. Folds are for reading the whole list.
+  const isShut = (key) => !filtered && shut.has(key);
+
+  // What the list is showing, in a sentence, because the filters that caused it
+  // are folded away and a count with no explanation is how you get somebody
+  // wondering where their preferences went.
+  const filterSaid = useMemo(() => {
+    if (!filtered) {
+      return `All ${prefs.length} of them.`;
+    }
+    const parts = [];
+    if (whose)
+      parts.push(
+        whose === SHARED_LABEL
+          ? "shared"
+          : `${travelers.find((t) => t.id === whose)?.name || "one person"}\u2019s`,
+      );
+    if (tripName) parts.push(`used on ${tripName}`);
+    if (topicKey === NO_TOPIC_KEY) parts.push(`filed under nothing`);
+    else if (topicKey)
+      parts.push(
+        `about ${topicChips.find((r) => r.key === topicKey)?.label || "one topic"}`,
+      );
+    return `Showing ${parts.join(", ")} \u2014 ${shown.length} of ${prefs.length}.`;
+  }, [
+    filtered,
+    prefs.length,
+    shown.length,
+    whose,
+    tripName,
+    topicKey,
+    topicChips,
+    travelers,
+  ]);
+
+  function clearFilters() {
+    setWhose("");
+    setTripId("");
+    setTopicKey("");
+  }
 
   async function save(id, values) {
     setBusy(true);
@@ -288,7 +378,7 @@ export default function Preferences({
             Anything worth remembering when we plan the next one — how we get
             around, what we will and will not sleep in, what a night is worth to
             us. Write it however you like. Aly reads these when she suggests
-            things.
+            things. Press one to change or delete it.
           </p>
         </div>
         <div className="no-print flex flex-wrap gap-2">
@@ -391,71 +481,104 @@ export default function Preferences({
 
       {prefs.length > 0 && (
         <div className="no-print mt-4 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="section-label">Show</span>
-            <Chip on={!whose} onClick={() => setWhose("")}>
-              Everyone · {prefs.length}
-            </Chip>
-            {counts.map((row) => (
-              <Chip
-                key={row.id || "_shared"}
-                on={whose === (row.id || SHARED_LABEL)}
-                onClick={() => setWhose(row.id || SHARED_LABEL)}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <button
+              type="button"
+              className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((open) => !open)}
+            >
+              {filtersOpen ? "Hide filters" : "Filter"}
+            </button>
+            <span className="text-sm text-ink-soft">{filterSaid}</span>
+            {filtered && (
+              <button
+                type="button"
+                className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
+                onClick={clearFilters}
               >
-                {row.name} · {row.count}
-              </Chip>
-            ))}
+                Clear
+              </button>
+            )}
+            {!filtered && groups.length > 1 && (
+              <button
+                type="button"
+                className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
+                onClick={() =>
+                  fold(allShut ? new Set() : new Set(groups.map((g) => g.key)))
+                }
+              >
+                {allShut ? "Open all" : "Collapse all"}
+              </button>
+            )}
           </div>
-          {trips.length > 0 && (
+          <div className={filtersOpen ? "space-y-2" : "hidden"}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="section-label">Used on</span>
-              <Chip on={!tripId} onClick={() => setTripId("")}>
-                Every trip
+              <span className="section-label">Show</span>
+              <Chip on={!whose} onClick={() => setWhose("")}>
+                Everyone · {prefs.length}
               </Chip>
-              {trips.map((t) => (
+              {counts.map((row) => (
                 <Chip
-                  key={t.id}
-                  on={tripId === t.id}
-                  onClick={() => setTripId(t.id)}
+                  key={row.id || "_shared"}
+                  on={whose === (row.id || SHARED_LABEL)}
+                  onClick={() => setWhose(row.id || SHARED_LABEL)}
                 >
-                  {t.cover_emoji ? `${t.cover_emoji} ` : ""}
-                  {t.name}
+                  {row.name} · {row.count}
                 </Chip>
               ))}
             </div>
-          )}
-          {(topicChips.length > 1 || topicKey) && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="section-label">About</span>
-              <Chip on={!topicKey} onClick={() => setTopicKey("")}>
-                Anything
-              </Chip>
-              {topicChips.map((row) => (
-                <Chip
-                  key={row.key}
-                  on={topicKey === row.key}
-                  onClick={() => setTopicKey(row.key)}
-                >
-                  {row.label} · {row.count}
+            {trips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="section-label">Used on</span>
+                <Chip on={!tripId} onClick={() => setTripId("")}>
+                  Every trip
                 </Chip>
-              ))}
-              {untopiced > 0 && (
-                <Chip
-                  on={topicKey === NO_TOPIC_KEY}
-                  onClick={() => setTopicKey(NO_TOPIC_KEY)}
-                >
-                  {NO_TOPIC_LABEL} · {untopiced}
+                {trips.map((t) => (
+                  <Chip
+                    key={t.id}
+                    on={tripId === t.id}
+                    onClick={() => setTripId(t.id)}
+                  >
+                    {t.cover_emoji ? `${t.cover_emoji} ` : ""}
+                    {t.name}
+                  </Chip>
+                ))}
+              </div>
+            )}
+            {(topicChips.length > 1 || topicKey) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="section-label">About</span>
+                <Chip on={!topicKey} onClick={() => setTopicKey("")}>
+                  Anything
                 </Chip>
-              )}
-            </div>
-          )}
-          {tripId && (
-            <p className="text-sm text-ink-soft">
-              {aside
-                ? `What ${tripName} is planned with: everything shared, plus the people going. ${aside}`
-                : `Everyone who has a preference saved is going on ${tripName}, so all of them apply.`}
-            </p>
-          )}
+                {topicChips.map((row) => (
+                  <Chip
+                    key={row.key}
+                    on={topicKey === row.key}
+                    onClick={() => setTopicKey(row.key)}
+                  >
+                    {row.label} · {row.count}
+                  </Chip>
+                ))}
+                {untopiced > 0 && (
+                  <Chip
+                    on={topicKey === NO_TOPIC_KEY}
+                    onClick={() => setTopicKey(NO_TOPIC_KEY)}
+                  >
+                    {NO_TOPIC_LABEL} · {untopiced}
+                  </Chip>
+                )}
+              </div>
+            )}
+            {tripId && (
+              <p className="text-sm text-ink-soft">
+                {aside
+                  ? `What ${tripName} is planned with: everything shared, plus the people going. ${aside}`
+                  : `Everyone who has a preference saved is going on ${tripName}, so all of them apply.`}
+              </p>
+            )}
+          </div>
           {tidy.length > 0 && (
             <div className="space-y-2 rounded-xl border border-amber/30 bg-amber/5 p-3">
               <span className="section-label">Topics worth tidying</span>
@@ -525,11 +648,26 @@ export default function Preferences({
           {groups.map((group) => (
             <div key={group.key || "_none"}>
               <div className="flex flex-wrap items-baseline gap-2">
-                <p className="section-label">{group.label}</p>
-                <span className="text-xs text-ink-faint">
-                  {group.items.length}
-                </span>
-                {group.key && (
+                <button
+                  type="button"
+                  className="flex items-baseline gap-2 text-left"
+                  aria-expanded={!isShut(group.key)}
+                  onClick={() => toggleGroup(group.key)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`text-[0.6rem] text-ink-faint transition-transform ${
+                      isShut(group.key) ? "" : "rotate-90"
+                    }`}
+                  >
+                    ▸
+                  </span>
+                  <span className="section-label">{group.label}</span>
+                  <span className="text-xs text-ink-faint">
+                    {group.items.length}
+                  </span>
+                </button>
+                {group.key && !isShut(group.key) && (
                   <button
                     type="button"
                     className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
@@ -555,7 +693,9 @@ export default function Preferences({
                   onSave={(next) => renameTopic(group.label, next)}
                 />
               )}
-              <ul className="mt-1.5 space-y-2">
+              <ul
+                className={`mt-1.5 space-y-2 ${isShut(group.key) ? "hidden" : ""}`}
+              >
                 {group.items.map(({ pref, also }) =>
                   editing === pref.id ? (
                     <li
@@ -568,48 +708,42 @@ export default function Preferences({
                         preferences={prefs}
                         busy={busy}
                         onCancel={() => setEditing(null)}
+                        onDelete={() => remove(pref)}
                         onSave={(values) => save(pref.id, values)}
                       />
                     </li>
                   ) : (
-                    <li
-                      key={pref.id}
-                      className="rounded-xl border border-[var(--line)] bg-white p-3"
-                    >
-                      <p className="text-sm leading-relaxed whitespace-pre-line">
-                        {pref.body}
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                        <span
-                          className={`chip ${assigneeColor(
-                            whoseName(pref, travelers),
-                          )}`}
-                        >
-                          {whoseName(pref, travelers)}
-                        </span>
-                        <button
-                          type="button"
-                          className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                          onClick={() => {
-                            setAdding(false);
-                            setEditing(pref.id);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="no-print text-xs font-semibold text-rose underline decoration-rose/30 underline-offset-2 hover:decoration-rose"
-                          onClick={() => remove(pref)}
-                        >
-                          Delete
-                        </button>
-                        {also.length > 0 && (
-                          <span className="text-xs text-ink-faint">
-                            Also under {also.join(" and ")}
+                    <li key={pref.id}>
+                      <button
+                        type="button"
+                        className="group w-full rounded-xl border border-[var(--line)] bg-white p-3 text-left hover:border-teal/40"
+                        onClick={() => {
+                          setAdding(false);
+                          setEditing(pref.id);
+                        }}
+                      >
+                        <p className="text-sm leading-relaxed whitespace-pre-line">
+                          {pref.body}
+                        </p>
+                        {(pref.traveler_id || also.length > 0) && (
+                          <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                            {pref.traveler_id && (
+                              <span
+                                className={`chip ${assigneeColor(
+                                  whoseName(pref, travelers),
+                                )}`}
+                              >
+                                {whoseName(pref, travelers)}
+                              </span>
+                            )}
+                            {also.length > 0 && (
+                              <span className="text-xs text-ink-faint">
+                                Also under {also.join(" and ")}
+                              </span>
+                            )}
                           </span>
                         )}
-                      </div>
+                      </button>
                     </li>
                   ),
                 )}
@@ -918,6 +1052,7 @@ function PreferenceForm({
   preferences = [],
   busy,
   onCancel,
+  onDelete,
   onSave,
 }) {
   const [body, setBody] = useState(pref?.body || "");
@@ -991,6 +1126,16 @@ function PreferenceForm({
         >
           Cancel
         </button>
+        {onDelete && (
+          <button
+            type="button"
+            className="ml-auto text-xs font-semibold text-rose underline decoration-rose/30 underline-offset-2 hover:decoration-rose"
+            onClick={onDelete}
+            disabled={busy}
+          >
+            Delete
+          </button>
+        )}
       </div>
     </form>
   );
