@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { daysUntil, formatRange, isDraftTrip, isPastTrip } from "@/lib/format";
@@ -13,12 +13,82 @@ import Tasks from "./Tasks";
 import Notes from "./Notes";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
+import { lookSummary } from "@/lib/tips/run";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
 import { SECONDARY } from "@/lib/travelers/access";
 import { syncPackingForPet } from "@/lib/pets/packing";
 import { ARRANGEMENTS, arrangementLabel, isComing } from "@/lib/pets/pets";
 
+/**
+ * What the look put on the other tabs, said on the tab that started it.
+ *
+ * The Overview button walks five places and files each tip against whichever one
+ * it belongs to, so most of what a press produces appears somewhere the person who
+ * pressed it is not looking. Reporting a bare total there is the same fault as a
+ * scheduled job that fails in silence, inverted: work happened and the screen
+ * showed no sign of it.
+ *
+ * The counts are of tips that are actually on those tabs right now, read from the
+ * same list the tabs render, rather than a remembered claim about what a look once
+ * did. A number that is checkable is worth more than a number that is a memory.
+ */
+function OverviewTips({ landed, counts, everLooked, onGo }) {
+  const summary = lookSummary({ byScope: counts });
+  const justNow = landed?.summary?.places?.some(
+    (place) => place.tab && place.tab !== "overview" && place.tab !== "trip",
+  );
+
+  return (
+    <section aria-label="Tips on the other tabs" className="card mb-5 p-5">
+      <h3 className="text-[0.7rem] font-bold uppercase tracking-[0.09em] text-ink-soft">
+        Elsewhere on this trip
+      </h3>
+      {summary.places.length ? (
+        <>
+          <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink-soft">
+            {justNow ? "That look also filed " : "There are "}
+            {summary.places
+              // "2 on the Itinerary" is shorter than "2 tips on the Itinerary"
+              // and worse: the noun is what makes the number mean anything, and
+              // it only needs saying once.
+              .map(
+                (place, i) =>
+                  `${place.count}${i ? "" : place.count === 1 ? " tip" : " tips"} on ${place.label}`,
+              )
+              .join(", ")
+              .replace(/, ([^,]*)$/, " and $1")}
+            .
+          </p>
+          <div className="no-print mt-2 flex flex-wrap gap-2">
+            {summary.places.map((place) => (
+              <button
+                key={place.tab || place.label}
+                type="button"
+                onClick={() => place.tab && onGo(place.tab)}
+                className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+              >
+                {`Read ${place.label.replace(/^the /, "")}`}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink-soft">
+          {everLooked
+            ? "Nothing on the Itinerary or Packing tabs at the moment. A look covers your next few bookings and your packing list as well as the trip itself, so anything worth saying about those will land there."
+            : "A look here covers your next few bookings and your packing list too. Whatever it finds about those lands on the Itinerary and Packing tabs, and this will say how much went where."}
+        </p>
+      )}
+    </section>
+  );
+}
+
 const TABS = [
+  // Overview first, and deliberately not the tab a trip opens on. Somebody
+  // pressing a trip they are already living in wants today's plans, not a summary
+  // of the whole thing -- so the order of the bar and the landing tab are two
+  // separate decisions, and this is the one that is only about order.
+  { id: "overview", label: "Overview" },
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
   { id: "tasks", label: "Tasks" },
@@ -59,6 +129,38 @@ export default function TripView({
   // neither write one nor, by policy, read one that matters -- so the tab goes.
   const tabs = readOnly ? TABS.filter((t) => t.id !== "notes") : TABS;
   const [tab, setTab] = useState("itinerary");
+  // What the last look filed, and where. Held here rather than inside the tips
+  // card so the Overview tab can keep saying it after somebody has been off to
+  // read the tips on another tab and come back.
+  const [landed, setLanded] = useState(null);
+  // Whether the tab bar has anything past its right edge. Measured, not guessed
+  // from a breakpoint: the labels are words, and how many fit depends on the font
+  // the device actually used.
+  const tabBarRef = useRef(null);
+  const [moreTabs, setMoreTabs] = useState(false);
+  useEffect(() => {
+    const bar = tabBarRef.current;
+    if (!bar) return;
+    const measure = () =>
+      setMoreTabs(bar.scrollWidth - bar.clientWidth - bar.scrollLeft > 2);
+    measure();
+    bar.addEventListener("scroll", measure, { passive: true });
+    // Rotating the phone changes the answer, and so does a font finally loading.
+    const ro = new ResizeObserver(measure);
+    ro.observe(bar);
+    return () => {
+      bar.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, []);
+  // Switching tabs from somewhere other than the bar -- a "Read Packing" press on
+  // the Overview, or a ?tab= link -- can select a tab that is off the right edge,
+  // leaving the bar looking as though nothing happened.
+  useEffect(() => {
+    const bar = tabBarRef.current;
+    const btn = bar?.querySelector(`[data-tab="${tab}"]`);
+    if (btn) btn.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [tab]);
 
   // Reminders links straight at a trip's task list, so honour ?tab= on arrival.
   // It is read after mount rather than during render so the server and the
@@ -573,31 +675,56 @@ export default function TripView({
           </div>
         )}
 
-        <nav className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand/60 px-3 py-2">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold whitespace-nowrap transition ${
-                tab === t.id
-                  ? "bg-white text-teal shadow-sm"
-                  : "text-ink-soft hover:text-ink"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        {/* Five tabs do not fit on a narrow phone, so the bar scrolls sideways.
+            It always did, but with four it only just overflowed and the cut fell
+            in the gap between two tabs, which read as an edge. With five the cut
+            lands mid-word, which reads as broken. The mask fades the last few
+            pixels so the bar looks like it continues rather than like it failed,
+            and tightening the padding below 640px buys back enough room that only
+            the last tab is ever clipped. */}
+        <div className="relative min-w-0">
+          <nav
+            ref={tabBarRef}
+            className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand/60 px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                data-tab={t.id}
+                onClick={() => setTab(t.id)}
+                className={`rounded-lg px-2.5 py-2 text-sm font-semibold whitespace-nowrap transition sm:px-4 ${
+                  tab === t.id
+                    ? "bg-white text-teal shadow-sm"
+                    : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          {/* Pointer-events off: a gradient that eats taps on the last tab would
+              be a worse fault than the one it is fixing. */}
+          {moreTabs ? (
+            <span
+              aria-hidden="true"
+              className="no-print pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-sand to-transparent"
+            />
+          ) : null}
+        </div>
       </section>
 
       <div className="mt-6">
-        {/* Tips about the trip as a whole live on the itinerary tab, not above
-            all of them. They are nearly all about plans and dates — when a thing
-            can be booked, when a window opens — so they belong beside the plans.
-            Standing above the tabs meant the same booking advice followed you
-            onto packing, tasks and notes, where it was noise. Packing advice has
-            its own place on the packing tab for the same reason. */}
-        {tab === "itinerary" && (
+        {/* Overview holds the advice about the trip as a whole, and it is the one
+            place on the page that can ask for a look.
+
+            It used to sit on the itinerary tab, on the reasoning that most of
+            these tips are about dates and bookings. But one press walks the trip,
+            the packing list and the next few bookings, so the same button on
+            three tabs was three ways to spend the same minute with no way to tell
+            which one had already been pressed — and the tab it was pressed on was
+            usually not the tab that changed. So the button lives here, once, and
+            says where its tips went. */}
+        {tab === "overview" && (
           <ProTips
             tips={tips.filter((tip) => tip.scope === "trip")}
             today={today}
@@ -606,7 +733,20 @@ export default function TripView({
             everLooked={everLooked}
             chain={lookAt}
             heading="Pro tips for this trip"
+            onLooked={setLanded}
+            onGo={setTab}
             readOnly={readOnly}
+          />
+        )}
+        {tab === "overview" && !readOnly && (
+          <OverviewTips
+            landed={landed}
+            counts={{
+              item: tips.filter((tip) => tip.scope === "item").length,
+              packing: tips.filter((tip) => tip.scope === "packing").length,
+            }}
+            everLooked={everLooked}
+            onGo={setTab}
           />
         )}
         {tab === "itinerary" && (

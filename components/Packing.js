@@ -443,14 +443,23 @@ export default function Packing({
   return (
     <section>
       {/* Above the progress bar, because the point of a packing tip is to be read
-          before the list is worked through rather than after. */}
+          before the list is worked through rather than after.
+
+          No button of its own. Asking for a look is one decision about the whole
+          trip, and it lives on the Overview tab; three buttons that each start
+          the same five-place walk, on three tabs, is three ways to spend the
+          same minute and no way to tell which one you already pressed. What
+          arrives here still arrives here. */}
       <ProTips
         tips={tips}
         today={today}
         tripId={tripId}
         scope="packing"
         everLooked={everLooked}
+        canLook={false}
         heading="Before you pack"
+        emptyFresh="Nothing here yet. A look on the Overview tab covers the packing list as well as the trip, and anything worth saying about what to take will land here."
+        emptyLooked="Nothing worth flagging about what to take at the moment. Packing tips only appear when there is something specific to say about where you are going, when, or what you have told the app you like."
         readOnly={readOnly}
       />
       {stranded.length > 0 && (

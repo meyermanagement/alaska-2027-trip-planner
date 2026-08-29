@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { useRouter } from "next/navigation";
 import { compareTips, tipWhen } from "@/lib/tips/tip";
-import { runLook } from "@/lib/tips/run";
+import { lookSummary, runLook } from "@/lib/tips/run";
 import { formatFullDay } from "@/lib/format";
 import { Spinner } from "./LinkPending";
 
@@ -47,6 +47,14 @@ export default function ProTips({
   emptyLooked = "Nothing worth flagging here at the moment. Tips only appear when there is something specific to say about your dates, your plans, or what you have told the app you like.",
   emptyFresh = "Nothing here yet. Ask for a look and anything genuinely useful about these particular plans will show up.",
   compact = false,
+  // Handed the breakdown when a look finishes, so the screen that owns the button
+  // can say where the tips went. A trip look writes to three tabs, and the tab it
+  // was pressed on is usually not the one that changed most.
+  onLooked = null,
+  // Where to send somebody who wants to read the tips that did not land here.
+  // Given a tab id; the trip page switches tabs. Left off, the breakdown is still
+  // said, just not pressable.
+  onGo = null,
   // The date of the thing these tips are about, when they hang off something
   // dated — an itinerary item. A tip with no deadline of its own is read and
   // sorted against this rather than being filed under "later".
@@ -72,6 +80,12 @@ export default function ProTips({
   // different ways of saying the same thing, and between them nobody has to guess
   // whether the button worked.
   const [progress, setProgress] = useState(null); // null | {done, total}
+  // Which places the last look actually filed something against. Kept so the
+  // sentence under the button can name them, and so the tabs that changed can be
+  // opened from here -- the tab a look is started on is usually not the one that
+  // changed most, and a screen reporting "6 tips" while showing two of them is a
+  // screen answering a question nobody asked.
+  const [landed, setLanded] = useState([]);
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef(0);
 
@@ -193,6 +207,7 @@ export default function ProTips({
       error,
       tookMs,
       note: said,
+      byScope,
     } = await runLook({
       tripId,
       steps,
@@ -205,6 +220,22 @@ export default function ProTips({
     // Whatever was found is already saved, so ask the server for the list again
     // either way — a look that stopped halfway still has something to show.
     if (found) router.refresh();
+    // Worked out before the early return on error, because a look that stopped
+    // halfway still filed what it found and the person who waited deserves to
+    // know where it went.
+    const summary = lookSummary({ byScope: byScope || {} });
+    // Only places somebody can actually be sent to, and never the one they are
+    // already standing on.
+    setLanded(
+      summary.places.filter((place) => place.tab && place.tab !== scope),
+    );
+    if (onLooked)
+      onLooked({
+        byScope: byScope || {},
+        found,
+        error: error || null,
+        summary,
+      });
     if (error) {
       setProblem(error);
       setNote(found ? `${found} found before that stopped${took}.` : "");
@@ -215,9 +246,10 @@ export default function ProTips({
     setLooked(true);
     setNote(
       found
-        ? found === 1
-          ? `One tip${took}.`
-          : `${found} tips${took}.`
+        ? // Broken out by place when the look covered several. One press here
+          // walks the trip, the packing list and the next few bookings, and a
+          // bare total leaves the two tabs that changed looking untouched.
+          `${summary.said}${took}`
         : // "Nothing worth telling you" is a claim about the world. When the
           // server says it never got as far as the world -- an empty Wallet, for
           // instance -- its words are the true ones.
@@ -225,7 +257,7 @@ export default function ProTips({
     );
     setBusy(false);
     setProgress(null);
-  }, [chain, scope, itemId, tripId, router]);
+  }, [chain, scope, itemId, tripId, router, onLooked]);
 
   // After the hooks, so a person's level changing does not change how many of
   // them run.
@@ -305,9 +337,29 @@ export default function ProTips({
           </div>
         </div>
       ) : note ? (
-        <p aria-live="polite" className="mb-2 text-[0.82rem] text-ink-soft">
-          {note}
-        </p>
+        <div className="mb-2">
+          <p aria-live="polite" className="text-[0.82rem] text-ink-soft">
+            {note}
+          </p>
+          {/* Directly under the sentence that names them, and directly under the
+              button that filled them in. A panel of links to the tabs that
+              changed, rendered at the bottom of a card that may be holding six
+              tips, is a panel nobody scrolls to. */}
+          {onGo && landed.length ? (
+            <div className="no-print mt-1.5 flex flex-wrap gap-2">
+              {landed.map((place) => (
+                <button
+                  key={place.tab}
+                  type="button"
+                  onClick={() => onGo(place.tab)}
+                  className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+                >
+                  {`Open ${place.label.replace(/^the /, "")}`}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {shown.length ? (
