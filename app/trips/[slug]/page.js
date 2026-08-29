@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import TripView from "@/components/TripView";
@@ -24,6 +25,7 @@ export default async function TripPage({ params }) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const access = await resolveAccess(supabase, user);
 
   const { data: trip } = await supabase
     .from("trips")
@@ -135,6 +137,7 @@ export default async function TripPage({ params }) {
     <>
       <TopBar />
       <TripView
+        level={access?.level}
         trip={trip}
         initialItinerary={itinerary.data || []}
         initialPacking={packing.data || []}

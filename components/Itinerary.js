@@ -307,6 +307,10 @@ function payload(draft) {
   };
 }
 
+// readOnly is a secondary traveler. They are meant to see the plan -- that is
+// most of the point of their having an account -- and to change none of it. What
+// survives is everything that reads: the items, their status pills, the tips, and
+// "Add to calendar", which writes nothing here.
 export default function Itinerary({
   items,
   tripId,
@@ -319,6 +323,7 @@ export default function Itinerary({
   tripName,
   destination = "",
   tips = [],
+  readOnly = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   // Grouped once rather than filtered inside every card, because a long day in
@@ -677,18 +682,20 @@ export default function Itinerary({
           >
             Print
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              if (adding) {
-                setAdding(false);
-                return;
-              }
-              addToDay(selected);
-            }}
-          >
-            {adding ? "Close" : "+ Add"}
-          </button>
+          {!readOnly && (
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                if (adding) {
+                  setAdding(false);
+                  return;
+                }
+                addToDay(selected);
+              }}
+            >
+              {adding ? "Close" : "+ Add"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -698,7 +705,7 @@ export default function Itinerary({
         </p>
       )}
 
-      {adding && (
+      {adding && !readOnly && (
         <form onSubmit={addItem} className="card mb-5 space-y-3 p-4">
           <ItemFields
             draft={draft}
@@ -711,7 +718,7 @@ export default function Itinerary({
         </form>
       )}
 
-      {untracked.length > 1 && (
+      {untracked.length > 1 && !readOnly && (
         <div className="no-print card mb-4 flex flex-wrap items-center justify-between gap-3 border-amber/30 bg-amber/5 p-3.5">
           <p className="text-sm text-ink-soft">
             <span className="font-semibold text-ink">
@@ -973,7 +980,7 @@ export default function Itinerary({
                                   Open Tasks
                                 </button>
                               </p>
-                            ) : (
+                            ) : readOnly ? null : (
                               <button
                                 type="button"
                                 onClick={() => makeBookingTask(item)}
@@ -986,39 +993,45 @@ export default function Itinerary({
                               </button>
                             ))}
                           <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">
-                            <button
-                              onClick={() => startEdit(item)}
-                              className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
-                            >
-                              Edit
-                            </button>
+                            {!readOnly && (
+                              <button
+                                onClick={() => startEdit(item)}
+                                className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
+                              >
+                                Edit
+                              </button>
+                            )}
                             {item.item_date && (
                               <AddToCalendar
                                 compact
                                 event={eventFromItem(item, { name: tripName })}
                               />
                             )}
-                            <span
-                              className="mx-1 h-4 w-px bg-sand-deep"
-                              aria-hidden
-                            />
-                            {STATUSES.filter((s) => s !== item.status).map(
-                              (s) => (
+                            {!readOnly && (
+                              <>
+                                <span
+                                  className="mx-1 h-4 w-px bg-sand-deep"
+                                  aria-hidden
+                                />
+                                {STATUSES.filter((s) => s !== item.status).map(
+                                  (s) => (
+                                    <button
+                                      key={s}
+                                      onClick={() => updateStatus(item, s)}
+                                      className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
+                                    >
+                                      {STATUS_STYLES[s].label}
+                                    </button>
+                                  ),
+                                )}
                                 <button
-                                  key={s}
-                                  onClick={() => updateStatus(item, s)}
-                                  className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
+                                  onClick={() => remove(item)}
+                                  className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
                                 >
-                                  {STATUS_STYLES[s].label}
+                                  Delete
                                 </button>
-                              ),
+                              </>
                             )}
-                            <button
-                              onClick={() => remove(item)}
-                              className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
-                            >
-                              Delete
-                            </button>
                           </div>
                           {/* Advice about this one booking, under it rather than
                               anywhere else, because a tip about the ferry is

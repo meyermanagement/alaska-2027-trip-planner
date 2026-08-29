@@ -24,6 +24,9 @@ import {
   whenColumns,
 } from "@/components/TaskWhen";
 
+// readOnly is a secondary traveler: they see only the tasks assigned to them and
+// may tick one off. Adding, rewording and removing come off the screen -- see the
+// note in Packing.js for why an ungated button here would silently lie.
 export default function Tasks({
   items,
   tripId,
@@ -32,6 +35,7 @@ export default function Tasks({
   userId,
   today: todayProp,
   onChange,
+  readOnly = false,
 }) {
   // Handed down from the server when there is one; worked out here otherwise, so
   // this still behaves if it is ever mounted somewhere that forgets to pass it.
@@ -224,55 +228,57 @@ export default function Tasks({
         </div>
       </div>
 
-      <form
-        onSubmit={add}
-        className={`card no-print mb-5 grid gap-2 p-4 ${
-          newTiming === ON_A_DATE
-            ? "sm:grid-cols-[1.8fr_1.15fr_1.15fr_1fr_1fr_auto]"
-            : "sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
-        }`}
-      >
-        <input
-          className="field"
-          placeholder="Add a task"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-        />
-        <WhenField
-          idPrefix="new-task"
-          timing={newTiming}
-          due={newDue}
-          onTiming={(value) => {
-            setNewTiming(value);
-            if (value !== ON_A_DATE) setNewDue("");
-          }}
-          onDue={setNewDue}
-        />
-        <select
-          className="field"
-          value={newAssignee}
-          onChange={(e) => setNewAssignee(e.target.value)}
+      {!readOnly && (
+        <form
+          onSubmit={add}
+          className={`card no-print mb-5 grid gap-2 p-4 ${
+            newTiming === ON_A_DATE
+              ? "sm:grid-cols-[1.8fr_1.15fr_1.15fr_1fr_1fr_auto]"
+              : "sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+          }`}
         >
-          {people.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <select
-          className="field"
-          value={newPriority}
-          onChange={(e) => setNewPriority(e.target.value)}
-          aria-label="Priority"
-        >
-          {PRIORITY_ORDER.map((p) => (
-            <option key={p} value={p}>
-              {PRIORITY_LABELS[p]}
-            </option>
-          ))}
-        </select>
-        <button className="btn btn-primary">Add</button>
-      </form>
+          <input
+            className="field"
+            placeholder="Add a task"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+          />
+          <WhenField
+            idPrefix="new-task"
+            timing={newTiming}
+            due={newDue}
+            onTiming={(value) => {
+              setNewTiming(value);
+              if (value !== ON_A_DATE) setNewDue("");
+            }}
+            onDue={setNewDue}
+          />
+          <select
+            className="field"
+            value={newAssignee}
+            onChange={(e) => setNewAssignee(e.target.value)}
+          >
+            {people.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <select
+            className="field"
+            value={newPriority}
+            onChange={(e) => setNewPriority(e.target.value)}
+            aria-label="Priority"
+          >
+            {PRIORITY_ORDER.map((p) => (
+              <option key={p} value={p}>
+                {PRIORITY_LABELS[p]}
+              </option>
+            ))}
+          </select>
+          <button className="btn btn-primary">Add</button>
+        </form>
+      )}
 
       <div className="mb-3 flex items-center gap-4 px-1 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
         <span>Priority</span>
@@ -443,20 +449,24 @@ export default function Tasks({
                           event={eventFromTask(task, trip)}
                         />
                       )}
-                      <button
-                        onClick={() => startEdit(task)}
-                        className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                        aria-label={`Edit ${task.title}`}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => remove(task)}
-                        className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                        aria-label={`Remove ${task.title}`}
-                      >
-                        ✕
-                      </button>
+                      {!readOnly && (
+                        <button
+                          onClick={() => startEdit(task)}
+                          className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                          aria-label={`Edit ${task.title}`}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {!readOnly && (
+                        <button
+                          onClick={() => remove(task)}
+                          className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                          aria-label={`Remove ${task.title}`}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
                   </li>
                 ),

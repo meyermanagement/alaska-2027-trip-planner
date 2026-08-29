@@ -36,11 +36,14 @@ import {
  * answer "what is left for Alaska"; this answers the question you actually ask
  * on a Tuesday morning — what needs doing next, and what is already late.
  */
+// readOnly is a secondary traveler: the list is already narrowed to their own
+// tasks by policy, and the tick is the only thing they may move.
 export default function Reminders({
   tasks,
   today,
   userId,
   assigneesByTrip = {},
+  readOnly = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -252,18 +255,20 @@ export default function Reminders({
                           event={eventFromTask(row.task, row.trip, today)}
                         />
                       )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          editingId === row.task.id
-                            ? setEditingId(null)
-                            : startEdit(row.task)
-                        }
-                        className="rounded-lg px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-ink-faint transition hover:bg-sand hover:text-teal"
-                        aria-expanded={editingId === row.task.id}
-                      >
-                        {editingId === row.task.id ? "Close" : "Edit"}
-                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            editingId === row.task.id
+                              ? setEditingId(null)
+                              : startEdit(row.task)
+                          }
+                          className="rounded-lg px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-ink-faint transition hover:bg-sand hover:text-teal"
+                          aria-expanded={editingId === row.task.id}
+                        >
+                          {editingId === row.task.id ? "Close" : "Edit"}
+                        </button>
+                      )}
                     </div>
                   </div>
 

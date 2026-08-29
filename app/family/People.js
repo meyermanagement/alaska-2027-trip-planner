@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
 import { ageToday } from "@/lib/travelers/ages";
+import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
   MOBILITY_AIDS,
   aidLabel,
@@ -52,6 +53,26 @@ export default function People({
   const [inviteBusy, setInviteBusy] = useState(null);
   const [inviteNote, setInviteNote] = useState(null);
   const [remindBusy, setRemindBusy] = useState(null);
+  // Whether the person reading this page may set anybody's level. A secondary
+  // traveler never sees the control; the database would refuse the write anyway,
+  // but silently, so drawing it would be a lie.
+  const myLevel = useMemo(() => {
+    const me = (travelers || []).find(
+      (t) =>
+        t.user_id === userId ||
+        (!!t.email &&
+          !!userEmail &&
+          t.email.toLowerCase() === userEmail.toLowerCase()),
+    );
+    // No row of their own means primary, matching is_secondary_traveler in the
+    // database and resolveAccess in lib/travelers/access.js. All three have to
+    // agree or somebody gets a screen that does not match what they can do.
+    return me?.access_level === SECONDARY ? SECONDARY : PRIMARY;
+  }, [travelers, userId, userEmail]);
+  const canSetLevels = myLevel !== SECONDARY;
+
+  const [levelBusy, setLevelBusy] = useState(null);
+  const [levelNote, setLevelNote] = useState(null);
   // Local copy so a tapped trip chip reacts immediately.
   const [roster, setRoster] = useState(rosters);
 
@@ -176,6 +197,24 @@ export default function People({
     setAddingPerson(false);
     router.refresh();
     return null;
+  }
+
+  // Moves somebody between primary and secondary. The database refuses to leave
+  // a family with no primary traveler, and that refusal is the message shown --
+  // it is written for a person to read, so there is nothing to translate.
+  async function setLevel(person, level) {
+    setLevelBusy(person.id);
+    setLevelNote(null);
+    const { error } = await supabase
+      .from("travelers")
+      .update({ access_level: level })
+      .eq("id", person.id);
+    setLevelBusy(null);
+    if (error) {
+      setLevelNote({ id: person.id, text: humanizeLevelError(error, person) });
+      return;
+    }
+    router.refresh();
   }
 
   // Turns the morning reminder emails on or off for one person. Written straight
@@ -363,6 +402,15 @@ export default function People({
               onReminders={(wanted) => setReminders(person, wanted)}
               onSendMine={() => sendMine(person)}
             />
+
+            {canSetLevels && (
+              <LevelPicker
+                person={person}
+                busy={levelBusy === person.id}
+                note={levelNote?.id === person.id ? levelNote : null}
+                onLevel={(level) => setLevel(person, level)}
+              />
+            )}
 
             {editingPerson === person.id && (
               <PersonForm
@@ -761,6 +809,57 @@ function stampDay(value) {
   return when.toLocaleDateString("en-US", { month: "long", day: "numeric" });
 }
 
+// The trigger in 20260828_access_levels.sql raises a sentence meant to be read,
+// so the job here is to notice it rather than to reword it.
+function humanizeLevelError(error, person) {
+  const text = error?.message || "";
+  if (/only primary traveler/i.test(text)) {
+    return `${person.name} is the only primary traveler, so somebody else has to be made primary first.`;
+  }
+  return "That could not be saved. Try again in a moment.";
+}
+
+// Who runs the trip and who is along for it. Only shown to a primary traveler,
+// and only on other people's rows plus your own -- but demoting yourself is what
+// the database refuses when you are the last one, so the refusal arrives as a
+// sentence rather than as a missing button.
+export function LevelPicker({ person, busy, note, onLevel }) {
+  const level = person.access_level === SECONDARY ? SECONDARY : PRIMARY;
+
+  return (
+    <div className="no-print mt-2.5 border-t border-[var(--line)] pt-2.5">
+      <p className="section-label">Access</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {LEVELS.map((option) => {
+          const on = option.id === level;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={busy || on}
+              aria-pressed={on}
+              onClick={() => onLevel(option.id)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                on
+                  ? "border-teal bg-teal text-white"
+                  : "border-[var(--line)] bg-white text-ink-soft hover:border-teal hover:text-ink"
+              } ${busy ? "opacity-60" : ""}`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+        {LEVELS.find((l) => l.id === level)?.blurb}
+      </p>
+      {note && (
+        <p className="mt-1.5 text-xs font-semibold text-rose">{note.text}</p>
+      )}
+    </div>
+  );
+}
+
 export function AccessRow({
   person,
   isMe,
@@ -789,7 +888,11 @@ export function AccessRow({
                 className="mr-1.5 inline-block h-2 w-2 rounded-full bg-teal align-middle"
               />
               <span className="break-all font-semibold">{person.email}</span>
-              {mine ? " — that's you" : " — signed in and can make changes"}
+              {mine
+                ? " — that's you"
+                : person.access_level === SECONDARY
+                  ? " — signed in, and can check off their own things"
+                  : " — signed in and can make changes"}
             </p>
           ) : person.email ? (
             <p className="mt-0.5 text-sm text-ink-soft">

@@ -14,6 +14,7 @@ import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
 import { tidyStranded } from "@/lib/packing/roster";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
+import { REFUSAL, SECONDARY, resolveAccess } from "@/lib/travelers/access";
 
 export const runtime = "nodejs";
 // Writing eighty rows one at a time can outlast the default budget, and a
@@ -76,6 +77,38 @@ const MAX_LINKS = 3;
 // in one card, low enough that a runaway model cannot rewrite the trip.
 const MAX_ACTIONS = 80;
 
+// The only two changes a secondary traveler may make, and only to their own row.
+const SECONDARY_WRITES = {
+  update_packing_item: "is_packed",
+  update_task: "is_done",
+};
+
+function secondaryRefusal(access, action) {
+  if (access?.level !== SECONDARY) return null;
+
+  const flag = SECONDARY_WRITES[action.tool];
+  if (!flag) return REFUSAL;
+
+  // Only the flag itself, and nothing else about the row.
+  const patch = action.patch || {};
+  const touched = Object.keys(patch).filter(
+    (k) => k !== flag && patch[k] !== undefined,
+  );
+  if (touched.length) {
+    return action.tool === "update_task"
+      ? "You can finish your own tasks, but not change what they say."
+      : "You can check your own things off the list, but not change them.";
+  }
+
+  // Ownership needs no check here. The lookups this route builds above run under
+  // the asking person's own read policy, so for a secondary traveler the packing
+  // and task maps contain only rows assigned to them -- validateAction resolving
+  // "check off the sunscreen" simply cannot land on somebody else's sunscreen,
+  // and an id for a row they cannot see fails to resolve. Re-querying it here
+  // would ask the same policy the same question twice.
+  return null;
+}
+
 export async function POST(request) {
   let payload;
   try {
@@ -110,11 +143,8 @@ export async function POST(request) {
   }
 
   // The family this user writes into. RLS enforces it too; we need the id.
-  const { data: memberships } = await supabase
-    .from("family_members")
-    .select("family_id")
-    .eq("user_id", user.id);
-  const familyId = memberships?.[0]?.family_id;
+  const access = await resolveAccess(supabase, user);
+  const familyId = access?.familyId;
   if (!familyId) {
     return NextResponse.json(
       { error: "No family group found." },
@@ -260,6 +290,19 @@ export async function POST(request) {
 
     if (!action) {
       results.push({ ok: false, summary: raw?.summary || "Change", error });
+      continue;
+    }
+
+    // A secondary traveler reaches this route at all only through a narrowed
+    // toolset, so anything arriving here that is not their own check-off did not
+    // come from a screen they were shown. Checked again anyway, because the
+    // client sends this list and the client is not the authority. The database
+    // would refuse the write too, but silently: row-level security filters a
+    // forbidden UPDATE away rather than raising, so without this the family would
+    // be told the change was saved when nothing happened.
+    const refusal = secondaryRefusal(access, action);
+    if (refusal) {
+      results.push({ ok: false, summary: action.summary, error: refusal });
       continue;
     }
 

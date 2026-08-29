@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
@@ -22,6 +23,12 @@ export default async function PeoplePage() {
     .select("family_id")
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
+
+  // A secondary traveler has no read access to what this screen is made of, so
+  // the page would render as a set of empty panels. Sending them somewhere real
+  // is kinder than showing them a room they cannot enter.
+  const access = await resolveAccess(supabase, user);
+  if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
 
   // Seven independent reads, asked for at once rather than in a queue.
@@ -42,7 +49,7 @@ export default async function PeoplePage() {
     supabase
       .from("travelers")
       .select(
-        "id, name, color, sort_order, is_person, date_of_birth, notes, email, user_id, invited_at, linked_at, wants_reminders, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages",
+        "id, name, color, sort_order, is_person, date_of_birth, notes, email, user_id, invited_at, linked_at, wants_reminders, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages, access_level",
       )
       .eq("is_person", true)
       .order("sort_order", { ascending: true }),

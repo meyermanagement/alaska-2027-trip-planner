@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { countNeedingAttention, todayISO } from "@/lib/reminders";
 import { loadHeaderNotices } from "@/lib/tips/load";
+import { resolveAccess } from "@/lib/travelers/access";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger from "./AskAlyTrigger";
 import NavTabs from "./NavTabs";
@@ -19,12 +20,18 @@ export default async function TopBar({ askHref, showAsk = true }) {
   // Read here rather than on each screen, because a passport warning that appears
   // on Trips and not on Packing is worse than no warning: it teaches you that the
   // band is decorative. One read, one answer, every screen.
-  const [{ data: rows }, notices] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [{ data: rows }, notices, access] = await Promise.all([
     supabase
       .from("predeparture_tasks")
       .select("due_date, timing, priority, trips(start_date, end_date, status)")
       .eq("is_done", false),
     loadHeaderNotices(supabase, today),
+    // Which menu items to draw. Read here with everything else rather than on
+    // each screen, so the menu cannot differ from one page to the next.
+    resolveAccess(supabase, user),
   ]);
   const attention = countNeedingAttention(rows || [], today);
 
@@ -45,7 +52,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
           {showAsk && <AskAlyTrigger href={askHref} />}
         </div>
       </header>
-      <NavTabs attention={attention} />
+      <NavTabs attention={attention} level={access?.level} />
       <PassportWarning warnings={notices.warnings} />
       <TipStrip tips={notices.urgent} today={today} />
     </>

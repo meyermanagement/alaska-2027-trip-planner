@@ -9,6 +9,7 @@ import {
 } from "@/lib/agent/context";
 import { validateAction, pendingTripNames } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
+import { resolveAccess } from "@/lib/travelers/access";
 import {
   asksToSave,
   heldBackNote,
@@ -71,6 +72,9 @@ export async function POST(request) {
       { status: 401 },
     );
   }
+
+  // Whether this person may ask Aly to change things, or only to answer.
+  const access = await resolveAccess(supabase, user);
 
   const { data: profileRow } = await supabase
     .from("profiles")
@@ -149,11 +153,18 @@ export async function POST(request) {
     ...extras,
     here,
     petNames,
+    level: access?.level,
+    travelerName: access?.travelerName,
   });
   // Not all 28 of them: the ones this screen and these words could plausibly
   // need. See lib/agent/toolset.js for why fewer is more accurate as well as
   // cheaper.
-  const tools = toolsForRequest({ focus, message: said, petNames });
+  const tools = toolsForRequest({
+    focus,
+    message: said,
+    petNames,
+    level: access?.level,
+  });
 
   const messages = [...toModelMessages(past), { role: "user", text: said }];
 

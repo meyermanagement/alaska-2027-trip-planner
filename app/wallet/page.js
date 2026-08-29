@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
@@ -19,6 +20,12 @@ export default async function RewardsPage() {
     .select("family_id")
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
+
+  // A secondary traveler has no read access to what this screen is made of, so
+  // the page would render as a set of empty panels. Sending them somewhere real
+  // is kinder than showing them a room they cannot enter.
+  const access = await resolveAccess(supabase, user);
+  if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
 
   const today = new Date().toISOString().slice(0, 10);

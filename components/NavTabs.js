@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PendingSwap } from "./LinkPending";
+import { SECONDARY } from "@/lib/travelers/access";
 import useSoftKeyboard from "./useSoftKeyboard";
 
 /**
@@ -90,7 +91,14 @@ const TABS = [
   },
 ];
 
-export default function NavTabs({ attention = 0 }) {
+// A secondary traveler -- a minor, or a friend along for one trip -- gets two
+// doors: the trips they are on, and their own share of the checklist. Their
+// packing items live inside a trip, on its packing tab, which is why there is no
+// third one. The rest is not merely hidden: the database refuses those reads, so
+// drawing those tabs would offer four empty rooms.
+const SECONDARY_TABS = new Set(["/trips", "/reminders"]);
+
+export default function NavTabs({ attention = 0, level = null }) {
   const pathname = usePathname() || "";
   const keyboardOpen = useSoftKeyboard();
   const isActive = (href) =>
@@ -98,6 +106,8 @@ export default function NavTabs({ attention = 0 }) {
   const countFor = (tab) => (tab.badge ? attention : 0);
   // Inside one trip, as opposed to the list of them.
   const insideTrip = /^\/trips\/[^/]+/.test(pathname);
+  const tabs =
+    level === SECONDARY ? TABS.filter((t) => SECONDARY_TABS.has(t.href)) : TABS;
 
   return (
     <nav
@@ -111,7 +121,7 @@ export default function NavTabs({ attention = 0 }) {
       style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-0.5 pt-1.5 min-[375px]:px-2 lg:w-auto lg:max-w-none lg:items-center lg:gap-1 lg:rounded-full lg:border lg:border-[var(--line)] lg:bg-white/90 lg:p-1.5 lg:pt-1.5 lg:shadow-[0_6px_24px_rgba(20,32,30,0.14)] lg:backdrop-blur-md">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           // The way back out of a trip, rather than a name for where you are.
           const isWayOut = tab.href === "/trips" && insideTrip;
           const active = isActive(tab.href) && !isWayOut;

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 // wants to come back to it, so the component and its route stay in the repo.
 // import CalendarLink from "@/components/CalendarLink";
 import { createClient } from "@/lib/supabase/server";
+import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
@@ -29,6 +30,7 @@ export default async function RemindersPage() {
   // The name and the tasks are asked for together, not one after the other.
   // Only what is still open, and only for trips that have not happened yet:
   // a reminder about a trip you already took is not a reminder.
+  const access = await resolveAccess(supabase, user);
   const familyIds = memberships.map((m) => m.family_id);
 
   const [{ data: profile }, { data: rows }, { data: travelers }] =
@@ -90,6 +92,7 @@ export default async function RemindersPage() {
         </div>
         {/* <CalendarLink /> */}
         <Reminders
+          readOnly={Boolean(access?.can.isSecondary)}
           tasks={tasks}
           today={todayISO()}
           userId={user.id}

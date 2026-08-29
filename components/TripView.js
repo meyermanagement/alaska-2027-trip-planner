@@ -14,6 +14,7 @@ import Notes from "./Notes";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
+import { SECONDARY } from "@/lib/travelers/access";
 import { syncPackingForPet } from "@/lib/pets/packing";
 import { ARRANGEMENTS, arrangementLabel, isComing } from "@/lib/pets/pets";
 
@@ -41,12 +42,22 @@ export default function TripView({
   packingTemplateItems = [],
   userId,
   userName,
+  // "secondary" for a minor or a friend along for the ride. They may read this
+  // trip and check off their own things, so the write affordances come off the
+  // screen rather than failing when pressed -- a forbidden UPDATE does not raise
+  // in Postgres, it matches no rows, so an ungated button would look like it
+  // worked and change nothing.
+  level = null,
   // Worked out on the server and handed down, so "overdue" means the same thing
   // in the first frame the browser draws as it does after it wakes up.
   today,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+  const readOnly = level === SECONDARY;
+  // Notes are a place the family talks to itself, and a secondary traveler can
+  // neither write one nor, by policy, read one that matters -- so the tab goes.
+  const tabs = readOnly ? TABS.filter((t) => t.id !== "notes") : TABS;
   const [tab, setTab] = useState("itinerary");
 
   // Reminders links straight at a trip's task list, so honour ?tab= on arrival.
@@ -392,13 +403,15 @@ export default function TripView({
                     {countdown} days away
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                >
-                  Edit trip
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                  >
+                    Edit trip
+                  </button>
+                )}
               </div>
               <h1 className="font-display mt-2 text-3xl font-semibold leading-tight">
                 {info.name}
@@ -424,9 +437,11 @@ export default function TripView({
                 <div className="mt-4">
                   <p className="section-label">
                     {past ? "Who went" : "Who is going"}
-                    <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
-                      — tap a name to change it
-                    </span>
+                    {!readOnly && (
+                      <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
+                        — tap a name to change it
+                      </span>
+                    )}
                   </p>
                   <div className="mt-1.5">
                     <MembershipChips
@@ -437,7 +452,7 @@ export default function TripView({
                       }))}
                       activeIds={going}
                       busyId={rosterBusy}
-                      onToggle={toggleTraveler}
+                      onToggle={readOnly ? null : toggleTraveler}
                     />
                   </div>
                   {rosterNote && (
@@ -458,10 +473,12 @@ export default function TripView({
                 <div className="mt-4">
                   <p className="section-label">
                     {past ? "Pets on this trip" : "Pets"}
-                    <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
-                      — tap an animal to settle it for this trip, then say what
-                      is happening to it
-                    </span>
+                    {!readOnly && (
+                      <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
+                        — tap an animal to settle it for this trip, then say
+                        what is happening to it
+                      </span>
+                    )}
                   </p>
                   <div className="mt-1.5">
                     <MembershipChips
@@ -548,7 +565,7 @@ export default function TripView({
         )}
 
         <nav className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand/60 px-3 py-2">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -597,6 +614,7 @@ export default function TripView({
             onOpenTasks={() => setTab("tasks")}
             tips={tips.filter((tip) => tip.scope === "item")}
             onChange={() => refetch("itinerary_items")}
+            readOnly={readOnly}
           />
         )}
         {tab === "packing" && (
@@ -613,6 +631,7 @@ export default function TripView({
             templates={packingTemplates}
             templateItems={packingTemplateItems}
             onChange={() => refetch("packing_items")}
+            readOnly={readOnly}
           />
         )}
         {tab === "tasks" && (
@@ -624,6 +643,7 @@ export default function TripView({
             userId={userId}
             today={today}
             onChange={() => refetch("predeparture_tasks")}
+            readOnly={readOnly}
           />
         )}
         {tab === "notes" && (

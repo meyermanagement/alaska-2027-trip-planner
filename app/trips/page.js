@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import { isDraftTrip, isPastTrip } from "@/lib/format";
@@ -23,6 +24,7 @@ export default async function TripsPage() {
 
   if (!memberships || memberships.length === 0) redirect("/join");
 
+  const access = await resolveAccess(supabase, user);
   const family = memberships[0].families;
 
   // None of these depend on each other, so they go together rather than one
@@ -114,7 +116,7 @@ export default async function TripsPage() {
               Everything here is shared live with everyone in the family group.
             </p>
           </div>
-          <NewTripButton familyId={family.id} />
+          {!access?.can.isSecondary && <NewTripButton familyId={family.id} />}
         </div>
 
         <TripBoard upcoming={upcoming} drafts={drafts} past={past} />

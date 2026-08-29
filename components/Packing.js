@@ -12,6 +12,11 @@ import {
 } from "@/lib/packing/roster";
 import ProTips from "./ProTips";
 
+// readOnly is a secondary traveler: they see only their own lines (the database
+// makes sure of that) and the tick is the one thing they may move. Everything
+// that adds, edits, removes or tidies comes off the screen, because a forbidden
+// UPDATE in Postgres matches no rows instead of raising -- an ungated button
+// would look like it worked.
 export default function Packing({
   items,
   tripId,
@@ -25,6 +30,7 @@ export default function Packing({
   today,
   everLooked = false,
   pets = [],
+  readOnly = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
@@ -460,7 +466,7 @@ export default function Packing({
             sets them aside rather than deleting them — packed state and notes
             included — so everything returns if you add them to this trip again.
           </p>
-          {strandedRemovable > 0 && (
+          {strandedRemovable > 0 && !readOnly && (
             <button
               onClick={tidy}
               disabled={tidying}
@@ -545,61 +551,63 @@ export default function Packing({
         to change what every future trip starts with.
       </p>
 
-      <form
-        onSubmit={add}
-        className={`card no-print mb-5 grid gap-2 p-4 ${
-          pets.length
-            ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
-            : "sm:grid-cols-[2fr_1fr_auto_auto]"
-        }`}
-      >
-        <input
-          className="field"
-          placeholder="Add an item"
-          value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
-        />
-        <input
-          className="field"
-          placeholder="Category"
-          list="packing-categories"
-          value={newCategory}
-          onChange={(e) => setNewCategory(e.target.value)}
-        />
-        <datalist id="packing-categories">
-          {categories.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-        <select
-          className="field"
-          value={newAssignee}
-          onChange={(e) => setNewAssignee(e.target.value)}
+      {!readOnly && (
+        <form
+          onSubmit={add}
+          className={`card no-print mb-5 grid gap-2 p-4 ${
+            pets.length
+              ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
+              : "sm:grid-cols-[2fr_1fr_auto_auto]"
+          }`}
         >
-          {people.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        {pets.length > 0 && (
+          <input
+            className="field"
+            placeholder="Add an item"
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+          />
+          <input
+            className="field"
+            placeholder="Category"
+            list="packing-categories"
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+          />
+          <datalist id="packing-categories">
+            {categories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
           <select
             className="field"
-            value={newPetId}
-            onChange={(e) => setNewPetId(e.target.value)}
-            aria-label="Which pet is this for"
-            title="Is this item for one of the animals?"
+            value={newAssignee}
+            onChange={(e) => setNewAssignee(e.target.value)}
           >
-            <option value="">Not for a pet</option>
-            {pets.map((pet) => (
-              <option key={pet.id} value={pet.id}>
-                For {pet.name}
+            {people.map((p) => (
+              <option key={p} value={p}>
+                {p}
               </option>
             ))}
           </select>
-        )}
-        <button className="btn btn-primary">Add</button>
-      </form>
+          {pets.length > 0 && (
+            <select
+              className="field"
+              value={newPetId}
+              onChange={(e) => setNewPetId(e.target.value)}
+              aria-label="Which pet is this for"
+              title="Is this item for one of the animals?"
+            >
+              <option value="">Not for a pet</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  For {pet.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="btn btn-primary">Add</button>
+        </form>
+      )}
 
       <div className="space-y-4">
         {grouped.map(([category, rows]) => (
@@ -837,20 +845,24 @@ export default function Packing({
                       )}
                     </div>
                     <div className="no-print flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => startEdit(item)}
-                        className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                        aria-label={`Edit ${item.item}`}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => remove(item)}
-                        className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                        aria-label={`Remove ${item.item}`}
-                      >
-                        ✕
-                      </button>
+                      {!readOnly && (
+                        <button
+                          onClick={() => startEdit(item)}
+                          className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                          aria-label={`Edit ${item.item}`}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {!readOnly && (
+                        <button
+                          onClick={() => remove(item)}
+                          className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                          aria-label={`Remove ${item.item}`}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
                   </li>
                 ),
