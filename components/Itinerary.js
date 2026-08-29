@@ -1046,6 +1046,7 @@ export default function Itinerary({
                             everLooked
                             compact
                             heading="Worth knowing"
+                            readOnly={readOnly}
                           />
                         </div>
                       </div>

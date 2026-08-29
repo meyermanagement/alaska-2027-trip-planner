@@ -597,6 +597,7 @@ export default function TripView({
             everLooked={everLooked}
             chain={lookAt}
             heading="Pro tips for this trip"
+            readOnly={readOnly}
           />
         )}
         {tab === "itinerary" && (

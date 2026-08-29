@@ -35,6 +35,15 @@ export default async function TopBar({ askHref, showAsk = true }) {
   ]);
   const attention = countNeedingAttention(rows || [], today);
 
+  // A secondary traveler has no read access to travel documents, so the passport
+  // check sees an empty shelf and concludes nobody has one -- which is how Veda
+  // came to be warned about passports she is not allowed to look at. The band
+  // exists to prompt an action, and every action it prompts belongs to a primary
+  // traveler, so for a secondary there is nothing true to say and it goes.
+  const secondary = Boolean(access?.can.isSecondary);
+  const warnings = secondary ? [] : notices.warnings;
+  const urgent = secondary ? [] : notices.urgent;
+
   // The menu is a sibling of the header, not a child: the header blurs what is
   // behind it, and a blurred element becomes the frame its fixed children are
   // positioned against, which would nail the menu to the top of the screen
@@ -53,8 +62,8 @@ export default async function TopBar({ askHref, showAsk = true }) {
         </div>
       </header>
       <NavTabs attention={attention} level={access?.level} />
-      <PassportWarning warnings={notices.warnings} />
-      <TipStrip tips={notices.urgent} today={today} />
+      <PassportWarning warnings={warnings} />
+      <TipStrip tips={urgent} today={today} />
     </>
   );
 }

@@ -41,6 +41,10 @@ export default function ProTips({
   // dated — an itinerary item. A tip with no deadline of its own is read and
   // sorted against this rather than being filed under "later".
   relatedDate = null,
+  // A secondary traveler may read the advice; every button on it -- Look for
+  // tips, Remind me, Clear -- writes, and the database refuses all three without
+  // raising an error, so leaving them on would look like they worked.
+  readOnly = false,
 }) {
   const router = useRouter();
   const [tips, setTips] = useState(initial);
@@ -194,7 +198,7 @@ export default function ProTips({
         {/* No button on an itinerary card. A trip has thirty of them and nobody
             is pressing thirty buttons — the look at trip level walks the
             bookings as well. */}
-        {tripId && !compact ? (
+        {tripId && !compact && !readOnly ? (
           <button
             type="button"
             onClick={look}
@@ -266,8 +270,8 @@ export default function ProTips({
               key={tip.id}
               tip={tip}
               today={today}
-              onResolve={resolve}
-              onTask={tip.trip_id ? makeTask : null}
+              onResolve={readOnly ? null : resolve}
+              onTask={readOnly || !tip.trip_id ? null : makeTask}
             />
           ))}
         </ul>
@@ -327,24 +331,28 @@ function TipCard({ tip, today, onResolve, onTask }) {
           ))}
         </p>
       ) : null}
-      <div className="no-print mt-3 flex flex-wrap gap-2">
-        {onTask ? (
-          <button
-            type="button"
-            onClick={() => onTask(tip)}
-            className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
-          >
-            Remind me
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => onResolve(tip, "cleared")}
-          className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
-        >
-          Clear
-        </button>
-      </div>
+      {onResolve || onTask ? (
+        <div className="no-print mt-3 flex flex-wrap gap-2">
+          {onTask ? (
+            <button
+              type="button"
+              onClick={() => onTask(tip)}
+              className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+            >
+              Remind me
+            </button>
+          ) : null}
+          {onResolve ? (
+            <button
+              type="button"
+              onClick={() => onResolve(tip, "cleared")}
+              className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   );
 }

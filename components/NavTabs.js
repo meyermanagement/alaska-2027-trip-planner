@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { PendingSwap } from "./LinkPending";
 import { SECONDARY } from "@/lib/travelers/access";
@@ -98,7 +99,39 @@ const TABS = [
 // drawing those tabs would offer four empty rooms.
 const SECONDARY_TABS = new Set(["/trips", "/reminders"]);
 
+// The loading skeleton draws this menu too, and it has no database of its own to
+// ask -- that is the whole point of a skeleton. Without help it falls back to the
+// full menu, which is why a secondary traveler saw all six tabs flicker past on
+// every navigation. So the answer is remembered in the browser the first time a
+// real screen supplies it, and the skeleton reads it back. It only ever decides
+// what to draw for a moment; the database is what actually refuses.
+const REMEMBERED = "alyeska.level";
+
+function remember(level) {
+  try {
+    if (level) window.localStorage.setItem(REMEMBERED, level);
+  } catch {
+    // A browser with storage switched off just gets the flicker back.
+  }
+}
+
+function recall() {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(REMEMBERED);
+  } catch {
+    return null;
+  }
+}
+
 export default function NavTabs({ attention = 0, level = null }) {
+  // Read once, lazily, so the first frame the skeleton draws is already right
+  // rather than being corrected a moment later.
+  const [recalled] = useState(recall);
+  const effective = level || recalled;
+  useEffect(() => {
+    remember(level);
+  }, [level]);
   const pathname = usePathname() || "";
   const keyboardOpen = useSoftKeyboard();
   const isActive = (href) =>
@@ -107,7 +140,9 @@ export default function NavTabs({ attention = 0, level = null }) {
   // Inside one trip, as opposed to the list of them.
   const insideTrip = /^\/trips\/[^/]+/.test(pathname);
   const tabs =
-    level === SECONDARY ? TABS.filter((t) => SECONDARY_TABS.has(t.href)) : TABS;
+    effective === SECONDARY
+      ? TABS.filter((t) => SECONDARY_TABS.has(t.href))
+      : TABS;
 
   return (
     <nav

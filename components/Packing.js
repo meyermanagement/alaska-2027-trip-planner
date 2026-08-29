@@ -451,6 +451,7 @@ export default function Packing({
         scope="packing"
         everLooked={everLooked}
         heading="Before you pack"
+        readOnly={readOnly}
       />
       {stranded.length > 0 && (
         <div
@@ -505,29 +506,37 @@ export default function Packing({
       </div>
 
       <div className="no-print mb-4 flex flex-wrap items-center gap-2">
-        <button
-          onClick={() => setWho("all")}
-          className={`chip border ${
-            who === "all"
-              ? "border-teal bg-teal text-white"
-              : "border-[var(--line)] bg-white text-ink-soft"
-          }`}
-        >
-          Everyone
-        </button>
-        {filterNames.map((p) => (
-          <button
-            key={p}
-            onClick={() => setWho(p)}
-            className={`chip border ${
-              who === p
-                ? "border-teal bg-teal text-white"
-                : "border-[var(--line)] bg-white text-ink-soft"
-            }`}
-          >
-            {p}
-          </button>
-        ))}
+        {/* Filtering by person is a choice with one answer when the list is
+            already one person's: a secondary traveler is shown only the lines
+            assigned to them, so the pills would all do the same thing. Hide
+            packed stays, because that one is about the list, not about who. */}
+        {!readOnly && (
+          <>
+            <button
+              onClick={() => setWho("all")}
+              className={`chip border ${
+                who === "all"
+                  ? "border-teal bg-teal text-white"
+                  : "border-[var(--line)] bg-white text-ink-soft"
+              }`}
+            >
+              Everyone
+            </button>
+            {filterNames.map((p) => (
+              <button
+                key={p}
+                onClick={() => setWho(p)}
+                className={`chip border ${
+                  who === p
+                    ? "border-teal bg-teal text-white"
+                    : "border-[var(--line)] bg-white text-ink-soft"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </>
+        )}
         <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-ink-soft">
           <input
             type="checkbox"
