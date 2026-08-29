@@ -59,7 +59,7 @@ export default async function TripsPage() {
       // Scoped to the household this screen is showing. Row-level security
       // already keeps other people's trips out; this keeps the reader's *other*
       // household out, which matters as soon as anybody belongs to two.
-      .eq("family_id", family.id)
+      .eq("family_id", familyId)
       .order("start_date", { ascending: true }),
     supabase
       .from("packing_items")
