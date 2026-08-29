@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_ICONS, formatStayRange } from "@/lib/format";
+import Stars from "@/components/Stars";
 import { tripPath } from "@/lib/trips/route";
 import {
   GROUPINGS,
@@ -603,31 +604,5 @@ function Details({ item, onCancel, onSave }) {
         </div>
       </form>
     </article>
-  );
-}
-
-function Stars({ value, onPick }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onPick(n)}
-          aria-label={`${n} star${n === 1 ? "" : "s"}`}
-          aria-pressed={value === n}
-          className="text-base leading-none transition hover:scale-110"
-        >
-          <span className={n <= value ? "text-amber" : "text-sand-deep"}>
-            ★
-          </span>
-        </button>
-      ))}
-      {value > 0 && (
-        <span className="ml-1.5 text-xs font-semibold text-ink-soft">
-          {value}/5
-        </span>
-      )}
-    </div>
   );
 }

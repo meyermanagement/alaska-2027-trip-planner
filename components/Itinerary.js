@@ -31,6 +31,8 @@ import {
   parseDate,
   stayNights,
 } from "@/lib/format";
+import Stars from "@/components/Stars";
+import { canReviewNow, reviewTarget } from "@/lib/reviews/when";
 
 const UNSCHEDULED = "unscheduled";
 const DAY_MS = 86400000;
@@ -268,6 +270,112 @@ function ItemFields({ draft, setDraft, destination = "" }) {
 }
 
 /** "Flights to Curacao - not booked" becomes "Book flights to Curacao". */
+/**
+ * The stars and the note, on an itinerary row for something that has happened.
+ *
+ * Reads from and writes to `target` rather than the row it is drawn under, so the
+ * four nights of one hotel share one opinion. It says so out loud when those are
+ * different rows -- a note that appears under a different night than the one you
+ * typed it on would otherwise look like a bug.
+ *
+ * The note stays closed until asked for. Every finished item growing a textarea
+ * would turn the last day of a trip into a wall of empty boxes.
+ */
+function ReviewRow({ item, target, busy, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(target.review || "");
+  const saving = busy === target.id;
+  const elsewhere = target.id !== item.id;
+
+  // The note belongs to the place, and the place can be reviewed from any of its
+  // nights. Somebody rating it from night four should not find night two's stale
+  // draft in the box.
+  useEffect(() => {
+    if (!open) setDraft(target.review || "");
+  }, [target.review, open]);
+
+  async function submit(e) {
+    e.preventDefault();
+    const err = await onSave(item, { review: draft.trim() || null });
+    if (!err) setOpen(false);
+  }
+
+  return (
+    <div className="no-print mt-3 border-t border-[var(--line)] pt-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Stars
+            size="sm"
+            value={target.rating || 0}
+            onPick={(rating) =>
+              onSave(item, {
+                rating: rating === target.rating ? null : rating,
+              })
+            }
+          />
+          {!target.rating && !target.review && (
+            <span className="text-xs text-ink-faint">
+              Been here now — how was it?
+            </span>
+          )}
+        </div>
+        {!open && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(target.review || "");
+              setOpen(true);
+            }}
+            className="whitespace-nowrap text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+          >
+            {target.review ? "Edit note" : "Add a note"}
+          </button>
+        )}
+      </div>
+
+      {elsewhere && (
+        <p className="mt-1.5 text-xs text-ink-faint">
+          Saved once for every night of this stay.
+        </p>
+      )}
+
+      {open ? (
+        <form onSubmit={submit} className="mt-2 space-y-2">
+          <textarea
+            className="field text-sm"
+            rows={2}
+            autoFocus
+            value={draft}
+            placeholder="Would we go back? What should we remember?"
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="btn btn-primary px-3 py-1.5 text-xs"
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost px-3 py-1.5 text-xs"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        target.review && (
+          <p className="mt-2 rounded-xl bg-sand px-3 py-2 text-sm leading-relaxed">
+            {target.review}
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
 function bookingTaskTitle(title) {
   let t = (title || "").trim();
   t = t.replace(/[\s—-]*\(?not\s+booked\)?\.?$/i, "").trim();
@@ -439,6 +547,34 @@ export default function Itinerary({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The time of day on the device, "HH:MM", or null until the browser says.
+  //
+  // Null on purpose for the first frame. The server cannot know what time it is
+  // where the family is standing, so if this started as a guess the server would
+  // render one set of rows as reviewable and the browser would render another, and
+  // React would paper over the difference. Null means no timed item on today counts
+  // as done yet, which is a thing both sides can agree on.
+  //
+  // The device clock rather than home's, for the same reason the day above follows
+  // the device: the question is whether dinner has happened where the family is
+  // sitting, and in Ketchikan that is four hours off Missouri.
+  const [nowHM, setNowHM] = useState(null);
+  useEffect(() => {
+    const read = () => {
+      const d = new Date();
+      setNowHM(
+        `${String(d.getHours()).padStart(2, "0")}:${String(
+          d.getMinutes(),
+        ).padStart(2, "0")}`,
+      );
+    };
+    read();
+    // A trip is a screen people leave open. Seven o'clock arriving while the page
+    // sits on a nightstand should bring the dinner's stars with it.
+    const timer = setInterval(read, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const railRef = useRef(null);
   const [overflowing, setOverflowing] = useState(false);
   useEffect(() => {
@@ -496,6 +632,7 @@ export default function Itinerary({
     return map;
   }, [tasks]);
   const [taskBusyId, setTaskBusyId] = useState(null);
+  const [reviewBusy, setReviewBusy] = useState(null);
 
   // Everything about this trip that has a date on it, so the whole thing can go
   // across in one file: the itinerary first, then the tasks that are still open.
@@ -663,6 +800,30 @@ export default function Itinerary({
   async function updateStatus(item, status) {
     await supabase.from("itinerary_items").update({ status }).eq("id", item.id);
     onChange();
+  }
+
+  // A rating or a note about a place, written the evening it happened rather than
+  // a fortnight later on another screen.
+  //
+  // Written to the row reviewTarget picks, not always the row that was pressed. A
+  // hotel typed in as four separate nights is one place with one opinion, and the
+  // Preferences tab collapses it to one card -- a note saved against the wrong
+  // night would save cleanly and then be invisible there.
+  async function saveReview(item, patch) {
+    const target = reviewTarget(item, items) || item;
+    setReviewBusy(target.id);
+    const { error: err } = await supabase
+      .from("itinerary_items")
+      .update(patch)
+      .eq("id", target.id);
+    setReviewBusy(null);
+    if (err) {
+      setError(err.message);
+      return err;
+    }
+    setError("");
+    onChange();
+    return null;
   }
 
   async function remove(item) {
@@ -1004,6 +1165,18 @@ export default function Itinerary({
                               {item.notes}
                             </p>
                           )}
+                          {/* Somewhere the family has now actually been. The
+                              stars appear on the walk home rather than a
+                              fortnight later on another tab. */}
+                          {!readOnly &&
+                            canReviewNow(item, { today, nowHM }) && (
+                              <ReviewRow
+                                item={item}
+                                target={reviewTarget(item, items) || item}
+                                busy={reviewBusy}
+                                onSave={saveReview}
+                              />
+                            )}
                           {item.status === "needs_booking" &&
                             (taskByItem.has(item.id) ? (
                               <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">

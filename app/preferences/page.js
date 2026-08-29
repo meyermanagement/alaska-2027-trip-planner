@@ -6,7 +6,8 @@ import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
 import Preferences from "./Preferences";
-import { isDraftTrip, isPastTrip } from "@/lib/format";
+import { isCurrentTrip, isDraftTrip, isPastTrip } from "@/lib/format";
+import { REVIEWABLE_CATEGORIES } from "@/lib/reviews/when";
 
 export const metadata = { title: "Preferences & Reviews · Alyeska" };
 
@@ -28,7 +29,7 @@ const GROUPS = [
     key: "eating",
     label: "Where we ate",
     categories: ["dining"],
-    blurb: "Restaurants and bars from past trips.",
+    blurb: "Restaurants and bars we have eaten at, most recent first.",
   },
 ];
 
@@ -95,9 +96,22 @@ export default async function HistoryPage() {
   const pastTrips = (trips || [])
     .filter((t) => isPastTrip(t))
     .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
-  const tripById = new Map(pastTrips.map((t) => [t.id, t]));
 
-  const { data: items } = pastTrips.length
+  // A trip in progress belongs here too, but only for what has already been
+  // rated on it. Reviews can now be written from the itinerary the evening
+  // something happens, and a note that saved successfully and then could not be
+  // found on the page built to hold reviews would be the worst kind of bug --
+  // the app quietly losing something somebody wrote. Unrated items from a trip
+  // still running stay off, because a record of where we have been should not
+  // read as a list of chores.
+  const liveTrips = (trips || [])
+    .filter((t) => isCurrentTrip(t))
+    .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
+
+  const shownTrips = [...pastTrips, ...liveTrips];
+  const tripById = new Map(shownTrips.map((t) => [t.id, t]));
+
+  const { data: rows } = shownTrips.length
     ? await supabase
         .from("itinerary_items")
         .select(
@@ -105,10 +119,15 @@ export default async function HistoryPage() {
         )
         .in(
           "trip_id",
-          pastTrips.map((t) => t.id),
+          shownTrips.map((t) => t.id),
         )
-        .in("category", ["lodging", "excursion", "activity", "dining"])
+        .in("category", REVIEWABLE_CATEGORIES)
     : { data: [] };
+
+  const liveIds = new Set(liveTrips.map((t) => t.id));
+  const items = (rows || []).filter(
+    (i) => !liveIds.has(i.trip_id) || i.rating || String(i.review || "").trim(),
+  );
 
   // Newest first within each group, so the last trip reads first.
   const sorted = (items || []).slice().sort((a, b) => {
@@ -132,10 +151,24 @@ export default async function HistoryPage() {
     rowsByPlace.get(key).push(i.id);
   }
 
+  // Which of a place's rows stands for it. Newest wins, except that a row
+  // carrying an opinion beats one that does not: the itinerary writes a review to
+  // the latest night of a stay, and if this page picked a different night to show
+  // the review would exist in the database and appear nowhere. reviewTarget on the
+  // other side makes the same choice.
+  const opinionated = (i) => Boolean(i.rating || String(i.review || "").trim());
+  const byPlace = new Map();
+  for (const i of sorted) {
+    const key = placeKey(i);
+    const held = byPlace.get(key);
+    if (!held || (!opinionated(held) && opinionated(i))) byPlace.set(key, i);
+  }
+
   const seen = new Set();
   const unique = sorted.filter((i) => {
     const key = placeKey(i);
     if (seen.has(key)) return false;
+    if (byPlace.get(key) !== i) return false;
     seen.add(key);
     return true;
   });
@@ -163,9 +196,10 @@ export default async function HistoryPage() {
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
             How we like to travel in general, and what we thought of everywhere
-            we have stayed and everything we have done on past trips. Rate a
-            place and leave a line about it, and it will be here the next time
-            we are deciding.
+            we have stayed and everything we have done. Rate a place and leave a
+            line about it &mdash; here, or on the trip itself the evening it
+            happens &mdash; and it will be waiting the next time we are
+            deciding.
           </p>
         </div>
 
@@ -183,18 +217,19 @@ export default async function HistoryPage() {
           Places we have been
         </h2>
 
-        {pastTrips.length === 0 ? (
+        {shownTrips.length === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">
-            Nothing here yet. Once a trip&apos;s last day has passed, its
-            hotels, excursions and restaurants show up on this page.
+            Nothing here yet. Rate a hotel, an excursion or a restaurant on a
+            trip once it has happened and it will show up here, and everything
+            from a finished trip arrives on this page by itself.
           </p>
         ) : total === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">
-            No stays, excursions or restaurants were saved on our past trips
+            No stays, excursions or restaurants were saved on our finished trips
             yet.
           </p>
         ) : (
-          <PlaceList groups={groups} trips={pastTrips} />
+          <PlaceList groups={groups} trips={shownTrips} />
         )}
       </main>
       <AskAlyGeneral />
