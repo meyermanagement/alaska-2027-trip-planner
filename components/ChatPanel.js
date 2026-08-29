@@ -30,11 +30,14 @@ const SUGGESTIONS = {
     "What notes do we have?",
     "Save a note that Veda wants Space Mountain first",
   ],
-  // Started from "Create with Aly" on the Trips page.
+  // Opened on the trip builder screen. Each of these is deliberately partial —
+  // one names a place with no dates, one names a time with no place, one is a
+  // whole trip in a sentence. Between them they say the thing the screen is
+  // trying to say, which is that you do not need to have decided anything yet.
   new_trip: [
     "A week somewhere warm over spring break",
-    "Somewhere we can drive to in three days",
-    "A repeat of Europe 2026, but slower",
+    "The big island of Hawaii, sometime next spring, to see the volcanoes",
+    "Somewhere we can drive to in a day, over a long weekend",
   ],
   // Opened from the Wallet tab.
   rewards: [
@@ -605,9 +608,12 @@ export default function ChatPanel({
                 </>
               ) : focus === "new_trip" ? (
                 <>
-                  Tell Aly what you have in mind and she will draft{" "}
-                  <span className="font-semibold text-ink">a new trip</span> —
-                  it lands in Drafts until you move it to Upcoming trips.
+                  Tell Aly what you have in mind and she will build it with you,{" "}
+                  <span className="font-semibold text-ink">
+                    a piece at a time
+                  </span>
+                  . Rough answers are fine — you do not need dates. It lands in
+                  Drafts until you move it to Upcoming trips.
                 </>
               ) : (
                 <>

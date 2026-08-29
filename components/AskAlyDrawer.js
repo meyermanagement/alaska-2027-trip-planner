@@ -18,7 +18,7 @@ export default function AskAlyDrawer({
 }) {
   const [open, setOpen] = useState(false);
   // Set when something on the page opens Aly with an opening message already
-  // written — "Create with Aly" on the Trips page does this. Cleared on close,
+  // written — the trip builder screen does this. Cleared on close,
   // so the next plain "Ask Aly" starts from an empty box.
   const [seed, setSeed] = useState(null);
   // Which conversation is on screen. `null` means the list of them, which is
@@ -63,7 +63,7 @@ export default function AskAlyDrawer({
             }
           : null,
       );
-      // Opened with something already written — "Create with Aly" — goes straight
+      // Opened with something already written — the trip builder — goes straight
       // into a fresh conversation. There is no sense showing a list to somebody
       // who has already typed their question.
       setCurrent(detail.seed ? { id: null, title: null } : null);

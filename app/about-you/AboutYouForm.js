@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ABOUT_ME_EXAMPLES, ABOUT_ME_PROMPTS } from "@/lib/travelers/profile";
+import DictationHint from "@/components/DictationHint";
 
 /**
  * The About You page, which is a whole screen rather than a card.
@@ -108,6 +109,12 @@ export default function AboutYouForm({
         onChange={(e) => setText(e.target.value)}
         autoFocus={first}
       />
+
+      {/* This box wants a paragraph, and a paragraph is not what anybody types
+          with their thumbs -- which is most of the people who see this screen,
+          since it is the first thing after signing up. Spoken, the same paragraph
+          takes twenty seconds. */}
+      <DictationHint className="mt-2.5" />
 
       <div className="mt-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">

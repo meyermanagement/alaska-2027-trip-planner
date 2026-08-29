@@ -51,7 +51,7 @@ export async function POST(request) {
 
   const tripId = payload?.tripId;
   // Which section of the trip the user was looking at, or "new_trip" when they
-  // came from "Create with Aly". Whitelisted so it can only ever be one of ours.
+  // came from the trip builder screen. Whitelisted so it can only ever be one of ours.
   const focus = isKnownFocus(payload?.focus) ? payload.focus : null;
   // The client sends only what was just typed. The conversation itself lives in
   // chat_messages, so it survives a reload, a different device, and a change of

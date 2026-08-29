@@ -2,9 +2,11 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import DraftView from "@/components/DraftView";
 import FooterBar from "@/components/FooterBar";
 import TripView from "@/components/TripView";
 import { todayISO } from "@/lib/reminders";
+import { isDraftTrip } from "@/lib/format";
 import { parseTripRef, tripRef, needsCanonical } from "@/lib/trips/route";
 
 // Finding the trip this URL is talking about.
@@ -193,6 +195,29 @@ export default async function TripPage({ params, searchParams }) {
       .select("pet_id, arrangement")
       .eq("trip_id", trip.id),
   ]);
+
+  // A draft gets its own screen. The trip screen below is built to answer "what
+  // is happening on this trip", and a draft's honest answer to most of that is
+  // "nothing yet" -- which read as a trip that had gone wrong rather than an idea
+  // that was going fine. What a draft needs on the page is the opposite: the six
+  // things it is still missing.
+  if (isDraftTrip(trip)) {
+    return (
+      <>
+        <TopBar />
+        <DraftView
+          trip={trip}
+          itinerary={itinerary.data || []}
+          tasks={tasks.data || []}
+          packing={packing.data || []}
+          travelers={(travelers.data || []).filter((t) => t.is_person)}
+          going={(roster.data || []).map((r) => r.traveler_id)}
+          today={todayISO()}
+        />
+        <FooterBar displayName={profile?.display_name} />
+      </>
+    );
+  }
 
   return (
     <>

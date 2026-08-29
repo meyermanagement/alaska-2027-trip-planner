@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
 import { formatRange, daysUntil, tripDayNumber } from "@/lib/format";
+import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
 import { tripPath } from "@/lib/trips/route";
 
@@ -161,6 +162,35 @@ function UpcomingCard({ trip }) {
   );
 }
 
+function DraftProgress({ trip }) {
+  const { answered, total, complete } = basicsProgress(trip);
+  const next = nextBasic(trip);
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span>
+          {answered} of {total} sketched in
+        </span>
+        {!complete && next && (
+          <span className="font-normal text-ink-faint">
+            next: {next.label.toLowerCase()}
+          </span>
+        )}
+      </div>
+      <div
+        className="mt-1 h-1 w-full overflow-hidden rounded-full bg-sand-deep"
+        role="img"
+        aria-label={`${answered} of ${total} basics answered`}
+      >
+        <div
+          className="h-full rounded-full bg-teal"
+          style={{ width: `${Math.round((answered / total) * 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function DraftCard({ trip }) {
   return (
     <div className="flex flex-col rounded-2xl border border-dashed border-[var(--line-strong)] bg-white/60 p-5">
@@ -179,10 +209,17 @@ function DraftCard({ trip }) {
           <PendingSpark className="h-4 w-4" />
         </Link>
       </h3>
+      {/* What the family said about when beats a range worked out from it, and a
+          range nobody settled says so. A draft is exactly where a guess gets
+          mistaken for a decision, because there is nothing else on the card to
+          contradict it. */}
       <p className="mt-0.5 text-sm font-medium text-ink-soft">
-        {trip.start_date
-          ? formatRange(trip.start_date, trip.end_date)
-          : "No dates yet"}
+        {whenText(trip) || "No dates yet"}
+        {trip.dates_approximate && trip.start_date && (
+          <span className="ml-1.5 text-xs font-normal text-ink-faint">
+            approximate
+          </span>
+        )}
       </p>
       {trip.destination && (
         <p className="mt-2 text-sm text-ink-soft">{trip.destination}</p>
@@ -193,7 +230,11 @@ function DraftCard({ trip }) {
         </p>
       )}
       <div className="mt-4 border-t border-[var(--line)] pt-3 text-xs font-semibold text-ink-soft">
-        <div className="flex flex-wrap gap-2">
+        {/* The six baseline components, and how many have an answer. This is the
+            number that says whether a draft is nearly a trip or barely an idea --
+            "3 plans so far" says neither. */}
+        <DraftProgress trip={trip} />
+        <div className="mt-2 flex flex-wrap gap-2">
           <span>
             {trip.stops} {trip.stops === 1 ? "plan" : "plans"} so far
           </span>
@@ -384,9 +425,10 @@ export default function TripBoard({
             </div>
           ) : (
             <p className="card p-5 text-sm text-ink-soft">
-              Nothing sketched out yet. Press “New trip” and either mark it a
-              draft or hand the idea to Aly — she will draft the whole thing and
-              leave it here.
+              Nothing sketched out yet. Press “New trip”, say what you have in
+              mind, and Aly will build it with you — a place, roughly when, and
+              whatever else you feel like telling her. It stays here until you
+              move it across.
             </p>
           )}
         </Section>

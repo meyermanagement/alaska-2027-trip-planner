@@ -54,7 +54,10 @@ export default async function TripsPage() {
     supabase
       .from("trips")
       .select(
-        "id, name, slug, public_id, destination, start_date, end_date, cover_emoji, summary, status",
+        // The six baseline components come with, because the Drafts view shows how
+        // far along each draft is -- and a card that reads "0 of 6" on a trip
+        // that has five answers is worse than no card at all.
+        "id, name, slug, public_id, destination, start_date, end_date, cover_emoji, summary, status, getting_there, staying, doing, getting_around, date_note, dates_approximate",
       )
       // Scoped to the household this screen is showing. Row-level security
       // already keeps other people's trips out; this keeps the reader's *other*
@@ -152,7 +155,7 @@ export default async function TripsPage() {
               Everything here is shared live with everyone in the family group.
             </p>
           </div>
-          {!access?.can.isSecondary && <NewTripButton familyId={familyId} />}
+          {!access?.can.isSecondary && <NewTripButton />}
         </div>
 
         <TripBoard
