@@ -99,6 +99,24 @@ const TABS = [
 // drawing those tabs would offer four empty rooms.
 const SECONDARY_TABS = new Set(["/trips", "/reminders"]);
 
+// And one destination that only they get. About You is in the footer for
+// everybody, which is the right weight for a primary traveler -- they can also
+// reach the same paragraph, and everything else about themselves, on the Family
+// tab. A secondary traveler cannot open that tab, and About Me is the one thing
+// about themselves they are allowed to change at all: the database refuses every
+// other column on their own row. A single thing you are permitted to edit should
+// not be a footnote under the fold, so for them it is a place in the menu with a
+// name on it.
+const SECONDARY_EXTRA = [
+  {
+    href: "/about-you",
+    label: "About you",
+    short: "About you",
+    sub: "What you are like on a trip",
+    Icon: PersonIcon,
+  },
+];
+
 // The loading skeleton draws this menu too, and it has no database of its own to
 // ask -- that is the whole point of a skeleton. Without help it falls back to the
 // full menu, which is why a secondary traveler saw all six tabs flicker past on
@@ -141,7 +159,7 @@ export default function NavTabs({ attention = 0, level = null }) {
   const insideTrip = /^\/trips\/[^/]+/.test(pathname);
   const tabs =
     effective === SECONDARY
-      ? TABS.filter((t) => SECONDARY_TABS.has(t.href))
+      ? [...TABS.filter((t) => SECONDARY_TABS.has(t.href)), ...SECONDARY_EXTRA]
       : TABS;
 
   return (
@@ -300,6 +318,15 @@ function StarIcon({ className }) {
   return (
     <svg {...iconProps(className)}>
       <path d="M10 3.3l2.1 4.2 4.6.7-3.3 3.2.8 4.6-4.2-2.2-4.2 2.2.8-4.6L3.3 8.2l4.6-.7L10 3.3Z" />
+    </svg>
+  );
+}
+
+function PersonIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <circle cx="10" cy="6.6" r="3" />
+      <path d="M4.4 16.7c0-2.9 2.5-4.8 5.6-4.8s5.6 1.9 5.6 4.8" />
     </svg>
   );
 }

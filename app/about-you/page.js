@@ -9,12 +9,16 @@ export const metadata = { title: "About you · Alyeska" };
 /**
  * The question that is worth asking before anything else, on a screen of its own.
  *
- * Reached two ways. On a first sign-in the Trips page sends people here, because
+ * Reached three ways. On a first sign-in the Trips page sends people here, because
  * an account with no trips and no preferences in it gives Aly nothing to work
  * with and every answer she gives comes out generic. After that it is a quiet
- * link in the footer, so it is somewhere a person can go back to on purpose --
- * including a secondary traveler, who cannot open the Family tab where the same
- * field also lives.
+ * link in the footer, which is the right weight for a primary traveler -- the
+ * same paragraph, and everything else about them, is also on the Family tab.
+ *
+ * For a secondary traveler it is a named place in the menu instead. They cannot
+ * open the Family tab, and this paragraph is the only thing about themselves the
+ * database will let them change, so it is the whole of their own record rather
+ * than one field of it, and the screen says so out loud.
  */
 export default async function AboutYouPage({ searchParams }) {
   const params = await searchParams;
@@ -36,7 +40,7 @@ export default async function AboutYouPage({ searchParams }) {
     // two Marks would both be handed the same paragraph to write.
     supabase
       .from("travelers")
-      .select("id, name, about_me")
+      .select("id, name, about_me, access_level")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle(),
@@ -55,6 +59,7 @@ export default async function AboutYouPage({ searchParams }) {
           name={mine.name || ""}
           about={mine.about_me || ""}
           first={first}
+          secondary={mine.access_level === "secondary"}
         />
       </main>
       <FooterBar displayName={profile?.display_name} />
