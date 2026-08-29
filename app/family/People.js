@@ -359,10 +359,10 @@ export default function People({
                   </p>
                 </div>
               </div>
-              <div className="no-print flex gap-2">
+              <div className="no-print flex flex-wrap justify-end gap-2">
                 <button
                   type="button"
-                  className="btn btn-ghost px-3 py-1.5 text-xs"
+                  className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
                   onClick={() =>
                     setEditingPerson(
                       editingPerson === person.id ? null : person.id,
@@ -371,9 +371,22 @@ export default function People({
                 >
                   Edit details
                 </button>
+                {trips.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+                    onClick={() =>
+                      setEditingTripsFor(
+                        editingTripsFor === person.id ? null : person.id,
+                      )
+                    }
+                  >
+                    {editingTripsFor === person.id ? "Done" : "Trips"}
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="btn btn-primary px-3 py-1.5 text-xs"
+                  className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
                   onClick={() => {
                     setEditingDoc(null);
                     setAddingFor(addingFor === person.id ? null : person.id);
@@ -384,15 +397,115 @@ export default function People({
               </div>
             </div>
 
-            {person.notes && (
+            {/* Everything a button on that row opens, opens here: directly under
+                the button, before the notes and the profile lines and the access
+                row. It used to render further down, below all of those, which on
+                a card with a paragraph and a passport in it put the form most of
+                a screen away from the thing that asked for it -- so a press read
+                as having done nothing at all. */}
+            {editingPerson === person.id && (
+              <PersonForm
+                person={person}
+                onCancel={() => setEditingPerson(null)}
+                onSave={(values) => savePerson(person.id, values)}
+              />
+            )}
+
+            {addingFor === person.id && (
+              <DocForm
+                onCancel={() => setAddingFor(null)}
+                onSave={(values) => saveDoc(person.id, null, values)}
+              />
+            )}
+
+            {editingTripsFor === person.id && (
+              <div className="no-print mt-3 space-y-3 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+                <p className="text-xs text-ink-soft">
+                  Check every trip {person.name} is on. Their packing list
+                  follows this.
+                </p>
+                {[
+                  ["Coming up", upcomingTrips],
+                  ["Still just an idea", draftTrips],
+                  ["Already done", pastTrips],
+                ].map(([heading, list]) =>
+                  list.length === 0 ? null : (
+                    <div key={heading}>
+                      <p className="section-label">{heading}</p>
+                      <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+                        {list.map((trip) => {
+                          const on = tripIdsFor(person.id).includes(trip.id);
+                          return (
+                            <li key={trip.id}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  toggleTrip(person.id, trip.id, !on)
+                                }
+                                disabled={rosterBusy === trip.id}
+                                aria-pressed={on}
+                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-sand/60 disabled:opacity-50"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${
+                                    on
+                                      ? "border-teal bg-teal text-white"
+                                      : "border-[var(--line)] bg-white text-transparent"
+                                  }`}
+                                >
+                                  ✓
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-semibold text-ink">
+                                    {trip.cover_emoji && (
+                                      <span
+                                        aria-hidden="true"
+                                        className="mr-1.5"
+                                      >
+                                        {trip.cover_emoji}
+                                      </span>
+                                    )}
+                                    {trip.name}
+                                  </span>
+                                  <span className="block text-xs text-ink-soft">
+                                    {formatRange(
+                                      trip.start_date,
+                                      trip.end_date,
+                                    )}
+                                  </span>
+                                </span>
+                              </button>
+                              {rosterNote[trip.id] ? (
+                                <p
+                                  aria-live="polite"
+                                  className="px-3 pb-2.5 text-xs text-ink-soft"
+                                >
+                                  {rosterNote[trip.id]}
+                                </p>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
+
+            {/* Not while the form is open: it holds all three of these, and
+                showing them again underneath is the same words twice on a card
+                that is already long. */}
+            {editingPerson !== person.id && person.notes && (
               <p className="mt-2.5 text-sm leading-relaxed text-ink-soft">
                 {person.notes}
               </p>
             )}
 
-            <ProfileLines person={person} />
+            {editingPerson !== person.id && <ProfileLines person={person} />}
 
-            {person.about_me && (
+            {editingPerson !== person.id && person.about_me && (
               <div className="mt-2.5 rounded-lg border border-sand-deep bg-sand/60 p-2.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                   In their own words
@@ -435,21 +548,6 @@ export default function People({
               />
             )}
 
-            {editingPerson === person.id && (
-              <PersonForm
-                person={person}
-                onCancel={() => setEditingPerson(null)}
-                onSave={(values) => savePerson(person.id, values)}
-              />
-            )}
-
-            {addingFor === person.id && (
-              <DocForm
-                onCancel={() => setAddingFor(null)}
-                onSave={(values) => saveDoc(person.id, null, values)}
-              />
-            )}
-
             <div className="mt-4 space-y-2.5">
               {docs.length === 0 && addingFor !== person.id && (
                 <p className="text-sm text-ink-soft">
@@ -481,115 +579,6 @@ export default function People({
                 ),
               )}
             </div>
-
-            {trips.length > 0 && (
-              <div className="mt-4 border-t border-[var(--line)] pt-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="section-label">Trips</p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setEditingTripsFor(
-                        editingTripsFor === person.id ? null : person.id,
-                      )
-                    }
-                    className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                  >
-                    {editingTripsFor === person.id ? "Done" : "Change trips"}
-                  </button>
-                </div>
-
-                {editingTripsFor === person.id ? (
-                  <div className="no-print mt-2 space-y-3">
-                    <p className="text-xs text-ink-soft">
-                      Check every trip {person.name} is on.
-                    </p>
-                    {[
-                      ["Coming up", upcomingTrips],
-                      ["Still just an idea", draftTrips],
-                      ["Already done", pastTrips],
-                    ].map(([heading, list]) =>
-                      list.length === 0 ? null : (
-                        <div key={heading}>
-                          <p className="section-label/70">{heading}</p>
-                          <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-[var(--line)] bg-white">
-                            {list.map((trip) => {
-                              const on = tripIdsFor(person.id).includes(
-                                trip.id,
-                              );
-                              return (
-                                <li key={trip.id}>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      toggleTrip(person.id, trip.id, !on)
-                                    }
-                                    disabled={rosterBusy === trip.id}
-                                    aria-pressed={on}
-                                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-sand/60 disabled:opacity-50"
-                                  >
-                                    <span
-                                      aria-hidden="true"
-                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${
-                                        on
-                                          ? "border-teal bg-teal text-white"
-                                          : "border-[var(--line)] bg-white text-transparent"
-                                      }`}
-                                    >
-                                      ✓
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                      <span className="block truncate text-sm font-semibold text-ink">
-                                        {trip.cover_emoji && (
-                                          <span
-                                            aria-hidden="true"
-                                            className="mr-1.5"
-                                          >
-                                            {trip.cover_emoji}
-                                          </span>
-                                        )}
-                                        {trip.name}
-                                      </span>
-                                      <span className="block text-xs text-ink-soft">
-                                        {formatRange(
-                                          trip.start_date,
-                                          trip.end_date,
-                                        )}
-                                      </span>
-                                    </span>
-                                  </button>
-                                  {rosterNote[trip.id] ? (
-                                    <p
-                                      aria-live="polite"
-                                      className="px-3 pb-2.5 text-xs text-ink-soft"
-                                    >
-                                      {rosterNote[trip.id]}
-                                    </p>
-                                  ) : null}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <PersonTripList
-                    name={person.name}
-                    upcoming={upcomingTrips.filter((t) =>
-                      tripIdsFor(person.id).includes(t.id),
-                    )}
-                    drafts={draftTrips.filter((t) =>
-                      tripIdsFor(person.id).includes(t.id),
-                    )}
-                    past={pastTrips.filter((t) =>
-                      tripIdsFor(person.id).includes(t.id),
-                    )}
-                  />
-                )}
-              </div>
-            )}
           </section>
         );
       })}
@@ -806,12 +795,15 @@ function DocForm({ doc, onCancel, onSave }) {
         </label>
       </div>
       <div className="flex gap-2">
-        <button className="btn btn-primary px-3 py-1.5 text-xs" disabled={busy}>
+        <button
+          className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
+          disabled={busy}
+        >
           {doc ? "Save changes" : "Save document"}
         </button>
         <button
           type="button"
-          className="btn btn-ghost px-3 py-1.5 text-xs"
+          className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
           onClick={onCancel}
         >
           Cancel
@@ -1020,7 +1012,7 @@ export function AccessRow({
               type="button"
               onClick={onSend}
               disabled={busy}
-              className="btn btn-ghost px-3 py-1.5 text-xs"
+              className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
             >
               {busy ? "Sending…" : "Email myself a test copy"}
             </button>
@@ -1034,7 +1026,7 @@ export function AccessRow({
                 type="button"
                 onClick={onSend}
                 disabled={busy}
-                className="btn btn-primary px-3 py-1.5 text-xs"
+                className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
               >
                 {busy
                   ? "Sending…"
@@ -1046,7 +1038,7 @@ export function AccessRow({
               <button
                 type="button"
                 onClick={onAddEmail}
-                className="btn btn-ghost px-3 py-1.5 text-xs"
+                className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
               >
                 Add an email
               </button>
@@ -1346,63 +1338,20 @@ function PersonForm({ person, onCancel, onSave }) {
         </p>
       )}
       <div className="flex gap-2">
-        <button className="btn btn-primary px-3 py-1.5 text-xs" disabled={busy}>
+        <button
+          className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
+          disabled={busy}
+        >
           Save
         </button>
         <button
           type="button"
-          className="btn btn-ghost px-3 py-1.5 text-xs"
+          className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
           onClick={onCancel}
         >
           Cancel
         </button>
       </div>
     </form>
-  );
-}
-
-// A person's trips, newest plans first and finished trips underneath, so the
-// list stays readable as trips pile up.
-function PersonTripList({ name, upcoming, drafts = [], past }) {
-  if (upcoming.length === 0 && drafts.length === 0 && past.length === 0) {
-    return (
-      <p className="mt-1.5 text-sm text-ink-soft">
-        {name} is not on any trips yet.
-      </p>
-    );
-  }
-
-  return (
-    <div className="mt-2 space-y-3">
-      {[
-        ["Coming up", upcoming],
-        ["Still just an idea", drafts],
-        ["Already done", past],
-      ].map(([heading, list]) =>
-        list.length === 0 ? null : (
-          <div key={heading}>
-            <p className="section-label/70">{heading}</p>
-            <ul className="mt-1 space-y-1.5">
-              {list.map((trip) => (
-                <li
-                  key={trip.id}
-                  className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2"
-                >
-                  <span className="flex min-w-0 items-baseline gap-2 text-sm font-semibold text-ink sm:flex-1">
-                    <span aria-hidden="true" className="shrink-0">
-                      {trip.cover_emoji || "•"}
-                    </span>
-                    <span className="truncate">{trip.name}</span>
-                  </span>
-                  <span className="shrink-0 text-xs text-ink-soft">
-                    {formatRange(trip.start_date, trip.end_date)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ),
-      )}
-    </div>
   );
 }
