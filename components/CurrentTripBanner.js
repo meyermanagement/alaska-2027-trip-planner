@@ -25,6 +25,10 @@ import { tripDayNumber } from "@/lib/format";
  * Solid teal, and quieter than the rose passport band below it, because the order
  * has to be honest: a passport that will not work is a problem, and being on
  * holiday is not.
+ *
+ * Only shown to people on the trip. That is decided in TopBar, which knows who is
+ * asking; pass it a trip and it draws one, so nothing here needs to know about
+ * rosters.
  */
 export default function CurrentTripBanner({ trip, today }) {
   if (!trip?.slug) return null;
