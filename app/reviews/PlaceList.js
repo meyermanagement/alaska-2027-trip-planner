@@ -1,9 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_ICONS, formatStayRange } from "@/lib/format";
+import { tripPath } from "@/lib/trips/route";
+import {
+  GROUPINGS,
+  SECTION_CAP,
+  SORTS,
+  browsePlaces,
+  defaultGroupBy,
+  tripFilterAsList,
+  tripOptions,
+  tripYears,
+} from "@/lib/reviews/browse";
 
 // Only the kinds this page keeps a record of. Re-filing a place as a flight
 // would make it vanish from the only screen you can edit it on.
@@ -17,9 +29,70 @@ const PLACE_KINDS = [
 export default function PlaceList({ groups, trips }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const [tripFilter, setTripFilter] = useState("all");
   // Local edits so a rating sticks immediately without a page refresh.
   const [edits, setEdits] = useState({});
+
+  const [query, setQuery] = useState("");
+  const [tripFilter, setTripFilter] = useState("all");
+  const [unjudgedOnly, setUnjudgedOnly] = useState(false);
+  const [sort, setSort] = useState("recent");
+  const [by, setBy] = useState(() => defaultGroupBy((trips || []).length));
+  // Which headings the reader has opened or closed against the default, and
+  // which sections they have asked to see all of.
+  const [toggled, setToggled] = useState({});
+  const [expanded, setExpanded] = useState({});
+
+  // The kinds are what the server grouped by; we regroup ourselves, so the flat
+  // list is the thing to work from.
+  const items = useMemo(
+    () =>
+      (groups || []).flatMap((g) =>
+        g.items.map((i) => ({ ...i, ...(edits[i.id] || {}) })),
+      ),
+    [groups, edits],
+  );
+  const kinds = useMemo(
+    () =>
+      (groups || []).map(({ key, label, blurb, categories }) => ({
+        key,
+        label,
+        blurb,
+        categories,
+      })),
+    [groups],
+  );
+
+  const view = useMemo(
+    () =>
+      browsePlaces({
+        items,
+        trips: trips || [],
+        kinds,
+        query,
+        tripId: tripFilter,
+        unjudgedOnly,
+        sort,
+        by,
+      }),
+    [items, trips, kinds, query, tripFilter, unjudgedOnly, sort, by],
+  );
+
+  // Changing what is on screen changes which headings ought to be open, so the
+  // reader's earlier opening and closing of other sections stops applying. Left
+  // in place it would hide the very rows a search just found.
+  useEffect(() => {
+    setToggled({});
+    setExpanded({});
+  }, [by, query, tripFilter, unjudgedOnly]);
+
+  const isOpen = (key) =>
+    key in toggled ? toggled[key] : view.open.includes(key);
+
+  const options = useMemo(
+    () => tripOptions({ items, trips: trips || [] }),
+    [items, trips],
+  );
+  const asList = tripFilterAsList((trips || []).length);
 
   async function save(id, patch) {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
@@ -55,69 +128,222 @@ export default function PlaceList({ groups, trips }) {
     return null;
   }
 
-  const shown = groups
-    .map((g) => ({
-      ...g,
-      items: g.items.filter(
-        (i) => tripFilter === "all" || i.trip_id === tripFilter,
-      ),
-    }))
-    .filter((g) => g.items.length > 0);
+  const filtered =
+    Boolean(query.trim()) || unjudgedOnly || tripFilter !== "all";
 
   return (
     <div>
-      {trips.length > 1 && (
-        <div className="no-print mb-6 flex flex-wrap gap-1.5">
+      <div className="no-print mb-4 space-y-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="min-w-[12rem] flex-1">
+            <span className="sr-only">Search these places</span>
+            <input
+              type="search"
+              className="field"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search a name, a town, or something we wrote"
+            />
+          </label>
+          {asList && (
+            <label className="min-w-[10rem] flex-1 sm:max-w-[16rem]">
+              <span className="sr-only">Which trip</span>
+              <select
+                className="field"
+                value={tripFilter}
+                onChange={(e) => setTripFilter(e.target.value)}
+              >
+                <option value="all">All {options.length} trips</option>
+                {tripYears(options).map((year) => (
+                  <optgroup
+                    key={year.year || "_none"}
+                    label={year.year || "No dates"}
+                  >
+                    {year.trips.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} · {t.count}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
           <FilterChip
-            active={tripFilter === "all"}
-            onClick={() => setTripFilter("all")}
+            active={unjudgedOnly}
+            onClick={() => setUnjudgedOnly((on) => !on)}
           >
-            All trips
+            {unjudgedOnly ? "✓ " : ""}Nothing said yet · {view.tally.unjudged}
           </FilterChip>
-          {trips.map((t) => (
+          <span
+            className="mx-1 hidden h-5 w-px bg-sand-deep sm:block"
+            aria-hidden="true"
+          />
+          <span className="text-xs font-semibold text-ink-soft">Group</span>
+          {GROUPINGS.map((g) => (
             <FilterChip
-              key={t.id}
-              active={tripFilter === t.id}
-              onClick={() => setTripFilter(t.id)}
+              key={g.value}
+              active={by === g.value}
+              onClick={() => setBy(g.value)}
             >
-              {t.cover_emoji} {t.name}
+              {g.label}
             </FilterChip>
           ))}
+          <label className="ml-auto flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-ink-soft">Sort</span>
+            <select
+              className="rounded-full border border-[var(--line)] bg-white px-2.5 py-1 text-xs font-semibold text-ink-soft"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
+              {SORTS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      )}
 
-      {shown.length === 0 && (
+        {!asList && (trips || []).length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            <FilterChip
+              active={tripFilter === "all"}
+              onClick={() => setTripFilter("all")}
+            >
+              All trips
+            </FilterChip>
+            {options.map((t) => (
+              <FilterChip
+                key={t.id}
+                active={tripFilter === t.id}
+                onClick={() => setTripFilter(t.id)}
+              >
+                {t.name}
+              </FilterChip>
+            ))}
+          </div>
+        )}
+
+        <p className="text-xs text-ink-soft">
+          {filtered
+            ? `${view.shown} of ${view.total} places`
+            : `${view.total} ${view.total === 1 ? "place" : "places"} from ${
+                options.length
+              } ${options.length === 1 ? "trip" : "trips"}`}
+          {view.shown > 0 && (
+            <>
+              {" · "}
+              {view.tally.judged} rated or written up
+              {view.tally.unjudged > 0 && `, ${view.tally.unjudged} not yet`}
+            </>
+          )}
+        </p>
+      </div>
+
+      {view.sections.length === 0 && (
         <p className="card p-5 text-sm text-ink-soft">
-          Nothing saved for that trip in these categories.
+          {query.trim()
+            ? `Nothing matches “${query.trim()}”. Try a shorter search, or clear the filters.`
+            : unjudgedOnly
+              ? "Everything showing has a rating or a note on it already."
+              : "Nothing saved for that trip in these categories."}
         </p>
       )}
 
-      <div className="space-y-9">
-        {shown.map((group) => (
-          <section key={group.key}>
-            <div className="flex items-center gap-3">
-              <h2 className="font-display text-xl font-semibold">
-                {group.label}
-              </h2>
-              <span className="h-px flex-1 bg-sand-deep" aria-hidden="true" />
-              <span className="text-xs font-semibold text-ink-soft">
-                {group.items.length}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-ink-soft">{group.blurb}</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {group.items.map((item) => (
-                <Place
-                  key={item.id}
-                  item={{ ...item, ...(edits[item.id] || {}) }}
-                  showTrip={tripFilter === "all"}
-                  onSave={save}
-                  onSaveDetails={saveDetails}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
+      <div className="space-y-6">
+        {view.sections.map((section) => {
+          const open = isOpen(section.key);
+          const showAll = Boolean(expanded[section.key]);
+          const capped =
+            !showAll && section.items.length > SECTION_CAP
+              ? section.items.slice(0, SECTION_CAP)
+              : section.items;
+          const judged = section.items.filter(
+            (i) => i.rating || String(i.review || "").trim(),
+          ).length;
+          return (
+            <section key={section.key}>
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() =>
+                  setToggled((prev) => ({ ...prev, [section.key]: !open }))
+                }
+                className="flex w-full items-center gap-3 text-left"
+              >
+                <span
+                  className={`text-ink-faint transition ${open ? "rotate-90" : ""}`}
+                  aria-hidden="true"
+                >
+                  ▶
+                </span>
+                <h2 className="font-display text-xl font-semibold">
+                  {section.label}
+                </h2>
+                <span className="h-px flex-1 bg-sand-deep" aria-hidden="true" />
+                <span className="whitespace-nowrap text-xs font-semibold text-ink-soft">
+                  {section.items.length}
+                  {judged < section.items.length && (
+                    <span className="font-normal">
+                      {" "}
+                      · {section.items.length - judged} to rate
+                    </span>
+                  )}
+                </span>
+              </button>
+              {open && (
+                <>
+                  {section.blurb ? (
+                    <p className="mt-1 pl-7 text-sm text-ink-soft">
+                      {section.blurb}
+                    </p>
+                  ) : section.trip ? (
+                    <p className="mt-1 pl-7 text-sm text-ink-soft">
+                      {section.trip.destination && (
+                        <span>{section.trip.destination} · </span>
+                      )}
+                      <Link
+                        href={tripPath(section.trip)}
+                        className="font-semibold text-teal underline decoration-teal/30 underline-offset-2"
+                      >
+                        Open the trip
+                      </Link>
+                    </p>
+                  ) : null}
+                  <div className="mt-3 grid items-start gap-3 sm:grid-cols-2">
+                    {capped.map((item) => (
+                      <Place
+                        key={item.id}
+                        item={item}
+                        showTrip={by !== "trip" && tripFilter === "all"}
+                        onSave={save}
+                        onSaveDetails={saveDetails}
+                      />
+                    ))}
+                  </div>
+                  {capped.length < section.items.length && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost mt-3 px-3 py-1.5 text-xs"
+                      onClick={() =>
+                        setExpanded((prev) => ({
+                          ...prev,
+                          [section.key]: true,
+                        }))
+                      }
+                    >
+                      Show all {section.items.length}
+                    </button>
+                  )}
+                </>
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );
@@ -196,7 +422,7 @@ function Place({ item, showTrip, onSave, onSaveDetails }) {
         </p>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-2.5">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--line)] pt-2.5">
         <Stars
           value={item.rating || 0}
           onPick={(rating) =>
@@ -204,7 +430,7 @@ function Place({ item, showTrip, onSave, onSaveDetails }) {
           }
         />
         {!editing && (
-          <div className="no-print flex items-center gap-3">
+          <div className="no-print flex items-center gap-3 whitespace-nowrap">
             <button
               type="button"
               onClick={() => setDetailsOpen(true)}
