@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendDueTodayReminders } from "@/lib/email/sendReminders";
 import { siteOrigin } from "@/lib/email/sendInvite";
+import { runRecord } from "@/lib/tasks/runs";
+import { homeToday } from "@/lib/format";
 
 export const maxDuration = 60;
 
@@ -47,7 +49,14 @@ export async function GET(request) {
   const outcome = await sendDueTodayReminders({
     supabase,
     siteUrl: siteOrigin(request),
+    today: homeToday(),
   });
+
+  // Written whatever happened, including when the run failed outright. This row is
+  // the only difference between "the email did not send" and "nobody knows
+  // whether anything was even asked to send" -- the send ledger cannot serve,
+  // because a failed send gives its rows back so tomorrow will retry.
+  await recordRun({ supabase, outcome, source: "cron" });
 
   return NextResponse.json(outcome, { status: outcome.ok ? 200 : 500 });
 }
@@ -71,7 +80,7 @@ export async function POST(request) {
 
   const { data: me } = await supabase
     .from("travelers")
-    .select("id, name, email")
+    .select("id, name, email, family_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -87,6 +96,19 @@ export async function POST(request) {
     siteUrl: siteOrigin(request),
     onlyTravelerId: me.id,
     record: false,
+    today: homeToday(),
+  });
+
+  // The test leaves a row too, marked as a test. Pressing this button is the
+  // fastest proof that the mailer itself works, and that proof is worth keeping
+  // where the app can show it rather than only in the moment the button was
+  // pressed. Recorded with the service key rather than the visitor's session, so
+  // a run cannot be forged into existence from a browser.
+  await recordRun({
+    supabase: createAdminClient(),
+    outcome,
+    source: "test",
+    familyId: me.family_id || null,
   });
 
   if (!outcome.ok) {
@@ -110,4 +132,30 @@ export async function POST(request) {
     to: outcome.sent[0].to,
     count: outcome.sent[0].count,
   });
+}
+
+/**
+ * Write the run down, and never let failing to write it break the run.
+ *
+ * A missing row is a gap in the record; an exception here would be a morning with
+ * no email at all because the bookkeeping fell over, which is a strictly worse
+ * trade. So this swallows its own errors on purpose.
+ */
+async function recordRun({ supabase, outcome, source, familyId = null }) {
+  if (!supabase) return;
+  try {
+    let family = familyId;
+    if (!family) {
+      // The cron has no visitor to ask, so it takes the household from the work
+      // it just considered. One family today; the column is nullable so a run
+      // that found nothing at all is still recorded.
+      const { data } = await supabase.from("families").select("id").limit(1);
+      family = data?.[0]?.id || null;
+    }
+    await supabase
+      .from("reminder_runs")
+      .insert(runRecord({ outcome, familyId: family, source }));
+  } catch {
+    // Deliberately silent. See above.
+  }
 }

@@ -11,6 +11,8 @@ import Reminders from "@/components/Reminders";
 import { isPastTrip } from "@/lib/format";
 import { todayISO } from "@/lib/reminders";
 import { assigneeOptions } from "@/lib/tasks/assignees";
+import MorningRun from "@/components/MorningRun";
+import { remindersDueToday } from "@/lib/tasks/dueToday";
 
 export const metadata = { title: "Reminders · Alyeska" };
 
@@ -33,26 +35,39 @@ export default async function RemindersPage() {
   const access = await resolveAccess(supabase, user);
   const familyIds = memberships.map((m) => m.family_id);
 
-  const [{ data: profile }, { data: rows }, { data: travelers }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("predeparture_tasks")
-        .select(
-          "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, public_id, start_date, end_date, status, family_id)",
-        )
-        .eq("is_done", false)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("travelers")
-        .select("id, name, is_person, family_id, sort_order")
-        .in("family_id", familyIds)
-        .order("sort_order", { ascending: true }),
-    ]);
+  const [
+    { data: profile },
+    { data: rows },
+    { data: travelers },
+    { data: runs },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("predeparture_tasks")
+      .select(
+        "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, public_id, start_date, end_date, status, family_id)",
+      )
+      .eq("is_done", false)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("travelers")
+      .select(
+        "id, name, is_person, family_id, sort_order, email, wants_reminders",
+      )
+      .in("family_id", familyIds)
+      .order("sort_order", { ascending: true }),
+    // What happened to the morning email, most recent first. Six is enough to
+    // find the last scheduled run and the last test behind a run of tests.
+    supabase
+      .from("reminder_runs")
+      .select("ran_for, ran_at, source, considered, sent, failed, error")
+      .order("ran_at", { ascending: false })
+      .limit(6),
+  ]);
 
   const tasks = (rows || [])
     .filter((row) => row.trips && !isPastTrip(row.trips))
@@ -80,6 +95,18 @@ export default async function RemindersPage() {
     roster: roster || [],
   });
 
+  // How many people the morning run would email right now, worked out with the
+  // same rules the run itself uses. Only there to catch the one case worth
+  // catching: a run that reported nothing to send while this screen is showing
+  // work that is plainly overdue. One of the two is wrong and the reader should
+  // not have to be the one who notices.
+  const today = todayISO();
+  const dueCount = remindersDueToday({
+    tasks,
+    travelers: travelers || [],
+    today,
+  }).length;
+
   return (
     <>
       <TopBar />
@@ -90,11 +117,12 @@ export default async function RemindersPage() {
             Every open task across every upcoming trip, the urgent ones first.
           </p>
         </div>
+        <MorningRun runs={runs || []} today={today} dueCount={dueCount} />
         {/* <CalendarLink /> */}
         <Reminders
           readOnly={Boolean(access?.can.isSecondary)}
           tasks={tasks}
-          today={todayISO()}
+          today={today}
           userId={user.id}
           assigneesByTrip={assigneesByTrip}
         />
