@@ -438,6 +438,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     lessons,
     pets,
     tripPets,
+    insights,
   ] = await Promise.all([
     supabase.from("trips").select("*").order("start_date", { ascending: true }),
     supabase
@@ -510,6 +511,15 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     supabase
       .from("trip_pets")
       .select("trip_id, pet_id, arrangement, arrangement_notes"),
+    // What the day view already found out about individual bookings. Loaded so
+    // that a question asked out loud gets the same answer as the line on the
+    // screen -- and so Aly does not go and search for a dress code the app is
+    // already displaying two inches above the chat.
+    supabase
+      .from("item_insights")
+      .select(
+        "item_id, trip_id, fingerprint, dress_code, arrive_minutes, arrive_why, heads_up, bring",
+      ),
   ]);
 
   return buildContext({
@@ -528,6 +538,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     lessons: lessons.data || [],
     pets: pets.data || [],
     tripPets: tripPets.data || [],
+    insights: insights.data || [],
     message: said,
     userName,
   });

@@ -33,6 +33,10 @@ import {
 } from "@/lib/format";
 import Stars from "@/components/Stars";
 import { canReviewNow, reviewTarget } from "@/lib/reviews/when";
+import DayBrief from "@/components/DayBrief";
+import DayItemBrief from "@/components/DayItemBrief";
+import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
+import { readStored } from "@/components/WhereIAm";
 
 const UNSCHEDULED = "unscheduled";
 const DAY_MS = 86400000;
@@ -575,6 +579,120 @@ export default function Itinerary({
     return () => clearInterval(timer);
   }, []);
 
+  // --- what today is actually like ----------------------------------------
+  //
+  // The forecast, the journeys between the day's stops, and whatever Aly has
+  // already found out about each of them. Fetched rather than rendered on the
+  // server because all three depend on outside services that are allowed to be
+  // slow or down, and a day view that waits for a geocoder before showing the
+  // schedule is a worse day view than one that shows the schedule and fills in
+  // the rest.
+  //
+  // Only ever for the day being looked at, and only when that day belongs to the
+  // trip window -- an unscheduled column has no weather and no journeys.
+  const [dayData, setDayData] = useState(null);
+  const [researching, setResearching] = useState(false);
+  const [researchError, setResearchError] = useState("");
+
+  const dayIsReal = selected !== UNSCHEDULED && Boolean(selected);
+  // Tomorrow gets the same treatment as today, so a six o'clock start is briefed
+  // the evening before rather than at six o'clock.
+  const withinReach =
+    dayIsReal &&
+    (selected === today ||
+      selected ===
+        new Date(parseDate(today).getTime() + DAY_MS)
+          .toISOString()
+          .slice(0, 10));
+
+  const loadDay = useCallback(
+    async (date) => {
+      if (!tripId || !date || date === UNSCHEDULED) {
+        setDayData(null);
+        return;
+      }
+      const params = new URLSearchParams({ trip: tripId, date });
+      const here = readStored();
+      // Only sent for the day being lived. Measuring the first leg of a day three
+      // days out from where somebody is standing now is a number about nothing.
+      if (here && date === today) {
+        params.set("lat", String(here.lat));
+        params.set("lon", String(here.lon));
+        if (here.accuracy) params.set("acc", String(here.accuracy));
+        if (here.source) params.set("src", here.source);
+      }
+      try {
+        const res = await fetch(`/api/day?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        // A slow answer for a day nobody is looking at any more is not an answer.
+        setDayData((prev) => (data.date === date ? data : prev));
+      } catch {
+        /* the day still renders; the extras are extras */
+      }
+    },
+    [tripId, today],
+  );
+
+  useEffect(() => {
+    setDayData(null);
+    setResearchError("");
+    if (!withinReach) return;
+    loadDay(selected);
+  }, [selected, withinReach, loadDay]);
+
+  // The research pass. Separate call because it is slow and because it costs
+  // money, so it runs once per day per change of plan rather than on every load.
+  const research = useCallback(async () => {
+    if (!tripId || !dayIsReal || researching) return;
+    setResearching(true);
+    setResearchError("");
+    try {
+      const res = await fetch("/api/day/brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trip: tripId, date: selected }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setResearchError(data.error || "Aly could not look into today.");
+        return;
+      }
+      await loadDay(selected);
+    } catch {
+      setResearchError("That did not get through. Try again in a moment.");
+    } finally {
+      setResearching(false);
+    }
+  }, [tripId, selected, dayIsReal, researching, loadDay]);
+
+  // Automatic for today and tomorrow, once each, when there is something new to
+  // look into. Deliberately not automatic for any other day: opening day nine to
+  // check a booking should not start a grounded search.
+  const briefed = useRef(new Set());
+  useEffect(() => {
+    if (!withinReach || readOnly) return;
+    if (!dayData || dayData.date !== selected) return;
+    if (!dayData.pending) return;
+    const key = `${selected}:${dayData.pending}`;
+    if (briefed.current.has(key)) return;
+    briefed.current.add(key);
+    research();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayData, selected, withinReach, readOnly]);
+
+  /** The insight and the journey for one item, from whatever came back. */
+  const dayFor = useCallback(
+    (itemId) => {
+      if (!dayData) return { insight: null, leg: null };
+      return {
+        insight: dayData.items?.find((r) => r.id === itemId)?.insight || null,
+        leg: dayData.legs?.find((l) => l.itemId === itemId) || null,
+      };
+    },
+    [dayData],
+  );
+
   const railRef = useRef(null);
   const [overflowing, setOverflowing] = useState(false);
   useEffect(() => {
@@ -1043,6 +1161,14 @@ export default function Itinerary({
           const dayItems = byDay.get(date) ?? [];
           const stays = staysByDay.get(date) ?? [];
           const active = date === selected;
+          // Which of this day's items are behind the family and which one is
+          // next. Only ever meaningful for the day being lived; for every other
+          // day every row comes back "future" and nothing is emphasized, which is
+          // right -- there is no "next" on day nine.
+          const plan = planDay(dayItems, { today, nowHM, viewing: date });
+          const phaseOfItem = new Map(
+            plan.items.map((r) => [r.item.id, r.phase]),
+          );
           return (
             <div
               key={date}
@@ -1058,7 +1184,32 @@ export default function Itinerary({
                     Day {i + 1} of {dayKeys.length}
                   </span>
                 )}
+                {/* Said in words as well as in the ring below, because the ring
+                    is invisible to a screen reader and to anybody skimming. */}
+                {date === today && plan.past > 0 && plan.ahead > 0 && (
+                  <span className="text-[0.72rem] text-ink-faint">
+                    {plan.ahead} still to come
+                  </span>
+                )}
               </div>
+              {/* Only on the day being lived and the one after it. A band offering
+                  to look into a day four months out would be answering a question
+                  nobody asked and spending money to do it. */}
+              {active && withinReach && dayItems.length > 0 && (
+                <DayBrief
+                  tripId={tripId}
+                  date={date}
+                  isToday={date === today}
+                  next={plan.next}
+                  nowHM={nowHM}
+                  weather={dayData?.date === date ? dayData.weather : null}
+                  pending={dayData?.date === date ? dayData.pending : 0}
+                  onResearch={research}
+                  researching={researching}
+                  researchError={researchError}
+                  readOnly={readOnly}
+                />
+              )}
               {stays.length > 0 && (
                 <ul className="mb-2 space-y-1">
                   {stays.map(({ item, night, nights, leaving }) => (
@@ -1120,8 +1271,15 @@ export default function Itinerary({
                     );
                   }
 
+                  const phase = phaseOfItem.get(item.id) || "future";
+                  const dayBits = active ? dayFor(item.id) : null;
+
                   return (
-                    <article key={item.id} className="card p-4">
+                    <article
+                      key={item.id}
+                      className={`card p-4 ${PHASE_CLASS[phase] || ""}`}
+                      aria-current={phase === "next" ? "true" : undefined}
+                    >
                       <div className="flex items-start gap-3">
                         <span className="text-xl leading-none">
                           {CATEGORY_ICONS[item.category]}
@@ -1139,6 +1297,17 @@ export default function Itinerary({
                             <span className={`chip ${status.cls}`}>
                               {status.label}
                             </span>
+                            {PHASE_LABEL[phase] && (
+                              <span
+                                className={`chip ${
+                                  phase === "next"
+                                    ? "border-teal/40 bg-teal/10 text-teal"
+                                    : "border-[var(--line)] text-ink-faint"
+                                }`}
+                              >
+                                {PHASE_LABEL[phase]}
+                              </span>
+                            )}
                           </div>
                           {nights && (
                             <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-ink-soft">
@@ -1245,6 +1414,21 @@ export default function Itinerary({
                               </>
                             )}
                           </div>
+                          {/* What Aly worked out about this one thing today: when
+                              to leave for it, what to wear, what would spoil it.
+                              Above the pro tips because it is about the next hour
+                              and they are about the trip. */}
+                          {dayBits && (
+                            <DayItemBrief
+                              item={item}
+                              insight={dayBits.insight}
+                              leg={dayBits.leg}
+                              nowHM={nowHM}
+                              isNext={phase === "next"}
+                              past={phase === "past" || phase === "done"}
+                              dimmed={phase === "past" || phase === "done"}
+                            />
+                          )}
                           {/* Advice about this one booking, under it rather than
                               anywhere else, because a tip about the ferry is
                               useless three screens away from the ferry. */}
