@@ -423,6 +423,12 @@ export default function People({
             {canSetLevels && (
               <LevelPicker
                 person={person}
+                isMe={
+                  person.user_id === userId ||
+                  (!!person.email &&
+                    !!userEmail &&
+                    person.email.toLowerCase() === userEmail.toLowerCase())
+                }
                 busy={levelBusy === person.id}
                 note={levelNote?.id === person.id ? levelNote : null}
                 onLevel={(level) => setLevel(person, level)}
@@ -846,42 +852,109 @@ function humanizeLevelError(error, person) {
   if (/only primary traveler/i.test(text)) {
     return `${person.name} is the only primary traveler, so somebody else has to be made primary first.`;
   }
+  // The screen no longer offers this, but the rule lives in the database and the
+  // sentence it raises is written to be read, so it is passed through rather than
+  // flattened into "that could not be saved".
+  if (/cannot change your own access/i.test(text)) {
+    return "You cannot change your own access. Another primary traveler has to do it, so that nobody can lock themselves out of their own trips.";
+  }
   return "That could not be saved. Try again in a moment.";
 }
 
-// Who runs the trip and who is along for it. Only shown to a primary traveler,
-// and only on other people's rows plus your own -- but demoting yourself is what
-// the database refuses when you are the last one, so the refusal arrives as a
-// sentence rather than as a missing button.
-export function LevelPicker({ person, busy, note, onLevel }) {
+// Who runs the trip and who is along for it. Only shown to a primary traveler.
+//
+// Your own row shows the level and no way to change it. It used to show both
+// pills, on the reasoning that the database would refuse a demotion when you were
+// the last primary and the refusal would arrive as a sentence. That reasoning had
+// a hole: when there is another primary the demotion is perfectly legal, so one
+// tap took away the tab that the pill lives on and there was no way back without
+// the other primary. A control whose success locks you out of reaching it again is
+// not a control, and this is refused in the database too.
+//
+// Somebody else's demotion asks first. It is not dangerous -- a primary can undo
+// it -- but it takes things away from a person, and the pill is one tap away from
+// the pill next to it.
+export function LevelPicker({ person, isMe, busy, note, onLevel }) {
   const level = person.access_level === SECONDARY ? SECONDARY : PRIMARY;
+  const [asking, setAsking] = useState(null);
+  const current = LEVELS.find((l) => l.id === level);
 
   return (
     <div className="no-print mt-2.5 border-t border-[var(--line)] pt-2.5">
       <p className="section-label">Access</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {LEVELS.map((option) => {
-          const on = option.id === level;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              disabled={busy || on}
-              aria-pressed={on}
-              onClick={() => onLevel(option.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                on
-                  ? "border-teal bg-teal text-white"
-                  : "border-[var(--line)] bg-white text-ink-soft hover:border-teal hover:text-ink"
-              } ${busy ? "opacity-60" : ""}`}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
+
+      {isMe ? (
+        <p className="mt-1.5 text-sm text-ink">
+          <span className="font-semibold">{current?.label}</span>
+          <span className="text-ink-soft">
+            {" "}
+            — this is you. Another primary traveler has to change your access,
+            so that nobody can lock themselves out of their own trips.
+          </span>
+        </p>
+      ) : (
+        <>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {LEVELS.map((option) => {
+              const on = option.id === level;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  disabled={busy || on}
+                  aria-pressed={on}
+                  onClick={() =>
+                    option.id === SECONDARY
+                      ? setAsking(option.id)
+                      : onLevel(option.id)
+                  }
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                    on
+                      ? "border-teal bg-teal text-white"
+                      : "border-teal/50 bg-white text-teal hover:bg-teal-soft/60"
+                  } ${busy ? "opacity-60" : ""}`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {asking === SECONDARY && (
+            <div className="mt-2 rounded-lg border border-amber/40 bg-amber/10 p-2.5">
+              <p className="text-xs leading-relaxed text-ink">
+                Make {person.name} a secondary traveler? They keep the itinerary
+                and their own packing and tasks, and lose the Wallet, the
+                documents, the templates, everybody else&rsquo;s lists, and this
+                tab. You can change it back.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary px-3 py-1 text-xs"
+                  disabled={busy}
+                  onClick={() => {
+                    setAsking(null);
+                    onLevel(SECONDARY);
+                  }}
+                >
+                  {busy ? "Saving…" : "Yes, make them secondary"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost px-3 py-1 text-xs"
+                  onClick={() => setAsking(null)}
+                >
+                  Keep them primary
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
-        {LEVELS.find((l) => l.id === level)?.blurb}
+        {current?.blurb}
       </p>
       {note && (
         <p className="mt-1.5 text-xs font-semibold text-rose">{note.text}</p>
