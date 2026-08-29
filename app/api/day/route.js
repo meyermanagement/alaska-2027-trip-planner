@@ -3,7 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { makeCache } from "@/lib/places/photon";
 import { anchorPoint, locateItems } from "@/lib/day/locate";
 import { fingerprint, isStale } from "@/lib/day/mark";
-import { travelBetween } from "@/lib/travel/route";
+import { travelBetween, ROAD_FACTOR } from "@/lib/travel/route";
+import { readLean } from "@/lib/travel/lean";
+import {
+  placeWords,
+  transitAt,
+  transitWorthOffering,
+} from "@/lib/travel/transit";
+import { travelOptions, WALK_LIMIT_KM } from "@/lib/travel/modes";
+import { topicFamily } from "@/lib/preferences/topics";
 import { dayOf, daySaid, fetchForecast, hourOf } from "@/lib/weather/forecast";
 import { minutesOf } from "@/lib/day/phase";
 import { normalizeHere } from "@/lib/places/here";
@@ -47,6 +55,10 @@ export async function GET(request) {
   const params = request.nextUrl.searchParams;
   const tripId = (params.get("trip") || "").trim();
   const date = (params.get("date") || "").trim();
+  // Which item the page believes is next. Only the page knows -- it depends on the
+  // clock on the device. The journey to that one item is worth spending several
+  // routing calls on; the rest of the day is not.
+  const nextId = (params.get("next") || "").trim();
   if (!/^[0-9a-f-]{36}$/i.test(tripId) || !/^\d{4}-\d{2}-\d{2}$/.test(date))
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
 
@@ -78,6 +90,29 @@ export async function GET(request) {
     .order("start_time", { ascending: true, nullsFirst: false })
     .order("sort_order", { ascending: true });
 
+  // --- how this family gets around -----------------------------------------
+  //
+  // Free text, written by them, under whatever heading they chose. Only the
+  // getting-around ones are read: a preference about hotel ratings has no opinion
+  // about a tram, and feeding it to the reader is how a sentence about parking
+  // becomes a claim about walking.
+  const { data: prefRows } = await supabase
+    .from("travel_preferences")
+    .select("topic, topics, body")
+    .eq("family_id", trip.family_id);
+  const aroundBodies = (prefRows || [])
+    .filter((p) =>
+      [p.topic, ...(Array.isArray(p.topics) ? p.topics : [])]
+        .filter(Boolean)
+        .some((t) => topicFamily(t)?.key === "around"),
+    )
+    .map((p) => p.body)
+    .filter(Boolean);
+  const lean = readLean(aroundBodies);
+
+  const transit = transitAt(trip.destination || "");
+  const place = placeWords(trip.destination || "", transit);
+
   const items = (rows || []).filter((i) => i.status !== "cancelled");
   if (items.length === 0)
     return NextResponse.json({
@@ -86,6 +121,7 @@ export async function GET(request) {
       items: [],
       legs: [],
       pending: 0,
+      transit: { quality: transit.quality, said: transit.said },
     });
 
   // --- where things are ----------------------------------------------------
@@ -155,11 +191,43 @@ export async function GET(request) {
       leg = await travelBetween(from, to, { departAt });
       legs.set(key, leg);
     }
+
+    // The routed times we have for this leg, by mode. Driving is the one every leg
+    // gets. The others are only worth their call on the journey the family is
+    // about to make.
+    const routed = { drive: leg.minutes };
+    if (item.id === nextId) {
+      const road = Number.isFinite(leg.straightKm)
+        ? leg.straightKm * ROAD_FACTOR
+        : null;
+      const alsoAsk = [];
+      if (road !== null && road <= WALK_LIMIT_KM)
+        alsoAsk.push(["walk", "WALK"]);
+      if (transitWorthOffering(transit.quality) && transit.quality !== "resort")
+        alsoAsk.push(["transit", "TRANSIT"]);
+      for (const [name, mode] of alsoAsk) {
+        const modeKey = `${key}:${mode}`;
+        let hop = legs.get(modeKey);
+        if (hop === undefined) {
+          hop = await travelBetween(from, to, { departAt, mode });
+          legs.set(modeKey, hop);
+        }
+        routed[name] = hop.minutes;
+      }
+    }
+
     journeys.push({
       itemId: item.id,
       fromItemId: previous?.id ?? null,
       fromHere: !previous,
       ...leg,
+      options: travelOptions({
+        straightKm: leg.straightKm,
+        transit,
+        lean,
+        place,
+        routed,
+      }),
     });
   }
 
@@ -195,6 +263,9 @@ export async function GET(request) {
     items: out,
     legs: journeys,
     pending: out.filter((i) => i.needsBrief).length,
+    // So the page can say why it is or is not offering a train, rather than just
+    // being quiet about it.
+    transit: { quality: transit.quality, said: transit.said },
   });
 }
 

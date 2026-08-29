@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import { readStored } from "./WhereIAm";
 import { minutesUntil, untilSaid } from "@/lib/day/phase";
+import WaysThere from "./WaysThere";
+import { distanceSaid } from "@/lib/travel/route";
 import { formatTime } from "@/lib/format";
 
 /**
@@ -37,6 +39,7 @@ export default function DayBrief({
   next,
   nowHM,
   weather,
+  nextLeg = null,
   pending,
   onResearch,
   researching,
@@ -104,6 +107,17 @@ export default function DayBrief({
           <span className="font-semibold">{next.title}</span> {until}
         </p>
       )}
+      {/* And how to get there, with the ways ordered by distance, by whether
+          transit is any good here, and by what the family wrote down. Only for the
+          next thing: the whole day's worth of this would be a timetable. */}
+      {next && nextLeg?.options?.length > 0 && (
+        <WaysThere
+          options={nextLeg.options}
+          title={nextLeg.fromHere ? "From where you are" : "Getting there"}
+          distance={distanceSaid(nextLeg)}
+        />
+      )}
+
       {isToday && !next && (
         <p className="mt-1.5 text-sm text-ink-soft">
           Nothing left on the schedule today.

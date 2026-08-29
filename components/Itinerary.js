@@ -605,13 +605,28 @@ export default function Itinerary({
           .toISOString()
           .slice(0, 10));
 
+  // Which item the family is heading to on the day being looked at. The server
+  // cannot work this out -- it depends on the clock on this device -- and it needs
+  // to know, because it will ask Google about walking and transit for that one
+  // journey and not for the other six.
+  const nextIdOnSelected = useMemo(() => {
+    if (!withinReach) return "";
+    const plan = planDay(byDay.get(selected) ?? [], {
+      today,
+      nowHM,
+      viewing: selected,
+    });
+    return plan.next?.id || "";
+  }, [withinReach, byDay, selected, today, nowHM]);
+
   const loadDay = useCallback(
-    async (date) => {
+    async (date, nextId) => {
       if (!tripId || !date || date === UNSCHEDULED) {
         setDayData(null);
         return;
       }
       const params = new URLSearchParams({ trip: tripId, date });
+      if (nextId) params.set("next", nextId);
       const here = readStored();
       // Only sent for the day being lived. Measuring the first leg of a day three
       // days out from where somebody is standing now is a number about nothing.
@@ -638,8 +653,8 @@ export default function Itinerary({
     setDayData(null);
     setResearchError("");
     if (!withinReach) return;
-    loadDay(selected);
-  }, [selected, withinReach, loadDay]);
+    loadDay(selected, nextIdOnSelected);
+  }, [selected, withinReach, loadDay, nextIdOnSelected]);
 
   // The research pass. Separate call because it is slow and because it costs
   // money, so it runs once per day per change of plan rather than on every load.
@@ -1203,6 +1218,12 @@ export default function Itinerary({
                   next={plan.next}
                   nowHM={nowHM}
                   weather={dayData?.date === date ? dayData.weather : null}
+                  nextLeg={
+                    dayData?.date === date && plan.next
+                      ? dayData.legs?.find((l) => l.itemId === plan.next.id) ||
+                        null
+                      : null
+                  }
                   pending={dayData?.date === date ? dayData.pending : 0}
                   onResearch={research}
                   researching={researching}

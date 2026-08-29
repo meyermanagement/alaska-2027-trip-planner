@@ -105,8 +105,11 @@ export default function DayItemBrief({
         </Line>
       )}
 
-      {/* The journey on its own, when there was no start time to work back from. */}
-      {!plan.complete && hasJourney && (
+      {/* The journey on its own, when there was no start time to work back from.
+          Suppressed on the next item, where the band above the day already lays
+          out every way of making it -- the same journey twice on one screen reads
+          as two different journeys. */}
+      {!plan.complete && hasJourney && !isNext && (
         <Line label="Getting there:">{travelSaid(leg)}</Line>
       )}
     </div>
