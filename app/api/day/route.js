@@ -15,6 +15,7 @@ import { topicFamily } from "@/lib/preferences/topics";
 import { dayOf, daySaid, fetchForecast, hourOf } from "@/lib/weather/forecast";
 import { minutesOf } from "@/lib/day/phase";
 import { normalizeHere } from "@/lib/places/here";
+import { homeToday } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -167,6 +168,12 @@ export async function GET(request) {
   // from wherever the family said they are, when they have said, because on the
   // morning of a day the useful question is how long it takes from here.
   const timed = items.filter((i) => minutesOf(i.start_time) !== null);
+  // Whether the day being asked about is the day it currently is where the family
+  // is standing. The trip's own zone, not the one back home: on the Alaska sailing
+  // those are three hours apart, and an Anchorage morning is still yesterday in
+  // Missouri for part of it.
+  const isToday = date === dayWhere(forecast?.timezone);
+
   const journeys = [];
   for (let n = 0; n < timed.length; n += 1) {
     const item = timed[n];
@@ -206,10 +213,21 @@ export async function GET(request) {
       if (transitWorthOffering(transit.quality) && transit.quality !== "resort")
         alsoAsk.push(["transit", "TRANSIT"]);
       for (const [name, mode] of alsoAsk) {
-        const modeKey = `${key}:${mode}`;
+        // Transit is the one mode that will not answer without a departure time,
+        // and departureFor returns nothing for an item with no time set -- which
+        // is most of them. So the leg you are standing at the start of, on the day
+        // you are on, was told "times vary" while the service would happily have
+        // said 28 minutes for leaving now. Leaving now is the truth in that case,
+        // so it is what we ask. Every other leg keeps its silence: a transit time
+        // for a journey with no hour is the length of a trip nobody is taking.
+        const at =
+          mode === "TRANSIT" && !departAt && isToday && !previous
+            ? new Date()
+            : departAt;
+        const modeKey = `${key}:${mode}${at && !departAt ? ":now" : ""}`;
         let hop = legs.get(modeKey);
         if (hop === undefined) {
-          hop = await travelBetween(from, to, { departAt, mode });
+          hop = await travelBetween(from, to, { departAt: at, mode });
           legs.set(modeKey, hop);
         }
         routed[name] = hop.minutes;
@@ -282,6 +300,21 @@ export async function GET(request) {
  * journey lookup fall back to a typical time instead of pinning live traffic to
  * the wrong hour.
  */
+/** Today as YYYY-MM-DD in a given zone, falling back to the family's own. */
+export function dayWhere(timezone, now = new Date()) {
+  if (!timezone) return homeToday(now);
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(now);
+  } catch {
+    return homeToday(now);
+  }
+}
+
 export function departureFor(date, startTime, timezone) {
   const t = String(startTime || "").slice(0, 5);
   if (!timezone || !/^\d{2}:\d{2}$/.test(t)) return undefined;
