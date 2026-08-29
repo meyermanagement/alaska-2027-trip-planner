@@ -18,8 +18,8 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * Trips is home; Reminders and Packing templates cut across all of them; the last
  * three are for looking things up.
  *
- * Half of these screens hold more than their name admits — Reviews is also
- * where the family's standing travel preferences live, and what used to be
+ * Half of these screens hold more than their name admits — Preferences is also
+ * where the reviews of places the family has been live, and what used to be
  * called Rewards is now the Wallet, holding every program the family belongs to —
  * so the broad noun leads and a second, quieter line carries what is inside.
  * The first line stays short so the dock is no wider than it was when the words
@@ -77,10 +77,12 @@ const TABS = [
     Icon: RewardsIcon,
   },
   {
-    href: "/reviews",
-    label: "Reviews",
-    short: "Reviews",
-    sub: "Travel preferences",
+    href: "/preferences",
+    label: "Preferences",
+    short: "Preferences",
+    sub: "And what you thought",
+    // The only label that does not fit the phone column at the normal size.
+    tight: true,
     Icon: StarIcon,
   },
   {
@@ -208,12 +210,15 @@ export default function NavTabs({ attention = 0, level = null }) {
               </span>
               <span
                 className={`w-full text-center leading-tight lg:hidden ${
-                  // Two words in a column sized for one: the way out is the only
-                  // label that needs a step down to stay on a single line, and it
-                  // gets one rather than being shortened or allowed to wrap and
-                  // make the whole bar taller.
-                  isWayOut
-                    ? "whitespace-nowrap text-[0.44rem] tracking-tight min-[375px]:text-[0.48rem] min-[430px]:text-[0.55rem]"
+                  // Labels too long for a column sized for one short word get a
+                  // step down rather than being clipped. "Preferences" at the
+                  // normal size measures 69px into 58px of column at 390, which
+                  // truncate renders as "Preference…" -- a tab whose name the
+                  // phone will not say. A smaller word you can read beats a
+                  // bigger one you cannot, and wrapping would make the whole bar
+                  // taller for one tab's sake.
+                  isWayOut || tab.tight
+                    ? "whitespace-nowrap tracking-tight text-[0.42rem] min-[430px]:text-[0.46rem]"
                     : "truncate"
                 }`}
               >
