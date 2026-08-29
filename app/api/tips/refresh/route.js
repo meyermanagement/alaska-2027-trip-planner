@@ -29,26 +29,41 @@ import { SCOPES, sameWindowTitle } from "@/lib/tips/tip";
 
 export const runtime = "nodejs";
 // Longer than the platform's default because a grounded look genuinely takes
-// half a minute: the model reads the trip, runs its own searches, and thinks. The
-// budget below is what the model gets of it; the rest pays for the reads before
-// and the writes after.
+// tens of seconds: the model reads the trip, runs its own searches, and thinks.
+// The budget below is what the model gets of it; the rest pays for the reads
+// before and the writes after. Not raised past 120, because the binding limit is
+// not this number -- it is how long the browser on the other end will wait, and
+// that is 110 seconds. See MODEL_BUDGET_MS.
 export const maxDuration = 120;
 
-// How much of that minute the model may have. The rest pays for the eight reads
-// this route makes before it asks anything, the writes afterwards, and the cold
-// start. A model call allowed to run right up to the ceiling is worse than one cut
-// short: when the platform stops listening the browser is told only that the load
-// failed, which is not something the app can explain or even see.
-// Not the whole two minutes. A browser gives up on a request that has said
-// nothing for about a minute and a half, and a request the browser abandons is
-// worse than a slightly shorter search: the writes happen at the end, so nothing
-// is kept. This leaves room to answer well inside what a phone will wait.
-const MODEL_BUDGET_MS = 55000;
-// Researching the destination gets longer than that, because it is a bigger
+// How much of that the model may have. The rest pays for the eight reads this
+// route makes before it asks anything, the writes afterwards, and the cold start.
+// A model call allowed to run right up to the platform ceiling is worse than one
+// cut short: when the platform stops listening the browser is told only that the
+// load failed, which is not something the app can explain or even see.
+//
+// This was 55 seconds, and 55 seconds was the whole problem. The real limit on
+// this route is not the platform's 120 -- it is lib/tips/run.js, which stops
+// waiting at 110 seconds because a browser abandons a silent request before very
+// much longer, and a request the browser abandons keeps nothing, since the writes
+// all happen at the end. So the window that actually exists is 110 seconds, and
+// the model was being given half of it while the other half went unspent.
+//
+// Measured, on the real trips, on the model production uses: thirteen grounded
+// tips calls came back in 7, 13, 15, 15, 22, 22, 29, 29, 29, 31, 38, 65 and 74
+// seconds. Same trips, same prompt, nothing wrong with any of them -- grounded
+// search has a very long tail, and the 74-second call had run the same three
+// searches as the 29-second one. Against the old budget the grounded pass got
+// about 33 seconds of that 55, so four of those thirteen lost their search and
+// fell back to an unverified answer. Against 95 it gets about 67, which covers
+// twelve of the thirteen and still answers inside what the browser will wait.
+const MODEL_BUDGET_MS = 95000;
+// Researching the destination gets the same, rather than less. It is a bigger
 // question and it is only asked when the sheet is missing or a week old: measured
-// against the real Disney trip it takes about forty seconds, and giving it the
-// same allowance as a tips call is what made it fail at the last fence.
-const FACTS_BUDGET_MS = 80000;
+// against the real Disney trip it takes about forty seconds, and it hands back to
+// the browser for a fresh request afterwards rather than trying to do the tips in
+// what is left, so there is nothing for it to leave room for.
+const FACTS_BUDGET_MS = 95000;
 
 /** Everything except the working fields the rules pass alongside a tip. */
 const columnsOnly = (tip) =>
@@ -176,6 +191,12 @@ export async function POST(request) {
     ? String(body.scope)
     : "trip";
   const itemId = body?.itemId ? String(body.itemId) : null;
+  // Set by lib/tips/run.js when this exact look already ran out of time once, so
+  // a search with a very long tail gets a second whole window instead of being
+  // reported as a failure. Read here rather than trusted blindly: it is only ever
+  // allowed to spare one extra request, and the second one reports its timeout
+  // like any other.
+  const retry = body?.retry === true;
   if (!tripId) return bad("Send a trip.");
   if (scope === "item" && !itemId) return bad("Send the itinerary item.");
 
@@ -435,10 +456,29 @@ export async function POST(request) {
       already,
     });
   } catch (error) {
+    // Ran long, on the first go, on something the app is allowed to ask again.
+    //
+    // Grounded search has a tail that no single budget covers: the same question
+    // on the same trip has been measured at 7 seconds and at 74. Reporting the 74
+    // as a failure was the wrong call twice over -- the family had waited the
+    // longest and got the least, and the thing that went wrong was not something
+    // they had done or could fix by waiting. So hand back instead. The browser
+    // already knows how to carry on from a handoff, because that is how a
+    // researched fact sheet reaches the screen, and a fresh request gets a fresh
+    // 95 seconds rather than the remains of these. Anything the rules filed on
+    // this pass is reported now so the count on screen keeps climbing.
+    if (error?.timedOut && !retry) {
+      return NextResponse.json({
+        step: "slow",
+        found: housed,
+        next: { scope, itemId, retry: true },
+        done: false,
+      });
+    }
     return NextResponse.json(
       {
         error: error?.timedOut
-          ? `${error.message} This look asks the model to read the whole ${scope === "packing" ? "packing list" : "trip"} and go and check what it finds, and that can run past what one request is allowed. Press Look for tips again — anything already found is saved.`
+          ? `${error.message} This look asks the model to read the whole ${scope === "packing" ? "packing list" : "trip"} and go and check what it finds, and it has now run past a full request twice. Press Look for tips again — anything already found is saved.`
           : error?.message || "The assistant could not be reached.",
         step: scope,
         housed,

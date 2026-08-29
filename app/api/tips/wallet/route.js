@@ -26,7 +26,11 @@ export const maxDuration = 120;
 // before it and the writes after, and for answering in words rather than being
 // cut off mid-sentence by the platform, which the browser can only report as a
 // failed load.
-const MODEL_BUDGET_MS = 55000;
+// Raised from 55 for the reason set out at length in the tips refresh route: the
+// real window is the 110 seconds lib/tips/run.js waits, not the platform's 120,
+// and half of it was going unspent while grounded calls with a long tail lost
+// their search and fell back to unverified answers.
+const MODEL_BUDGET_MS = 95000;
 
 const bad = (message, status = 400) =>
   NextResponse.json({ error: message }, { status });
