@@ -278,6 +278,41 @@ select {
     box-shadow 0.15s ease;
 }
 
+/* Date fields, and the one engine that does not size them like every other
+   input. Chromium honors the width: 100% above at every width the app is used
+   at -- measured at 320, 360, 390, 430 and 768 across all eight wrappers in the
+   app that hold a date, and none of them overflowed by a pixel. Safari, and iOS
+   Safari in particular, treats a date input as a native control whose intrinsic
+   width wins: the box grows to fit the widget rather than the column, so it runs
+   out past the right edge of whatever is holding it.
+
+   appearance: none is what stops that. It does not cost the picker -- iOS opens
+   its own modal wheel on tap regardless, and the calendar button on desktop is a
+   separate pseudo-element that this does not touch. min-width: 0 lets the
+   control shrink below its intrinsic width so a two-column grid can size its
+   tracks from the container instead of from the widget, and max-width keeps it
+   inside the box even if something upstream sizes it wrongly. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* With the native chrome gone, Safari centers the value inside the box and can
+   collapse its line box to nothing, which reads as an empty field on a control
+   that has a date in it. Both are the same one-line fix. */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.25em;
+}
+
 .field:focus {
   border-color: var(--color-teal);
   box-shadow: 0 0 0 3px rgba(15, 95, 87, 0.13);
