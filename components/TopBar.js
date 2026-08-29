@@ -5,6 +5,7 @@ import { loadHeaderNotices } from "@/lib/tips/load";
 import { resolveAccess } from "@/lib/travelers/access";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger from "./AskAlyTrigger";
+import CurrentTripBanner from "./CurrentTripBanner";
 import NavTabs from "./NavTabs";
 import PassportWarning from "./PassportWarning";
 import TipStrip from "./TipStrip";
@@ -51,6 +52,10 @@ export default async function TopBar({ askHref, showAsk = true }) {
   return (
     <>
       <header className="no-print sticky top-0 z-20 border-b border-[var(--line)] bg-sand/80 backdrop-blur-md">
+        {/* Above the logo, and inside the sticky header so it stays reachable
+            through any scroll on any screen. Nothing at all on the days the
+            family is not travelling, which is almost every day. */}
+        <CurrentTripBanner trip={notices.current} today={today} />
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-3">
           <Link href="/trips" className="flex items-center gap-2.5 text-ink">
             <AlyeskaMark className="h-7 w-7 shrink-0" />

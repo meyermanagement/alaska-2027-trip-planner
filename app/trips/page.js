@@ -4,7 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
-import { isDraftTrip, isPastTrip } from "@/lib/format";
+import {
+  homeToday,
+  isCurrentTrip,
+  isDraftTrip,
+  isPastTrip,
+} from "@/lib/format";
 import NewTripButton from "./NewTripButton";
 import TripBoard from "./TripBoard";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
@@ -95,12 +100,22 @@ export default async function TripsPage() {
     };
   };
 
+  // One date, used for all four buckets, so a trip cannot be sorted into two of
+  // them because the clock ticked over a midnight between two calls.
+  const today = homeToday();
   const all = (trips || []).map(card);
   const drafts = all.filter(isDraftTrip);
-  const upcoming = all.filter((t) => !isDraftTrip(t) && !isPastTrip(t));
+  // A trip they are on now is lifted out of Upcoming entirely. It is not upcoming
+  // — that is the point — and leaving it in the list meant the trip you were
+  // standing in the middle of looked exactly like the two you have not taken yet,
+  // with a countdown reading zero days away.
+  const current = all.filter((t) => isCurrentTrip(t, today));
+  const upcoming = all.filter(
+    (t) => !isDraftTrip(t) && !isPastTrip(t, today) && !isCurrentTrip(t, today),
+  );
   // Most recently finished first, so the last trip is the one you see.
   const past = all
-    .filter(isPastTrip)
+    .filter((t) => isPastTrip(t, today))
     .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
 
   // The About You question used to be a card at the top of this page. It is a
@@ -136,7 +151,13 @@ export default async function TripsPage() {
           {!access?.can.isSecondary && <NewTripButton familyId={family.id} />}
         </div>
 
-        <TripBoard upcoming={upcoming} drafts={drafts} past={past} />
+        <TripBoard
+          current={current}
+          upcoming={upcoming}
+          drafts={drafts}
+          past={past}
+          today={today}
+        />
       </main>
       <AskAlyGeneral />
       <FooterBar displayName={profile?.display_name} />

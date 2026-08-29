@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
-import { formatRange, daysUntil } from "@/lib/format";
+import { formatRange, daysUntil, tripDayNumber } from "@/lib/format";
 import PromoteDraft from "@/components/PromoteDraft";
 
 // Three kinds of trip, three shapes of card. Upcoming trips are the reason the
@@ -31,6 +31,79 @@ function Section({ id, view, title, blurb, count, children }) {
       </div>
       {blurb && <p className="mt-1 text-sm text-ink-soft">{blurb}</p>}
       <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * The trip they are on right now, in a panel of its own above everything else.
+ *
+ * It used to be an ordinary card in Upcoming, which was wrong in a way that only
+ * showed up on the day: the trip you are standing in the middle of looked exactly
+ * like the two you have not taken yet, and its countdown chip read "0 days away".
+ * So it comes out of that list and gets a shape nothing else on the page has —
+ * tinted, full width, above the tab switcher rather than inside it, because it is
+ * the one thing here that should not be possible to hide behind a tab.
+ *
+ * Wider than the other cards on purpose. Every other card on this screen is an
+ * invitation to plan something; this one is the answer to "what is happening
+ * today", so it carries a button rather than only being tappable.
+ */
+function CurrentCard({ trip, today }) {
+  const where = tripDayNumber(trip, today);
+  return (
+    <section
+      aria-label={`${trip.name}, happening now`}
+      className="rounded-2xl border border-teal/35 bg-teal-soft p-5 shadow-[0_14px_34px_-26px_rgba(15,95,87,0.55)]"
+    >
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span className="emoji-badge" aria-hidden="true">
+          {trip.cover_emoji}
+        </span>
+        <span className="chip bg-teal text-white">Happening now</span>
+        {where && (
+          <span className="text-xs font-bold uppercase tracking-[0.09em] text-teal">
+            Day {where.day} of {where.of}
+          </span>
+        )}
+      </div>
+      <h3 className="font-display mt-3 text-2xl font-semibold text-ink">
+        {trip.name}
+      </h3>
+      <p className="mt-0.5 text-sm font-semibold text-teal">
+        {formatRange(trip.start_date, trip.end_date)}
+        {trip.destination ? ` · ${trip.destination}` : ""}
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Link
+          href={`/trips/${trip.slug}?tab=itinerary`}
+          className="btn btn-primary relative"
+        >
+          <PendingVeil />
+          Open today’s plan
+        </Link>
+        <Link
+          href={`/trips/${trip.slug}?tab=packing`}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+        >
+          Packing {trip.packed}/{trip.packing}
+          <PendingSpark />
+        </Link>
+        {trip.tasks > trip.tasksDone && (
+          <Link
+            href={`/trips/${trip.slug}?tab=tasks`}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+          >
+            {trip.tasks - trip.tasksDone} still to do
+            <PendingSpark />
+          </Link>
+        )}
+      </div>
+      <p className="mt-3 text-xs font-semibold text-ink-soft">
+        {trip.going.length
+          ? `Going: ${trip.going.join(", ")}`
+          : "Nobody added yet"}
+      </p>
     </section>
   );
 }
@@ -195,11 +268,21 @@ function PastCard({ trip }) {
   );
 }
 
-export default function TripBoard({ upcoming, drafts, past }) {
+export default function TripBoard({
+  current = [],
+  upcoming,
+  drafts,
+  past,
+  today,
+}) {
   // Land on whatever the family most likely came for: their next trips, unless
-  // there are none and something is half-written.
+  // there are none and something is half-written. A trip in progress is above the
+  // switcher rather than in it, so it counts as having something to show and the
+  // page does not open on Drafts while they are away.
   const [view, setView] = useState(
-    upcoming.length === 0 && drafts.length > 0 ? "drafts" : "upcoming",
+    upcoming.length === 0 && current.length === 0 && drafts.length > 0
+      ? "drafts"
+      : "upcoming",
   );
 
   const tabs = [
@@ -210,6 +293,14 @@ export default function TripBoard({ upcoming, drafts, past }) {
 
   return (
     <>
+      {current.length > 0 && (
+        <div className="mb-7 space-y-4">
+          {current.map((trip) => (
+            <CurrentCard key={trip.id} trip={trip} today={today} />
+          ))}
+        </div>
+      )}
+
       <div
         className="no-print mb-6 inline-flex rounded-full border border-[var(--line)] bg-white p-1"
         role="tablist"
@@ -258,8 +349,9 @@ export default function TripBoard({ upcoming, drafts, past }) {
             </div>
           ) : (
             <p className="card p-5 text-sm text-ink-soft">
-              No trips coming up. Start one whenever you are ready — or sketch
-              an idea in Drafts and move it here once it is settled.
+              {current.length > 0
+                ? "Nothing after this one yet. The trip you are on is above — start the next one whenever you are ready."
+                : "No trips coming up. Start one whenever you are ready — or sketch an idea in Drafts and move it here once it is settled."}
             </p>
           )}
 
