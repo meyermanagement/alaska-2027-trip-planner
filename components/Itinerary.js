@@ -684,9 +684,15 @@ export default function Itinerary({
   // Automatic for today and tomorrow, once each, when there is something new to
   // look into. Deliberately not automatic for any other day: opening day nine to
   // check a booking should not start a grounded search.
+  //
+  // It runs for a secondary traveler too. The look writes advice about items that
+  // already exist rather than changing the plan, and skipping it meant somebody
+  // who woke first and opened today got a day with no dress code, no departure
+  // time and nothing to explain the absence -- the same screen a primary sees,
+  // with the useful half missing.
   const briefed = useRef(new Set());
   useEffect(() => {
-    if (!withinReach || readOnly) return;
+    if (!withinReach) return;
     if (!dayData || dayData.date !== selected) return;
     if (!dayData.pending) return;
     const key = `${selected}:${dayData.pending}`;
@@ -694,7 +700,7 @@ export default function Itinerary({
     briefed.current.add(key);
     research();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayData, selected, withinReach, readOnly]);
+  }, [dayData, selected, withinReach]);
 
   /** The insight and the journey for one item, from whatever came back. */
   const dayFor = useCallback(

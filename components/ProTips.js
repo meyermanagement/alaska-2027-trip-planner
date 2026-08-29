@@ -7,6 +7,8 @@ import { compareTips, tipWhen } from "@/lib/tips/tip";
 import { lookSummary, runLook } from "@/lib/tips/run";
 import { formatFullDay } from "@/lib/format";
 import { Spinner } from "./LinkPending";
+import { mayWrite } from "@/lib/travelers/allowed";
+import { SECONDARY } from "@/lib/travelers/access";
 
 /**
  * A tip, and the two things worth doing with one.
@@ -259,9 +261,17 @@ export default function ProTips({
     setProgress(null);
   }, [chain, scope, itemId, tripId, router, onLooked]);
 
+  // Producing a tip is refused by policy for a secondary traveler, so the button
+  // is not offered rather than offered and swallowed.
+  const canLookHere = mayWrite(readOnly ? SECONDARY : null, "tripTips");
+
   // After the hooks, so a person's level changing does not change how many of
   // them run.
-  if (readOnly) return null;
+  //
+  // A secondary traveler sees the tips. Hiding the whole section took the advice
+  // away from the person most likely to need telling -- what the dress code is,
+  // which door to use, what the park will not let you carry -- to protect a
+  // dismiss button that is gated separately a few lines down.
   if (!shown.length && compact && looked) return null;
 
   return (
@@ -277,7 +287,14 @@ export default function ProTips({
         {/* No button on an itinerary card. A trip has thirty of them and nobody
             is pressing thirty buttons — the look at trip level walks the
             bookings as well. */}
-        {(canLook ?? Boolean(tripId)) && !compact && !readOnly ? (
+        {/* No Look button for a secondary traveler, and this one is the database's
+            decision rather than a preference: pro_tips carries a
+            pro_tips_no_secondary_insert policy, so a look by Veda would run the
+            grounded search, cost money and save nothing. Measured, not assumed --
+            the same probe found item_insights has no such policy, which is why the
+            day research is offered to her and this is not. See
+            lib/travelers/allowed.js. */}
+        {(canLook ?? Boolean(tripId)) && !compact && canLookHere ? (
           <button
             type="button"
             onClick={look}

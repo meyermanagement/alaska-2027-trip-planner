@@ -36,14 +36,19 @@ export default async function TopBar({ askHref, showAsk = true }) {
   ]);
   const attention = countNeedingAttention(rows || [], today);
 
-  // A secondary traveler has no read access to travel documents, so the passport
-  // check sees an empty shelf and concludes nobody has one -- which is how Veda
-  // came to be warned about passports she is not allowed to look at. The band
-  // exists to prompt an action, and every action it prompts belongs to a primary
-  // traveler, so for a secondary there is nothing true to say and it goes.
+  // A secondary traveler has no read access to travel documents -- probed as Veda,
+  // traveler_documents returns nothing at all -- so the passport check sees an
+  // empty shelf and concludes nobody has one, which is how Veda came to be warned
+  // about passports she is not allowed to look at. That band goes.
+  //
+  // The urgent tips stay. They were dropped alongside the passports on the same
+  // sentence, and the sentence was only true of the passports: tips are readable
+  // by a secondary, they are advice rather than an errand, and "the shuttle takes
+  // cash only" is worth as much to the person getting on the shuttle as to the
+  // person who booked it. The buttons inside a tip card are gated separately.
   const secondary = Boolean(access?.can.isSecondary);
   const warnings = secondary ? [] : notices.warnings;
-  const urgent = secondary ? [] : notices.urgent;
+  const urgent = notices.urgent;
 
   // The band about the trip in progress goes only to the people on it.
   //

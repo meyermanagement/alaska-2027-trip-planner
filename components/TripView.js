@@ -125,8 +125,13 @@ export default function TripView({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const readOnly = level === SECONDARY;
-  // Notes are a place the family talks to itself, and a secondary traveler can
-  // neither write one nor, by policy, read one that matters -- so the tab goes.
+  // Notes are a place the family talks to itself. The tab goes for a secondary
+  // traveler, and it is worth being exact about why, because the comment that used
+  // to sit here was wrong: notes_secondary_insert stops them writing one, but
+  // nothing stops them reading one -- probed as Veda, eleven rows came back. So
+  // this is our choice, not the database's, and it stands only because Notes.js
+  // has no read-only mode: showing the tab today would show a compose box that
+  // saves nothing.
   const tabs = readOnly ? TABS.filter((t) => t.id !== "notes") : TABS;
   const [tab, setTab] = useState("itinerary");
   // What the last look filed, and where. Held here rather than inside the tips
@@ -738,7 +743,10 @@ export default function TripView({
             readOnly={readOnly}
           />
         )}
-        {tab === "tips" && !readOnly && (
+        {/* Where the other tips are. A pointer to two tabs, writing nothing, and
+            no reason for a secondary traveler to be sent to the Tips tab and told
+            less about it than everybody else. */}
+        {tab === "tips" && (
           <ElsewhereTips
             landed={landed}
             counts={{

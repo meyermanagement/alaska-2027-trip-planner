@@ -186,8 +186,11 @@ export default function DayBrief({
       </div>
 
       {/* Research is offered rather than silent, so a day with nothing found does
-          not look like a day nobody looked at. */}
-      {!readOnly && pending > 0 && (
+          not look like a day nobody looked at. Offered to a secondary traveler on
+          the same terms: what it writes is advice about items that already exist,
+          not a change to the plan, and a day they cannot get advice about is not
+          the same day. */}
+      {pending > 0 && (
         <p className="mt-2 flex flex-wrap items-center gap-2 text-[0.78rem] text-ink-soft">
           {researching ? (
             <span>Aly is looking into {pending === 1 ? "it" : "the day"}…</span>
