@@ -625,6 +625,7 @@ export default function TripView({
             tips={tips.filter((tip) => tip.scope === "item")}
             onChange={() => refetch("itinerary_items")}
             readOnly={readOnly}
+            today={today}
           />
         )}
         {tab === "packing" && (

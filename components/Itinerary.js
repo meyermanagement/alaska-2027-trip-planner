@@ -23,7 +23,11 @@ import {
   formatShortDay,
   formatStayRange,
   formatTime,
+  homeToday,
   isSpanning,
+  livedDay,
+  localToday,
+  openingDay,
   parseDate,
   stayNights,
 } from "@/lib/format";
@@ -324,6 +328,10 @@ export default function Itinerary({
   destination = "",
   tips = [],
   readOnly = false,
+  // Today, worked out on the server in the family's own zone and handed down so
+  // the first frame the browser draws opens on the same day it would have picked
+  // for itself. Named apart from the value used below because there is a fallback.
+  today: todayProp = "",
 }) {
   const supabase = useMemo(() => createClient(), []);
   // Grouped once rather than filtered inside every card, because a long day in
@@ -388,23 +396,48 @@ export default function Itinerary({
 
   const staysByDay = useMemo(() => buildStays(visible), [visible]);
 
-  const today = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate(),
-    ).padStart(2, "0")}`;
-  }, []);
+  // What day it is, handed down from the server in the family's own zone. This
+  // screen used to work it out from the raw browser clock, which let three things
+  // disagree at once on the day of a trip: this rail, the band at the top of the
+  // page counting which day of the trip it is, and the first frame the server drew
+  // -- Vercel runs in UTC, so from seven in the evening in Missouri the server had
+  // already moved on to tomorrow and marked the wrong tile. It is state rather than
+  // a constant because the effect further down may hand it to the device instead
+  // once the browser is awake and can say where it is. The fallback is only for a
+  // caller that forgets the prop.
+  const [today, setToday] = useState(() => todayProp || homeToday());
 
-  // Open on today when the trip is happening, otherwise on the first day.
-  const [selected, setSelected] = useState(() =>
-    dayKeys.includes(today) ? today : (dayKeys[0] ?? UNSCHEDULED),
+  // Open on the day the family is living, not on the first morning of the trip.
+  const [selected, setSelected] = useState(
+    () => openingDay(dayKeys, today) ?? UNSCHEDULED,
   );
 
+  // Re-decide only when the day that was chosen no longer exists -- an item moved,
+  // a stay stretched, the trip's dates redrawn. Doing it whenever anything changed
+  // would drag somebody who is reading day six back to today under them.
   useEffect(() => {
     if (railKeys.length && !railKeys.includes(selected)) {
-      setSelected(railKeys.includes(today) ? today : railKeys[0]);
+      setSelected(openingDay(railKeys, today) ?? railKeys[0]);
     }
   }, [railKeys, selected, today]);
+
+  // Once, on arrival: if the phone in the hand says a different day than home does
+  // and that day belongs to this trip, that is the day being lived. Alaska is four
+  // hours behind Missouri, so without this an evening in Ketchikan would open on
+  // tomorrow's tour. Deliberately after hydration rather than during render, so the
+  // browser draws the server's frame first and there is nothing to mismatch, and
+  // deliberately once, so a day somebody has chosen by hand is never moved under
+  // them.
+  const settled = useRef(false);
+  useEffect(() => {
+    if (settled.current) return;
+    settled.current = true;
+    const lived = livedDay(today, localToday(), dayKeys);
+    if (lived === today) return;
+    setToday(lived);
+    setSelected(openingDay(dayKeys, lived) ?? UNSCHEDULED);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const railRef = useRef(null);
   const [overflowing, setOverflowing] = useState(false);
@@ -436,7 +469,13 @@ export default function Itinerary({
       (rail.clientWidth - tileBox.width) / 2;
     const max = rail.scrollWidth - rail.clientWidth;
     rail.scrollLeft = Math.max(0, Math.min(left, max));
-  }, [selected]);
+    // Runs again when the arrows appear or go. They are drawn only once the rail
+    // has been measured and found to overflow, and drawing them takes about a
+    // hundred pixels off its width -- so on a narrow phone the day was centred in
+    // a rail that was about to get smaller, and ended up hanging three pixels off
+    // the right edge on first load. Measured at 320px: the rail went from 312 wide
+    // to 205 between the two paints.
+  }, [selected, overflowing, railKeys.length]);
 
   const index = railKeys.indexOf(selected);
   const step = useCallback(
