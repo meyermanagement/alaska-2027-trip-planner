@@ -29,7 +29,7 @@ const KINDS = [
   },
 ];
 
-// The old behaviour, kept as the safety net for when the model cannot be
+// The old behavior, kept as the safety net for when the model cannot be
 // reached: every trip starts with at least what the family always packs.
 async function copyBaseTemplate(supabase, familyId, tripId) {
   const { data: tpl } = await supabase

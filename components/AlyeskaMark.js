@@ -1,4 +1,4 @@
-// The Alyeska compass mark. Inherits its colour from `currentColor` so it can
+// The Alyeska compass mark. Inherits its color from `currentColor` so it can
 // sit on the sand header, inside a teal button, or on the login card.
 export default function AlyeskaMark({ className = "h-7 w-7" }) {
   return (

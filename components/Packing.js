@@ -397,7 +397,7 @@ export default function Packing({
 
   // The list checked against the roster, every time it is drawn. A tap that took
   // somebody off the trip is supposed to take their things with it, but that is
-  // one moment on one device — and every list made before that behaviour existed
+  // one moment on one device — and every list made before that behavior existed
   // never got the message at all. So the question is asked here too, where it
   // cannot be missed, and answered by a button rather than silently: deleting
   // twenty-two lines because a page loaded would be the wrong kind of helpful.

@@ -835,7 +835,7 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
     // Households with several animals rarely bring all of them, and the ones
     // staying behind are written down too: a cat with no row at all is
     // indistinguishable from a cat nobody has thought about yet, and the whole
-    // point of asking was to settle it. Only the travelling ones reach the
+    // point of asking was to settle it. Only the traveling ones reach the
     // packing list, which fillPackingFromBase works out for itself by reading
     // the arrangement back off these rows.
     const { data: petRows } = await supabase

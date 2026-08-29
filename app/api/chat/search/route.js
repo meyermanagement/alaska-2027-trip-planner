@@ -82,7 +82,7 @@ export async function GET(request) {
       titleMatch: false,
       hits: [],
     };
-    // Three lines per conversation is enough to recognise it; the rest is
+    // Three lines per conversation is enough to recognize it; the rest is
     // reading the conversation itself.
     if (group.hits.length < 3) group.hits.push(strip(hit));
     groups.set(hit.conversationId, group);

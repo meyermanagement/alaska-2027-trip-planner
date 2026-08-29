@@ -197,7 +197,7 @@ export default function TripView({
   // chip straight through was the whole reason a roster tap on this page never
   // touched the packing list: the sync had no name to work with and quietly did
   // nothing, which is how somebody's things came to sit on a list they were not
-  // travelling on.
+  // traveling on.
   async function toggleTraveler(chip, nowGoing) {
     const person = people.find((p) => p.id === chip?.id) || chip;
     if (!person?.id || !person?.name) return;
@@ -500,7 +500,7 @@ export default function TripView({
                           </select>
                           {!isComing(arrangement) && (
                             <span className="text-xs text-ink-soft">
-                              not travelling
+                              not traveling
                               {petsWithLines.has(pet.id)
                                 ? " — their things are set aside, not deleted"
                                 : ""}
