@@ -41,9 +41,12 @@ export default function ProTips({
   // dated — an itinerary item. A tip with no deadline of its own is read and
   // sorted against this rather than being filed under "later".
   relatedDate = null,
-  // A secondary traveler may read the advice; every button on it -- Look for
-  // tips, Remind me, Clear -- writes, and the database refuses all three without
-  // raising an error, so leaving them on would look like they worked.
+  // A secondary traveler does not see advice at all. Every button on a tip --
+  // Look for tips, Remind me, Clear -- writes, and the database refuses all three
+  // without raising an error, so they would look like they worked. But a tip with
+  // its buttons taken off is worse than no tip: it is a list of things somebody
+  // else has to do, shown to the one person in the household who cannot do any of
+  // them, and clearing it is how a tip is meant to leave. So the whole card goes.
   readOnly = false,
 }) {
   const router = useRouter();
@@ -183,6 +186,9 @@ export default function ProTips({
     setProgress(null);
   }, [chain, scope, itemId, tripId, router]);
 
+  // After the hooks, so a person's level changing does not change how many of
+  // them run.
+  if (readOnly) return null;
   if (!shown.length && compact && looked) return null;
 
   return (
