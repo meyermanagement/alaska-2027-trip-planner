@@ -7,6 +7,7 @@ import { isDraftTrip, isPastTrip } from "@/lib/format";
 import NewTripButton from "./NewTripButton";
 import TripBoard from "./TripBoard";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
+import AboutMeCard from "@/components/AboutMeCard";
 
 export const metadata = { title: "Trips · Alyeska" };
 
@@ -58,7 +59,7 @@ export default async function TripsPage() {
     supabase.from("itinerary_items").select("trip_id"),
     supabase
       .from("travelers")
-      .select("id, name, sort_order, is_person")
+      .select("id, name, sort_order, is_person, user_id, about_me")
       .eq("is_person", true)
       .order("sort_order", { ascending: true }),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
@@ -101,6 +102,11 @@ export default async function TripsPage() {
     .filter(isPastTrip)
     .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
 
+  // Whose paragraph the card offers to write. Matched on the account rather than
+  // on the name, because a name is not an identity and two Marks would both be
+  // handed the same row.
+  const me = (people || []).find((p) => p.user_id === user.id) || null;
+
   return (
     <>
       {/* No askHref: the button opens the drawer here, in general context. */}
@@ -118,6 +124,15 @@ export default async function TripsPage() {
           </div>
           {!access?.can.isSecondary && <NewTripButton familyId={family.id} />}
         </div>
+
+        {/* Above the trips rather than below them: on a new family's first visit
+            this is the only thing on the page worth doing, and once it is
+            answered it collapses to one line and stops competing. */}
+        <AboutMeCard
+          travelerId={me?.id || null}
+          name={me?.name || ""}
+          about={me?.about_me || ""}
+        />
 
         <TripBoard upcoming={upcoming} drafts={drafts} past={past} />
       </main>

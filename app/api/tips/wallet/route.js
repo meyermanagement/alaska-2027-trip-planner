@@ -80,7 +80,7 @@ export async function POST(request) {
       .order("kind", { ascending: true }),
     supabase
       .from("travelers")
-      .select("id, name, is_person")
+      .select("id, name, is_person, about_me")
       .eq("family_id", familyId),
     supabase
       .from("trips")

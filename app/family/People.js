@@ -8,6 +8,7 @@ import { syncPackingForTraveler } from "@/lib/packing/roster";
 import { ageToday } from "@/lib/travelers/ages";
 import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
+  ABOUT_ME_PLACEHOLDER,
   MOBILITY_AIDS,
   aidLabel,
   cleanAids,
@@ -390,6 +391,17 @@ export default function People({
             )}
 
             <ProfileLines person={person} />
+
+            {person.about_me && (
+              <div className="mt-2.5 rounded-lg border border-sand-deep bg-sand/60 p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  In their own words
+                </p>
+                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
+                  {person.about_me}
+                </p>
+              </div>
+            )}
 
             <AccessRow
               person={person}
@@ -1061,6 +1073,10 @@ function PersonForm({ person, onCancel, onSave }) {
     // Typed as one line and stored as a list, so what somebody types reads back
     // the way they typed it while the record stays comparable between people.
     languages: languageField(person?.languages),
+    // Their own paragraph. Kept exactly as typed, including the line breaks:
+    // somebody describing themselves writes in sentences, and tidying it into one
+    // line would change how it reads back to them.
+    about_me: person?.about_me || "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1090,6 +1106,7 @@ function PersonForm({ person, onCancel, onSave }) {
       mobility_aids: cleanAids(form.mobility_aids),
       accessibility_notes: form.accessibility_notes.trim() || null,
       languages: parseLanguages(form.languages),
+      about_me: form.about_me.trim() || null,
     });
     setBusy(false);
     if (message) setError(message);
@@ -1144,6 +1161,27 @@ function PersonForm({ person, onCancel, onSave }) {
             value={form.notes}
             onChange={set("notes")}
           />
+        </label>
+      </div>
+
+      <div className="space-y-2 border-t border-teal/30 pt-3">
+        <p className="section-label">In their own words</p>
+        <label className="block text-xs font-semibold">
+          About me (optional)
+          <textarea
+            className="field mt-1 text-sm"
+            rows={4}
+            placeholder={ABOUT_ME_PLACEHOLDER}
+            value={form.about_me}
+            onChange={set("about_me")}
+          />
+          <span className="mt-1 block font-normal text-ink-soft">
+            This is what shapes the recommendations, the pro tips and the
+            suggestions Aly makes — she reads it before she answers, so the more
+            it sounds like {form.name.trim() || "this person"}, the better the
+            advice fits. Say what you enjoy, the pace you want, and what you
+            would rather skip. You can change it any time.
+          </span>
         </label>
       </div>
 

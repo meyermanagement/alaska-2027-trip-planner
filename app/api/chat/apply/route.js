@@ -77,10 +77,11 @@ const MAX_LINKS = 3;
 // in one card, low enough that a runaway model cannot rewrite the trip.
 const MAX_ACTIONS = 80;
 
-// The only two changes a secondary traveler may make, and only to their own row.
+// The only changes a secondary traveler may make, and only to their own row.
 const SECONDARY_WRITES = {
   update_packing_item: "is_packed",
   update_task: "is_done",
+  set_person_details: "about_me",
 };
 
 function secondaryRefusal(access, action) {
@@ -89,12 +90,33 @@ function secondaryRefusal(access, action) {
   const flag = SECONDARY_WRITES[action.tool];
   if (!flag) return REFUSAL;
 
+  // Describing yourself is the one thing on a person that the person owns, so a
+  // secondary may write it -- but on their own row and nowhere else. Ownership
+  // has to be checked here rather than left to the database, because the people
+  // list a secondary can read includes the whole family: "put down that Mark
+  // loves hiking" resolves perfectly well to Mark, and the database would then
+  // filter the write away without raising, which is how somebody gets told a
+  // change was saved when it was not.
+  if (action.tool === "set_person_details") {
+    const mine = access?.travelerId || null;
+    if (!mine || action.patch?.traveler_id !== mine) {
+      return "You can tell me what you are like on a trip, but only about yourself — a primary traveler can write that for somebody else.";
+    }
+  }
+
   // Only the flag itself, and nothing else about the row.
   const patch = action.patch || {};
   const touched = Object.keys(patch).filter(
-    (k) => k !== flag && patch[k] !== undefined,
+    (k) =>
+      k !== flag &&
+      patch[k] !== undefined &&
+      // Which person the change is about is not a change to them.
+      !(action.tool === "set_person_details" && k === "traveler_id"),
   );
   if (touched.length) {
+    if (action.tool === "set_person_details") {
+      return "You can tell me what you are like on a trip, but the rest of your details are for a primary traveler to change.";
+    }
     return action.tool === "update_task"
       ? "You can finish your own tasks, but not change what they say."
       : "You can check your own things off the list, but not change them.";

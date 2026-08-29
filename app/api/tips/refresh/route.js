@@ -224,7 +224,7 @@ export async function POST(request) {
     supabase
       .from("trip_travelers")
       .select(
-        "travelers (id, name, is_person, date_of_birth, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages)",
+        "travelers (id, name, is_person, date_of_birth, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages, about_me)",
       )
       .eq("trip_id", tripId),
     supabase

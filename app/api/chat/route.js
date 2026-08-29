@@ -466,7 +466,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
       .select(
         // The three profile groups ride along, because they are what turns
         // Aly's advice from a travel article into advice about these people.
-        "id, name, email, user_id, invited_at, date_of_birth, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages",
+        "id, name, email, user_id, invited_at, date_of_birth, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages, about_me",
       )
       .order("sort_order"),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
