@@ -5,6 +5,7 @@ import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { useRouter } from "next/navigation";
 import { compareTips, tipWhen } from "@/lib/tips/tip";
 import { runLook } from "@/lib/tips/run";
+import { formatFullDay } from "@/lib/format";
 import { Spinner } from "./LinkPending";
 
 /**
@@ -163,7 +164,11 @@ export default function ProTips({
       if (!res.ok) throw new Error(body?.error || "");
       setNote(
         body?.task?.due_date
-          ? `On the checklist, due ${body.task.due_date}. The morning email will say so.`
+          ? // formatFullDay, not the raw column: this sentence is read by a person
+            // and 2026-09-21 in the middle of one is a serial number. The year is
+            // kept because a booking window can open in a different year from the
+            // trip it belongs to.
+            `On the checklist, due ${formatFullDay(body.task.due_date)}. The morning email will say so.`
           : "On the checklist. The morning email will say so.",
       );
     } catch (err) {

@@ -1,5 +1,12 @@
 import Link from "next/link";
 import WarningTask from "./WarningTask";
+import { formatDayYear } from "@/lib/format";
+
+// Every date in this panel is an expiry or a deadline being weighed against one,
+// so they are all said the same way and none of them arrive as 2027-05-01. The
+// fallback keeps a date the app cannot parse visible rather than blank: a
+// passport line with no date at all is worse than an ugly one.
+const said = (value) => formatDayYear(value) || String(value || "");
 
 /**
  * The band that says a passport is going to be a problem.
@@ -96,8 +103,8 @@ export function PassportWarningPanel({ warnings = [] }) {
                 <strong className="font-semibold text-ink">
                   {person.name}
                 </strong>{" "}
-                — expires {person.expiry}, before you are home on{" "}
-                {warning.returnDate}.
+                — expires {said(person.expiry)}, before you are home on{" "}
+                {said(warning.returnDate)}.
               </li>
             ))}
             {warning.short.map((person) => (
@@ -105,8 +112,8 @@ export function PassportWarningPanel({ warnings = [] }) {
                 <strong className="font-semibold text-ink">
                   {person.name}
                 </strong>{" "}
-                — expires {person.expiry}. {warning.where} wants it valid until{" "}
-                {warning.mustLastUntil}.
+                — expires {said(person.expiry)}. {warning.where} wants it valid
+                until {said(warning.mustLastUntil)}.
               </li>
             ))}
             {warning.missing.map((person) => (
