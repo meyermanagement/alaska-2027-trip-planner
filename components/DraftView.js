@@ -362,10 +362,8 @@ export default function DraftView({
                     >
                       <span
                         aria-hidden="true"
-                        className="mt-1.5 text-ink-faint"
-                      >
-                        ·
-                      </span>
+                        className="mt-[0.5rem] h-1.5 w-1.5 shrink-0 rounded-full bg-ink-faint"
+                      />
                       <span className="min-w-0">
                         <span className="text-ink">{item.title}</span>
                         {item.status === "optional" && (
