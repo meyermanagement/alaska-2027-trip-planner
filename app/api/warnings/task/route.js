@@ -76,8 +76,15 @@ export async function POST(request) {
     .maybeSingle();
 
   if (error || !task) {
+    // Say what the database said. The generic sentence that used to be here cost
+    // real time: a not-null column was being handed an explicit null, the
+    // database said so plainly, and the route replaced that with a line that
+    // ruled nothing out -- permissions, the trip, the wording, the column. A
+    // failure that will not say why is a failure somebody has to reproduce
+    // before they can start.
+    const because = error?.message ? ` ${error.message}` : "";
     return NextResponse.json(
-      { error: "Could not add that to the checklist." },
+      { error: `Could not add that to the checklist.${because}` },
       { status: 500 },
     );
   }
