@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { useRouter } from "next/navigation";
 import { compareTips, tipWhen } from "@/lib/tips/tip";
 import { runLook } from "@/lib/tips/run";
@@ -108,9 +109,25 @@ export default function ProTips({
     [tips, gone, relatedDate],
   );
 
+  // Cleared from the band at the top of the screen. The write is already done up
+  // there; this is only the card catching up.
+  useEffect(
+    () =>
+      onTipResolved((id, status) =>
+        setGone((prev) => {
+          if (status) return { ...prev, [id]: status };
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        }),
+      ),
+    [],
+  );
+
   const resolve = useCallback(async (tip, status) => {
     setProblem("");
     setGone((prev) => ({ ...prev, [tip.id]: status }));
+    announceTipResolved(tip.id, status);
     try {
       const res = await fetch(`/api/tips/${tip.id}`, {
         method: "PATCH",
@@ -124,6 +141,7 @@ export default function ProTips({
         delete next[tip.id];
         return next;
       });
+      announceTipResolved(tip.id, null);
       setProblem("That did not save. It is still here — try again.");
     }
   }, []);
@@ -138,6 +156,7 @@ export default function ProTips({
   const makeTask = useCallback(async (tip) => {
     setProblem("");
     setGone((prev) => ({ ...prev, [tip.id]: "cleared" }));
+    announceTipResolved(tip.id, "cleared");
     try {
       const res = await fetch(`/api/tips/${tip.id}/task`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
@@ -153,6 +172,7 @@ export default function ProTips({
         delete next[tip.id];
         return next;
       });
+      announceTipResolved(tip.id, null);
       setProblem(
         err?.message || "Could not add that to the checklist. Try again.",
       );

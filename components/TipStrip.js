@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { tipWhen, WALLET_SCOPES } from "@/lib/tips/tip";
+import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 
 /**
  * The pro tips that have earned a place at the top of every screen.
@@ -19,8 +20,24 @@ export default function TipStrip({ tips = [], today }) {
   const [gone, setGone] = useState({});
   const shown = tips.filter((tip) => !gone[tip.id]);
 
+  // The same tip cleared on the screen below. Nothing to save -- that already
+  // happened down there -- so this only stops showing it.
+  useEffect(
+    () =>
+      onTipResolved((id, status) =>
+        setGone((prev) => {
+          if (status) return { ...prev, [id]: status };
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        }),
+      ),
+    [],
+  );
+
   const resolve = useCallback(async (tip, status) => {
     setGone((prev) => ({ ...prev, [tip.id]: status }));
+    announceTipResolved(tip.id, status);
     try {
       const res = await fetch(`/api/tips/${tip.id}`, {
         method: "PATCH",
@@ -29,18 +46,22 @@ export default function TipStrip({ tips = [], today }) {
       });
       if (!res.ok) throw new Error();
     } catch {
-      // Put it back rather than pretend. A tip that silently failed to clear
-      // would reappear on the next page load anyway, which is more confusing.
+      // Put it back rather than pretend, in both places. A tip that silently
+      // failed to clear would reappear on the next page load anyway, which is
+      // more confusing -- and one hidden here while still live in the table is
+      // worse than the problem this was meant to solve.
       setGone((prev) => {
         const next = { ...prev };
         delete next[tip.id];
         return next;
       });
+      announceTipResolved(tip.id, null);
     }
   }, []);
 
   const makeTask = useCallback(async (tip) => {
     setGone((prev) => ({ ...prev, [tip.id]: "cleared" }));
+    announceTipResolved(tip.id, "cleared");
     try {
       const res = await fetch(`/api/tips/${tip.id}/task`, { method: "POST" });
       if (!res.ok) throw new Error();
@@ -50,6 +71,7 @@ export default function TipStrip({ tips = [], today }) {
         delete next[tip.id];
         return next;
       });
+      announceTipResolved(tip.id, null);
     }
   }, []);
 

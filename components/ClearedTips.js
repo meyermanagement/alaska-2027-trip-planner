@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
+import { announceTipResolved } from "@/lib/tips/cleared";
 
 /**
  * The tips you have put away, kept where they can be found again.
@@ -42,6 +43,12 @@ export default function ClearedTips() {
 
   const restore = useCallback(async (tip) => {
     setRows((prev) => (prev || []).filter((row) => row.id !== tip.id));
+    // If it was cleared a minute ago and this is somebody taking it back, the
+    // card and the band still have it in hand and only need telling to show it
+    // again. If it was cleared last month they never had it, and nothing short of
+    // a reload can put it back -- which is fine, because that is not the case
+    // anybody is anxious about.
+    announceTipResolved(tip.id, null);
     try {
       const res = await fetch(`/api/tips/${tip.id}`, {
         method: "PATCH",
@@ -51,6 +58,7 @@ export default function ClearedTips() {
       if (!res.ok) throw new Error();
     } catch {
       setRows((prev) => [tip, ...(prev || [])]);
+      announceTipResolved(tip.id, "cleared");
       setProblem("That did not save. It is still here.");
     }
   }, []);
