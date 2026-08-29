@@ -1,4 +1,12 @@
-import { runStatus, lastTest, OK, QUIET, EARLY } from "@/lib/tasks/runs";
+import {
+  runStatus,
+  lastTest,
+  OK,
+  QUIET,
+  EARLY,
+  MISSING,
+} from "@/lib/tasks/runs";
+import MorningCatchUp from "@/components/MorningCatchUp";
 import { HOME_ZONE } from "@/lib/format";
 
 /**
@@ -58,6 +66,7 @@ export default function MorningRun({ runs, today, dueCount = 0, hour }) {
               : `The last test was refused too: ${test.error}`}
         </p>
       )}
+      {status.state === MISSING && <MorningCatchUp />}
       {!calm && (
         <p className="mt-1 text-ink-soft">
           You can send yourself a copy from the Family tab to see whether the
