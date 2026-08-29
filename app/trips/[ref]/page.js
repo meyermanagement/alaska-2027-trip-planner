@@ -5,20 +5,74 @@ import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import TripView from "@/components/TripView";
 import { todayISO } from "@/lib/reminders";
+import { parseTripRef, tripRef, needsCanonical } from "@/lib/trips/route";
+
+// Finding the trip this URL is talking about.
+//
+// The address is the trip's readable name followed by a key that never changes:
+// /trips/alaska-2027-337jb9. Only the key is used to find it. That is what makes
+// renaming a trip free — the readable half can go stale and the link still
+// works — and it is what makes the lookup unambiguous once there is more than
+// one household, because the slug alone is only unique within a family and would
+// come back with two rows and show a Not Found page for a trip that is right
+// there.
+//
+// Links without a key still have to work. Calendar subscriptions and reminder
+// emails sent before this change carry the bare slug, and those sit in people's
+// phones and inboxes for months. So a slug link falls back to a lookup inside
+// the reader's own household, which is unique by constraint, and then the
+// address bar is quietly corrected to the permanent form.
+async function findTrip(supabase, ref, familyId) {
+  const { key, readable } = parseTripRef(ref);
+
+  if (key) {
+    const { data } = await supabase
+      .from("trips")
+      .select("*")
+      .eq("public_id", key)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  // A key that matches nothing is not necessarily a wrong link: a trip could be
+  // named so that its slug ends in something key-shaped. Fall through and try
+  // the whole thing as a slug before giving up.
+  if (!readable && !key) return null;
+  const asSlug = readable && key ? `${readable}-${key}` : readable || key;
+
+  // Scoped to one household, so it can never be the two-row lookup this whole
+  // change exists to remove. Without a household we would rather find nothing
+  // than guess between two trips.
+  if (!familyId) return null;
+  const { data } = await supabase
+    .from("trips")
+    .select("*")
+    .eq("slug", asSlug)
+    .eq("family_id", familyId)
+    .maybeSingle();
+  return data || null;
+}
 
 export async function generateMetadata({ params }) {
-  const { slug } = await params;
+  const { ref } = await params;
   const supabase = await createClient();
+  const { key, raw } = parseTripRef(ref);
+  // This runs outside the signed-in path, so it cannot resolve a household and
+  // cannot use the scoped fallback. It takes the first row it is allowed to see
+  // rather than maybeSingle, because a title is not worth an error — and if it
+  // sees nothing, which is what row-level security gives a stranger, the tab
+  // just says Trip.
   const { data } = await supabase
     .from("trips")
     .select("name")
-    .eq("slug", slug)
-    .maybeSingle();
-  return { title: `${data?.name || "Trip"} · Alyeska` };
+    .eq(key ? "public_id" : "slug", key || raw)
+    .limit(1);
+  return { title: `${data?.[0]?.name || "Trip"} · Alyeska` };
 }
 
-export default async function TripPage({ params }) {
-  const { slug } = await params;
+export default async function TripPage({ params, searchParams }) {
+  const { ref } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -27,13 +81,20 @@ export default async function TripPage({ params }) {
   if (!user) redirect("/login");
   const access = await resolveAccess(supabase, user);
 
-  const { data: trip } = await supabase
-    .from("trips")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
-
+  const trip = await findTrip(supabase, ref, access?.familyId);
   if (!trip) notFound();
+
+  // An old link, or a link whose readable half no longer matches the trip's
+  // name. The query string has to survive the correction, because the tab a
+  // reminder email or a calendar entry points at lives in it.
+  if (needsCanonical(trip, ref)) {
+    const rest = new URLSearchParams(
+      Object.entries(query || {}).flatMap(([k, v]) =>
+        Array.isArray(v) ? v.map((one) => [k, one]) : v == null ? [] : [[k, v]],
+      ),
+    ).toString();
+    redirect(`/trips/${tripRef(trip)}${rest ? `?${rest}` : ""}`);
+  }
 
   const { data: profile } = await supabase
     .from("profiles")

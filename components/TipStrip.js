@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { tipWhen, WALLET_SCOPES } from "@/lib/tips/tip";
 import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
+import { tripPath } from "@/lib/trips/route";
 
 /**
  * The pro tips that have earned a place at the top of every screen.
@@ -97,9 +98,9 @@ export default function TipStrip({ tips = [], today }) {
               </p>
               <p className="mt-0.5 text-ink-soft">{tip.body}</p>
               <p className="mt-1 flex flex-wrap items-baseline gap-x-3">
-                {tip.trips?.slug ? (
+                {tip.trips?.slug || tip.trips?.public_id ? (
                   <Link
-                    href={`/trips/${tip.trips.slug}`}
+                    href={tripPath(tip.trips)}
                     className="text-[0.78rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                   >
                     {tip.trips.name}

@@ -30,6 +30,7 @@ import {
   matchesDueFilter,
   sortReminders,
 } from "@/lib/reminders";
+import { tripPath } from "@/lib/trips/route";
 
 /**
  * Everything still open across every upcoming trip, on one page. The trip tabs
@@ -219,7 +220,7 @@ export default function Reminders({
                           {row.task.title}
                         </span>
                         <Link
-                          href={`/trips/${row.trip.slug}?tab=tasks`}
+                          href={tripPath(row.trip, "tasks")}
                           className="chip inline-flex items-center gap-1.5 bg-teal-soft text-teal transition hover:bg-teal hover:text-white"
                         >
                           {row.trip.name}

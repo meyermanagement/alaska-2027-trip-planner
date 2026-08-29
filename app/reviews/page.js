@@ -76,8 +76,12 @@ export default async function HistoryPage() {
     supabase
       .from("trips")
       .select(
-        "id, name, slug, destination, start_date, end_date, cover_emoji, status",
-      ),
+        "id, name, slug, public_id, destination, start_date, end_date, cover_emoji, status",
+      )
+      // Scoped to the household this screen is showing. Row-level security
+      // already keeps other people's trips out; this keeps the reader's *other*
+      // household out, which matters as soon as anybody belongs to two.
+      .eq("family_id", familyId),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
   ]);
 

@@ -23,6 +23,7 @@ import {
   travelStyleLabel,
   trimNumber,
 } from "@/lib/pets/pets";
+import { tripPath } from "@/lib/trips/route";
 
 const CHIP_COLORS = [
   "#b45309",
@@ -285,7 +286,7 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
                             className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm"
                           >
                             <Link
-                              href={`/trips/${trip.slug}`}
+                              href={tripPath(trip)}
                               className="font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                             >
                               {trip.name}

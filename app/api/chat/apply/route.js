@@ -15,6 +15,7 @@ import { copiedTemplateItems } from "@/lib/packing/copy";
 import { tidyStranded } from "@/lib/packing/roster";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 import { REFUSAL, SECONDARY, resolveAccess } from "@/lib/travelers/access";
+import { tripPath, tripRef, freeTripSlug } from "@/lib/trips/route";
 
 export const runtime = "nodejs";
 // Writing eighty rows one at a time can outlast the default budget, and a
@@ -206,7 +207,7 @@ export async function POST(request) {
     supabase.from("predeparture_tasks").select("id, title, trip_id"),
     supabase.from("trip_notes").select("id, title, body, trip_id"),
     supabase.from("travelers").select("id, name").order("sort_order"),
-    supabase.from("trips").select("id, name, slug"),
+    supabase.from("trips").select("id, name, slug, public_id"),
     supabase.from("travel_preferences").select("id, body"),
     supabase.from("packing_templates").select("id, name, is_base"),
     supabase.from("packing_template_items").select("id, item, template_id"),
@@ -233,8 +234,11 @@ export async function POST(request) {
     // Not part of validation: carried alongside it so the receipt can build a
     // link without a second read of the table.
   };
-  const tripSlug = new Map(
-    (trips.data || []).map((r) => [r.id, { slug: r.slug, name: r.name }]),
+  const tripRefs = new Map(
+    (trips.data || []).map((r) => [
+      r.id,
+      { slug: r.slug, public_id: r.public_id, name: r.name },
+    ]),
   );
   Object.assign(known, {
     travel_preferences: new Map(
@@ -356,7 +360,11 @@ export async function POST(request) {
         dbError = outcome.error;
         if (outcome.slug) createdSlug = outcome.slug;
         if (!outcome.error && tool === "create_trip" && outcome.id) {
-          tripSlug.set(outcome.id, { slug: outcome.slug, name: patch.name });
+          tripRefs.set(outcome.id, {
+            slug: outcome.slug,
+            public_id: outcome.public_id,
+            name: patch.name,
+          });
           createdTripId = outcome.id;
         }
         if (!outcome.error && tool === "delete_trip" && id) {
@@ -582,7 +590,7 @@ export async function POST(request) {
       const spot = landingFor({
         tool,
         action,
-        tripSlug,
+        tripRefs,
         rowTrip,
         focusTripId: tripId,
         createdTripId,
@@ -633,7 +641,7 @@ export async function POST(request) {
     applied,
     results,
     createdSlug,
-    links: pickLinks(landed, deletedTripIds, tripSlug),
+    links: pickLinks(landed, deletedTripIds, tripRefs),
     packingTripId,
     deletedTripIds,
     receipt,
@@ -648,7 +656,7 @@ export async function POST(request) {
 function landingFor({
   tool,
   action,
-  tripSlug,
+  tripRefs,
   rowTrip,
   focusTripId,
   createdTripId,
@@ -665,25 +673,26 @@ function landingFor({
       : patch.trip_id ||
         (action?.id ? rowTrip.get(action.id) : null) ||
         focusTripId;
-  const trip = tripId ? tripSlug.get(tripId) : null;
-  if (!trip?.slug) return null;
+  const trip = tripId ? tripRefs.get(tripId) : null;
+  if (!tripRef(trip)) return null;
 
   const tab = LANDING_TAB[tool];
-  if (!tab) return { href: `/trips/${trip.slug}`, label: `Open ${trip.name}` };
+  if (!tab) return { href: tripPath(trip), label: `Open ${trip.name}` };
   return {
-    href: `/trips/${trip.slug}?tab=${tab}`,
+    href: tripPath(trip, tab),
     label: `Open the ${TAB_WORDS[tab]}`,
   };
 }
 
 // One link per destination, newest trip first, and never a link to a trip this
 // same batch deleted — that is a promise straight to a 404.
-function pickLinks(landed, deletedTripIds, tripSlug) {
+function pickLinks(landed, deletedTripIds, tripRefs) {
   const dead = new Set(
     deletedTripIds
-      .map((id) => tripSlug.get(id)?.slug)
+      .map((id) => tripRefs.get(id))
+      .map((trip) => tripRef(trip))
       .filter(Boolean)
-      .map((slug) => `/trips/${slug}`),
+      .map((ref) => `/trips/${ref}`),
   );
   const seen = new Set();
   const out = [];
@@ -707,14 +716,6 @@ function describeOutcome(applied, results) {
   if (!failed.length) return head;
   const detail = failed.map((f) => f.error || f.summary).join("; ");
   return `${head} ${failed.length} failed: ${detail}`;
-}
-
-function slugify(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60);
 }
 
 // Create, rename or delete a whole trip. Deleting cascades to the itinerary,
@@ -841,7 +842,11 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
 
   if (tool === "update_trip") {
     const row = { ...patch };
-    if (row.name) row.slug = await freeSlug(supabase, slugify(row.name), id);
+    // A rename no longer moves the trip: the URL is found by the permanent key,
+    // and the readable half is corrected by a redirect when somebody follows an
+    // old link. So this is now cosmetic, which is exactly what it should be.
+    if (row.name)
+      row.slug = await freeTripSlug(supabase, familyId, row.name, id);
     const { error } = await supabase.from("trips").update(row).eq("id", id);
     return { error };
   }
@@ -861,12 +866,12 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
   delete row.pet_names;
 
   row.family_id = familyId;
-  row.slug = await freeSlug(supabase, slugify(row.name) || "trip", null);
+  row.slug = await freeTripSlug(supabase, familyId, row.name, null);
 
   const { data: trip, error } = await supabase
     .from("trips")
     .insert(row)
-    .select("id, slug")
+    .select("id, slug, public_id")
     .single();
   if (error) return { error };
 
@@ -927,7 +932,12 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
     }
   }
 
-  return { error: null, slug: trip.slug, id: trip.id };
+  return {
+    error: null,
+    slug: trip.slug,
+    public_id: trip.public_id,
+    id: trip.id,
+  };
 }
 
 // Copying the base list onto a trip. This used to happen inside trip creation,
@@ -1010,18 +1020,4 @@ async function fillPackingFromBase({ supabase, tripId, familyId }) {
     pets += outcome.added || 0;
   }
   return { error: null, copied: wanted.length + pets };
-}
-
-// Slugs are how trips are addressed in the URL, so keep them unique.
-async function freeSlug(supabase, base, excludeId) {
-  const { data } = await supabase.from("trips").select("id, slug");
-  const taken = new Set(
-    (data || []).filter((t) => t.id !== excludeId).map((t) => t.slug),
-  );
-  if (!taken.has(base)) return base;
-  for (let n = 2; n < 50; n++) {
-    const candidate = `${base}-${n}`;
-    if (!taken.has(candidate)) return candidate;
-  }
-  return `${base}-${Date.now().toString(36)}`;
 }

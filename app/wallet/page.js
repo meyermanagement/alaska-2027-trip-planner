@@ -57,7 +57,9 @@ export default async function RewardsPage() {
       .order("brand", { ascending: true }),
     supabase
       .from("trips")
-      .select("id, name, slug, destination, start_date, end_date, status")
+      .select(
+        "id, name, slug, public_id, destination, start_date, end_date, status",
+      )
       .eq("family_id", familyId)
       .neq("status", "archived")
       .or(`end_date.gte.${today},end_date.is.null`)

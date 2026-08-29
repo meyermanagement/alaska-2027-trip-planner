@@ -43,7 +43,9 @@ export async function GET(request, { params }) {
   // which the service role would sail straight past.
   const { data: trips } = await supabase
     .from("trips")
-    .select("id, name, slug, destination, start_date, end_date, status")
+    .select(
+      "id, name, slug, public_id, destination, start_date, end_date, status",
+    )
     .eq("family_id", feed.family_id)
     .neq("status", "draft");
   const tripIds = (trips || []).map((trip) => trip.id);

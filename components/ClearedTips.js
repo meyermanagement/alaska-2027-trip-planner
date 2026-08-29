@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
 import { announceTipResolved } from "@/lib/tips/cleared";
+import { tripPath } from "@/lib/trips/route";
 
 /**
  * The tips you have put away, kept where they can be found again.
@@ -109,9 +110,9 @@ export default function ClearedTips() {
                     >
                       {tip.about || "Wallet"}
                     </Link>
-                  ) : tip.trips?.slug ? (
+                  ) : tip.trips?.slug || tip.trips?.public_id ? (
                     <Link
-                      href={`/trips/${tip.trips.slug}`}
+                      href={tripPath(tip.trips)}
                       className="text-[0.76rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                     >
                       {tip.trips.name}

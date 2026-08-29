@@ -43,7 +43,7 @@ export default async function RemindersPage() {
       supabase
         .from("predeparture_tasks")
         .select(
-          "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, start_date, end_date, status, family_id)",
+          "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, public_id, start_date, end_date, status, family_id)",
         )
         .eq("is_done", false)
         .order("sort_order", { ascending: true }),

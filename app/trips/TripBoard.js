@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
 import { formatRange, daysUntil, tripDayNumber } from "@/lib/format";
 import PromoteDraft from "@/components/PromoteDraft";
+import { tripPath } from "@/lib/trips/route";
 
 // Three kinds of trip, three shapes of card. Upcoming trips are the reason the
 // app exists, so they stay large; drafts are unfinished, so they read as
@@ -76,14 +77,14 @@ function CurrentCard({ trip, today }) {
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link
-          href={`/trips/${trip.slug}?tab=itinerary`}
+          href={tripPath(trip, "itinerary")}
           className="btn btn-primary relative"
         >
           <PendingVeil />
           Open today’s plan
         </Link>
         <Link
-          href={`/trips/${trip.slug}?tab=packing`}
+          href={tripPath(trip, "packing")}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
         >
           Packing {trip.packed}/{trip.packing}
@@ -91,7 +92,7 @@ function CurrentCard({ trip, today }) {
         </Link>
         {trip.tasks > trip.tasksDone && (
           <Link
-            href={`/trips/${trip.slug}?tab=tasks`}
+            href={tripPath(trip, "tasks")}
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
           >
             {trip.tasks - trip.tasksDone} still to do
@@ -112,7 +113,7 @@ function UpcomingCard({ trip }) {
   const countdown = daysUntil(trip.start_date);
   return (
     <Link
-      href={`/trips/${trip.slug}`}
+      href={tripPath(trip)}
       className="card group relative flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
     >
       <PendingVeil />
@@ -171,7 +172,7 @@ function DraftCard({ trip }) {
       </div>
       <h3 className="font-display mt-3 text-xl font-semibold">
         <Link
-          href={`/trips/${trip.slug}`}
+          href={tripPath(trip)}
           className="inline-flex items-center gap-2 hover:text-teal"
         >
           {trip.name}
@@ -211,7 +212,7 @@ function DraftCard({ trip }) {
       </div>
       <div className="no-print mt-4 flex flex-wrap items-center gap-3">
         <Link
-          href={`/trips/${trip.slug}`}
+          href={tripPath(trip)}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
         >
           Keep working on it
@@ -226,7 +227,7 @@ function DraftCard({ trip }) {
 function PastCard({ trip }) {
   return (
     <Link
-      href={`/trips/${trip.slug}`}
+      href={tripPath(trip)}
       className="group relative flex flex-col rounded-xl border border-[var(--line)] bg-white/55 p-4 transition hover:-translate-y-px hover:border-teal/30 hover:bg-white hover:shadow-[0_10px_26px_-20px_rgba(20,32,30,0.3)]"
     >
       <PendingVeil />

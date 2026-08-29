@@ -29,6 +29,7 @@ import {
   totalCreditValue,
   totalEstimatedValue,
 } from "@/lib/rewards";
+import { tripPath } from "@/lib/trips/route";
 
 const SPENDS = [
   { key: "flights", label: "Flights" },
@@ -438,7 +439,7 @@ export default function RewardsBoard({
                             ({ trip, state }) => (
                               <Link
                                 key={`${row.id}-${trip.id}`}
-                                href={`/trips/${trip.slug}`}
+                                href={tripPath(trip)}
                                 title={
                                   state === "applies"
                                     ? `${trip.name} has something booked with them`

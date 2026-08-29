@@ -56,8 +56,12 @@ export default async function PeoplePage() {
     supabase
       .from("trips")
       .select(
-        "id, name, slug, destination, cover_emoji, start_date, end_date, status, trip_facts (leaves_country, countries)",
+        "id, name, slug, public_id, destination, cover_emoji, start_date, end_date, status, trip_facts (leaves_country, countries)",
       )
+      // Scoped to the household this screen is showing. Row-level security
+      // already keeps other people's trips out; this keeps the reader's *other*
+      // household out, which matters as soon as anybody belongs to two.
+      .eq("family_id", familyId)
       .order("start_date", { ascending: false }),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
     supabase

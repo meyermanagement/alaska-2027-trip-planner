@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { carryEnd } from "@/lib/format";
 import CreateWithAly from "./CreateWithAly";
+import { tripPath, freeTripSlug } from "@/lib/trips/route";
 
 const EMOJI = ["🧳", "🏝️", "🏔️", "🚢", "🎡", "🗺️", "🎿", "🏰"];
 
@@ -49,14 +50,6 @@ async function copyBaseTemplate(supabase, familyId, tripId) {
   await supabase
     .from("packing_items")
     .insert(items.map((i) => ({ ...i, trip_id: tripId })));
-}
-
-function slugify(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60);
 }
 
 export default function NewTripButton({ familyId }) {
@@ -105,14 +98,17 @@ export default function NewTripButton({ familyId }) {
       .insert({
         family_id: familyId,
         name: name.trim(),
-        slug: slugify(name),
+        // Looked up rather than assumed. This used to be slugify(name) with no
+        // check at all, so a second trip with the same name in one household
+        // showed the person the raw text of a Postgres constraint violation.
+        slug: await freeTripSlug(supabase, familyId, name),
         destination: destination.trim() || null,
         start_date: start || null,
         end_date: end || null,
         cover_emoji: emoji,
         status: kind,
       })
-      .select("id, slug")
+      .select("id, slug, public_id")
       .single();
 
     if (tripError) {
@@ -146,7 +142,7 @@ export default function NewTripButton({ familyId }) {
     setBusy(false);
     setStep("");
     setOpen(false);
-    router.push(`/trips/${trip.slug}`);
+    router.push(tripPath(trip));
     router.refresh();
   }
 

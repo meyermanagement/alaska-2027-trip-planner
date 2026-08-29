@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { tripDayNumber } from "@/lib/format";
+import { tripPath } from "@/lib/trips/route";
 
 /**
  * The band that appears while the family is actually away.
@@ -31,13 +32,13 @@ import { tripDayNumber } from "@/lib/format";
  * rosters.
  */
 export default function CurrentTripBanner({ trip, today }) {
-  if (!trip?.slug) return null;
+  if (!trip?.slug && !trip?.public_id) return null;
   const where = tripDayNumber(trip, today);
 
   return (
     <div className="no-print border-b border-teal/30 bg-teal text-white">
       <Link
-        href={`/trips/${trip.slug}?tab=itinerary`}
+        href={tripPath(trip, "itinerary")}
         aria-label={`${trip.name} is happening now — open today's plan`}
         className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-2 transition hover:bg-white/10"
       >

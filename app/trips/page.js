@@ -54,8 +54,12 @@ export default async function TripsPage() {
     supabase
       .from("trips")
       .select(
-        "id, name, slug, destination, start_date, end_date, cover_emoji, summary, status",
+        "id, name, slug, public_id, destination, start_date, end_date, cover_emoji, summary, status",
       )
+      // Scoped to the household this screen is showing. Row-level security
+      // already keeps other people's trips out; this keeps the reader's *other*
+      // household out, which matters as soon as anybody belongs to two.
+      .eq("family_id", family.id)
       .order("start_date", { ascending: true }),
     supabase
       .from("packing_items")
