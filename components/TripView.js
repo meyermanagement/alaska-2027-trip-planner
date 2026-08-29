@@ -22,7 +22,7 @@ import { ARRANGEMENTS, arrangementLabel, isComing } from "@/lib/pets/pets";
 /**
  * What the look put on the other tabs, said on the tab that started it.
  *
- * The Overview button walks five places and files each tip against whichever one
+ * The Tips tab's button walks five places and files each tip against whichever one
  * it belongs to, so most of what a press produces appears somewhere the person who
  * pressed it is not looking. Reporting a bare total there is the same fault as a
  * scheduled job that fails in silence, inverted: work happened and the screen
@@ -32,10 +32,10 @@ import { ARRANGEMENTS, arrangementLabel, isComing } from "@/lib/pets/pets";
  * same list the tabs render, rather than a remembered claim about what a look once
  * did. A number that is checkable is worth more than a number that is a memory.
  */
-function OverviewTips({ landed, counts, everLooked, onGo }) {
+function ElsewhereTips({ landed, counts, everLooked, onGo }) {
   const summary = lookSummary({ byScope: counts });
   const justNow = landed?.summary?.places?.some(
-    (place) => place.tab && place.tab !== "overview" && place.tab !== "trip",
+    (place) => place.tab && place.tab !== "tips" && place.tab !== "trip",
   );
 
   return (
@@ -84,12 +84,12 @@ function OverviewTips({ landed, counts, everLooked, onGo }) {
 }
 
 const TABS = [
-  // Overview first, and deliberately not the tab a trip opens on. Somebody
-  // pressing a trip they are already living in wants today's plans, not a summary
-  // of the whole thing -- so the order of the bar and the landing tab are two
-  // separate decisions, and this is the one that is only about order.
-  { id: "overview", label: "Overview" },
+  // Itinerary first, because that is what a trip opens on and what somebody
+  // living inside a trip came for. Tips sits second: it is where the advice about
+  // the trip as a whole lives, and the one place that can ask for a look, but it
+  // is a thing you go to rather than a thing you land on.
   { id: "itinerary", label: "Itinerary" },
+  { id: "tips", label: "Tips" },
   { id: "packing", label: "Packing" },
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
@@ -130,7 +130,7 @@ export default function TripView({
   const tabs = readOnly ? TABS.filter((t) => t.id !== "notes") : TABS;
   const [tab, setTab] = useState("itinerary");
   // What the last look filed, and where. Held here rather than inside the tips
-  // card so the Overview tab can keep saying it after somebody has been off to
+  // card so the Tips tab can keep saying it after somebody has been off to
   // read the tips on another tab and come back.
   const [landed, setLanded] = useState(null);
   // Whether the tab bar has anything past its right edge. Measured, not guessed
@@ -154,7 +154,7 @@ export default function TripView({
     };
   }, []);
   // Switching tabs from somewhere other than the bar -- a "Read Packing" press on
-  // the Overview, or a ?tab= link -- can select a tab that is off the right edge,
+  // the Tips tab, or a ?tab= link -- can select a tab that is off the right edge,
   // leaving the bar looking as though nothing happened.
   useEffect(() => {
     const bar = tabBarRef.current;
@@ -714,8 +714,8 @@ export default function TripView({
       </section>
 
       <div className="mt-6">
-        {/* Overview holds the advice about the trip as a whole, and it is the one
-            place on the page that can ask for a look.
+        {/* The Tips tab holds the advice about the trip as a whole, and it is
+            the one place on the page that can ask for a look.
 
             It used to sit on the itinerary tab, on the reasoning that most of
             these tips are about dates and bookings. But one press walks the trip,
@@ -724,7 +724,7 @@ export default function TripView({
             which one had already been pressed — and the tab it was pressed on was
             usually not the tab that changed. So the button lives here, once, and
             says where its tips went. */}
-        {tab === "overview" && (
+        {tab === "tips" && (
           <ProTips
             tips={tips.filter((tip) => tip.scope === "trip")}
             today={today}
@@ -738,8 +738,8 @@ export default function TripView({
             readOnly={readOnly}
           />
         )}
-        {tab === "overview" && !readOnly && (
-          <OverviewTips
+        {tab === "tips" && !readOnly && (
+          <ElsewhereTips
             landed={landed}
             counts={{
               item: tips.filter((tip) => tip.scope === "item").length,
