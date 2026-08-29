@@ -214,6 +214,11 @@ export default function People({
       setLevelNote({ id: person.id, text: humanizeLevelError(error, person) });
       return;
     }
+    // Two places hold a short-lived note of what level this browser was told,
+    // so the menu can be drawn before the database has been asked. Both are
+    // dropped here, or a primary traveler who has just stepped down would keep
+    // being shown a menu they no longer have.
+    forgetLevel();
     router.refresh();
   }
 
@@ -811,6 +816,19 @@ function stampDay(value) {
 
 // The trigger in 20260828_access_levels.sql raises a sentence meant to be read,
 // so the job here is to notice it rather than to reword it.
+// Clears the hints the menu draws its first frame from: a cookie the middleware
+// left, and the copy the loading skeleton reads back. Neither grants anything --
+// the database is what refuses -- so clearing them is safe at any time, and only
+// ever costs one extra query.
+function forgetLevel() {
+  try {
+    document.cookie = "alyeska_level=; Max-Age=0; Path=/; SameSite=Lax";
+    window.localStorage.removeItem("alyeska.level");
+  } catch {
+    // A browser refusing storage just waits for the cookie to expire.
+  }
+}
+
 function humanizeLevelError(error, person) {
   const text = error?.message || "";
   if (/only primary traveler/i.test(text)) {

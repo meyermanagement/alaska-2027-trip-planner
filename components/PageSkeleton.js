@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import AlyeskaMark from "./AlyeskaMark";
 import NavTabs from "./NavTabs";
 
@@ -13,7 +14,13 @@ import NavTabs from "./NavTabs";
  * one asks the database how many reminders need attention, and waiting on that
  * would defeat the whole purpose.
  */
-export default function PageSkeleton({ label = "Loading", children }) {
+export default async function PageSkeleton({ label = "Loading", children }) {
+  // Which menu to draw. Left for us by the middleware, which had already asked,
+  // so reading it here costs nothing and the first frame is right rather than
+  // being corrected a moment later. Awaiting cookies() touches no database.
+  const jar = await cookies();
+  const level = jar.get("alyeska_level")?.value || null;
+
   return (
     <>
       <header className="no-print sticky top-0 z-20 border-b border-[var(--line)] bg-sand/80 backdrop-blur-md">
@@ -27,7 +34,7 @@ export default function PageSkeleton({ label = "Loading", children }) {
           <span className="sk h-9 w-[6.5rem] rounded-full" aria-hidden="true" />
         </div>
       </header>
-      <NavTabs />
+      <NavTabs level={level} />
       <main
         className="mx-auto w-full max-w-5xl px-5 pb-16 pt-7"
         role="status"

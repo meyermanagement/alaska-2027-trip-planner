@@ -489,7 +489,7 @@ export default function TripView({
                       }))}
                       activeIds={petLinks.map((l) => l.pet_id)}
                       busyId={petBusy}
-                      onToggle={togglePet}
+                      onToggle={readOnly ? null : togglePet}
                     />
                   </div>
                   {petLinks.length > 0 && (
@@ -500,21 +500,30 @@ export default function TripView({
                           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
                         >
                           <span className="font-semibold">{pet.name}</span>
-                          <select
-                            className="field w-auto py-1 text-xs"
-                            value={arrangement}
-                            disabled={petBusy === pet.id}
-                            onChange={(e) =>
-                              setPetArrangement(pet, e.target.value)
-                            }
-                            aria-label={`What happens to ${pet.name} on this trip`}
-                          >
-                            {ARRANGEMENTS.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.label}
-                              </option>
-                            ))}
-                          </select>
+                          {readOnly ? (
+                            // What is happening to the animal is worth knowing
+                            // even for somebody who cannot decide it, so the
+                            // answer stays and only the menu goes.
+                            <span className="text-xs text-ink-soft">
+                              {arrangementLabel(arrangement)}
+                            </span>
+                          ) : (
+                            <select
+                              className="field w-auto py-1 text-xs"
+                              value={arrangement}
+                              disabled={petBusy === pet.id}
+                              onChange={(e) =>
+                                setPetArrangement(pet, e.target.value)
+                              }
+                              aria-label={`What happens to ${pet.name} on this trip`}
+                            >
+                              {ARRANGEMENTS.map((a) => (
+                                <option key={a.id} value={a.id}>
+                                  {a.label}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                           {!isComing(arrangement) && (
                             <span className="text-xs text-ink-soft">
                               not traveling
