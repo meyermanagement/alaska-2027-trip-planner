@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
@@ -52,6 +52,11 @@ export default function Preferences({
   // "" is everyone; otherwise a traveler id, or SHARED for the family's own.
   const [whose, setWhose] = useState("");
   const [tripId, setTripId] = useState("");
+  // What Aly came back with, and nothing more: drafts held in the browser, never
+  // written until somebody presses Save on one of them.
+  const [ideas, setIdeas] = useState(null);
+  const [asking, setAsking] = useState(false);
+  const [askError, setAskError] = useState("");
 
   const counts = useMemo(
     () => whoseCounts(prefs, travelers),
@@ -130,6 +135,46 @@ export default function Preferences({
     router.refresh();
   }
 
+  /**
+   * Ask Aly what is missing, with the screen's own filters as the question.
+   *
+   * The name rather than the id, because the server is writing a brief and not
+   * running a query, and "weight this towards Veda" is a sentence a model can act
+   * on where a uuid is not.
+   */
+  async function askAly() {
+    setAsking(true);
+    setAskError("");
+    setIdeas(null);
+    const whoseName =
+      whose === SHARED_LABEL
+        ? SHARED_LABEL
+        : travelers.find((t) => t.id === whose)?.name || "";
+    try {
+      const res = await fetch("/api/preferences/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whose: whoseName, tripId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Aly could not answer.");
+      setIdeas(
+        (data.suggestions || []).map((row, index) => ({
+          ...row,
+          key: `${index}-${row.body?.slice(0, 24)}`,
+        })),
+      );
+    } catch (error) {
+      setAskError(error?.message || "Aly could not answer just now.");
+    }
+    setAsking(false);
+  }
+
+  /** Take one draft off the list, saved or turned down. */
+  function dropIdea(key) {
+    setIdeas((list) => (list || []).filter((row) => row.key !== key));
+  }
+
   return (
     <section className="card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -144,18 +189,28 @@ export default function Preferences({
             things.
           </p>
         </div>
-        {!adding && (
+        <div className="no-print flex flex-wrap gap-2">
           <button
             type="button"
-            className="btn btn-primary no-print"
-            onClick={() => {
-              setEditing(null);
-              setAdding(true);
-            }}
+            className="btn btn-ghost"
+            onClick={askAly}
+            disabled={asking}
           >
-            Add a preference
+            {asking ? "Aly is thinking…" : "Ask Aly what is missing"}
           </button>
-        )}
+          {!adding && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setEditing(null);
+                setAdding(true);
+              }}
+            >
+              Add a preference
+            </button>
+          )}
+        </div>
       </div>
 
       {adding && (
@@ -166,6 +221,53 @@ export default function Preferences({
             onCancel={() => setAdding(false)}
             onSave={(values) => save(null, values)}
           />
+        </div>
+      )}
+
+      {askError && (
+        <p className="no-print mt-4 rounded-xl border border-rose/30 bg-rose/5 p-3 text-sm text-rose">
+          {askError}
+        </p>
+      )}
+
+      {asking && (
+        <p className="no-print mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm text-ink-soft">
+          Aly is reading your trips, your reviews and what is already saved
+          here, looking for the decisions she keeps having to guess at. This
+          takes a few seconds.
+        </p>
+      )}
+
+      {ideas && !asking && (
+        <div className="no-print mt-4 space-y-3 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+          <div>
+            <span className="section-label">Aly&apos;s suggestions</span>
+            <p className="mt-1 text-sm text-ink-soft">
+              {ideas.length === 0
+                ? "Nothing to add — everything Aly would want to know is already written down here."
+                : "Drafts, in your words, from what Aly already knows about you. Nothing is saved until you press Save, and you can change the wording first."}
+            </p>
+          </div>
+          {ideas.map((idea) => (
+            <SuggestionCard
+              key={idea.key}
+              idea={idea}
+              travelers={travelers}
+              busy={busy}
+              onSave={async (values) => {
+                await save(null, values);
+                dropIdea(idea.key);
+              }}
+              onSkip={() => dropIdea(idea.key)}
+            />
+          ))}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setIdeas(null)}
+          >
+            {ideas.length === 0 ? "Close" : "Done with these"}
+          </button>
         </div>
       )}
 
@@ -317,6 +419,112 @@ function Chip({ on, onClick, children }) {
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * One of Aly's drafts, editable in place.
+ *
+ * The textarea is the point. A suggestion that saved on one press would be Aly
+ * writing a preference in the family's name, and the whole feature would then be
+ * a machine deciding what this family is like. Editable text next to a Save
+ * button means the words that get saved are words somebody has just read.
+ */
+function SuggestionCard({ idea, travelers, busy, onSave, onSkip }) {
+  const [body, setBody] = useState(idea.body || "");
+  const [topic, setTopic] = useState(idea.topic || "");
+  const [travelerId, setTravelerId] = useState(idea.travelerId || "");
+  const box = useRef(null);
+
+  // The box grows to fit the sentence. Measured at 320px, where a fixed height
+  // showed the first two lines of a three-line draft and hid the rest behind an
+  // inner scrollbar — on the one control whose entire purpose is that nothing is
+  // saved until somebody has read all of it.
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    // Plus the border, because the height set here is a border-box height while
+    // scrollHeight is not: without it every box sits two pixels short and the
+    // last line is clipped by exactly enough to notice.
+    const border = el.offsetHeight - el.clientHeight;
+    el.style.height = `${el.scrollHeight + border}px`;
+  }, [body]);
+
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-white p-3">
+      {idea.because && (
+        <p className="text-xs text-ink-soft">Because {idea.because}</p>
+      )}
+      <label className="mt-2 block">
+        <span className="block section-label">The preference</span>
+        <textarea
+          ref={box}
+          className="field mt-1 min-h-20 overflow-hidden"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
+      </label>
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+        <label>
+          <span className="block section-label">Topic</span>
+          <input
+            className="field mt-1"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            list="suggested-topics"
+          />
+          {/* Its own list: the shared one lives inside the add form, which is
+              usually closed while these cards are on screen. */}
+          <datalist id="suggested-topics">
+            {TOPIC_IDEAS.map((t) => (
+              <option key={t} value={t} />
+            ))}
+          </datalist>
+        </label>
+        <div>
+          <span className="block section-label">Whose</span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <Chip on={!travelerId} onClick={() => setTravelerId("")}>
+              {SHARED_LABEL}
+            </Chip>
+            {travelers.map((t) => (
+              <Chip
+                key={t.id}
+                on={travelerId === t.id}
+                onClick={() => setTravelerId(t.id)}
+              >
+                {t.name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy || !body.trim()}
+          onClick={() =>
+            onSave({
+              body: body.trim(),
+              topic: topic.trim() || null,
+              traveler_id: travelerId || null,
+            })
+          }
+        >
+          {busy ? "Saving…" : "Save this"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={onSkip}
+          disabled={busy}
+        >
+          Not us
+        </button>
+      </div>
+    </div>
   );
 }
 
