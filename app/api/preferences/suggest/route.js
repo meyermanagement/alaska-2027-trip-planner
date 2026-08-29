@@ -13,6 +13,7 @@
 // search.
 
 import { NextResponse } from "next/server";
+import { topicsInUse } from "@/lib/preferences/topics";
 import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/reminders";
 import { resolveAccess } from "@/lib/travelers/access";
@@ -83,7 +84,7 @@ export async function POST(request) {
       .order("sort_order", { ascending: true }),
     supabase
       .from("travel_preferences")
-      .select("id, topic, body, traveler_id")
+      .select("id, topic, topics, body, traveler_id")
       .eq("family_id", familyId),
     supabase
       .from("trips")
@@ -118,13 +119,12 @@ export async function POST(request) {
         .or("rating.not.is.null,review.not.is.null")
     : { data: [] };
 
-  const topics = Array.from(
-    new Set(
-      (preferences || [])
-        .map((pref) => String(pref.topic || "").trim())
-        .filter(Boolean),
-    ),
-  ).sort();
+  // Their own topics, most-used first, with the counts — a topic carrying five
+  // preferences is a stronger suggestion than one carrying a single stray, and
+  // alphabetical order threw that away.
+  const topics = topicsInUse(preferences || []).map(
+    (row) => `${row.label} (${row.count})`,
+  );
 
   let result;
   try {

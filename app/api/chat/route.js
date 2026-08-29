@@ -472,7 +472,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
     supabase
       .from("travel_preferences")
-      .select("id, topic, body, traveler_id")
+      .select("id, topic, topics, body, traveler_id")
       .order("topic", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
     supabase
