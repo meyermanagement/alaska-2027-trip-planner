@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
@@ -7,7 +8,7 @@ import { isDraftTrip, isPastTrip } from "@/lib/format";
 import NewTripButton from "./NewTripButton";
 import TripBoard from "./TripBoard";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
-import AboutMeCard from "@/components/AboutMeCard";
+import { ABOUT_SKIP_COOKIE } from "@/lib/travelers/profile";
 
 export const metadata = { title: "Trips · Alyeska" };
 
@@ -102,10 +103,20 @@ export default async function TripsPage() {
     .filter(isPastTrip)
     .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
 
-  // Whose paragraph the card offers to write. Matched on the account rather than
-  // on the name, because a name is not an identity and two Marks would both be
-  // handed the same row.
+  // The About You question used to be a card at the top of this page. It is a
+  // screen of its own now: an account with nothing in it needs that paragraph
+  // more than it needs anything else here, and a box six lines tall wedged
+  // between a heading and a list of trips does not get a paragraph written in it.
+  //
+  // Matched on the account rather than on the name, because a name is not an
+  // identity and two Marks would both be handed the same row. No row at all means
+  // an unclaimed seat, and nowhere to save the answer, so the question is not
+  // asked.
   const me = (people || []).find((p) => p.user_id === user.id) || null;
+  const skipped = (await cookies()).get(ABOUT_SKIP_COOKIE);
+  if (me && !String(me.about_me || "").trim() && !skipped) {
+    redirect("/about-you?first=1");
+  }
 
   return (
     <>
@@ -124,15 +135,6 @@ export default async function TripsPage() {
           </div>
           {!access?.can.isSecondary && <NewTripButton familyId={family.id} />}
         </div>
-
-        {/* Above the trips rather than below them: on a new family's first visit
-            this is the only thing on the page worth doing, and once it is
-            answered it collapses to one line and stops competing. */}
-        <AboutMeCard
-          travelerId={me?.id || null}
-          name={me?.name || ""}
-          about={me?.about_me || ""}
-        />
 
         <TripBoard upcoming={upcoming} drafts={drafts} past={past} />
       </main>
