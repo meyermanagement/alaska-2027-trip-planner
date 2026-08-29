@@ -17,7 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/reminders";
 import { resolveAccess } from "@/lib/travelers/access";
 import { isDraftTrip, isPastTrip } from "@/lib/format";
-import { suggestedPreferences } from "@/lib/preferences/suggest";
+import { MODES, suggestedPreferences } from "@/lib/preferences/suggest";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -42,6 +42,12 @@ export async function POST(request) {
   // at rather than about the family in general.
   const whose = String(body?.whose || "").trim();
   const tripId = String(body?.tripId || "").trim();
+  // Which question was asked: what is missing from their own record, or the
+  // ordinary decisions any trip needs. An unrecognized value asks the sharper
+  // question, which is the one that can answer "nothing to add".
+  const mode = MODES.includes(String(body?.mode))
+    ? String(body.mode)
+    : "missing";
 
   const supabase = await createClient();
   const {
@@ -123,6 +129,7 @@ export async function POST(request) {
   let result;
   try {
     result = await suggestedPreferences({
+      mode,
       travelers: travelers || [],
       preferences: preferences || [],
       trips,
@@ -148,13 +155,19 @@ export async function POST(request) {
   console.log(
     `[preferences/suggest] saved=${(preferences || []).length} places=${
       (places || []).length
-    } model=${result.model || "none"} kept=${result.suggestions.length} dropped=${
+    } mode=${result.mode} starter=${result.starter} model=${result.model || "none"} kept=${result.suggestions.length} dropped=${
       result.dropped.length
     } ms=${Date.now() - startedAt}`,
   );
 
   return NextResponse.json({
     suggestions: result.suggestions,
+    // Whether these came out of their record or are the ordinary decisions every
+    // trip needs. The screen says which, because a suggestion presented as
+    // something Aly noticed when she noticed nothing is a small lie that costs
+    // trust the first time somebody spots it.
+    starter: result.starter,
+    mode: result.mode,
     considered: result.suggestions.length + result.dropped.length,
     dropped: result.dropped.length,
     model: result.model,

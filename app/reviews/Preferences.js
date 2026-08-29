@@ -55,7 +55,14 @@ export default function Preferences({
   // What Aly came back with, and nothing more: drafts held in the browser, never
   // written until somebody presses Save on one of them.
   const [ideas, setIdeas] = useState(null);
-  const [asking, setAsking] = useState(false);
+  // True when Aly had nothing of theirs to reason from and these are the ordinary
+  // decisions every trip needs instead.
+  const [starter, setStarter] = useState(false);
+  // Which question the cards on screen are answering, so the wording above them
+  // matches the button that was actually pressed.
+  const [askedFor, setAskedFor] = useState("missing");
+  // Which button is running, so the one that was pressed is the one that says so.
+  const [asking, setAsking] = useState("");
   const [askError, setAskError] = useState("");
 
   const counts = useMemo(
@@ -142,8 +149,8 @@ export default function Preferences({
    * running a query, and "weight this towards Veda" is a sentence a model can act
    * on where a uuid is not.
    */
-  async function askAly() {
-    setAsking(true);
+  async function askAly(mode) {
+    setAsking(mode);
     setAskError("");
     setIdeas(null);
     const whoseName =
@@ -154,10 +161,12 @@ export default function Preferences({
       const res = await fetch("/api/preferences/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ whose: whoseName, tripId }),
+        body: JSON.stringify({ mode, whose: whoseName, tripId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Aly could not answer.");
+      setStarter(Boolean(data.starter));
+      setAskedFor(data.mode === "ideas" ? "ideas" : "missing");
       setIdeas(
         (data.suggestions || []).map((row, index) => ({
           ...row,
@@ -167,7 +176,7 @@ export default function Preferences({
     } catch (error) {
       setAskError(error?.message || "Aly could not answer just now.");
     }
-    setAsking(false);
+    setAsking("");
   }
 
   /** Take one draft off the list, saved or turned down. */
@@ -193,10 +202,20 @@ export default function Preferences({
           <button
             type="button"
             className="btn btn-ghost"
-            onClick={askAly}
-            disabled={asking}
+            onClick={() => askAly("ideas")}
+            disabled={Boolean(asking)}
           >
-            {asking ? "Aly is thinking…" : "Ask Aly what is missing"}
+            {asking === "ideas" ? "Aly is thinking…" : "Ask Aly for ideas"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => askAly("missing")}
+            disabled={Boolean(asking)}
+          >
+            {asking === "missing"
+              ? "Aly is thinking…"
+              : "Ask Aly what is missing"}
           </button>
           {!adding && (
             <button
@@ -232,9 +251,9 @@ export default function Preferences({
 
       {asking && (
         <p className="no-print mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm text-ink-soft">
-          Aly is reading your trips, your reviews and what is already saved
-          here, looking for the decisions she keeps having to guess at. This
-          takes a few seconds.
+          {asking === "ideas"
+            ? "Aly is drafting the decisions any trip needs an answer to, skipping anything already saved here. This takes a few seconds."
+            : "Aly is reading your trips, your reviews and what is already saved here, looking for the decisions she keeps having to guess at. This takes a few seconds."}
         </p>
       )}
 
@@ -245,7 +264,11 @@ export default function Preferences({
             <p className="mt-1 text-sm text-ink-soft">
               {ideas.length === 0
                 ? "Nothing to add — everything Aly would want to know is already written down here."
-                : "Drafts, in your words, from what Aly already knows about you. Nothing is saved until you press Save, and you can change the wording first."}
+                : askedFor === "ideas"
+                  ? "The decisions any trip needs an answer to, drafted the ordinary way rather than picked out of your record. Change each one to what is actually true of you, or turn it down. Nothing is saved until you press Save."
+                  : starter
+                    ? "There is not much saved about you yet, so these are not things Aly spotted — they are the decisions every trip needs an answer to, drafted the ordinary way. Change any of them to what is actually true of you, or turn them down. Nothing is saved until you press Save."
+                    : "Drafts, in your words, from what Aly already knows about you. Nothing is saved until you press Save, and you can change the wording first."}
             </p>
           </div>
           {ideas.map((idea) => (
