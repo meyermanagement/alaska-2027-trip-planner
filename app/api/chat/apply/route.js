@@ -791,7 +791,7 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
   // pets, carried on the patch because a pet on a trip is a trip_pets row rather
   // than a column. set_pet_trip cannot do this job at creation time — it needs a
   // trip_id, and the trip does not exist until three lines below.
-  const petIds = Array.isArray(row.pets) ? row.pets : null;
+  const petPlans = Array.isArray(row.pets) ? row.pets : null;
   delete row.pets;
   delete row.pet_names;
 
@@ -831,19 +831,34 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
   // so the dog's things arrive with everyone else's rather than as five orphan
   // lines on an otherwise empty list. A pet that fails here does not undo the
   // trip: a trip with the dog missing is still the trip they asked for.
-  if (petIds?.length) {
+  if (petPlans?.length) {
+    // Households with several animals rarely bring all of them, and the ones
+    // staying behind are written down too: a cat with no row at all is
+    // indistinguishable from a cat nobody has thought about yet, and the whole
+    // point of asking was to settle it. Only the travelling ones reach the
+    // packing list, which fillPackingFromBase works out for itself by reading
+    // the arrangement back off these rows.
     const { data: petRows } = await supabase
       .from("pets")
-      .select("id, family_id, name, species, travel_style, medications")
+      .select("id, family_id")
       .eq("family_id", familyId)
-      .in("id", petIds);
-    for (const pet of petRows || []) {
+      .in(
+        "id",
+        petPlans.map((x) => x.pet_id),
+      );
+    const mine = new Set((petRows || []).map((p) => p.id));
+    const rows = petPlans
+      .filter((plan) => mine.has(plan.pet_id))
+      .map((plan) => ({
+        trip_id: trip.id,
+        pet_id: plan.pet_id,
+        arrangement: plan.arrangement || "coming",
+        arrangement_notes: plan.arrangement_notes || null,
+      }));
+    if (rows.length) {
       await supabase
         .from("trip_pets")
-        .upsert(
-          { trip_id: trip.id, pet_id: pet.id, arrangement: "coming" },
-          { onConflict: "trip_id,pet_id" },
-        );
+        .upsert(rows, { onConflict: "trip_id,pet_id" });
     }
   }
 

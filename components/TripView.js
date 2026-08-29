@@ -326,6 +326,12 @@ export default function TripView({
     .filter(Boolean);
   // Only the animals actually coming are offered on the packing form: a dog with
   // a sitter does not need a line on this trip's list.
+  // Which animals have anything on the packing list at all, so the set-aside
+  // wording only appears where there is something to set aside.
+  const petsWithLines = useMemo(
+    () => new Set(packing.map((p) => p.pet_id).filter(Boolean)),
+    [packing],
+  );
   const petsComing = petsOnTrip
     .filter(({ arrangement }) => isComing(arrangement))
     .map(({ pet }) => pet);
@@ -451,9 +457,10 @@ export default function TripView({
               {pets.length > 0 && (
                 <div className="mt-4">
                   <p className="section-label">
-                    {past ? "Pets on this trip" : "Pets coming"}
+                    {past ? "Pets on this trip" : "Pets"}
                     <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
-                      — tap an animal to bring it along
+                      — tap an animal to settle it for this trip, then say what
+                      is happening to it
                     </span>
                   </p>
                   <div className="mt-1.5">
@@ -493,7 +500,10 @@ export default function TripView({
                           </select>
                           {!isComing(arrangement) && (
                             <span className="text-xs text-ink-soft">
-                              their things are set aside, not deleted
+                              not travelling
+                              {petsWithLines.has(pet.id)
+                                ? " — their things are set aside, not deleted"
+                                : ""}
                             </span>
                           )}
                         </div>
