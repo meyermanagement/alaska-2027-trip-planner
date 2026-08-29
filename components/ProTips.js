@@ -36,6 +36,14 @@ export default function ProTips({
   // empty it just looks at this one scope.
   chain = null,
   heading = "Pro tips",
+  // Whether this place can be looked at at all. A trip can; so can the Wallet,
+  // which has no trip behind it; an itinerary card cannot, because a trip has
+  // thirty of them and the trip-level look already walks the bookings.
+  canLook = undefined,
+  // What to say when there is nothing. The default talks about dates and plans,
+  // which is right on a trip and wrong in the Wallet.
+  emptyLooked = "Nothing worth flagging here at the moment. Tips only appear when there is something specific to say about your dates, your plans, or what you have told the app you like.",
+  emptyFresh = "Nothing here yet. Ask for a look and anything genuinely useful about these particular plans will show up.",
   compact = false,
   // The date of the thing these tips are about, when they hang off something
   // dated — an itinerary item. A tip with no deadline of its own is read and
@@ -155,7 +163,12 @@ export default function ProTips({
     setBusy(true);
     setProblem("");
     const steps = chain && chain.length ? chain : [{ scope, itemId }];
-    const { found, error, tookMs } = await runLook({
+    const {
+      found,
+      error,
+      tookMs,
+      note: said,
+    } = await runLook({
       tripId,
       steps,
       onNote: setNote,
@@ -180,7 +193,10 @@ export default function ProTips({
         ? found === 1
           ? `One tip${took}.`
           : `${found} tips${took}.`
-        : `Nothing worth telling you right now${took}.`,
+        : // "Nothing worth telling you" is a claim about the world. When the
+          // server says it never got as far as the world -- an empty Wallet, for
+          // instance -- its words are the true ones.
+          said || `Nothing worth telling you right now${took}.`,
     );
     setBusy(false);
     setProgress(null);
@@ -204,7 +220,7 @@ export default function ProTips({
         {/* No button on an itinerary card. A trip has thirty of them and nobody
             is pressing thirty buttons — the look at trip level walks the
             bookings as well. */}
-        {tripId && !compact && !readOnly ? (
+        {(canLook ?? Boolean(tripId)) && !compact && !readOnly ? (
           <button
             type="button"
             onClick={look}
@@ -283,9 +299,7 @@ export default function ProTips({
         </ul>
       ) : (
         <p className="text-[0.86rem] leading-relaxed text-ink-soft">
-          {looked
-            ? "Nothing worth flagging here at the moment. Tips only appear when there is something specific to say about your dates, your plans, or what you have told the app you like."
-            : "Nothing here yet. Ask for a look and anything genuinely useful about these particular plans will show up."}
+          {looked ? emptyLooked : emptyFresh}
         </p>
       )}
     </section>

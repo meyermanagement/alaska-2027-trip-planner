@@ -20,7 +20,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("pro_tips")
     .select(
-      "id, title, body, because, urgency, act_by, scope, sources, resolved_at, trips (name, slug)",
+      "id, title, body, because, urgency, act_by, scope, about, sources, resolved_at, trips (name, slug)",
     )
     // Ignore was retired, but rows that were ignored while it existed are the same
     // kind of thing as a cleared one and belong in the same list rather than

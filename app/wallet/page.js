@@ -4,6 +4,8 @@ import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
+import ProTips from "@/components/ProTips";
+import { WALLET_SCOPES } from "@/lib/tips/tip";
 import RewardsBoard from "./RewardsBoard";
 
 export const metadata = { title: "Wallet · Alyeska" };
@@ -64,6 +66,25 @@ export default async function RewardsPage() {
 
   // The itinerary lines are what name the operators, so they are what the
   // matching reads. Only the fields it looks at, and only for trips still ahead.
+  // The Wallet's own advice: what to do about the programs they hold, and which
+  // welcome offer is worth opening for. Both scopes into one list, because a
+  // reader does not care which pass produced a tip, and the sort puts whatever is
+  // most pressing first regardless.
+  const { data: tips } = await supabase
+    .from("pro_tips")
+    .select("*")
+    .eq("family_id", familyId)
+    .in("scope", WALLET_SCOPES)
+    .eq("status", "active");
+
+  // Has anybody ever asked? "No tips" and "not looked yet" want different words,
+  // and a cleared tip still counts as having looked.
+  const { count: everLooked } = await supabase
+    .from("pro_tips")
+    .select("id", { count: "exact", head: true })
+    .eq("family_id", familyId)
+    .in("scope", WALLET_SCOPES);
+
   const tripIds = (trips || []).map((t) => t.id);
   const { data: items } = tripIds.length
     ? await supabase
@@ -90,6 +111,17 @@ export default async function RewardsPage() {
             you tap to show them.
           </p>
         </div>
+        <ProTips
+          tips={tips || []}
+          today={today}
+          scope="wallet"
+          canLook
+          everLooked={Boolean(everLooked)}
+          heading="Pro tips"
+          chain={[{ scope: "wallet" }, { scope: "offers" }]}
+          emptyLooked="Nothing worth telling you about the Wallet right now. Tips appear when a credit is going unused, points are about to lapse, a fee is coming round, or a welcome bonus on a card you do not hold is worth the spending you already have planned."
+          emptyFresh="Nothing here yet. Ask for a look and Aly will go through what you hold — expiring points, unspent credits, fees against the perks you actually use — and check what today's welcome offers are on cards you do not have."
+        />
         <RewardsBoard
           familyId={familyId}
           travelers={travelers || []}
@@ -97,6 +129,16 @@ export default async function RewardsPage() {
           trips={trips || []}
           items={items || []}
         />
+        {/* Said once, at the bottom, rather than on every card. A welcome offer
+            is a moving target and the only page that is authoritative about it is
+            the issuer's own. */}
+        <p className="mt-6 text-[0.78rem] leading-relaxed text-ink-faint">
+          Anything above about a card&rsquo;s welcome bonus was read off a page
+          on the day it was found, and offers change without notice. Check the
+          issuer&rsquo;s own application page before you apply. Aly is a travel
+          planner, not a financial advisor, and none of this is advice about
+          your credit.
+        </p>
       </main>
       <AskAlyGeneral focus="rewards" />
       <FooterBar displayName={profile?.display_name} />

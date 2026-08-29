@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import { WALLET_SCOPES } from "@/lib/tips/tip";
 
 /**
  * The tips you have put away, kept where they can be found again.
@@ -93,7 +94,14 @@ export default function ClearedTips() {
                   <h4 className="font-semibold leading-snug text-ink-soft">
                     {tip.title}
                   </h4>
-                  {tip.trips?.slug ? (
+                  {WALLET_SCOPES.includes(tip.scope) ? (
+                    <Link
+                      href="/wallet"
+                      className="text-[0.78rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                    >
+                      {tip.about || "Wallet"}
+                    </Link>
+                  ) : tip.trips?.slug ? (
                     <Link
                       href={`/trips/${tip.trips.slug}`}
                       className="text-[0.76rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { tipWhen } from "@/lib/tips/tip";
+import { tipWhen, WALLET_SCOPES } from "@/lib/tips/tip";
 
 /**
  * The pro tips that have earned a place at the top of every screen.
@@ -81,6 +81,15 @@ export default function TipStrip({ tips = [], today }) {
                     className="text-[0.78rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                   >
                     {tip.trips.name}
+                  </Link>
+                ) : WALLET_SCOPES.includes(tip.scope) ? (
+                  // No trip behind it, but it did come from somewhere, and a tip
+                  // about a card is unreadable without the card in front of you.
+                  <Link
+                    href="/wallet"
+                    className="text-[0.78rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                  >
+                    {tip.about || "Wallet"}
                   </Link>
                 ) : null}
                 {tip.trip_id ? (
