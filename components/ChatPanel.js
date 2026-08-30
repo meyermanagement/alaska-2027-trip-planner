@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
@@ -8,6 +8,8 @@ import PlaceCards, { addRequest } from "./PlaceCards";
 import WhereIAm, { readStored } from "./WhereIAm";
 import { runLook } from "@/lib/tips/run";
 import { foundLine } from "@/lib/tips/ask";
+import TripArtifact from "./TripArtifact";
+import { buildArtifact } from "@/lib/trips/artifact";
 
 // Prompts follow whichever section the user was looking at.
 const SUGGESTIONS = {
@@ -180,7 +182,28 @@ export default function ChatPanel({
   const applying = applyingKey !== null;
   const [packingBusy, setPackingBusy] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  // What this conversation has actually written, in the order it was written.
+  // The strip above the messages is derived from these plus whatever is on the
+  // cards, so there is no second copy of the trip to fall out of step with them.
+  const [savedActions, setSavedActions] = useState([]);
+  // The generated packing list, which is built on the server and so has no card
+  // and no rows to show. One line saying it happened.
+  const [packingNote, setPackingNote] = useState("");
   const [error, setError] = useState("");
+  // Only the two screens that build a trip out of a conversation show it. Inside
+  // an existing trip the page behind the panel already IS the artifact, and a
+  // second copy over the top would be one more thing to keep in step.
+  const buildingTrip = focus === "new_trip" || focus === "log_trip";
+  const artifact = useMemo(
+    () =>
+      buildingTrip
+        ? buildArtifact(
+            savedActions,
+            (pending?.groups || []).flatMap((g) => g.actions),
+          )
+        : null,
+    [buildingTrip, savedActions, pending],
+  );
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const tripId = trip?.id || null;
@@ -436,6 +459,19 @@ export default function ChatPanel({
           links: data.links || [],
         },
       ]);
+      // The strip above the conversation follows what the family approved, so a
+      // change that failed on the server must not be shown as though it had
+      // landed. Results come back in the order the actions went up.
+      if (okCount > 0) {
+        const results = data.results || [];
+        setSavedActions((prev) => [
+          ...prev,
+          ...group.actions.filter((a, i) =>
+            results[i] ? results[i].ok !== false : true,
+          ),
+        ]);
+      }
+
       // Drop just the chunk that went through; keep the rest waiting.
       setPending((p) => {
         const left = (p?.groups || []).filter((g) => g.key !== group.key);
@@ -485,6 +521,7 @@ export default function ChatPanel({
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.receipt) {
+        setPackingNote(data.receipt);
         setMessages((m) => [
           ...m,
           { role: "assistant", kind: "receipt", text: data.receipt },
@@ -588,6 +625,15 @@ export default function ChatPanel({
         ref={scrollRef}
         className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4"
       >
+        {/* The trip as it stands, pinned so it is still there four exchanges
+            later. Nothing renders until there is something in it. */}
+        {buildingTrip && (
+          <TripArtifact
+            artifact={artifact}
+            logged={focus === "log_trip"}
+            packingNote={packingNote}
+          />
+        )}
         {messages.length === 0 && !busy && !loadingHistory && (
           <div className="space-y-3">
             <p className="text-sm text-ink-soft">
