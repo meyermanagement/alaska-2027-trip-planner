@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sortItinerary } from "@/lib/day/order";
 import { generate, ModelError } from "@/lib/agent/llm";
 import {
   buildContext,
@@ -543,7 +544,9 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
   return buildContext({
     trips: trips.data || [],
     focusTripId,
-    itinerary: itinerary.data || [],
+    // In the same order the family sees it. Aly reading a day bottom-up is how
+    // "what is first tomorrow" comes back as the last thing on it.
+    itinerary: sortItinerary(itinerary.data || []),
     packing: packing.data || [],
     tasks: tasks.data || [],
     notes: notes.data || [],

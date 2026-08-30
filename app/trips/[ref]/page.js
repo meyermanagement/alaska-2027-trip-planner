@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sortItinerary } from "@/lib/day/order";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import DraftView from "@/components/DraftView";
@@ -122,6 +123,9 @@ export default async function TripPage({ params, searchParams }) {
       .from("itinerary_items")
       .select("*")
       .eq("trip_id", trip.id)
+      // Ordered again below, by the clock. The database order is only a head
+      // start: sort_order ties resolve to whichever row was written first, which
+      // is how a 3pm check-in ended up above a 10am drive.
       .order("item_date", { ascending: true })
       .order("sort_order", { ascending: true }),
     supabase
@@ -201,13 +205,19 @@ export default async function TripPage({ params, searchParams }) {
   // "nothing yet" -- which read as a trip that had gone wrong rather than an idea
   // that was going fine. What a draft needs on the page is the opposite: the six
   // things it is still missing.
+  // The itinerary in reading order: untimed things that frame the day, then
+  // everything by the clock. Done here rather than in the query because two rows
+  // sharing a sort_order come back in whichever order they were written, and the
+  // draft view and the trip view must not disagree about which is first.
+  const orderedItinerary = sortItinerary(itinerary.data || []);
+
   if (isDraftTrip(trip)) {
     return (
       <>
         <TopBar />
         <DraftView
           trip={trip}
-          itinerary={itinerary.data || []}
+          itinerary={orderedItinerary}
           tasks={tasks.data || []}
           packing={packing.data || []}
           travelers={(travelers.data || []).filter((t) => t.is_person)}
@@ -225,7 +235,7 @@ export default async function TripPage({ params, searchParams }) {
       <TripView
         level={access?.level}
         trip={trip}
-        initialItinerary={itinerary.data || []}
+        initialItinerary={orderedItinerary}
         initialPacking={packing.data || []}
         initialTasks={tasks.data || []}
         initialNotes={notes.data || []}

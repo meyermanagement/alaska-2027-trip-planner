@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sortItinerary } from "@/lib/day/order";
 import { makeCache } from "@/lib/places/photon";
 import { locateItems, anchorPoint } from "@/lib/day/locate";
 import { dayOf, daySaid, fetchForecasts } from "@/lib/weather/forecast";
@@ -67,7 +68,9 @@ export async function GET(request) {
     .eq("item_date", date)
     .order("start_time", { ascending: true, nullsFirst: false });
 
-  const items = (rows || []).filter((i) => i.status !== "cancelled");
+  const items = sortItinerary(
+    (rows || []).filter((i) => i.status !== "cancelled"),
+  );
 
   let points = new Map();
   try {

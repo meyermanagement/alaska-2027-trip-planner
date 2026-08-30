@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { sortItinerary } from "@/lib/day/order";
 import { daysUntil, formatRange, isDraftTrip, isPastTrip } from "@/lib/format";
 import PromoteDraft from "./PromoteDraft";
 import MembershipChips from "./MembershipChips";
@@ -227,7 +228,9 @@ export default function TripView({
           .eq("trip_id", trip.id)
           .order("item_date", { ascending: true })
           .order("sort_order", { ascending: true });
-        if (data) setItinerary(data);
+        // The same order the page was rendered in. Sorting here and not there
+        // was how an edit could quietly rearrange the day it was made on.
+        if (data) setItinerary(sortItinerary(data));
         // A new first or last day shifts the trip's own dates.
         const { data: row } = await supabase
           .from("trips")

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { makeCache } from "@/lib/places/photon";
 import { locateItems } from "@/lib/day/locate";
 import { dayEnds } from "@/lib/day/ends";
+import { sortItinerary } from "@/lib/day/order";
 import { fingerprint, isStale } from "@/lib/day/mark";
 import { travelBetween, ROAD_FACTOR } from "@/lib/travel/route";
 import { readLean } from "@/lib/travel/lean";
@@ -125,7 +126,9 @@ export async function GET(request) {
   const transit = transitAt(trip.destination || "");
   const place = placeWords(trip.destination || "", transit);
 
-  const items = (rows || []).filter((i) => i.status !== "cancelled");
+  const items = sortItinerary(
+    (rows || []).filter((i) => i.status !== "cancelled"),
+  );
   if (items.length === 0)
     return NextResponse.json({
       date,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sortItinerary } from "@/lib/day/order";
 import { researchDay } from "@/lib/day/insight";
 import { fingerprint, isStale } from "@/lib/day/mark";
 import { daySaid, dayOf, fetchForecast } from "@/lib/weather/forecast";
@@ -68,7 +69,9 @@ export async function POST(request) {
     .order("start_time", { ascending: true, nullsFirst: false })
     .order("sort_order", { ascending: true });
 
-  const items = (rows || []).filter((i) => i.status !== "cancelled");
+  const items = sortItinerary(
+    (rows || []).filter((i) => i.status !== "cancelled"),
+  );
   if (items.length === 0)
     return NextResponse.json({ researched: 0, items: [] });
 
