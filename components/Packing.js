@@ -10,6 +10,14 @@ import {
   strandedWords,
   tidyStranded,
 } from "@/lib/packing/roster";
+import {
+  LAST_MINUTE_HEADING,
+  LAST_MINUTE_LABEL,
+  looksLastMinute,
+  nearSaid,
+  packingPhase,
+  splitLastMinute,
+} from "@/lib/packing/lastMinute";
 import ProTips from "./ProTips";
 
 // readOnly is a secondary traveler: they see only their own lines (the database
@@ -28,6 +36,8 @@ export default function Packing({
   templateItems: initialTemplateItems = [],
   tips = [],
   today,
+  start = null,
+  end = null,
   everLooked = false,
   pets = [],
   readOnly = false,
@@ -35,6 +45,11 @@ export default function Packing({
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
   const [hidePacked, setHidePacked] = useState(false);
+  // Narrowing to the things that cannot be packed ahead. Its own filter rather
+  // than only a section, because the section keeps itself out of the way until
+  // the trip is close and the question "what is left for the morning" is worth
+  // asking in July as well.
+  const [onlyLast, setOnlyLast] = useState(false);
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
@@ -68,6 +83,7 @@ export default function Packing({
     quantity: "",
     notes: "",
     petId: "",
+    lastMinute: false,
   });
 
   const people = travelers.length
@@ -173,17 +189,33 @@ export default function Packing({
     )
       return false;
     if (hidePacked && i.is_packed) return false;
+    if (onlyLast && !i.last_minute) return false;
     return true;
   });
 
+  // How close the trip is, which is the only thing that decides whether the
+  // pinned block appears. Worked out on the shared home clock rather than the
+  // device's, so a phone in another time zone gets the same answer as the server.
+  const phase = useMemo(
+    () => packingPhase({ start, end, today }),
+    [start, end, today],
+  );
+  const flagged = useMemo(() => items.some((i) => i.last_minute), [items]);
+  const { held } = useMemo(() => splitLastMinute(visible), [visible]);
+  // Pulled out, not copied: the same row in two places on one screen means two
+  // ticks for one thing, and whichever one you press the other looks unpacked.
+  // When the filter is already showing only these, the block would be the list.
+  const showHeld = phase.near && held.length > 0 && !onlyLast;
+
   const grouped = useMemo(() => {
     const map = new Map();
-    visible.forEach((i) => {
+    const source = showHeld ? visible.filter((i) => !i.last_minute) : visible;
+    source.forEach((i) => {
       if (!map.has(i.category)) map.set(i.category, []);
       map.get(i.category).push(i);
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [visible]);
+  }, [visible, showHeld]);
 
   async function toggle(item) {
     await supabase
@@ -215,6 +247,7 @@ export default function Packing({
       quantity: item.quantity || "",
       notes: item.notes || "",
       petId: item.pet_id || "",
+      lastMinute: !!item.last_minute,
     });
   }
 
@@ -230,6 +263,7 @@ export default function Packing({
         quantity: editDraft.quantity.trim() || null,
         notes: editDraft.notes.trim() || null,
         pet_id: editDraft.petId || null,
+        last_minute: !!editDraft.lastMinute,
       })
       .eq("id", editingId);
     setEditingId(null);
@@ -394,6 +428,11 @@ export default function Packing({
       category: (newCategory || "General").trim(),
       assignee: newAssignee,
       pet_id: newPetId || null,
+      // Guessed from the name, and only ever guessed here. A row typed as
+      // "Veda\u2019s medication" arrives already knowing it cannot go in a bag on
+      // Sunday; being wrong costs one tap in the edit form, and the alternative
+      // is a flag nobody ever sets.
+      last_minute: looksLastMinute(newItem),
       sort_order: 999,
     });
     setNewItem("");
@@ -435,6 +474,270 @@ export default function Packing({
     setTidyNote(result.message || "");
     setTidying(false);
     if (result.removed) onChange?.();
+  }
+
+  /**
+   * One line of the list, drawn the same whether it is sitting in its category
+   * or pulled out into the block above. Extracted for exactly that reason: the
+   * two places have to agree about the tick, the badge, the edit form and the
+   * remove button, and the only way to be sure of that is for there to be one
+   * of them.
+   */
+  function itemRow(item, { inHeld = false } = {}) {
+    return editingId === item.id ? (
+      <li
+        key={item.id}
+        className="border-b border-sand/80 bg-teal/5 px-4 py-3 last:border-0"
+      >
+        <form onSubmit={saveEdit} className="space-y-2">
+          <input
+            className="field"
+            placeholder="Item"
+            value={editDraft.item}
+            onChange={(e) =>
+              setEditDraft({ ...editDraft, item: e.target.value })
+            }
+            required
+          />
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input
+              className="field"
+              placeholder="Category"
+              list="packing-categories"
+              value={editDraft.category}
+              onChange={(e) =>
+                setEditDraft({
+                  ...editDraft,
+                  category: e.target.value,
+                })
+              }
+            />
+            <select
+              className="field"
+              value={editDraft.assignee}
+              onChange={(e) =>
+                setEditDraft({
+                  ...editDraft,
+                  assignee: e.target.value,
+                })
+              }
+            >
+              {/* One traveler, or Shared. A name belonging to two
+                          people used to be offered back as an option here,
+                          which is how "Steph & Veda" survived every edit it
+                          was ever given: invisible under Steph, invisible
+                          under Veda, and copied onto every future trip. */}
+              {people.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            <input
+              className="field"
+              placeholder="Quantity"
+              value={editDraft.quantity}
+              onChange={(e) =>
+                setEditDraft({
+                  ...editDraft,
+                  quantity: e.target.value,
+                })
+              }
+            />
+          </div>
+          {pets.length > 0 && (
+            <select
+              className="field"
+              value={editDraft.petId}
+              onChange={(e) =>
+                setEditDraft({
+                  ...editDraft,
+                  petId: e.target.value,
+                })
+              }
+              aria-label="Which pet is this for"
+            >
+              {/* Which animal it is for, kept apart from who packs
+                          it. The two answers used to be crushed into one
+                          field, which made the horse the owner of its own
+                          hay and left nobody actually responsible for it. */}
+              <option value="">Not for a pet</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  For {pet.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            className="field"
+            placeholder="Notes"
+            value={editDraft.notes}
+            onChange={(e) =>
+              setEditDraft({ ...editDraft, notes: e.target.value })
+            }
+          />
+          <label className="flex items-start gap-2 text-xs font-semibold text-ink-soft">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
+              checked={!!editDraft.lastMinute}
+              onChange={(e) =>
+                setEditDraft({ ...editDraft, lastMinute: e.target.checked })
+              }
+            />
+            <span>
+              Cannot be packed ahead
+              <span className="ml-1 font-normal text-ink-faint">
+                {"\u2014"} stays out until the morning you leave
+              </span>
+            </span>
+          </label>
+          <div className="flex gap-2">
+            <button className="btn btn-primary">Save</button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setEditingId(null)}
+            >
+              Cancel
+            </button>
+          </div>
+          {templates.length > 0 && (
+            <div className="border-t border-sand pt-2">
+              <p
+                className="text-xs font-semibold text-ink-soft"
+                id="packing-keep-label"
+              >
+                Keep for future trips
+              </p>
+              <div
+                className="mt-1.5 flex flex-wrap gap-1.5"
+                role="group"
+                aria-labelledby="packing-keep-label"
+              >
+                {templates.map((t) => {
+                  const on = keptOnTemplate(t.id);
+                  const busy =
+                    toTemplate?.state === "saving" && toTemplate?.id === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      aria-pressed={on}
+                      disabled={busy || !editDraft.item.trim()}
+                      onClick={() => toggleTemplate(t)}
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                        on
+                          ? "border-teal bg-teal text-white"
+                          : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
+                      }`}
+                    >
+                      {/* The mark carries the state as well as the
+                                  color, because a filled pill and an empty
+                                  one are the same pill to anyone who does
+                                  not see color. */}
+                      <span aria-hidden="true">
+                        {busy ? "\u2026" : on ? "\u2713" : "+"}
+                      </span>
+                      {t.name}
+                      {t.is_base ? " (base)" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              <p
+                className={`mt-1.5 text-xs ${
+                  toTemplate?.state === "error" ? "text-rose" : "text-ink-soft"
+                }`}
+              >
+                {toTemplate?.message ||
+                  `Saves your edits, then keeps ${
+                    editDraft.assignee === "Shared"
+                      ? "this"
+                      : `${editDraft.assignee}\u2019s`
+                  } item on the lists you pick. Press a pill again to take it off. Trips that already exist are left alone.`}
+              </p>
+            </div>
+          )}
+        </form>
+      </li>
+    ) : (
+      <li
+        key={item.id}
+        className="group flex items-start gap-3 border-b border-sand/80 px-4 py-2.5 last:border-0"
+      >
+        <input
+          type="checkbox"
+          className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
+          checked={item.is_packed}
+          onChange={() => toggle(item)}
+          aria-label={`Mark ${item.item} packed`}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`text-sm ${item.is_packed ? "strike-done" : ""}`}>
+              {item.item}
+              {item.quantity ? (
+                <span className="text-ink-soft"> ×{item.quantity}</span>
+              ) : null}
+            </span>
+            <span className={`chip ${assigneeColor(item.assignee)}`}>
+              {item.assignee}
+            </span>
+            {item.last_minute && !inHeld && (
+              <span
+                className="chip border border-amber/40 bg-amber/10 text-amber"
+                title="Cannot be packed ahead"
+              >
+                {LAST_MINUTE_LABEL}
+              </span>
+            )}
+            {petFor(item) && (
+              <span
+                className="chip border border-[var(--line)] bg-white text-ink-soft"
+                title={`For ${petFor(item).name}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                  style={{
+                    background: petFor(item).color || "var(--teal)",
+                  }}
+                />
+                For {petFor(item).name}
+              </span>
+            )}
+          </div>
+          {item.notes && (
+            <p className="mt-0.5 text-xs text-ink-soft">{item.notes}</p>
+          )}
+          {keptLine(item) && (
+            <p className="mt-0.5 text-xs text-ink-faint">{keptLine(item)}</p>
+          )}
+        </div>
+        <div className="no-print flex shrink-0 items-center gap-2">
+          {!readOnly && (
+            <button
+              onClick={() => startEdit(item)}
+              className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+              aria-label={`Edit ${item.item}`}
+            >
+              Edit
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              onClick={() => remove(item)}
+              className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+              aria-label={`Remove ${item.item}`}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </li>
+    );
   }
 
   const packed = items.filter((i) => i.is_packed).length;
@@ -546,6 +849,22 @@ export default function Packing({
             ))}
           </>
         )}
+        {/* Only offered when the list actually has some. A pill that filters to
+            nothing is a dead end, the same reason there is no pill here for
+            somebody who is not on this trip. */}
+        {flagged && (
+          <button
+            onClick={() => setOnlyLast((on) => !on)}
+            aria-pressed={onlyLast}
+            className={`chip border ${
+              onlyLast
+                ? "border-amber bg-amber text-white"
+                : "border-[var(--line)] bg-white text-ink-soft"
+            }`}
+          >
+            {LAST_MINUTE_LABEL}
+          </button>
+        )}
         <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-ink-soft">
           <input
             type="checkbox"
@@ -628,6 +947,30 @@ export default function Packing({
       )}
 
       <div className="space-y-4">
+        {/* The block that only exists when it is useful.
+ 
+            A packing list is mostly things you can put in a bag a week early, and
+            a handful you physically cannot: the medications somebody is still
+            taking, the toothbrush, the charger in the wall. Those rows sit
+            unticked for the whole run-up, which is how a list stuck at eighty per
+            cent teaches the family to read unfinished as finished.
+ 
+            Marked items are named in place all year. This block is the louder
+            version, and it waits until the trip is three days out, because before
+            that it is just a second copy of the list. It stays up for the duration
+            of the trip too -- you pack the toothbrush to come home, and the
+            morning you check out is exactly when you would leave it. */}
+        {showHeld && (
+          <div className="card overflow-hidden border-amber/40">
+            <div className="border-b border-amber/30 bg-amber/10 px-4 py-2.5">
+              <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink">
+                {LAST_MINUTE_HEADING}
+              </h3>
+              <p className="mt-0.5 text-xs text-ink-soft">{nearSaid(phase)}</p>
+            </div>
+            <ul>{held.map((i) => itemRow(i, { inHeld: true }))}</ul>
+          </div>
+        )}
         {grouped.map(([category, rows]) => (
           <div key={category} className="card overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
@@ -638,257 +981,12 @@ export default function Packing({
                 {rows.filter((r) => r.is_packed).length}/{rows.length}
               </span>
             </div>
-            <ul>
-              {rows.map((item) =>
-                editingId === item.id ? (
-                  <li
-                    key={item.id}
-                    className="border-b border-sand/80 bg-teal/5 px-4 py-3 last:border-0"
-                  >
-                    <form onSubmit={saveEdit} className="space-y-2">
-                      <input
-                        className="field"
-                        placeholder="Item"
-                        value={editDraft.item}
-                        onChange={(e) =>
-                          setEditDraft({ ...editDraft, item: e.target.value })
-                        }
-                        required
-                      />
-                      <div className="grid gap-2 sm:grid-cols-3">
-                        <input
-                          className="field"
-                          placeholder="Category"
-                          list="packing-categories"
-                          value={editDraft.category}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              category: e.target.value,
-                            })
-                          }
-                        />
-                        <select
-                          className="field"
-                          value={editDraft.assignee}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              assignee: e.target.value,
-                            })
-                          }
-                        >
-                          {/* One traveler, or Shared. A name belonging to two
-                              people used to be offered back as an option here,
-                              which is how "Steph & Veda" survived every edit it
-                              was ever given: invisible under Steph, invisible
-                              under Veda, and copied onto every future trip. */}
-                          {people.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className="field"
-                          placeholder="Quantity"
-                          value={editDraft.quantity}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              quantity: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      {pets.length > 0 && (
-                        <select
-                          className="field"
-                          value={editDraft.petId}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              petId: e.target.value,
-                            })
-                          }
-                          aria-label="Which pet is this for"
-                        >
-                          {/* Which animal it is for, kept apart from who packs
-                              it. The two answers used to be crushed into one
-                              field, which made the horse the owner of its own
-                              hay and left nobody actually responsible for it. */}
-                          <option value="">Not for a pet</option>
-                          {pets.map((pet) => (
-                            <option key={pet.id} value={pet.id}>
-                              For {pet.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <input
-                        className="field"
-                        placeholder="Notes"
-                        value={editDraft.notes}
-                        onChange={(e) =>
-                          setEditDraft({ ...editDraft, notes: e.target.value })
-                        }
-                      />
-                      <div className="flex gap-2">
-                        <button className="btn btn-primary">Save</button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      {templates.length > 0 && (
-                        <div className="border-t border-sand pt-2">
-                          <p
-                            className="text-xs font-semibold text-ink-soft"
-                            id="packing-keep-label"
-                          >
-                            Keep for future trips
-                          </p>
-                          <div
-                            className="mt-1.5 flex flex-wrap gap-1.5"
-                            role="group"
-                            aria-labelledby="packing-keep-label"
-                          >
-                            {templates.map((t) => {
-                              const on = keptOnTemplate(t.id);
-                              const busy =
-                                toTemplate?.state === "saving" &&
-                                toTemplate?.id === t.id;
-                              return (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  aria-pressed={on}
-                                  disabled={busy || !editDraft.item.trim()}
-                                  onClick={() => toggleTemplate(t)}
-                                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
-                                    on
-                                      ? "border-teal bg-teal text-white"
-                                      : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
-                                  }`}
-                                >
-                                  {/* The mark carries the state as well as the
-                                      color, because a filled pill and an empty
-                                      one are the same pill to anyone who does
-                                      not see color. */}
-                                  <span aria-hidden="true">
-                                    {busy ? "\u2026" : on ? "\u2713" : "+"}
-                                  </span>
-                                  {t.name}
-                                  {t.is_base ? " (base)" : ""}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <p
-                            className={`mt-1.5 text-xs ${
-                              toTemplate?.state === "error"
-                                ? "text-rose"
-                                : "text-ink-soft"
-                            }`}
-                          >
-                            {toTemplate?.message ||
-                              `Saves your edits, then keeps ${
-                                editDraft.assignee === "Shared"
-                                  ? "this"
-                                  : `${editDraft.assignee}\u2019s`
-                              } item on the lists you pick. Press a pill again to take it off. Trips that already exist are left alone.`}
-                          </p>
-                        </div>
-                      )}
-                    </form>
-                  </li>
-                ) : (
-                  <li
-                    key={item.id}
-                    className="group flex items-start gap-3 border-b border-sand/80 px-4 py-2.5 last:border-0"
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
-                      checked={item.is_packed}
-                      onChange={() => toggle(item)}
-                      aria-label={`Mark ${item.item} packed`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`text-sm ${item.is_packed ? "strike-done" : ""}`}
-                        >
-                          {item.item}
-                          {item.quantity ? (
-                            <span className="text-ink-soft">
-                              {" "}
-                              ×{item.quantity}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span
-                          className={`chip ${assigneeColor(item.assignee)}`}
-                        >
-                          {item.assignee}
-                        </span>
-                        {petFor(item) && (
-                          <span
-                            className="chip border border-[var(--line)] bg-white text-ink-soft"
-                            title={`For ${petFor(item).name}`}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
-                              style={{
-                                background: petFor(item).color || "var(--teal)",
-                              }}
-                            />
-                            For {petFor(item).name}
-                          </span>
-                        )}
-                      </div>
-                      {item.notes && (
-                        <p className="mt-0.5 text-xs text-ink-soft">
-                          {item.notes}
-                        </p>
-                      )}
-                      {keptLine(item) && (
-                        <p className="mt-0.5 text-xs text-ink-faint">
-                          {keptLine(item)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="no-print flex shrink-0 items-center gap-2">
-                      {!readOnly && (
-                        <button
-                          onClick={() => startEdit(item)}
-                          className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                          aria-label={`Edit ${item.item}`}
-                        >
-                          Edit
-                        </button>
-                      )}
-                      {!readOnly && (
-                        <button
-                          onClick={() => remove(item)}
-                          className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                          aria-label={`Remove ${item.item}`}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ),
-              )}
-            </ul>
+            <ul>{rows.map((i) => itemRow(i))}</ul>
           </div>
         ))}
-        {grouped.length === 0 && (
+        {/* Not said when the block above is holding rows: the categories being
+            empty is then the point, not a problem. */}
+        {grouped.length === 0 && !showHeld && (
           <p className="card p-6 text-center text-sm text-ink-soft">
             Nothing left in this view. Nice work.
           </p>

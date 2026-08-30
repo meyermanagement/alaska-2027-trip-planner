@@ -68,7 +68,7 @@ export default async function PackingTemplatesPage() {
     ? await supabase
         .from("packing_template_items")
         .select(
-          "id, template_id, category, item, assignee, quantity, sort_order",
+          "id, template_id, category, item, assignee, quantity, sort_order, last_minute",
         )
         .in("template_id", ids)
         .order("sort_order", { ascending: true })

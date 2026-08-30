@@ -761,7 +761,7 @@ async function writeTemplate({ supabase, patch, familyId }) {
   const id = data.id;
   if (!fromList && !fromTrip) return { id, copied: 0 };
 
-  const columns = "category, item, assignee, quantity, sort_order";
+  const columns = "category, item, assignee, quantity, sort_order, last_minute";
   const { data: source, error: readError } = fromTrip
     ? await supabase
         .from("packing_items")

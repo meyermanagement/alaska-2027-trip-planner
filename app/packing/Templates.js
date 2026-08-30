@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
+import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
 
 const SHARED = "Shared";
 
@@ -11,7 +12,13 @@ const SHARED = "Shared";
 function whosePhrase(person) {
   return person === SHARED ? "the shared list" : `${person}\u2019s list`;
 }
-const EMPTY_DRAFT = { item: "", category: "", quantity: "", assignee: SHARED };
+const EMPTY_DRAFT = {
+  item: "",
+  category: "",
+  quantity: "",
+  assignee: SHARED,
+  lastMinute: false,
+};
 
 /**
  * The packing templates, arranged by who packs what rather than by
@@ -120,6 +127,7 @@ export default function Templates({ travelers, templates, items }) {
         category: addDraft.category.trim() || "General",
         assignee: addDraft.assignee,
         quantity: addDraft.quantity.trim() || null,
+        last_minute: !!addDraft.lastMinute,
         sort_order: nextSort(),
       }),
     );
@@ -135,6 +143,7 @@ export default function Templates({ travelers, templates, items }) {
       category: row.category || "",
       quantity: row.quantity || "",
       assignee: row.assignee || SHARED,
+      lastMinute: !!row.last_minute,
     });
   }
 
@@ -149,6 +158,7 @@ export default function Templates({ travelers, templates, items }) {
           category: editDraft.category.trim() || "General",
           assignee: editDraft.assignee,
           quantity: editDraft.quantity.trim() || null,
+          last_minute: !!editDraft.lastMinute,
         })
         .eq("id", editingId),
     );
@@ -173,6 +183,7 @@ export default function Templates({ travelers, templates, items }) {
         category: i.category,
         assignee: person,
         quantity: i.quantity,
+        last_minute: !!i.last_minute,
         sort_order: nextSort() + n,
       }));
     if (!rows.length) return;
@@ -332,6 +343,20 @@ export default function Templates({ travelers, templates, items }) {
                     setAddDraft({ ...addDraft, quantity: e.target.value })
                   }
                 />
+                {/* Set here as well as on a trip, because this is where the
+                    answer is worth keeping: mark the toothbrush once and every
+                    trip built from this template knows it. */}
+                <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 accent-teal"
+                    checked={!!addDraft.lastMinute}
+                    onChange={(e) =>
+                      setAddDraft({ ...addDraft, lastMinute: e.target.checked })
+                    }
+                  />
+                  {LAST_MINUTE_LABEL}
+                </label>
                 <button className="btn btn-primary" disabled={busy}>
                   {busy ? "Saving…" : "Add"}
                 </button>
@@ -448,6 +473,26 @@ export default function Templates({ travelers, templates, items }) {
                                 />
                               </label>
                             </div>
+                            <label className="flex items-start gap-2 text-xs font-semibold text-ink-soft">
+                              <input
+                                type="checkbox"
+                                className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
+                                checked={!!editDraft.lastMinute}
+                                onChange={(e) =>
+                                  setEditDraft({
+                                    ...editDraft,
+                                    lastMinute: e.target.checked,
+                                  })
+                                }
+                              />
+                              <span>
+                                Cannot be packed ahead
+                                <span className="ml-1 font-normal text-ink-faint">
+                                  {"\u2014"} carried onto every trip built from
+                                  this template
+                                </span>
+                              </span>
+                            </label>
                             <div className="flex gap-2">
                               <button
                                 className="btn btn-primary"
@@ -479,6 +524,14 @@ export default function Templates({ travelers, templates, items }) {
                               </span>
                             ) : null}
                           </span>
+                          {row.last_minute && (
+                            <span
+                              className="chip shrink-0 border border-amber/40 bg-amber/10 text-amber"
+                              title="Cannot be packed ahead"
+                            >
+                              {LAST_MINUTE_LABEL}
+                            </span>
+                          )}
                           <div className="no-print flex shrink-0 items-center gap-2">
                             <button
                               onClick={() => startEdit(row)}
