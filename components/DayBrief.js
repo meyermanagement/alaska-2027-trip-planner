@@ -124,9 +124,12 @@ export default function DayBrief({
         </p>
       )}
 
-      {/* Aly, two ways, because the two are used differently: the box is for the
-          question you already have, the button is for the conversation you want
-          to keep having. */}
+      {/* One way in, not two. There used to be a second control beside this box
+          that opened the drawer with nothing typed in it, and it was the weaker
+          of the pair: the same conversation is one tap away on the floating
+          button, and asking a question here opens that drawer anyway. Two
+          controls that end in the same place, on the band that is supposed to be
+          about the next hour, cost a decision and bought nothing. */}
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <form
           onSubmit={(e) => {
@@ -151,19 +154,6 @@ export default function DayBrief({
             Ask
           </button>
         </form>
-        <button
-          type="button"
-          onClick={() =>
-            window.dispatchEvent(
-              new CustomEvent(ASK_ALY_EVENT, {
-                detail: { focus: TODAY_FOCUS },
-              }),
-            )
-          }
-          className="shrink-0 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
-        >
-          Open the chat
-        </button>
       </div>
 
       {/* The three questions people actually have, so the box is not a blank
