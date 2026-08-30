@@ -24,6 +24,11 @@ import { recordRefusals } from "@/lib/agent/refusals";
 import { splitPlaceCalls } from "@/lib/places/cards";
 import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
+  ANSWERING_TOOLS,
+  answerAsWell,
+  asksSomething,
+} from "@/lib/agent/asked";
+import {
   splitRecallCalls,
   matchLessons,
   recallSection,
@@ -291,14 +296,49 @@ export async function POST(request) {
   );
   // The questions she offered next are neither a change nor part of the answer,
   // so they come out here too.
-  const { calls: withoutFollowups, followups } =
+  let { calls: withoutFollowups, followups } =
     splitFollowupCalls(withoutPlaces);
   // Asking to go and research is neither a change nor an answer: it is a thing
   // that happens after she has finished speaking, so it comes out here too.
   const { calls: changeCalls, asked: tipCall } =
     splitTipCalls(withoutFollowups);
+
+  // Two things in one breath -- a correction and a question -- and she answered
+  // the change with a card and said nothing, so the question vanished. A proposal
+  // is not an answer. She gets one more turn for the words alone, with every
+  // change tool taken away so what she has already proposed cannot be proposed
+  // twice, and with the shortlist tools left in because "where can we go from
+  // Lisbon" is answered in cards.
+  let shortlistAll = shortlist;
+  if (!result.text && changeCalls.length && asksSomething(said)) {
+    try {
+      const words = await generate({
+        system: [system, answerAsWell(said)].join("\n\n"),
+        messages,
+        tools: tools.filter((tool) => ANSWERING_TOOLS.has(tool.name)),
+        grounded: lookUp,
+      });
+      if (words?.text || (words?.calls || []).length) {
+        const { places: more } = splitPlaceCalls(words.calls);
+        const { followups: nextQuestions } = splitFollowupCalls(words.calls);
+        shortlistAll = shortlist.concat(more);
+        if (nextQuestions.length) followups = nextQuestions;
+        result = {
+          ...result,
+          text: words.text || result.text,
+          searched: result.searched || words.searched,
+          sources: (result.sources || []).concat(words.sources || []),
+          refusals: (result.refusals || []).concat(words.refusals || []),
+        };
+      }
+    } catch {
+      // The change still stands. It arrives without words, which is the same
+      // answer they got before and no worse for having tried.
+    }
+  }
+
   const places = withDistance(
-    await enrich(shortlist, { bias: bias(here) }),
+    await enrich(shortlistAll, { bias: bias(here) }),
     here,
   );
 
