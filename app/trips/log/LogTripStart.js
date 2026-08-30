@@ -104,34 +104,29 @@ export default function LogTripStart() {
         Log this trip
       </button>
 
-      {/* The same device as the trip builder, for the same reason: a box asking
-          for a few sentences gets three words unless somebody shows what a few
-          sentences looks like. These are short on purpose -- a trip from 2011 that
-          nobody kept notes on is still worth having. */}
+      {/* Examples, and only examples. A box asking for a few sentences gets
+          three words unless somebody shows what a few sentences looks like --
+          but a button that pastes somebody else's trip into your box is worse
+          than no button: what lands is a plausible-looking record of a holiday
+          the family never took, and it is easier to type over a blank box than
+          to notice that. They are short on purpose: a trip from 2011 that nobody
+          kept notes on is still worth having. */}
       <div className="mt-9 border-t border-[var(--line)] pt-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
           Rough is enough
         </p>
         <p className="mt-1 text-xs text-ink-soft">
-          Any of these is a trip worth logging. Press one to fill the first box.
+          Any of these is a trip worth logging. They are here to show how little
+          you need — nothing to press, just write your own in the first box.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {LOG_EXAMPLES.map((example) => (
-            <div
+            <blockquote
               key={example}
-              className="flex flex-col justify-between rounded-xl border border-sand-deep bg-sand/50 p-3"
+              className="rounded-xl border border-sand-deep bg-sand/50 p-3 text-xs leading-relaxed text-ink-soft"
             >
-              <blockquote className="text-xs leading-relaxed text-ink-soft">
-                &ldquo;{example}&rdquo;
-              </blockquote>
-              <button
-                type="button"
-                className="btn btn-ghost mt-2.5 self-start px-2.5 py-1 text-xs"
-                onClick={() => setValues((v) => ({ ...v, trip: example }))}
-              >
-                Use this
-              </button>
-            </div>
+              &ldquo;{example}&rdquo;
+            </blockquote>
           ))}
         </div>
       </div>
