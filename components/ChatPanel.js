@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
-import PlaceCards, { addRequest } from "./PlaceCards";
+import PlaceCards, { addRequest, moreRequest } from "./PlaceCards";
 import WhereIAm, { readStored } from "./WhereIAm";
 import { runLook } from "@/lib/tips/run";
 import { foundLine } from "@/lib/tips/ask";
@@ -12,6 +12,8 @@ import TripArtifact from "./TripArtifact";
 import { buildArtifact } from "@/lib/trips/artifact";
 import { receiptTone, receiptLabel } from "@/lib/agent/receipt";
 import Thinking from "./Thinking";
+import RichText from "./RichText";
+import Followups from "./Followups";
 
 // What a receipt looks like once it has earned its colour. Amber is the honest
 // answer for a card where some of it landed and some of it did not: neither the
@@ -386,6 +388,7 @@ export default function ChatPanel({
             text: data.reply || "",
             sources: data.sources?.length ? data.sources : undefined,
             places: data.places?.length ? data.places : undefined,
+            followups: data.followups?.length ? data.followups : undefined,
             // Kept with the message so changing position later does not put new
             // directions on an old answer.
             here: hereRef.current || undefined,
@@ -794,7 +797,15 @@ export default function ChatPanel({
                   {receiptLabel(m.tone)}
                 </span>
               )}
-              <span className="whitespace-pre-wrap">{m.text}</span>
+              {/* A receipt is one flat line by design -- it is a statement about
+                  what happened, not an answer with parts to it. Everything else
+                  gets laid out: headers, lists and links, so a four-part answer
+                  reads as four parts instead of a paragraph you have to search. */}
+              {m.role === "assistant" && m.kind !== "receipt" ? (
+                <RichText text={m.text} />
+              ) : (
+                <span className="whitespace-pre-wrap">{m.text}</span>
+              )}
               <ReceiptLinks
                 links={m.links}
                 onGo={(href) => {
@@ -811,7 +822,17 @@ export default function ChatPanel({
                 busy={busy}
                 here={m.here || here}
                 onAdd={(place) => send(addRequest(place))}
+                onMore={(place) => send(moreRequest(place))}
               />
+              {/* Only under the last answer, and never while she is mid-sentence
+                  on the next one. */}
+              {i === messages.length - 1 && !busy && !pending && (
+                <Followups
+                  questions={m.followups}
+                  busy={busy}
+                  onAsk={(q) => send(q)}
+                />
+              )}
             </div>
           </div>
         ))}

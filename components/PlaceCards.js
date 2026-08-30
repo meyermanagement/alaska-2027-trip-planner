@@ -8,7 +8,7 @@
 // what they want - and Aly proposes the change the same way she would if they had
 // typed it. One path for every change, and the confirmation card still appears.
 
-import { KIND_LABELS, addRequest } from "@/lib/places/cards";
+import { KIND_LABELS, addRequest, moreRequest } from "@/lib/places/cards";
 import { directionsLink } from "@/lib/places/here";
 
 // A bare number in brackets is ambiguous - it could be a price or a distance -
@@ -34,7 +34,7 @@ function Stars({ rating, count }) {
   );
 }
 
-function Card({ place, onAdd, busy, here }) {
+function Card({ place, onAdd, onMore, busy, here }) {
   const label = KIND_LABELS[place.kind] || KIND_LABELS.do;
   // Only offered when they have said where they are: directions from nowhere is
   // just the map link with extra steps.
@@ -112,6 +112,19 @@ function Card({ place, onAdd, busy, here }) {
           >
             Add to itinerary
           </button>
+          {/* The other half of what people do with a shortlist: not decide, but
+              find out. Asking rather than adding keeps the conversation going,
+              which is the whole point of a card being in a conversation. */}
+          {onMore ? (
+            <button
+              type="button"
+              onClick={() => onMore(place)}
+              disabled={busy}
+              className="rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-60"
+            >
+              Tell me more
+            </button>
+          ) : null}
           {directions ? (
             <a
               href={directions}
@@ -151,6 +164,7 @@ function Card({ place, onAdd, busy, here }) {
 export default function PlaceCards({
   places,
   onAdd,
+  onMore = null,
   busy = false,
   here = null,
 }) {
@@ -162,6 +176,7 @@ export default function PlaceCards({
           key={`${place.name}-${i}`}
           place={place}
           onAdd={onAdd}
+          onMore={onMore}
           busy={busy}
           here={here}
         />
@@ -170,4 +185,4 @@ export default function PlaceCards({
   );
 }
 
-export { addRequest };
+export { addRequest, moreRequest };

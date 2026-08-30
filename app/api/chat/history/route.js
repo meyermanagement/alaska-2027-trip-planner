@@ -56,6 +56,10 @@ export async function GET(request) {
       sources:
         Array.isArray(m.sources) && m.sources.length ? m.sources : undefined,
       places: Array.isArray(m.places) && m.places.length ? m.places : undefined,
+      followups:
+        Array.isArray(m.followups) && m.followups.length
+          ? m.followups
+          : undefined,
     })),
   });
 }

@@ -22,6 +22,7 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { splitPlaceCalls } from "@/lib/places/cards";
+import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
   splitRecallCalls,
   matchLessons,
@@ -288,9 +289,14 @@ export async function POST(request) {
   const { calls: withoutPlaces, places: shortlist } = splitPlaceCalls(
     result.calls,
   );
+  // The questions she offered next are neither a change nor part of the answer,
+  // so they come out here too.
+  const { calls: withoutFollowups, followups } =
+    splitFollowupCalls(withoutPlaces);
   // Asking to go and research is neither a change nor an answer: it is a thing
   // that happens after she has finished speaking, so it comes out here too.
-  const { calls: changeCalls, asked: tipCall } = splitTipCalls(withoutPlaces);
+  const { calls: changeCalls, asked: tipCall } =
+    splitTipCalls(withoutFollowups);
   const places = withDistance(
     await enrich(shortlist, { bias: bias(here) }),
     here,
@@ -420,6 +426,8 @@ export async function POST(request) {
       // The cards belong to the answer. Without this, reopening the conversation
       // tomorrow would leave five names and nothing to tap.
       places,
+      // And so do the ways on from it.
+      followups,
     });
   }
 
@@ -435,6 +443,7 @@ export async function POST(request) {
     conversationId,
     sources: result.sources || [],
     places,
+    followups,
     // What the screen should go and do once the reply is on screen.
     look,
   });
