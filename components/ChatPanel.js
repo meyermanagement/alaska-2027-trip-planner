@@ -200,6 +200,12 @@ export default function ChatPanel({
   // and no rows to show. One line saying it happened.
   const [packingNote, setPackingNote] = useState("");
   const [error, setError] = useState("");
+  // The question to put again, when the last one never reached the model. Held
+  // separately from the error text because most errors are not retryable: a
+  // refusal, a problem with what was asked, or a save that may have half landed
+  // are all answers, and offering "try again" on them invites the family to ask
+  // twice for something that already happened.
+  const [retryAsk, setRetryAsk] = useState(null);
   // Only the two screens that build a trip out of a conversation show it. Inside
   // an existing trip the page behind the panel already IS the artifact, and a
   // second copy over the top would be one more thing to keep in step.
@@ -309,14 +315,20 @@ export default function ChatPanel({
     el.style.height = `${el.scrollHeight}px`;
   }, [input]);
 
-  async function send(text) {
+  async function send(text, { again = false } = {}) {
     const clean = text.trim();
     if (!clean || busy) return;
 
     setError("");
+    setRetryAsk(null);
     setPending(null);
-    setInput("");
-    setMessages((m) => [...m, { role: "user", text: clean }]);
+    // On a retry the question is already the last thing in the thread, on the
+    // screen and in the database. Adding it again would show the family asking
+    // twice when they pressed one button.
+    if (!again) {
+      setInput("");
+      setMessages((m) => [...m, { role: "user", text: clean }]);
+    }
     setBusy(true);
 
     try {
@@ -330,6 +342,8 @@ export default function ChatPanel({
           focus,
           message: clean,
           conversationId: conversationRef.current,
+          // So the route does not write the question down a second time.
+          retry: again || undefined,
           // Only ever what they chose to share, and only for this question.
           here: hereRef.current || undefined,
         }),
@@ -346,6 +360,10 @@ export default function ChatPanel({
 
       if (!res.ok) {
         setError(data?.error || "The assistant is unavailable right now.");
+        // Nothing was answered, so the question is still worth asking. Almost
+        // every failure here is a model that was busy or slow, which is exactly
+        // the kind that comes good on a second go.
+        setRetryAsk(clean);
         setBusy(false);
         return;
       }
@@ -387,9 +405,8 @@ export default function ChatPanel({
         await carryOut(data.look);
       }
     } catch {
-      setError(
-        "I could not reach the app just then. Check your signal and try again.",
-      );
+      setError("I could not reach the app just then. Check your signal.");
+      setRetryAsk(clean);
     }
     setBusy(false);
   }
@@ -920,9 +937,24 @@ export default function ChatPanel({
         )}
 
         {error && (
-          <p className="rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
-            {error}
-          </p>
+          <div className="rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
+            <p>{error}</p>
+            {/* The same question again, on one press. Without this the family has
+                to find what they typed, which is gone from the box, and type it
+                out a second time -- and a long question asked at a bad moment is
+                exactly the one worth putting again. Offered only when nothing was
+                answered, so pressing it cannot repeat something that worked. */}
+            {retryAsk && (
+              <button
+                type="button"
+                className="btn btn-ghost mt-2"
+                disabled={busy}
+                onClick={() => send(retryAsk, { again: true })}
+              >
+                Ask again
+              </button>
+            )}
+          </div>
         )}
       </div>
 

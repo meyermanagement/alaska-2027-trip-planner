@@ -1281,6 +1281,9 @@ export default function Itinerary({
                   next={plan.next}
                   nowHM={nowHM}
                   weather={dayData?.date === date ? dayData.weather : null}
+                  weatherEnd={
+                    dayData?.date === date ? dayData.weatherEnd : null
+                  }
                   nextLeg={
                     dayData?.date === date && plan.next
                       ? dayData.legs?.find((l) => l.itemId === plan.next.id) ||

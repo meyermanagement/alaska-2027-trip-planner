@@ -6,6 +6,7 @@ import { PendingSpark, PendingVeil } from "@/components/LinkPending";
 import { formatRange, daysUntil, tripDayNumber } from "@/lib/format";
 import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
+import RemoveTrip from "@/components/RemoveTrip";
 import { tripPath } from "@/lib/trips/route";
 
 // Three kinds of trip, three shapes of card. Upcoming trips are the reason the
@@ -110,55 +111,65 @@ function CurrentCard({ trip, today }) {
   );
 }
 
-function UpcomingCard({ trip }) {
+function UpcomingCard({ trip, canRemove = false }) {
   const countdown = daysUntil(trip.start_date);
   return (
-    <Link
-      href={tripPath(trip)}
-      className="card group relative flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
-    >
-      <PendingVeil />
-      <div className="flex items-start justify-between gap-3">
-        <span className="emoji-badge" aria-hidden="true">
-          {trip.cover_emoji}
-        </span>
-        {countdown !== null && countdown >= 0 && (
-          <span className="chip bg-teal-soft text-teal">
-            {countdown} days away
+    <div className="flex flex-col">
+      <Link
+        href={tripPath(trip)}
+        className="card group relative flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
+      >
+        <PendingVeil />
+        <div className="flex items-start justify-between gap-3">
+          <span className="emoji-badge" aria-hidden="true">
+            {trip.cover_emoji}
           </span>
-        )}
-      </div>
-      <h3 className="font-display mt-3 text-xl font-semibold group-hover:text-teal">
-        {trip.name}
-      </h3>
-      <p className="mt-0.5 text-sm font-medium text-ink-soft">
-        {formatRange(trip.start_date, trip.end_date)}
-      </p>
-      {trip.destination && (
-        <p className="mt-2 text-sm text-ink-soft">{trip.destination}</p>
-      )}
-      {trip.summary && (
-        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-soft">
-          {trip.summary}
-        </p>
-      )}
-      <div className="mt-4 border-t border-[var(--line)] pt-3 text-xs font-semibold text-ink-soft">
-        <div className="flex flex-wrap gap-2">
-          <span>
-            Packing {trip.packed}/{trip.packing}
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            Tasks {trip.tasksDone}/{trip.tasks}
-          </span>
+          {countdown !== null && countdown >= 0 && (
+            <span className="chip bg-teal-soft text-teal">
+              {countdown} days away
+            </span>
+          )}
         </div>
-        <p className="mt-1.5 font-normal">
-          {trip.going.length
-            ? `Going: ${trip.going.join(", ")}`
-            : "Nobody added yet"}
+        <h3 className="font-display mt-3 text-xl font-semibold group-hover:text-teal">
+          {trip.name}
+        </h3>
+        <p className="mt-0.5 text-sm font-medium text-ink-soft">
+          {formatRange(trip.start_date, trip.end_date)}
         </p>
-      </div>
-    </Link>
+        {trip.destination && (
+          <p className="mt-2 text-sm text-ink-soft">{trip.destination}</p>
+        )}
+        {trip.summary && (
+          <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-soft">
+            {trip.summary}
+          </p>
+        )}
+        <div className="mt-4 border-t border-[var(--line)] pt-3 text-xs font-semibold text-ink-soft">
+          <div className="flex flex-wrap gap-2">
+            <span>
+              Packing {trip.packed}/{trip.packing}
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              Tasks {trip.tasksDone}/{trip.tasks}
+            </span>
+          </div>
+          <p className="mt-1.5 font-normal">
+            {trip.going.length
+              ? `Going: ${trip.going.join(", ")}`
+              : "Nobody added yet"}
+          </p>
+        </div>
+      </Link>
+      {/* Outside the card, not inside it. The whole card is one link, and a
+          button nested in a link is both invalid and a trap: the press that
+          opens the confirm would also navigate away from it. */}
+      {canRemove && (
+        <div className="mt-2 flex justify-end">
+          <RemoveTrip trip={trip} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -191,7 +202,7 @@ function DraftProgress({ trip }) {
   );
 }
 
-function DraftCard({ trip }) {
+function DraftCard({ trip, canRemove = false }) {
   return (
     <div className="flex flex-col rounded-2xl border border-dashed border-[var(--line-strong)] bg-white/60 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -260,6 +271,9 @@ function DraftCard({ trip }) {
           <PendingSpark />
         </Link>
         <PromoteDraft trip={trip} />
+        {/* A draft is the thing most likely to have been started by accident, so
+            the way out sits beside the way forward. */}
+        {canRemove && <RemoveTrip trip={trip} />}
       </div>
     </div>
   );
@@ -316,6 +330,7 @@ export default function TripBoard({
   drafts,
   past,
   today,
+  canRemove = false,
 }) {
   // Land on whatever the family most likely came for: their next trips, unless
   // there are none and something is half-written. A trip in progress is above the
@@ -386,7 +401,7 @@ export default function TripBoard({
           {upcoming.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {upcoming.map((trip) => (
-                <UpcomingCard key={trip.id} trip={trip} />
+                <UpcomingCard key={trip.id} trip={trip} canRemove={canRemove} />
               ))}
             </div>
           ) : (
@@ -420,7 +435,7 @@ export default function TripBoard({
           {drafts.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {drafts.map((trip) => (
-                <DraftCard key={trip.id} trip={trip} />
+                <DraftCard key={trip.id} trip={trip} canRemove={canRemove} />
               ))}
             </div>
           ) : (

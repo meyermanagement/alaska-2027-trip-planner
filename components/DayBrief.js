@@ -29,11 +29,18 @@ const TODAY_FOCUS = "today";
  * rain" -- the same two numbers twice in one breath, which is how a helper that
  * grew a second caller quietly starts repeating itself.
  */
-function Weather({ weather }) {
-  if (!weather) return null;
+function WeatherInner({ weather }) {
   const rest = dayWithoutNumbers(weather);
   return (
-    <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink-soft">
+    <>
+      {/* Which place these numbers are about. Present only on a day that ends
+          somewhere else, because a label on the only forecast there is would
+          suggest the rest of the day happens somewhere unnamed. */}
+      {weather.label && (
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+          {weather.label}
+        </span>
+      )}
       {/* Hidden from a screen reader because the sentence beside it already says
           "cloudy with showers"; a reader hearing "sun behind cloud, cloudy with
           showers" is being told the same thing twice. */}
@@ -46,6 +53,15 @@ function Weather({ weather }) {
         {Math.round(weather.high)}&deg; / {Math.round(weather.low)}&deg;
       </span>
       {rest && <span>{rest}</span>}
+    </>
+  );
+}
+
+function Weather({ weather }) {
+  if (!weather) return null;
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink-soft">
+      <WeatherInner weather={weather} />
     </p>
   );
 }
@@ -57,6 +73,7 @@ export default function DayBrief({
   next,
   nowHM,
   weather,
+  weatherEnd = null,
   nextLeg = null,
   pending,
   onResearch,
@@ -115,7 +132,21 @@ export default function DayBrief({
         <p className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-teal">
           {isToday ? "Today" : "This day"}
         </p>
-        <Weather weather={weather} />
+        {/* Two ends of a travel day, stacked so the arrow reads down the way the
+            day runs. On the days that stay put -- most of them -- weatherEnd is
+            null and this is the single unlabelled line it always was. */}
+        <div className="flex flex-col items-start gap-y-0.5 sm:items-end">
+          <Weather weather={weather} />
+          {weatherEnd && (
+            <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink-soft">
+              <span aria-hidden="true" className="text-ink-faint">
+                &darr;
+              </span>
+              <span className="sr-only">then</span>
+              <WeatherInner weather={weatherEnd} />
+            </p>
+          )}
+        </div>
       </div>
 
       {/* What is next, said as a gap rather than a clock time, because "in 40

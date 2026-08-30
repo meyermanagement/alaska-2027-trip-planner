@@ -59,6 +59,8 @@ export async function POST(request) {
   // model provider.
   const said =
     typeof payload?.message === "string" ? payload.message.trim() : "";
+  // A second go at a question that failed to reach the model at all.
+  const retry = payload?.retry === true;
   if (!said) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
@@ -177,13 +179,27 @@ export async function POST(request) {
 
   // Store the question before answering it, so a failed or timed-out reply still
   // leaves the transcript honest about what was asked.
-  await appendMessage(supabase, {
-    userId: user.id,
-    conversationId,
-    tripId: threadTripId,
-    role: "user",
-    body: said,
-  });
+  //
+  // Unless this IS that failed question coming back. The screen offers a retry
+  // when the model could not be reached, and the first attempt already wrote the
+  // question down -- storing it again would leave the family reading their own
+  // sentence twice and Aly answering a question she was asked once. Checked
+  // against the thread rather than trusted: the flag only permits the skip, the
+  // identical last line is what earns it.
+  const lastSaid = past.at(-1);
+  const alreadyAsked =
+    retry &&
+    lastSaid?.role === "user" &&
+    String(lastSaid.body || lastSaid.text || "").trim() === said;
+  if (!alreadyAsked) {
+    await appendMessage(supabase, {
+      userId: user.id,
+      conversationId,
+      tripId: threadTripId,
+      role: "user",
+      body: said,
+    });
+  }
 
   let result;
   const askedAt = Date.now();

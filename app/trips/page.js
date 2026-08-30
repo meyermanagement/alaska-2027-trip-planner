@@ -164,6 +164,9 @@ export default async function TripsPage() {
           drafts={drafts}
           past={past}
           today={today}
+          // The same line the database draws: a secondary traveler cannot delete
+          // a trip, so they are not shown a control that would refuse them.
+          canRemove={!access?.can.isSecondary}
         />
       </main>
       <AskAlyGeneral />

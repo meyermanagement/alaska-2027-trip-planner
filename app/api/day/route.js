@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { makeCache } from "@/lib/places/photon";
 import { locateItems } from "@/lib/day/locate";
+import { dayEnds } from "@/lib/day/ends";
 import { fingerprint, isStale } from "@/lib/day/mark";
 import { travelBetween, ROAD_FACTOR } from "@/lib/travel/route";
 import { readLean } from "@/lib/travel/lean";
@@ -182,6 +183,15 @@ export async function GET(request) {
   const forecast = forecasts[0] || null;
   const dayWeather = dayOf(forecast, date);
 
+  // A day that ends sixty kilometres or more from where it started is two
+  // afternoons, and the band used to print only the first one -- the weather they
+  // are leaving, unlabelled, on the day they most need the other. Both ends are
+  // reported when they differ, each named in the family's own words.
+  const ends = dayEnds(items, sky);
+  const endWeather = ends
+    ? dayOf(forecasts[ends.endIndex] || null, date)
+    : null;
+
   /** The forecast for the place one item happens, or null when we do not know. */
   const forecastFor = (id) => {
     const at = sky.byItem.get(id);
@@ -326,7 +336,25 @@ export async function GET(request) {
   return NextResponse.json({
     date,
     timezone: forecast?.timezone || null,
-    weather: dayWeather ? { ...dayWeather, line: daySaid(dayWeather) } : null,
+    weather: dayWeather
+      ? {
+          ...dayWeather,
+          line: daySaid(dayWeather),
+          // Named only when there is a second one to tell it apart from. A label
+          // on a single forecast would imply the rest of the day is elsewhere.
+          label: endWeather ? ends.startLabel : null,
+        }
+      : null,
+    // The place the day ends, when that is somewhere else. Null on an ordinary
+    // day, which is most of them.
+    weatherEnd:
+      dayWeather && endWeather
+        ? {
+            ...endWeather,
+            line: daySaid(endWeather),
+            label: ends.endLabel,
+          }
+        : null,
     items: out,
     legs: journeys,
     pending: out.filter((i) => i.needsBrief).length,
