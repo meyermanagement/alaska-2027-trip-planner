@@ -93,26 +93,50 @@ export default function AskAlyDrawer({
     };
   }, [open, close]);
 
-  // Follow the visible area rather than the layout viewport. On iPhone the two
-  // are the same until the keyboard opens, and then they are not.
+  // Two measurements, because the keyboard makes two different demands.
+  //
+  // The cover must stay as tall as the page, or the trip shows through the band
+  // below it -- so it gets the layout height, which the keyboard does not change,
+  // and which only ever grows here: iOS collapses its address bar while you type
+  // and hands back a taller window, and a cover that shrank on the way back down
+  // would flash the page through the bottom of the screen.
+  //
+  // The panel must fit what is still visible, so it gets the visual viewport.
   useEffect(() => {
-    const viewport = typeof window !== "undefined" && window.visualViewport;
-    if (!open || !viewport) return;
+    if (!open || typeof window === "undefined") return;
     const root = document.documentElement;
+    const viewport = window.visualViewport;
+    let tallest = 0;
+
     const sync = () => {
+      tallest = Math.max(tallest, window.innerHeight || 0);
+      if (tallest) root.style.setProperty("--aly-layout-h", `${tallest}px`);
+      if (!viewport) return;
       root.style.setProperty("--aly-viewport-h", `${viewport.height}px`);
       root.style.setProperty("--aly-viewport-top", `${viewport.offsetTop}px`);
+      // What the keyboard is sitting on: everything below the visible band. The
+      // panel turns it into padding rather than giving the height back.
+      const hidden = Math.max(
+        0,
+        Math.round(tallest - viewport.height - viewport.offsetTop),
+      );
+      root.style.setProperty("--aly-keyboard-h", `${hidden}px`);
     };
     sync();
+
     // resize fires as the keyboard animates in; scroll fires when the page moves
     // underneath it, which iOS does to keep the focused field in view.
-    viewport.addEventListener("resize", sync);
-    viewport.addEventListener("scroll", sync);
+    window.addEventListener("resize", sync);
+    viewport?.addEventListener("resize", sync);
+    viewport?.addEventListener("scroll", sync);
     return () => {
-      viewport.removeEventListener("resize", sync);
-      viewport.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+      viewport?.removeEventListener("resize", sync);
+      viewport?.removeEventListener("scroll", sync);
+      root.style.removeProperty("--aly-layout-h");
       root.style.removeProperty("--aly-viewport-h");
       root.style.removeProperty("--aly-viewport-top");
+      root.style.removeProperty("--aly-keyboard-h");
     };
   }, [open]);
 
@@ -120,7 +144,7 @@ export default function AskAlyDrawer({
 
   return (
     <div
-      className="aly-overlay no-print fixed inset-x-0 top-0 z-40 flex justify-end"
+      className="aly-overlay no-print fixed inset-x-0 top-0 z-40 flex items-start justify-end"
       role="dialog"
       aria-modal="true"
       aria-label="Ask Aly"
@@ -131,7 +155,7 @@ export default function AskAlyDrawer({
         onClick={close}
         className="aly-veil absolute inset-0 cursor-default bg-ink/40"
       />
-      <aside className="aly-panel relative flex h-full w-full max-w-md flex-col border-l border-[var(--line)] bg-white shadow-2xl">
+      <aside className="aly-panel relative flex w-full max-w-md flex-col border-l border-[var(--line)] bg-white shadow-2xl">
         {current ? (
           <ChatPanel
             trip={trip}

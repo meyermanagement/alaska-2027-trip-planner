@@ -250,7 +250,16 @@ export default function DayBrief({
       {pending > 0 && (
         <p className="mt-2 flex flex-wrap items-center gap-2 text-[0.78rem] text-ink-soft">
           {researching ? (
-            <span>Aly is looking into {pending === 1 ? "it" : "the day"}…</span>
+            <span className="flex items-center gap-2">
+              <span className="aly-dots" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              <span aria-live="polite">
+                Aly is looking into {pending === 1 ? "it" : "the day"}…
+              </span>
+            </span>
           ) : (
             <>
               <span>

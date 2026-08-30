@@ -157,18 +157,89 @@ time {
   }
 }
 
-/* iOS Safari does not shrink the layout viewport when the keyboard opens, so a
-   `fixed inset-0` overlay keeps its full height and the strip sitting under the
-   keyboard shows whatever page is behind it. The visual viewport is the only
-   thing that knows where the visible area actually is, so the drawer is sized
-   and offset from that instead, with dvh as the fallback where the API is
-   missing. */
-.aly-overlay {
-  height: var(--aly-viewport-h, 100dvh);
-  transform: translateY(var(--aly-viewport-top, 0px));
+/* Three dots that breathe, so a slow answer is visibly a slow answer rather than
+   a frozen screen. Sized in ems so it scales with the sentence beside it. */
+.aly-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
 }
 
+.aly-dots i {
+  width: 0.32em;
+  height: 0.32em;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: aly-dot 1.2s ease-in-out infinite;
+}
+
+.aly-dots i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.aly-dots i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes aly-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-0.16em);
+  }
+}
+
+/* Someone who has asked for less movement still needs to see that it is alive,
+   so the dots stop hopping and pulse in place instead. */
+@media (prefers-reduced-motion: reduce) {
+  .aly-dots i {
+    animation: aly-dot-still 2s ease-in-out infinite;
+  }
+  @keyframes aly-dot-still {
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+}
+
+/* iOS Safari does not shrink the layout viewport when the keyboard opens: the
+   page keeps its full height and the keyboard is drawn on top of it. Two
+   different things follow from that, and sizing one box from the visual viewport
+   confused them.
+   
+   The cover has to stay as tall as the page, because anything shorter leaves a
+   band of layout viewport below it with the trip showing through -- which is what
+   happens as the keyboard animates, and whenever iOS scrolls the page to keep the
+   focused box in view. So the overlay is the full layout height, measured, and it
+   never shrinks.
+
+   The panel is the part that has to fit the part of the screen you can still see,
+   so it takes the visual viewport's height and sits at its offset. Both fall back
+   to dvh where the API is missing. */
+.aly-overlay {
+  height: var(--aly-layout-h, 100dvh);
+  min-height: 100dvh;
+}
+
+/* The panel is as tall as the page and opaque all the way down, so nothing of the
+   trip is ever left showing beside it -- a dimmed veil is still a view of the
+   trip, which is what "shows the trip underneath" meant. What the keyboard hides
+   becomes padding instead: the words and the box sit in the band that is still
+   visible, and the white carries on behind the keys. */
 .aly-panel {
+  height: var(--aly-layout-h, 100%);
+  max-height: var(--aly-layout-h, 100%);
+  padding-top: var(--aly-viewport-top, 0px);
+  padding-bottom: var(--aly-keyboard-h, 0px);
   animation: aly-slide-in 0.22s ease-out;
 }
 

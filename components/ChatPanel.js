@@ -11,6 +11,7 @@ import { foundLine } from "@/lib/tips/ask";
 import TripArtifact from "./TripArtifact";
 import { buildArtifact } from "@/lib/trips/artifact";
 import { receiptTone, receiptLabel } from "@/lib/agent/receipt";
+import Thinking from "./Thinking";
 
 // What a receipt looks like once it has earned its colour. Amber is the honest
 // answer for a card where some of it landed and some of it did not: neither the
@@ -222,6 +223,9 @@ export default function ChatPanel({
   );
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  // The request in flight, so the Stop offered after five seconds does something
+  // rather than merely hiding the fact that it is still going.
+  const askRef = useRef(null);
   const tripId = trip?.id || null;
   const router = useRouter();
   // Held in a ref as well as a prop because a brand-new conversation gets its id
@@ -331,11 +335,15 @@ export default function ChatPanel({
     }
     setBusy(true);
 
+    const control = new AbortController();
+    askRef.current = { control, asked: clean, stopped: false };
+
     try {
       // Only the new message goes up; the server reads the rest of the thread
       // from the database.
       const res = await fetch("/api/chat", {
         method: "POST",
+        signal: control.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tripId,
@@ -404,11 +412,39 @@ export default function ChatPanel({
       if (data.look) {
         await carryOut(data.look);
       }
-    } catch {
-      setError("I could not reach the app just then. Check your signal.");
-      setRetryAsk(clean);
+    } catch (err) {
+      // Stopping it yourself is not a failure, and should not be reported as one.
+      // The question stays in the box so pressing Stop costs a wait and not the
+      // sentence you typed.
+      if (err?.name === "AbortError" || askRef.current?.stopped) {
+        // The browser stopped listening; the route did not stop working, and it
+        // writes her answer down whether or not anyone is waiting for it. Saying
+        // otherwise would be a lie the transcript then contradicts.
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            text: "Stopped waiting. If she had already finished, her answer will be here the next time you open this conversation.",
+          },
+        ]);
+        // Asked again rather than retyped, and marked as a retry so the question
+        // is not written into the thread a second time.
+        setRetryAsk(clean);
+      } else {
+        setError("I could not reach the app just then. Check your signal.");
+        setRetryAsk(clean);
+      }
     }
+    askRef.current = null;
     setBusy(false);
+  }
+
+  /** Called by the waiting line's Stop. Abandons the answer, keeps the question. */
+  function stopAsking() {
+    const live = askRef.current;
+    if (!live) return;
+    live.stopped = true;
+    live.control.abort();
   }
 
   // Aly's own look, run from here for the same reason the button's is: one
@@ -780,35 +816,14 @@ export default function ChatPanel({
           </div>
         ))}
 
-        {busy && !looking && (
-          <div className="flex justify-start">
-            <div className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft">
-              Thinking…
-            </div>
-          </div>
-        )}
+        {busy && !looking && <Thinking onStop={stopAsking} />}
 
-        {looking && (
-          <div className="flex justify-start">
-            <div
-              className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft"
-              aria-live="polite"
-            >
-              {looking}
-            </div>
-          </div>
-        )}
+        {/* The look reports its own real steps -- which trip, which day, what it
+            is reading -- so those words are handed straight through and get the
+            movement and the clock around them. */}
+        {looking && <Thinking label={looking} />}
 
-        {packingBusy && (
-          <div className="flex justify-start">
-            <div
-              className="rounded-xl bg-sand px-3.5 py-2.5 text-sm text-ink-soft"
-              aria-live="polite"
-            >
-              Working out the packing list…
-            </div>
-          </div>
-        )}
+        {packingBusy && <Thinking label="Working out the packing list…" />}
 
         {pending && (
           <div className="space-y-2.5">
@@ -934,6 +949,18 @@ export default function ChatPanel({
               </button>
             )}
           </div>
+        )}
+
+        {/* A stopped question is not a failed one, so it gets the same one-press
+            way back without the red. */}
+        {retryAsk && !error && !busy && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => send(retryAsk, { again: true })}
+          >
+            Ask again
+          </button>
         )}
 
         {error && (
