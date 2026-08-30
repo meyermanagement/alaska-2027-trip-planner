@@ -10,6 +10,16 @@ import { runLook } from "@/lib/tips/run";
 import { foundLine } from "@/lib/tips/ask";
 import TripArtifact from "./TripArtifact";
 import { buildArtifact } from "@/lib/trips/artifact";
+import { receiptTone, receiptLabel } from "@/lib/agent/receipt";
+
+// What a receipt looks like once it has earned its colour. Amber is the honest
+// answer for a card where some of it landed and some of it did not: neither the
+// green that says "done" nor the red that says "nothing happened".
+const RECEIPT_TONE = {
+  saved: "bg-teal-soft text-teal",
+  mixed: "border border-amber/60 bg-amber/15 text-ink",
+  failed: "border border-rose/60 bg-rose/10 text-ink",
+};
 
 // Prompts follow whichever section the user was looking at.
 const SUGGESTIONS = {
@@ -456,6 +466,9 @@ export default function ChatPanel({
           role: "assistant",
           text: data.receipt || fallback,
           kind: "receipt",
+          // Green is a claim that the change landed, so it is worked out from
+          // the counts the server sent rather than given to every receipt.
+          tone: receiptTone({ applied: okCount, failed: failed.length }),
           links: data.links || [],
         },
       ]);
@@ -524,7 +537,12 @@ export default function ChatPanel({
         setPackingNote(data.receipt);
         setMessages((m) => [
           ...m,
-          { role: "assistant", kind: "receipt", text: data.receipt },
+          {
+            role: "assistant",
+            kind: "receipt",
+            text: data.receipt,
+            tone: receiptTone({ text: data.receipt }),
+          },
         ]);
         onApplied?.();
       }
@@ -711,10 +729,18 @@ export default function ChatPanel({
                 m.role === "user"
                   ? "bg-teal text-white"
                   : m.kind === "receipt"
-                    ? "bg-teal-soft text-teal"
+                    ? RECEIPT_TONE[m.tone || "saved"] || RECEIPT_TONE.saved
                     : "bg-sand text-ink"
               }`}
             >
+              {m.kind === "receipt" && receiptLabel(m.tone) && (
+                /* The words as well as the box: a receipt that failed has to
+                   read as a failure in grayscale, in a screenshot, and to
+                   somebody who cannot tell the two boxes apart. */
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide">
+                  {receiptLabel(m.tone)}
+                </span>
+              )}
               <span className="whitespace-pre-wrap">{m.text}</span>
               <ReceiptLinks
                 links={m.links}
@@ -823,7 +849,18 @@ export default function ChatPanel({
                         >
                           •
                         </span>
-                        <span>{a.summary}</span>
+                        <span>
+                          {a.summary}
+                          {a.caution && (
+                            /* Something the change could not do, said before it
+                               is approved rather than in the receipt afterwards:
+                               an animal the family has no record of is left off,
+                               and the trip still goes through. */
+                            <span className="mt-0.5 block text-xs text-ink-soft">
+                              {a.caution}
+                            </span>
+                          )}
+                        </span>
                       </li>
                     ))}
                   </ul>

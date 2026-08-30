@@ -198,6 +198,9 @@ export async function POST(request) {
     prefs,
     templates,
     templateItems,
+    pets,
+    lessons,
+    rewards,
   ] = await Promise.all([
     supabase.from("itinerary_items").select("id, title, trip_id"),
     supabase
@@ -211,6 +214,15 @@ export async function POST(request) {
     supabase.from("travel_preferences").select("id, body"),
     supabase.from("packing_templates").select("id, name, is_base"),
     supabase.from("packing_template_items").select("id, item, template_id"),
+    // The family's animals, their lessons and their loyalty numbers. These are
+    // read here for the same reason as everything above: this route revalidates
+    // from scratch, and a table it does not load is a table Aly can never touch.
+    // Leaving pets out meant every card that put an animal on a trip came back
+    // as "I have no pets on file for this family" while the animal sat in the
+    // database, and the trip the card was really about was lost with it.
+    supabase.from("pets").select("id, name"),
+    supabase.from("lessons").select("id, subject"),
+    supabase.from("rewards_programs").select("id, brand"),
   ]);
 
   // Which trip each row sits in, so an edit lands on the right trip even when
@@ -255,6 +267,13 @@ export async function POST(request) {
         r.id,
         { item: r.item, template_id: r.template_id },
       ]),
+    ),
+    pets: new Map((pets.data || []).map((r) => [r.id, r.name])),
+    lessons: new Map(
+      (lessons.data || []).map((r) => [r.id, (r.subject || "").slice(0, 60)]),
+    ),
+    rewards_programs: new Map(
+      (rewards.data || []).map((r) => [r.id, (r.brand || "").slice(0, 60)]),
     ),
     rowTrip,
   });
