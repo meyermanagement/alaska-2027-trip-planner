@@ -13,6 +13,7 @@ import { buildArtifact } from "@/lib/trips/artifact";
 import { receiptTone, receiptLabel } from "@/lib/agent/receipt";
 import Thinking from "./Thinking";
 import RichText from "./RichText";
+import { askPlaceholder } from "@/lib/agent/placeholders";
 import Followups from "./Followups";
 
 // What a receipt looks like once it has earned its colour. Amber is the honest
@@ -1035,11 +1036,7 @@ export default function ChatPanel({
                 send(input);
               }
             }}
-            placeholder={
-              trip
-                ? "Add dinner Thursday at 6, or paste a whole list…"
-                : "Ask about any trip, or paste a whole list…"
-            }
+            placeholder={askPlaceholder({ focus, hasTrip: Boolean(trip) })}
             disabled={busy}
             aria-label="Message Aly"
           />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { TODAY_PLACEHOLDER } from "@/lib/agent/placeholders";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import { dayWithoutNumbers, sourceSaid } from "@/lib/weather/forecast";
 import { readStored } from "./WhereIAm";
@@ -209,7 +210,7 @@ export default function DayBrief({
             ref={box}
             value={asking}
             onChange={(e) => setAsking(e.target.value)}
-            placeholder="Ask about today…"
+            placeholder={TODAY_PLACEHOLDER}
             aria-label="Ask Aly about today"
             className="min-w-0 flex-1 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm placeholder:text-ink-faint focus:border-teal focus:outline-none"
           />
