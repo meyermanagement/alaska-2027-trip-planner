@@ -34,6 +34,14 @@ function Weather({ weather }) {
   const rest = dayWithoutNumbers(weather);
   return (
     <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink-soft">
+      {/* Hidden from a screen reader because the sentence beside it already says
+          "cloudy with showers"; a reader hearing "sun behind cloud, cloudy with
+          showers" is being told the same thing twice. */}
+      {weather.glyph && (
+        <span aria-hidden="true" className="text-lg leading-none">
+          {weather.glyph}
+        </span>
+      )}
       <span className="tabular font-semibold text-ink">
         {Math.round(weather.high)}&deg; / {Math.round(weather.low)}&deg;
       </span>

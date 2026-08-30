@@ -3,7 +3,7 @@
 import { formatTime } from "@/lib/format";
 import { leaveBy, running } from "@/lib/day/departure";
 import { travelSaid } from "@/lib/travel/route";
-import { hourSaid } from "@/lib/weather/forecast";
+import { hourSaid, windGlyph } from "@/lib/weather/forecast";
 
 /**
  * What Aly worked out about one thing on today's schedule.
@@ -126,6 +126,18 @@ export default function DayItemBrief({
           reader cannot see. */}
       {sky && (
         <Line label={`At ${formatTime(hour.hm)}:`}>
+          {/* The picture first, then the words. The glyph is decoration in the
+              strict sense -- everything it says is said in the sentence beside it,
+              so it is hidden from a screen reader rather than read out twice --
+              but it is the part a person takes in without reading, which on a
+              screen somebody checks at a bus stop is the point. The wind gets one
+              too, and only when it is strong enough to change a plan. */}
+          {(hour.glyph || windGlyph(hour.wind)) && (
+            <span aria-hidden="true" className="mr-1 text-base leading-none">
+              {hour.glyph}
+              {windGlyph(hour.wind) || ""}
+            </span>
+          )}
           <span className="tabular">{sky}</span>
         </Line>
       )}

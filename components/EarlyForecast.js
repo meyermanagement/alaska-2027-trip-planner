@@ -63,6 +63,11 @@ export default function EarlyForecast({ tripId, date, today }) {
 
   return (
     <p className="no-print mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-2xl border border-dashed border-[var(--line)] bg-sand/50 px-4 py-2 text-sm text-ink-soft">
+      {weather.glyph && (
+        <span aria-hidden="true" className="text-lg leading-none">
+          {weather.glyph}
+        </span>
+      )}
       {has && (
         <span className="tabular font-semibold text-ink">
           {Math.round(weather.high)}&deg; / {Math.round(weather.low)}&deg;
