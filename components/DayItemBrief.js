@@ -80,12 +80,29 @@ export default function DayItemBrief({
             {plan.travelSource === "traffic"
               ? " in current traffic"
               : " travel"}
+            {/* Two different shapes arrive in `bufferWhy`. The rules carry a
+                noun phrase that finishes the sentence -- "plus 45 min for
+                check-in and security". A researched one carries a whole sentence
+                from the operator, and pasting that in gave "plus 30 min Tickets
+                are collected at the depot", which is not English. So the
+                sentence gets its own line below and this clause just says how
+                long. */}
             {plan.bufferMinutes > 0
-              ? `, plus ${plan.bufferMinutes} min ${plan.bufferWhy}`
+              ? plan.bufferSource === "researched"
+                ? `, plus ${plan.bufferMinutes} min early`
+                : plan.bufferWhy
+                  ? `, plus ${plan.bufferMinutes} min for ${plan.bufferWhy}`
+                  : `, plus ${plan.bufferMinutes} min early`
               : ""}
           </span>
         </Line>
       )}
+
+      {/* The operator's own reason for the early arrival, said in full rather
+          than folded into the departure clause above. */}
+      {plan.complete &&
+        plan.bufferSource === "researched" &&
+        plan.bufferWhy && <Line label="Why so early:">{plan.bufferWhy}</Line>}
 
       {insight?.heads_up && (
         <Line label="Heads up:" tone="warn">
