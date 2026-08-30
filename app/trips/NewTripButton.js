@@ -19,8 +19,18 @@ import Link from "next/link";
  */
 export default function NewTripButton() {
   return (
-    <Link className="btn btn-primary" href="/trips/new">
-      Trip builder
-    </Link>
+    <div className="flex flex-wrap items-center gap-2">
+      <Link className="btn btn-primary" href="/trips/new">
+        Trip builder
+      </Link>
+      {/* The other direction: a trip that has already happened. It sits here
+          rather than at the bottom of Past trips because that list is empty for
+          most families until somebody writes the first one down, and a button
+          inside an empty list is a button nobody finds. Ghost, not primary --
+          planning the next trip is the commoner errand. */}
+      <Link className="btn btn-ghost" href="/trips/log">
+        Log a previous trip
+      </Link>
+    </div>
   );
 }

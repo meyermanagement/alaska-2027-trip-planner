@@ -6,6 +6,7 @@ import {
   buildSystemPrompt,
   isKnownFocus,
   NEW_TRIP_FOCUS,
+  LOG_TRIP_FOCUS,
 } from "@/lib/agent/context";
 import { validateAction, pendingTripNames } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
@@ -291,6 +292,7 @@ export async function POST(request) {
       focusTripId: ctx.focusTripId,
       pendingTrips,
       newTripDraft: focus === NEW_TRIP_FOCUS,
+      loggedTrip: focus === LOG_TRIP_FOCUS,
     });
     if (action) proposed.push(action);
     else if (error) problems.push(error);

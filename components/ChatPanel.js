@@ -545,13 +545,15 @@ export default function ChatPanel({
             <p className="mt-1 truncate text-xs text-ink-soft">
               {conversationId
                 ? conversationTripName || (trip ? trip.name : "All trips")
-                : focus === "new_trip"
-                  ? "A new trip"
-                  : focus === "rewards"
-                    ? "Points, miles and cards"
-                    : conversationTripName || trip?.name
-                      ? `New conversation · ${conversationTripName || trip.name}`
-                      : "New conversation"}
+                : focus === "log_trip"
+                  ? "A trip you have taken"
+                  : focus === "new_trip"
+                    ? "A new trip"
+                    : focus === "rewards"
+                      ? "Points, miles and cards"
+                      : conversationTripName || trip?.name
+                        ? `New conversation · ${conversationTripName || trip.name}`
+                        : "New conversation"}
               {trip && SECTION_LABELS[focus]
                 ? ` · ${SECTION_LABELS[focus]}`
                 : ""}
@@ -605,6 +607,14 @@ export default function ChatPanel({
                   </span>{" "}
                   you have saved, and what each one earns. Ask what a balance is
                   worth, or tell her a new one.
+                </>
+              ) : focus === "log_trip" ? (
+                <>
+                  Tell Aly about a trip you have{" "}
+                  <span className="font-semibold text-ink">already taken</span>{" "}
+                  and she files it with your past trips. She keeps the packing
+                  list you used as you wrote it, and will not suggest anything
+                  to book.
                 </>
               ) : focus === "new_trip" ? (
                 <>
