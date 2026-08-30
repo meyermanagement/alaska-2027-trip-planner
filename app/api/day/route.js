@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { makeCache } from "@/lib/places/photon";
-import { anchorPoint, locateItems } from "@/lib/day/locate";
+import { locateItems } from "@/lib/day/locate";
 import { fingerprint, isStale } from "@/lib/day/mark";
 import { travelBetween, ROAD_FACTOR } from "@/lib/travel/route";
 import { readLean } from "@/lib/travel/lean";
@@ -12,7 +12,13 @@ import {
 } from "@/lib/travel/transit";
 import { travelOptions, WALK_LIMIT_KM } from "@/lib/travel/modes";
 import { topicFamily } from "@/lib/preferences/topics";
-import { dayOf, daySaid, fetchForecast, hourOf } from "@/lib/weather/forecast";
+import {
+  dayOf,
+  daySaid,
+  fetchForecasts,
+  hourOf,
+  weatherPoints,
+} from "@/lib/weather/forecast";
 import { minutesOf } from "@/lib/day/phase";
 import { normalizeHere } from "@/lib/places/here";
 import { homeToday } from "@/lib/format";
@@ -136,17 +142,47 @@ export async function GET(request) {
   }
 
   // --- the sky -------------------------------------------------------------
-  const anchor = anchorPoint(items, points);
-  let forecast = null;
-  if (anchor) {
-    const key = `${anchor.lat.toFixed(2)},${anchor.lon.toFixed(2)}`;
-    forecast = weather.get(key);
-    if (forecast === undefined) {
-      forecast = await fetchForecast(anchor.lat, anchor.lon, { days: 4 });
-      weather.set(key, forecast);
-    }
+  //
+  // One forecast per place the day actually visits, not one for the day. A day
+  // that starts in Denali and ends in Anchorage is 240 miles and two different
+  // afternoons, and every item within a dozen kilometres of a point already asked
+  // about shares that answer, so a town full of reservations is still one lookup.
+  // The first point is the day's anchor, which keeps the band at the top of the
+  // day reading exactly as it did.
+  const sky = weatherPoints(items, points);
+  const forecasts = new Array(sky.points.length).fill(null);
+  const missing = [];
+  sky.points.forEach((p, i) => {
+    const hit = weather.get(`${p.lat.toFixed(2)},${p.lon.toFixed(2)}`);
+    if (hit === undefined) missing.push({ i, p });
+    else forecasts[i] = hit;
+  });
+  if (missing.length > 0) {
+    // One request for all of them. Open-Meteo takes several coordinates at once,
+    // which is what makes per-item weather affordable enough to be per-item.
+    const got = await fetchForecasts(
+      missing.map((m) => m.p),
+      { days: 4 },
+    );
+    missing.forEach((m, n) => {
+      forecasts[m.i] = got[n] ?? null;
+      weather.set(
+        `${m.p.lat.toFixed(2)},${m.p.lon.toFixed(2)}`,
+        got[n] ?? null,
+      );
+    });
   }
+  // The anchor's forecast still speaks for the day: the band above the items, the
+  // timezone every wall-clock time in this response is resolved in, and whether
+  // the day being asked about is today where the family is standing.
+  const forecast = forecasts[0] || null;
   const dayWeather = dayOf(forecast, date);
+
+  /** The forecast for the place one item happens, or null when we do not know. */
+  const forecastFor = (id) => {
+    const at = sky.byItem.get(id);
+    return at === undefined ? null : forecasts[at] || null;
+  };
 
   // --- what has already been researched -----------------------------------
   const { data: stored } = await supabase
@@ -255,7 +291,9 @@ export async function GET(request) {
     const insight = stale ? null : byItem.get(item.id);
     return {
       id: item.id,
-      hour: hourOf(forecast, date, item.start_time),
+      // The hour this item happens, where this item happens -- not the day's
+      // average and not the anchor's weather wearing this item's time.
+      hour: hourOf(forecastFor(item.id), date, item.start_time),
       located: points.has(item.id),
       insight: insight
         ? {

@@ -702,12 +702,17 @@ export default function Itinerary({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayData, selected, withinReach]);
 
-  /** The insight and the journey for one item, from whatever came back. */
+  /** The insight, the journey and the sky for one item, from whatever came back. */
   const dayFor = useCallback(
     (itemId) => {
-      if (!dayData) return { insight: null, leg: null };
+      if (!dayData) return { insight: null, leg: null, hour: null };
+      const row = dayData.items?.find((r) => r.id === itemId) || null;
       return {
-        insight: dayData.items?.find((r) => r.id === itemId)?.insight || null,
+        insight: row?.insight || null,
+        // The forecast for the hour this item happens, at the place it happens.
+        // Only ever present for a day the service reaches, which is why per-item
+        // weather is a today-and-tomorrow feature and not a whole-trip one.
+        hour: row?.hour || null,
         leg: dayData.legs?.find((l) => l.itemId === itemId) || null,
       };
     },
@@ -1450,6 +1455,7 @@ export default function Itinerary({
                               item={item}
                               insight={dayBits.insight}
                               leg={dayBits.leg}
+                              hour={dayBits.hour}
                               nowHM={nowHM}
                               isNext={phase === "next"}
                               past={phase === "past" || phase === "done"}

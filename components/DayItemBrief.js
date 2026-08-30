@@ -3,6 +3,7 @@
 import { formatTime } from "@/lib/format";
 import { leaveBy, running } from "@/lib/day/departure";
 import { travelSaid } from "@/lib/travel/route";
+import { hourSaid } from "@/lib/weather/forecast";
 
 /**
  * What Aly worked out about one thing on today's schedule.
@@ -34,6 +35,7 @@ export default function DayItemBrief({
   item,
   insight,
   leg,
+  hour = null,
   nowHM = null,
   isNext = false,
   dimmed = false,
@@ -57,7 +59,14 @@ export default function DayItemBrief({
   // request failed or was never possible, and the fallback of a straight-line
   // distance is worth saying only when we have that.
   const hasJourney = Boolean(leg && (leg.minutes || leg.straightKm));
-  if (!hasAdvice && !hasJourney && !plan.complete) return null;
+
+  // The forecast for the hour this thing happens in, at the place it happens.
+  // Suppressed once it is over: what the sky did at breakfast is history, and the
+  // job of this screen is the next few hours. Suppressed too when the item has no
+  // coordinates, because the day's anchor forecast presented as this item's would
+  // be a Denali afternoon standing in for an Anchorage one.
+  const sky = past ? null : hourSaid(hour);
+  if (!hasAdvice && !hasJourney && !plan.complete && !sky) return null;
 
   return (
     <div
@@ -107,6 +116,17 @@ export default function DayItemBrief({
       {insight?.heads_up && (
         <Line label="Heads up:" tone="warn">
           {insight.heads_up}
+        </Line>
+      )}
+
+      {/* Directly above what to wear, because that is the decision it feeds. The
+          label carries the hour rather than leaving it implied: the forecast is
+          hourly and 7:50 is described by eight o'clock, so saying which hour was
+          asked about is the difference between a fact and a rounding error the
+          reader cannot see. */}
+      {sky && (
+        <Line label={`At ${formatTime(hour.hm)}:`}>
+          <span className="tabular">{sky}</span>
         </Line>
       )}
 
