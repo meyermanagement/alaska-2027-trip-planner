@@ -5,10 +5,8 @@ import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import DictationHint from "@/components/DictationHint";
 import {
   BASICS,
-  HOW_REAL,
   TRIP_IDEA_EXAMPLES,
-  howReal,
-  ideaWithReality,
+  ideaAskingReality,
   readIdea,
   coverageLine,
 } from "@/lib/trips/basics";
@@ -33,28 +31,26 @@ import {
  * six light up as you type: seeing "that already covers where, when and what you
  * do" is what makes somebody add the manta rays.
  *
- * The one question that is not one of the six is asked here rather than in the
- * conversation: is this booked, decided on, or still an idea. Everything used to
- * land as a draft, which is right for an idea and wrong for a trip somebody has
- * already paid for -- and no sentence can be read for the difference, because
- * "we're going to Hawaii in April" is what people say about both.
+ * The one question that is not one of the six -- is this booked, decided on, or
+ * still an idea -- was asked here, as three buttons, and it had to come out. They
+ * sat immediately above the start button, and when the box is empty that button
+ * says "ask me", so it read as a fourth answer to the question above it rather
+ * than as the way in for somebody who has not typed anything. Aly asks it now,
+ * with her other questions, which is where a question belongs; the sentence that
+ * leaves this screen tells her to ask before she creates anything.
  *
  * Nothing here writes to the database. Aly creates the trip from the
- * conversation, with the status this screen collected.
+ * conversation.
  */
 export default function TripBuilderStart() {
   const [idea, setIdea] = useState("");
-  // No default. A guess here is a guess about whether this goes on the family
-  // calendar, so an unanswered question is passed to Aly as a question.
-  const [reality, setReality] = useState("");
   const clean = idea.trim();
-  const chosen = howReal(reality);
 
   const read = readIdea(idea);
   const covered = new Set(read.filter((r) => r.mentioned).map((r) => r.id));
 
   function start(seed) {
-    const text = ideaWithReality(seed, reality);
+    const text = ideaAskingReality(seed);
     if (!text) return;
     window.dispatchEvent(
       new CustomEvent(ASK_ALY_EVENT, {
@@ -97,53 +93,9 @@ export default function TripBuilderStart() {
         </p>
       </div>
 
-      {/* Asked here rather than in the conversation, because the answer decides
-          where the trip lands and somebody who has already paid for a hotel
-          should not have to argue their trip out of the Drafts pile. Three
-          buttons rather than a select: it is one tap, and each one says what it
-          does to the trip. */}
-      <fieldset className="mt-5">
-        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
-          Is this trip real yet?
-        </legend>
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
-          {HOW_REAL.map((option) => {
-            const on = reality === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setReality(on ? "" : option.id)}
-                className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                  on
-                    ? "border-teal bg-teal-soft/40"
-                    : "border-[var(--line)] bg-white hover:border-teal"
-                }`}
-              >
-                <span className="block text-sm font-semibold">
-                  {option.label}
-                </span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
-                  {option.hint}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <p
-          className="mt-2 text-xs leading-relaxed text-ink-soft"
-          aria-live="polite"
-        >
-          {chosen
-            ? chosen.lands
-            : "Aly will ask, and it stays out of Upcoming trips until you answer."}
-        </p>
-      </fieldset>
-
       <button
         type="button"
-        className="btn btn-primary mt-4 w-full sm:w-auto"
+        className="btn btn-primary mt-5 w-full sm:w-auto"
         onClick={() =>
           start(
             clean ||
@@ -151,7 +103,7 @@ export default function TripBuilderStart() {
           )
         }
       >
-        {clean ? "Start planning with Aly" : "Not sure yet — ask me"}
+        {clean ? "Start planning with Aly" : "Help me work it out"}
       </button>
 
       {/* What she will ask about, and which of it your sentence already said.
