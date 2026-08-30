@@ -595,6 +595,11 @@ export default function Itinerary({
   const [dayData, setDayData] = useState(null);
   // The phone's own position, once, for the day being lived. See askQuietly.
   const [phone, setPhone] = useState(null);
+  // The exact question last put to /api/day. Every answer it gives costs geocoding
+  // and routing calls, so the same question is never asked twice: a re-render, a
+  // clock tick that changes nothing, and React's double mount in development all
+  // used to buy the identical day again.
+  const lastAsked = useRef("");
   const [researching, setResearching] = useState(false);
   const [researchError, setResearchError] = useState("");
 
@@ -624,7 +629,7 @@ export default function Itinerary({
   }, [withinReach, byDay, selected, today, nowHM]);
 
   const loadDay = useCallback(
-    async (date, nextId) => {
+    async (date, nextId, { force = false } = {}) => {
       if (!tripId || !date || date === UNSCHEDULED) {
         setDayData(null);
         return;
@@ -644,25 +649,49 @@ export default function Itinerary({
         if (here.accuracy) params.set("acc", String(here.accuracy));
         if (here.source) params.set("src", here.source);
       }
+      // The same question as last time cannot have a different answer, so it is
+      // not asked. force is for after a research pass, where the question is word
+      // for word the same and the answer genuinely has changed.
+      const query = params.toString();
+      if (!force && query === lastAsked.current) return;
+      lastAsked.current = query;
       try {
-        const res = await fetch(`/api/day?${params.toString()}`);
-        if (!res.ok) return;
+        const res = await fetch(`/api/day?${query}`);
+        if (!res.ok) {
+          // Forget it, so a day that failed can be asked for again rather than
+          // being permanently the one question we refuse to repeat.
+          lastAsked.current = "";
+          return;
+        }
         const data = await res.json();
         // A slow answer for a day nobody is looking at any more is not an answer.
         setDayData((prev) => (data.date === date ? data : prev));
       } catch {
+        lastAsked.current = "";
         /* the day still renders; the extras are extras */
       }
     },
     [tripId, today, phone],
   );
 
+  // Clearing belongs to changing days, not to loading one. It used to run on every
+  // pass, so a clock tick that moved the next item -- or the phone answering with
+  // a position -- blanked the weather and the journey for as long as the new answer
+  // took to arrive, on a screen that had them a moment earlier.
   useEffect(() => {
     setDayData(null);
     setResearchError("");
+    lastAsked.current = "";
+  }, [selected]);
+
+  useEffect(() => {
     if (!withinReach) return;
+    // Nothing is asked until the device clock has been read. Before it is, the
+    // next item is whatever the day starts with, which was worth a whole extra
+    // day request answering a question about the wrong journey.
+    if (nowHM === null) return;
     loadDay(selected, nextIdOnSelected);
-  }, [selected, withinReach, loadDay, nextIdOnSelected]);
+  }, [selected, withinReach, loadDay, nextIdOnSelected, nowHM]);
 
   // Ask the phone where it is, once, and only while looking at the day of a trip
   // that is actually happening. The day is loaded first and reloaded when the fix
@@ -696,13 +725,13 @@ export default function Itinerary({
         setResearchError(data.error || "Aly could not look into today.");
         return;
       }
-      await loadDay(selected);
+      await loadDay(selected, nextIdOnSelected, { force: true });
     } catch {
       setResearchError("That did not get through. Try again in a moment.");
     } finally {
       setResearching(false);
     }
-  }, [tripId, selected, dayIsReal, researching, loadDay]);
+  }, [tripId, selected, dayIsReal, researching, loadDay, nextIdOnSelected]);
 
   // Automatic for today and tomorrow, once each, when there is something new to
   // look into. Deliberately not automatic for any other day: opening day nine to
