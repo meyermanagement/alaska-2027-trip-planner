@@ -315,7 +315,7 @@ export async function GET(request) {
   return NextResponse.json({
     date,
     timezone: forecast?.timezone || null,
-    weather: dayWeather ? { ...dayWeather, said: daySaid(dayWeather) } : null,
+    weather: dayWeather ? { ...dayWeather, line: daySaid(dayWeather) } : null,
     items: out,
     legs: journeys,
     pending: out.filter((i) => i.needsBrief).length,

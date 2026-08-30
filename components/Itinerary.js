@@ -35,6 +35,7 @@ import Stars from "@/components/Stars";
 import { canReviewNow, reviewTarget } from "@/lib/reviews/when";
 import DayBrief from "@/components/DayBrief";
 import DayItemBrief from "@/components/DayItemBrief";
+import EarlyForecast from "@/components/EarlyForecast";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
 import { readStored } from "@/components/WhereIAm";
 
@@ -1242,6 +1243,16 @@ export default function Itinerary({
                   readOnly={readOnly}
                 />
               )}
+              {/* And for a day further out than the brief reaches: the high, the
+                  low, one sentence, and how far out it is looking. Cheap enough
+                  to offer on any day of the week ahead, and honest enough to say
+                  nothing at all past that. */}
+              {active &&
+                !withinReach &&
+                date !== UNSCHEDULED &&
+                Boolean(date) && (
+                  <EarlyForecast tripId={tripId} date={date} today={today} />
+                )}
               {stays.length > 0 && (
                 <ul className="mb-2 space-y-1">
                   {stays.map(({ item, night, nights, leaving }) => (

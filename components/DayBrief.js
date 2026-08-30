@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
+import { dayWithoutNumbers } from "@/lib/weather/forecast";
 import { readStored } from "./WhereIAm";
 import { minutesUntil, untilSaid } from "@/lib/day/phase";
 import WaysThere from "./WaysThere";
@@ -19,15 +20,24 @@ import { formatTime } from "@/lib/format";
 
 const TODAY_FOCUS = "today";
 
-/** The forecast, in one line, with the numbers first because that is what is read. */
+/**
+ * The forecast, in one line, with the numbers first because that is what is read.
+ *
+ * The sentence is asked for without its numbers on purpose. The service also
+ * sends a fully composed line, and printing that next to the bold high and low
+ * read "54 deg / 38 deg  Cloudy with showers, 54 deg / 38 deg, 60% chance of
+ * rain" -- the same two numbers twice in one breath, which is how a helper that
+ * grew a second caller quietly starts repeating itself.
+ */
 function Weather({ weather }) {
   if (!weather) return null;
+  const rest = dayWithoutNumbers(weather);
   return (
     <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink-soft">
       <span className="tabular font-semibold text-ink">
         {Math.round(weather.high)}&deg; / {Math.round(weather.low)}&deg;
       </span>
-      <span>{weather.said}</span>
+      {rest && <span>{rest}</span>}
     </p>
   );
 }
