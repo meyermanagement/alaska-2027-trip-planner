@@ -10,7 +10,11 @@ import {
   transitAt,
   transitWorthOffering,
 } from "@/lib/travel/transit";
-import { travelOptions, WALK_LIMIT_KM } from "@/lib/travel/modes";
+import {
+  travelOptions,
+  WALK_LIMIT_KM,
+  directionsUrl,
+} from "@/lib/travel/modes";
 import { topicFamily } from "@/lib/preferences/topics";
 import {
   dayOf,
@@ -275,13 +279,24 @@ export async function GET(request) {
       fromItemId: previous?.id ?? null,
       fromHere: !previous,
       ...leg,
+      // Each way of getting there carries its own directions link, so the chip
+      // that says "12 min drive" opens a driving route and the one that says
+      // "18 min walk" opens a walking one. The first leg passes no origin: see
+      // directionsUrl for why the phone's own position beats the one on file.
       options: travelOptions({
         straightKm: leg.straightKm,
         transit,
         lean,
         place,
         routed,
-      }),
+      }).map((option) => ({
+        ...option,
+        link: directionsUrl({
+          to,
+          from: previous ? from : null,
+          mode: option.mode,
+        }),
+      })),
     });
   }
 
