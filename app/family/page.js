@@ -51,7 +51,7 @@ export default async function PeoplePage() {
     supabase
       .from("travelers")
       .select(
-        "id, name, color, sort_order, is_person, date_of_birth, notes, email, user_id, invited_at, linked_at, wants_reminders, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages, access_level, about_me",
+        "id, name, color, sort_order, is_person, date_of_birth, gender, notes, email, user_id, invited_at, linked_at, wants_reminders, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages, access_level, about_me",
       )
       .eq("is_person", true)
       .order("sort_order", { ascending: true }),
@@ -75,7 +75,7 @@ export default async function PeoplePage() {
     supabase
       .from("pets")
       .select(
-        "id, name, species, breed, color, sort_order, date_of_birth, weight_lb, travel_style, carrier_size, is_service_animal, microchip_number, rabies_expiration, health_certificate_expiration, vet_name, vet_phone, medications, dietary_notes, temperament_notes, notes",
+        "id, name, species, breed, color, sort_order, date_of_birth, sex, is_sterilized, weight_lb, travel_style, carrier_size, is_service_animal, microchip_number, rabies_expiration, health_certificate_expiration, vet_name, vet_phone, medications, dietary_notes, temperament_notes, notes",
       )
       .order("sort_order", { ascending: true }),
     supabase

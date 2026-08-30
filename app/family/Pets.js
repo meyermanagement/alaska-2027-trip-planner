@@ -19,6 +19,8 @@ import {
   isComing,
   petAge,
   petWarnings,
+  PET_SEXES,
+  petSexPhrase,
   speciesLabel,
   travelStyleLabel,
   trimNumber,
@@ -202,6 +204,7 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
                       {[
                         speciesLabel(pet.species),
                         pet.breed,
+                        petSexPhrase(pet) || null,
                         age?.text,
                         pet.weight_lb
                           ? `${trimNumber(pet.weight_lb)} lb`
@@ -387,6 +390,15 @@ function PetForm({ pet, busy, onCancel, onSave }) {
     name: pet?.name || "",
     species: pet?.species || "dog",
     breed: pet?.breed || "",
+    sex: pet?.sex || "",
+    // Three states, not two: yes, no, and nobody has recorded it. A checkbox
+    // would turn "we never asked" into "no", which is the answer a kennel acts on.
+    is_sterilized:
+      pet?.is_sterilized === true
+        ? "yes"
+        : pet?.is_sterilized === false
+          ? "no"
+          : "",
     date_of_birth: pet?.date_of_birth || "",
     weight_lb: pet?.weight_lb ?? "",
     travel_style: pet?.travel_style || "",
@@ -416,6 +428,13 @@ function PetForm({ pet, busy, onCancel, onSave }) {
       name: form.name.trim(),
       species: form.species || "dog",
       breed: text(form.breed),
+      sex: form.sex || null,
+      is_sterilized:
+        form.is_sterilized === "yes"
+          ? true
+          : form.is_sterilized === "no"
+            ? false
+            : null,
       date_of_birth: form.date_of_birth || null,
       // Left null rather than zero when it is blank, so "we have not weighed
       // her" and "she weighs nothing" stay different answers.
@@ -476,6 +495,38 @@ function PetForm({ pet, busy, onCancel, onSave }) {
             value={form.breed}
             onChange={set("breed")}
           />
+        </label>
+        <label className="block text-xs font-semibold">
+          Sex (optional)
+          <select
+            className="field mt-1 text-sm"
+            value={form.sex}
+            onChange={set("sex")}
+          >
+            <option value="">Not recorded</option>
+            {PET_SEXES.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs font-semibold">
+          Spayed or neutered (optional)
+          <select
+            className="field mt-1 text-sm"
+            value={form.is_sterilized}
+            onChange={set("is_sterilized")}
+          >
+            <option value="">Not recorded</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+          <span className="mt-1 block font-normal text-ink-soft">
+            Boarding kennels ask on every form and some will not take an animal
+            that has not been fixed, so it is worth having the answer before you
+            call.
+          </span>
         </label>
         <label className="block text-xs font-semibold">
           Date of birth (optional)

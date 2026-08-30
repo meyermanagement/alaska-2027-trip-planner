@@ -535,7 +535,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
       .select(
         // The three profile groups ride along, because they are what turns
         // Aly's advice from a travel article into advice about these people.
-        "id, name, email, user_id, invited_at, date_of_birth, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages, about_me",
+        "id, name, email, user_id, invited_at, date_of_birth, gender, phone_carrier, phone_device, mobility_aids, accessibility_notes, languages, about_me",
       )
       .order("sort_order"),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
@@ -573,7 +573,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     supabase
       .from("pets")
       .select(
-        "id, name, species, breed, date_of_birth, weight_lb, travel_style, carrier_size, is_service_animal, rabies_expiration, health_certificate_expiration, medications, dietary_notes, temperament_notes, notes",
+        "id, name, species, breed, date_of_birth, sex, is_sterilized, weight_lb, travel_style, carrier_size, is_service_animal, rabies_expiration, health_certificate_expiration, medications, dietary_notes, temperament_notes, notes",
       )
       .order("sort_order", { ascending: true }),
     supabase

@@ -9,12 +9,20 @@ import { ageToday } from "@/lib/travelers/ages";
 import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
   ABOUT_ME_PLACEHOLDER,
+  GENDERS,
+  GENDER_VALUES,
   MOBILITY_AIDS,
   aidLabel,
   cleanAids,
+  genderLabel,
   languageField,
+  normalizeGender,
   parseLanguages,
 } from "@/lib/travelers/profile";
+
+// The value the select uses for "a term of their own". Not a stored value: it
+// only ever means "show the box", and what gets saved is whatever is typed in it.
+const OWN_TERM = "__own__";
 import {
   DOC_TYPES,
   docType,
@@ -1101,6 +1109,9 @@ function ProfileLines({ person }) {
     .filter(Boolean)
     .join(" · ");
   const rows = [
+    person?.gender
+      ? ["Gender", genderLabel(normalizeGender(person.gender))]
+      : null,
     phone ? ["Phone", phone] : null,
     aids.length ? ["Travels with", aids.join(", ")] : null,
     person?.accessibility_notes
@@ -1129,6 +1140,16 @@ function PersonForm({ person, onCancel, onSave }) {
     name: person?.name || "",
     email: person?.email || "",
     date_of_birth: person?.date_of_birth || "",
+    // One of the four the app offers, or a term of their own. Kept as two pieces
+    // of state so choosing "another term" does not lose what they already typed.
+    gender: GENDER_VALUES.includes(normalizeGender(person?.gender))
+      ? normalizeGender(person?.gender)
+      : person?.gender
+        ? OWN_TERM
+        : "",
+    gender_own: GENDER_VALUES.includes(normalizeGender(person?.gender))
+      ? ""
+      : person?.gender || "",
     notes: person?.notes || "",
     phone_carrier: person?.phone_carrier || "",
     phone_device: person?.phone_device || "",
@@ -1163,6 +1184,12 @@ function PersonForm({ person, onCancel, onSave }) {
       name: form.name.trim(),
       email: form.email.trim().toLowerCase() || null,
       date_of_birth: form.date_of_birth || null,
+      // A term of their own is stored as typed. Choosing "another term" and
+      // typing nothing clears the field rather than storing the placeholder.
+      gender:
+        form.gender === OWN_TERM
+          ? normalizeGender(form.gender_own) || null
+          : form.gender || null,
       notes: form.notes.trim() || null,
       phone_carrier: form.phone_carrier.trim() || null,
       phone_device: form.phone_device.trim() || null,
@@ -1200,6 +1227,37 @@ function PersonForm({ person, onCancel, onSave }) {
             onChange={set("date_of_birth")}
           />
         </label>
+        <label className="block text-xs font-semibold">
+          Gender (optional)
+          <select
+            className="field mt-1 text-sm"
+            value={form.gender}
+            onChange={set("gender")}
+          >
+            <option value="">Not recorded</option>
+            {GENDERS.map((g) => (
+              <option key={g.value} value={g.value}>
+                {g.label}
+              </option>
+            ))}
+            <option value={OWN_TERM}>Another term…</option>
+          </select>
+          {form.gender === OWN_TERM && (
+            <input
+              className="field mt-2 text-sm"
+              placeholder="In their own words"
+              value={form.gender_own}
+              onChange={set("gender_own")}
+              maxLength={40}
+            />
+          )}
+        </label>
+        <p className="text-xs text-ink-soft sm:col-span-2">
+          Gender helps Aly with the ordinary things — what to pack, who shares a
+          room, what a dress code means in practice. It is not what a passport
+          says: travel documents carry their own sex field, printed by whoever
+          issued them, and the app never fills that in from this.
+        </p>
         <label className="block text-xs font-semibold sm:col-span-2">
           Email for signing in (optional)
           <input
