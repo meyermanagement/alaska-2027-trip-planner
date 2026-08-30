@@ -6,7 +6,7 @@ import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TripBuilderStart from "./TripBuilderStart";
 
-export const metadata = { title: "New trip · Alyeska" };
+export const metadata = { title: "Trip builder · Alyeska" };
 
 /**
  * A screen of its own, rather than the modal it used to be.

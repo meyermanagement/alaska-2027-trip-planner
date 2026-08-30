@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /**
- * The New trip button, which is now only a button.
+ * The Trip builder button, which is now only a button.
  *
  * It used to open a sheet holding two ways to start a trip: a form, and a box that
  * handed what you typed to Aly. The form is gone. It asked for a display name
@@ -20,7 +20,7 @@ import Link from "next/link";
 export default function NewTripButton() {
   return (
     <Link className="btn btn-primary" href="/trips/new">
-      + New trip
+      Trip builder
     </Link>
   );
 }

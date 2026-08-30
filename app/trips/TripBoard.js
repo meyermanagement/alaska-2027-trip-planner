@@ -425,10 +425,10 @@ export default function TripBoard({
             </div>
           ) : (
             <p className="card p-5 text-sm text-ink-soft">
-              Nothing sketched out yet. Press “New trip”, say what you have in
-              mind, and Aly will build it with you — a place, roughly when, and
-              whatever else you feel like telling her. It stays here until you
-              move it across.
+              Nothing sketched out yet. Press “Trip builder”, say what you have
+              in mind, and Aly will build it with you — a place, roughly when,
+              and whatever else you feel like telling her. It stays here until
+              you move it across.
             </p>
           )}
         </Section>
