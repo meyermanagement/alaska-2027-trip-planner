@@ -5,7 +5,10 @@ import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import DictationHint from "@/components/DictationHint";
 import {
   BASICS,
+  HOW_REAL,
   TRIP_IDEA_EXAMPLES,
+  howReal,
+  ideaWithReality,
   readIdea,
   coverageLine,
 } from "@/lib/trips/basics";
@@ -30,18 +33,28 @@ import {
  * six light up as you type: seeing "that already covers where, when and what you
  * do" is what makes somebody add the manta rays.
  *
- * Nothing here writes to the database. Aly creates the trip, from the
- * conversation, and it lands as a draft.
+ * The one question that is not one of the six is asked here rather than in the
+ * conversation: is this booked, decided on, or still an idea. Everything used to
+ * land as a draft, which is right for an idea and wrong for a trip somebody has
+ * already paid for -- and no sentence can be read for the difference, because
+ * "we're going to Hawaii in April" is what people say about both.
+ *
+ * Nothing here writes to the database. Aly creates the trip from the
+ * conversation, with the status this screen collected.
  */
 export default function TripBuilderStart() {
   const [idea, setIdea] = useState("");
+  // No default. A guess here is a guess about whether this goes on the family
+  // calendar, so an unanswered question is passed to Aly as a question.
+  const [reality, setReality] = useState("");
   const clean = idea.trim();
+  const chosen = howReal(reality);
 
   const read = readIdea(idea);
   const covered = new Set(read.filter((r) => r.mentioned).map((r) => r.id));
 
   function start(seed) {
-    const text = String(seed || "").trim();
+    const text = ideaWithReality(seed, reality);
     if (!text) return;
     window.dispatchEvent(
       new CustomEvent(ASK_ALY_EVENT, {
@@ -57,9 +70,8 @@ export default function TripBuilderStart() {
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
         Say it however it is in your head — a place, a rough time of year, the
-        one thing you want to do. Aly asks about whatever is missing, and the
-        trip arrives as a draft you can keep changing. You do not need dates,
-        and nothing lands on the family calendar until you move it across.
+        one thing you want to do. Aly asks about whatever is missing, and you do
+        not need dates.
       </p>
 
       <textarea
@@ -84,6 +96,50 @@ export default function TripBuilderStart() {
           {coverageLine(idea)}
         </p>
       </div>
+
+      {/* Asked here rather than in the conversation, because the answer decides
+          where the trip lands and somebody who has already paid for a hotel
+          should not have to argue their trip out of the Drafts pile. Three
+          buttons rather than a select: it is one tap, and each one says what it
+          does to the trip. */}
+      <fieldset className="mt-5">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+          Is this trip real yet?
+        </legend>
+        <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
+          {HOW_REAL.map((option) => {
+            const on = reality === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setReality(on ? "" : option.id)}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                  on
+                    ? "border-teal bg-teal-soft/40"
+                    : "border-[var(--line)] bg-white hover:border-teal"
+                }`}
+              >
+                <span className="block text-sm font-semibold">
+                  {option.label}
+                </span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
+                  {option.hint}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p
+          className="mt-2 text-xs leading-relaxed text-ink-soft"
+          aria-live="polite"
+        >
+          {chosen
+            ? chosen.lands
+            : "Aly will ask, and it stays out of Upcoming trips until you answer."}
+        </p>
+      </fieldset>
 
       <button
         type="button"
