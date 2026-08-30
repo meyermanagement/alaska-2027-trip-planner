@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { dayWithoutNumbers, hedgeSaid } from "@/lib/weather/forecast";
+import {
+  dayWithoutNumbers,
+  hedgeSaid,
+  sourceSaid,
+} from "@/lib/weather/forecast";
 
 /**
  * What the sky is expected to do on a day further out than tomorrow.
@@ -75,6 +79,13 @@ export default function EarlyForecast({ tripId, date, today }) {
       )}
       {rest && <span>{rest}</span>}
       <span className="text-ink-faint">{hedge}</span>
+      {sourceSaid(weather) && (
+        <span className="text-xs text-ink-faint">
+          <span aria-hidden="true">via </span>
+          <span className="sr-only">forecast from the </span>
+          {sourceSaid(weather)}
+        </span>
+      )}
     </p>
   );
 }

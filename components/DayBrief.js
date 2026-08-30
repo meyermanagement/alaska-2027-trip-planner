@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
-import { dayWithoutNumbers } from "@/lib/weather/forecast";
+import { dayWithoutNumbers, sourceSaid } from "@/lib/weather/forecast";
 import { readStored } from "./WhereIAm";
 import { minutesUntil, untilSaid } from "@/lib/day/phase";
 import WaysThere from "./WaysThere";
@@ -29,8 +29,12 @@ const TODAY_FOCUS = "today";
  * rain" -- the same two numbers twice in one breath, which is how a helper that
  * grew a second caller quietly starts repeating itself.
  */
-function WeatherInner({ weather }) {
+function WeatherInner({ weather, showSource = true }) {
   const rest = dayWithoutNumbers(weather);
+  // Who to blame for the number. Only ever the Weather Service, and only in the
+  // United States: it is the reason the high on this screen matches the one on the
+  // family's phone, and it is checkable, which an unattributed number is not.
+  const from = showSource ? sourceSaid(weather) : null;
   return (
     <>
       {/* Which place these numbers are about. Present only on a day that ends
@@ -53,15 +57,22 @@ function WeatherInner({ weather }) {
         {Math.round(weather.high)}&deg; / {Math.round(weather.low)}&deg;
       </span>
       {rest && <span>{rest}</span>}
+      {from && (
+        <span className="text-xs text-ink-faint">
+          <span aria-hidden="true">via </span>
+          <span className="sr-only">forecast from the </span>
+          {from}
+        </span>
+      )}
     </>
   );
 }
 
-function Weather({ weather }) {
+function Weather({ weather, showSource = true }) {
   if (!weather) return null;
   return (
     <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink-soft">
-      <WeatherInner weather={weather} />
+      <WeatherInner weather={weather} showSource={showSource} />
     </p>
   );
 }
@@ -143,7 +154,14 @@ export default function DayBrief({
                 &darr;
               </span>
               <span className="sr-only">then</span>
-              <WeatherInner weather={weatherEnd} />
+              {/* Both ends of a travel day usually come from the same service, and
+                  saying so twice inside one band is noise rather than provenance. */}
+              <WeatherInner
+                weather={weatherEnd}
+                showSource={
+                  (weatherEnd.source || null) !== (weather?.source || null)
+                }
+              />
             </p>
           )}
         </div>
