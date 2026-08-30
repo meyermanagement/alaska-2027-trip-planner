@@ -37,6 +37,63 @@ function store(here) {
   }
 }
 
+const REFUSED_KEY = "aly.here.refused";
+
+/**
+ * Ask the phone where it is, without a word on screen.
+ *
+ * The visible button above is for the chat drawer, where somebody has decided to
+ * ask about nearby things. This is for the day being lived, where the useful
+ * question -- how long to the next thing -- is worthless measured from anywhere
+ * but here, so the app asks rather than waiting to be told.
+ *
+ * Two rules keep that from becoming nagging. It only ever runs on the day of a
+ * trip in progress, and a refusal is remembered for the session, so somebody who
+ * says no is asked once and then left alone. It resolves to null on every failure
+ * path: the day view works without a position and must never wait on one.
+ */
+export async function askQuietly() {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return null;
+  try {
+    if (window.sessionStorage.getItem(REFUSED_KEY)) return null;
+  } catch {
+    /* storage blocked; asking once more is the lesser evil */
+  }
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords || {};
+        const found = {
+          lat: latitude,
+          lon: longitude,
+          accuracy: Number.isFinite(accuracy) ? accuracy : null,
+          source: "device",
+          label: null,
+        };
+        // Written to the same place the button writes to, so the drawer, the
+        // nearby cards and the day all agree about where the family is.
+        store(found);
+        resolve(found);
+      },
+      (err) => {
+        // Only an outright refusal is remembered. A timeout in a parking garage
+        // is not a decision, and next time it may well work.
+        if (err?.code === 1) {
+          try {
+            window.sessionStorage.setItem(REFUSED_KEY, "1");
+          } catch {
+            /* nothing to remember it with */
+          }
+        }
+        resolve(null);
+      },
+      // A five minute old fix is still where you are, and reusing it means no
+      // second permission prompt and no waiting for a cold GPS lock.
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+  });
+}
+
 function describe(here) {
   if (!here) return "";
   if (here.label) return here.label;

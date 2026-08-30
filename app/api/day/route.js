@@ -281,8 +281,8 @@ export async function GET(request) {
       ...leg,
       // Each way of getting there carries its own directions link, so the chip
       // that says "12 min drive" opens a driving route and the one that says
-      // "18 min walk" opens a walking one. The first leg passes no origin: see
-      // directionsUrl for why the phone's own position beats the one on file.
+      // "18 min walk" opens a walking one. Never with an origin: the route starts
+      // wherever the phone is, not at the item the day thinks they left.
       options: travelOptions({
         straightKm: leg.straightKm,
         transit,
@@ -291,11 +291,7 @@ export async function GET(request) {
         routed,
       }).map((option) => ({
         ...option,
-        link: directionsUrl({
-          to,
-          from: previous ? from : null,
-          mode: option.mode,
-        }),
+        link: directionsUrl({ to, mode: option.mode }),
       })),
     });
   }

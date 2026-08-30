@@ -37,7 +37,8 @@ import DayBrief from "@/components/DayBrief";
 import DayItemBrief from "@/components/DayItemBrief";
 import EarlyForecast from "@/components/EarlyForecast";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
-import { readStored } from "@/components/WhereIAm";
+import { askQuietly, readStored } from "@/components/WhereIAm";
+import { nearerTruth } from "@/lib/places/here";
 
 const UNSCHEDULED = "unscheduled";
 const DAY_MS = 86400000;
@@ -592,6 +593,8 @@ export default function Itinerary({
   // Only ever for the day being looked at, and only when that day belongs to the
   // trip window -- an unscheduled column has no weather and no journeys.
   const [dayData, setDayData] = useState(null);
+  // The phone's own position, once, for the day being lived. See askQuietly.
+  const [phone, setPhone] = useState(null);
   const [researching, setResearching] = useState(false);
   const [researchError, setResearchError] = useState("");
 
@@ -628,7 +631,11 @@ export default function Itinerary({
       }
       const params = new URLSearchParams({ trip: tripId, date });
       if (nextId) params.set("next", nextId);
-      const here = readStored();
+      // The phone first, then whatever was typed. "How long to the next thing"
+      // is a question about where somebody is standing, so a live fix beats a
+      // place set in the drawer an hour ago -- unless the fix is too coarse to
+      // measure from, which nearerTruth is the judge of.
+      const here = nearerTruth(phone, readStored());
       // Only sent for the day being lived. Measuring the first leg of a day three
       // days out from where somebody is standing now is a number about nothing.
       if (here && date === today) {
@@ -647,7 +654,7 @@ export default function Itinerary({
         /* the day still renders; the extras are extras */
       }
     },
-    [tripId, today],
+    [tripId, today, phone],
   );
 
   useEffect(() => {
@@ -656,6 +663,21 @@ export default function Itinerary({
     if (!withinReach) return;
     loadDay(selected, nextIdOnSelected);
   }, [selected, withinReach, loadDay, nextIdOnSelected]);
+
+  // Ask the phone where it is, once, and only while looking at the day of a trip
+  // that is actually happening. The day is loaded first and reloaded when the fix
+  // arrives, so nothing on screen waits for satellites: the times appear measured
+  // from whatever was known, and correct themselves a moment later.
+  useEffect(() => {
+    if (!withinReach || selected !== today || phone) return;
+    let live = true;
+    askQuietly().then((found) => {
+      if (live && found) setPhone(found);
+    });
+    return () => {
+      live = false;
+    };
+  }, [withinReach, selected, today, phone]);
 
   // The research pass. Separate call because it is slow and because it costs
   // money, so it runs once per day per change of plan rather than on every load.
