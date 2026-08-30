@@ -26,6 +26,8 @@ import {
   rulesTips,
 } from "@/lib/tips/generate";
 import { SCOPES, sameWindowTitle } from "@/lib/tips/tip";
+import { taskFloorRows } from "@/lib/tasks/floor";
+import { applyPackingFloor } from "@/lib/packing/floor";
 
 export const runtime = "nodejs";
 // Longer than the platform's default because a grounded look genuinely takes
@@ -174,6 +176,103 @@ async function writeHouseTips({
   }
 
   return { house, housed };
+}
+
+/**
+ * The mandatory packing items this trip is missing, filed.
+ *
+ * The generator applies the same floor when it builds a list, which covers every
+ * list built from here on. It does nothing for the lists that already exist --
+ * and those are the ones that matter, because the Disney and Alaska lists run to
+ * ninety-two and a hundred and one items each and neither of them contains a
+ * passport. Rebuilding them to fix that would throw away everything the family
+ * has added by hand, which is a bad trade for one item.
+ *
+ * So the floor is also checked here, on the same press that looks for tips, and
+ * only the gaps are appended. An existing list is never rewritten, reordered, or
+ * pruned by this -- the only thing it can do is add a row that is not there.
+ */
+async function writeFloorItems({
+  supabase,
+  tripId,
+  facts,
+  itinerary,
+  packing,
+  travelers,
+}) {
+  const { added } = applyPackingFloor({
+    items: packing || [],
+    facts,
+    itinerary: itinerary || [],
+    going: travelers || [],
+  });
+  if (!added.length) return { filed: 0 };
+
+  const highest = (packing || []).reduce(
+    (max, row) => Math.max(max, Number(row?.sort_order) || 0),
+    0,
+  );
+  const { error } = await supabase.from("packing_items").insert(
+    added.map((item, i) => ({
+      trip_id: tripId,
+      category: item.category || null,
+      item: item.item,
+      assignee: item.assignee || "Shared",
+      quantity: item.quantity || null,
+      sort_order: highest + i + 1,
+    })),
+  );
+  if (error) {
+    console.log(
+      `[tips/refresh] floor items NOT saved trip=${tripId}: ${error.message}`,
+    );
+    return { filed: 0 };
+  }
+  console.log(
+    `[tips/refresh] floor items filed trip=${tripId} n=${added.length}`,
+  );
+  return { filed: added.length };
+}
+
+/**
+ * The pre-departure tasks this trip is not allowed to be missing, filed.
+ *
+ * Runs beside the house tips and for the same reason: the fact sheet has just
+ * been read or researched, the rules on top of it ask no model, and a trip that
+ * crosses a border should not have to wait for somebody to think of the bank.
+ *
+ * Reads the tasks back rather than reusing the route's copy on purpose — the
+ * route only loaded the unfinished ones, and a currency task somebody ticked off
+ * last month is not a gap to fill again.
+ */
+async function writeFloorTasks({ supabase, trip, tripId, facts, itinerary }) {
+  const { data: all, error: readError } = await supabase
+    .from("predeparture_tasks")
+    .select("title, detail, sort_order, is_done")
+    .eq("trip_id", tripId);
+  // Filing blind would mean duplicating whatever is already there, which is worse
+  // than filing nothing.
+  if (readError) return { filed: 0, fired: [] };
+
+  const { rows, fired } = taskFloorRows({
+    facts,
+    itinerary: itinerary || [],
+    tasks: all || [],
+    trip: { ...trip, id: tripId },
+  });
+  if (!rows.length) return { filed: 0, fired };
+
+  const { error } = await supabase.from("predeparture_tasks").insert(rows);
+  if (error) {
+    console.log(
+      `[tips/refresh] floor tasks NOT saved trip=${tripId}: ${error.message}`,
+    );
+    return { filed: 0, fired };
+  }
+  console.log(
+    `[tips/refresh] floor tasks filed trip=${tripId} rules=${fired.join(",") || "none"}`,
+  );
+  return { filed: rows.length, fired };
 }
 
 export async function POST(request) {
@@ -355,6 +454,21 @@ export async function POST(request) {
       console.log(
         `[tips/refresh] facts NOT saved trip=${tripId}: ${kept.message}`,
       );
+    await writeFloorTasks({
+      supabase,
+      trip,
+      tripId,
+      facts: sheet,
+      itinerary: itinerary || [],
+    });
+    await writeFloorItems({
+      supabase,
+      tripId,
+      facts: sheet,
+      itinerary: itinerary || [],
+      packing: packing || [],
+      travelers,
+    });
     const { housed: filed } = await writeHouseTips({
       supabase,
       trip,
@@ -381,6 +495,22 @@ export async function POST(request) {
       done: false,
     });
   }
+
+  await writeFloorTasks({
+    supabase,
+    trip,
+    tripId,
+    facts: sheet,
+    itinerary: itinerary || [],
+  });
+  await writeFloorItems({
+    supabase,
+    tripId,
+    facts: sheet,
+    itinerary: itinerary || [],
+    packing: packing || [],
+    travelers,
+  });
 
   const { house, housed } = await writeHouseTips({
     supabase,
