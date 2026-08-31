@@ -76,7 +76,14 @@ const RESERVE_MS = 14000;
 // A grounded question is a search and then an answer about what came back, and it
 // is the search that is slow.
 const GROUNDED_TURN_MS = 62000;
-const PLAIN_TURN_MS = 40000;
+// A plain question has no search to wait on, so 40 seconds looked generous. It
+// was not: the request's own allowance is 105 seconds and the reserve is 14, so a
+// 40-second turn left about 48 seconds of a request that had already failed
+// unspent. Worse, 40 seconds is one model's worth -- the primary spent all of it
+// going quiet and the faster fallback was never asked, which is the whole reason
+// there is a second model. 54 leaves room for two models to be asked properly and
+// still keeps one follow-up turn inside the budget.
+const PLAIN_TURN_MS = 54000;
 // When the grounded attempt runs out of time, one more without the searching. An
 // answer from what she already knows, saying it did not get to look, beats an
 // apology with the question left hanging.
