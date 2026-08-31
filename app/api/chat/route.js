@@ -22,6 +22,7 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { splitPlaceCalls } from "@/lib/places/cards";
+import { isRollCall, writeTheWords } from "@/lib/places/rollcall";
 import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
   ANSWERING_TOOLS,
@@ -334,6 +335,41 @@ export async function POST(request) {
     } catch {
       // The change still stands. It arrives without words, which is the same
       // answer they got before and no worse for having tried.
+    }
+  }
+
+  // She showed the shortlist and then wrote the shortlist out again, which is
+  // the whole reply the family reads above the cards. The names are already on
+  // the cards and the button is already on every card, so that reply says
+  // nothing. One more turn for the words alone, with show_places taken away so
+  // a third listing is not available to her, and with every change tool still
+  // withheld for the same reason as above.
+  if (isRollCall(result.text, shortlistAll)) {
+    try {
+      const better = await generate({
+        system: [system, writeTheWords(said, shortlistAll)].join("\n\n"),
+        messages,
+        tools: tools.filter((tool) => tool.name === "offer_followups"),
+        grounded: lookUp,
+      });
+      // Only if the second try is actually an answer. A model that comes back
+      // with the same roll call, or with nothing, leaves the first reply alone:
+      // thin words above the cards beat no words above the cards.
+      if (better?.text && !isRollCall(better.text, shortlistAll)) {
+        const { followups: nextQuestions } = splitFollowupCalls(
+          better.calls || [],
+        );
+        if (nextQuestions.length) followups = nextQuestions;
+        result = {
+          ...result,
+          text: better.text,
+          searched: result.searched || better.searched,
+          sources: (result.sources || []).concat(better.sources || []),
+          refusals: (result.refusals || []).concat(better.refusals || []),
+        };
+      }
+    } catch {
+      // The cards still stand, and so does the thin line above them.
     }
   }
 
