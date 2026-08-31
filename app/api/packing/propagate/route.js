@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { applyPropagation, planFor } from "@/lib/packing/propagateRun";
+import {
+  applyPropagation,
+  narrowPlan,
+  planFor,
+} from "@/lib/packing/propagateRun";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -19,6 +23,13 @@ export async function POST(request) {
     payload = {};
   }
   const apply = payload?.apply === true;
+  // Which of the proposed changes to make. Absent means all of them, which is
+  // what this route did before it could be narrowed. The keys come from the plan
+  // the browser was shown, and they are only ever used to filter a plan made
+  // fresh here -- the browser cannot describe a change, only pick one out.
+  const only = Array.isArray(payload?.only)
+    ? payload.only.slice(0, 5000)
+    : null;
 
   const supabase = await createClient();
   const {
@@ -50,11 +61,25 @@ export async function POST(request) {
     return NextResponse.json(rest);
   }
 
+  const chosen = narrowPlan(plan, only);
+  if (only && !chosen.totals.trips) {
+    return NextResponse.json({
+      applied: {
+        adds: 0,
+        updates: 0,
+        removes: 0,
+        errors: [],
+        missing: chosen.missing.length,
+      },
+      totals: chosen.totals,
+    });
+  }
+
   const result = await applyPropagation({
     supabase,
     familyId,
     userId: user.id,
-    plan,
+    plan: chosen,
   });
   return NextResponse.json(result);
 }
