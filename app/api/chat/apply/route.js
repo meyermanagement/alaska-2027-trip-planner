@@ -13,6 +13,7 @@ import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
 import { tidyStranded } from "@/lib/packing/roster";
+import { applyPropagation } from "@/lib/packing/propagateRun";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 import { REFUSAL, SECONDARY, resolveAccess } from "@/lib/travelers/access";
 import { tripPath, tripRef, freeTripSlug } from "@/lib/trips/route";
@@ -67,6 +68,7 @@ const LANDING_PATH = {
   add_template_item: ["/packing", "the packing templates"],
   update_template_item: ["/packing", "the packing templates"],
   delete_template_item: ["/packing", "the packing templates"],
+  propagate_templates: ["/packing", "the packing templates"],
   update_review: ["/preferences", "the reviews"],
 };
 
@@ -415,6 +417,26 @@ export async function POST(request) {
               }`
             : " — empty for now";
         }
+      } else if (tool === "propagate_templates") {
+        const outcome = await applyPropagation({
+          supabase,
+          familyId,
+          userId: user.id,
+        });
+        dbError = outcome.applied.errors?.[0] || null;
+        const { adds, updates, removes } = outcome.applied;
+        extra =
+          adds + updates + removes
+            ? ` — ${[
+                adds ? `${adds} added` : null,
+                updates ? `${updates} changed` : null,
+                removes ? `${removes} removed` : null,
+              ]
+                .filter(Boolean)
+                .join(", ")} across ${outcome.totals.trips} trip${
+                outcome.totals.trips === 1 ? "" : "s"
+              }`
+            : " — nothing to change, the upcoming trips already match";
       } else if (tool === "start_packing_list") {
         const outcome = await fillPackingFromBase({
           supabase,

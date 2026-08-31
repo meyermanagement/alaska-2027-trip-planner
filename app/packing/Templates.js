@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
+import PropagatePanel from "@/components/PropagatePanel";
 
 const SHARED = "Shared";
 
@@ -207,6 +208,8 @@ export default function Templates({ travelers, templates, items }) {
 
   return (
     <section>
+      <PropagatePanel />
+
       {templates.length > 1 && (
         <div className="no-print mb-4 flex flex-wrap gap-2">
           {templates.map((t) => {
