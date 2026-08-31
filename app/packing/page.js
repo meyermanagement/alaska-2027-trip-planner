@@ -8,7 +8,6 @@ import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { templateScope } from "@/lib/packing/propagate";
 import { loadPropagation } from "@/lib/packing/propagateRun";
 import { tripPath } from "@/lib/trips/route";
-import { isDraftTrip } from "@/lib/format";
 import Templates from "./Templates";
 import PetTemplates from "./PetTemplates";
 
@@ -97,15 +96,13 @@ export default async function PackingTemplatesPage() {
   // anything about the list itself.
   let tripsByTemplate = {};
   let tripsByPet = {};
+  // Drafts are not here: nothing packs for a draft, so a draft is not somewhere
+  // one of these lists can reach.
   const link = (trip) => ({
     id: trip.id,
     name: trip.name,
     start_date: trip.start_date || null,
-    // A draft has no Packing tab to land on -- its screen is the six things it is
-    // still missing -- so the link goes to the draft itself rather than to a tab
-    // that would be ignored.
-    href: tripPath(trip, isDraftTrip(trip) ? null : "packing"),
-    draft: isDraftTrip(trip),
+    href: tripPath(trip, "packing"),
   });
   try {
     const loaded = await loadPropagation({ supabase, familyId });

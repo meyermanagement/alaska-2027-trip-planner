@@ -158,7 +158,11 @@ export default function DraftView({
               {progress.answered} of {progress.total} sketched in
             </p>
             {progress.complete ? (
-              <PromoteDraft trip={trip} onDone={() => router.refresh()} />
+              <PromoteDraft
+                trip={trip}
+                hasPacking={packing.length > 0}
+                onDone={() => router.refresh()}
+              />
             ) : (
               <p className="text-xs text-ink-soft">
                 {next ? `Next: ${next.label.toLowerCase()}` : ""}
@@ -400,13 +404,17 @@ export default function DraftView({
           <div>
             <dt className="text-xs text-ink-soft">Packing list</dt>
             <dd className="text-sm font-semibold text-ink">
-              {packing.length ? `${packing.length} items` : "Not started"}
+              {packing.length
+                ? `${packing.length} ${packing.length === 1 ? "item" : "items"}`
+                : "Once it is a trip"}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-ink-soft">On the days</dt>
             <dd className="text-sm font-semibold text-ink">
-              {itinerary.length ? `${itinerary.length} items` : "Nothing yet"}
+              {itinerary.length
+                ? `${itinerary.length} ${itinerary.length === 1 ? "item" : "items"}`
+                : "Nothing yet"}
             </dd>
           </div>
         </dl>
@@ -430,7 +438,9 @@ export default function DraftView({
         <p className="mt-3 text-xs leading-relaxed text-ink-soft">
           Once this moves to Upcoming trips it gets the full trip screen — the
           day-by-day with times and confirmations, the packing list you can
-          check off, and the pre-trip checklist.
+          check off, and the pre-trip checklist. The packing list waits for that
+          on purpose: while the dates and the destination are still moving,
+          anything worked out now would only be worked out again.
         </p>
       </section>
 

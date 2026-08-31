@@ -13,6 +13,7 @@ import {
 import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
+import { draftPackingWords, packingWaitsForDraft } from "@/lib/packing/draft";
 import { tidyStranded } from "@/lib/packing/roster";
 import { applyPropagation } from "@/lib/packing/propagateRun";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
@@ -1053,6 +1054,17 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
 // is only the floor — the smarter pass that reads the destination and the time
 // of year runs afterwards, from the panel.
 async function fillPackingFromBase({ supabase, tripId, familyId }) {
+  // Nothing packs for a draft. Checked here rather than only where Aly asks, so
+  // that no future caller can route around it.
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("name, status")
+    .eq("id", tripId)
+    .maybeSingle();
+  if (packingWaitsForDraft(trip)) {
+    return { error: { message: draftPackingWords(trip?.name) }, copied: 0 };
+  }
+
   const { count } = await supabase
     .from("packing_items")
     .select("id", { count: "exact", head: true })

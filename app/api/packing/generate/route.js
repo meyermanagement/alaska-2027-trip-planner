@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildPackingList } from "@/lib/packing/generate";
 import { appendMessage, ensureConversation } from "@/lib/agent/thread";
+import { draftPackingWords, packingWaitsForDraft } from "@/lib/packing/draft";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -41,11 +42,25 @@ export async function POST(request) {
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, family_id, name, destination, start_date, end_date, summary")
+    .select(
+      "id, family_id, name, destination, start_date, end_date, summary, status",
+    )
     .eq("id", tripId)
     .maybeSingle();
   if (!trip) {
     return NextResponse.json({ error: "Trip not found." }, { status: 404 });
+  }
+
+  // A draft is not packed for. Refused here as well as in every caller, because
+  // this is the one route that writes a whole list in one go and a draft that
+  // slipped through would come back with eighty items against dates that have not
+  // settled. See lib/packing/draft.js.
+  if (packingWaitsForDraft(trip)) {
+    return NextResponse.json({
+      count: 0,
+      source: "draft",
+      note: draftPackingWords(trip.name),
+    });
   }
 
   const replace = payload?.replace === true;

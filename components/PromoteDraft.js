@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 
 /**
  * Moves a finished draft into Upcoming trips.
@@ -12,11 +13,19 @@ import { createClient } from "@/lib/supabase/client";
  * dates, so it needs them; and dates that have already gone by would send it
  * straight past Upcoming into Past trips, which is never what someone means
  * when they finalise a plan.
+ *
+ * This is also the moment the packing list becomes worth building. Nothing packs
+ * for a draft -- see lib/packing/draft.js -- so the offer is held back until here
+ * and then made once, in the same breath as the move, while the family is already
+ * thinking about the trip becoming real. It is an offer and not an action: it
+ * seeds the question to Aly rather than writing eighty items unasked.
  */
-export default function PromoteDraft({ trip, onDone }) {
+
+export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
+  const [moved, setMoved] = useState(false);
 
   async function promote() {
     setProblem("");
@@ -47,6 +56,7 @@ export default function PromoteDraft({ trip, onDone }) {
       return;
     }
     if (onDone) onDone();
+    setMoved(true);
     router.refresh();
   }
 
@@ -64,6 +74,24 @@ export default function PromoteDraft({ trip, onDone }) {
         <span className="text-xs font-normal leading-relaxed text-rose">
           {problem}
         </span>
+      )}
+      {moved && !hasPacking && (
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent(ASK_ALY_EVENT, {
+                detail: {
+                  seed: "Start the packing list for this trip.",
+                  autoSend: true,
+                },
+              }),
+            )
+          }
+          className="text-xs font-normal leading-relaxed text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal"
+        >
+          It is a real trip now — start its packing list?
+        </button>
       )}
     </span>
   );

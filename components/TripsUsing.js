@@ -16,10 +16,11 @@ import { formatDayYear } from "@/lib/format";
  * belongs to the pets module: the list applies whenever that animal is coming, so
  * the trips here are the upcoming trips the animal is on.
  *
- * A trip already past, or finished, or abandoned is never here: this is about what
- * is still ahead, which is the only thing a list can still affect.
+ * A trip already past, or finished, or abandoned is never here, and neither is a
+ * draft: this is about trips that are still ahead and settled enough to pack for,
+ * which are the only ones a list can affect.
  *
- * @param trips [{ id, name, start_date, href, draft }]
+ * @param trips [{ id, name, start_date, href }]
  * @param empty what to say when the list reaches nothing, which is a real answer
  *              and not the same as not knowing.
  */
@@ -46,7 +47,6 @@ export default function TripsUsing({ trips, empty, className = "mt-2" }) {
               <span className="font-medium text-teal">{trip.name}</span>
               <span className="text-xs text-ink-soft">
                 {formatDayYear(trip.start_date)}
-                {trip.draft ? " · draft" : ""}
               </span>
             </Link>
           </li>
