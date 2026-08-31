@@ -60,6 +60,23 @@ export default function Packing({
   // bringing it" are two different facts, and the old shape could only hold one
   // of them by making the horse the owner of its own hay.
   const [newPetId, setNewPetId] = useState("");
+  // Whether the thing being added can go in a bag early. The name is still read
+  // for a guess, so "Veda's medication" arrives already knowing the answer, but
+  // the guess is now visible and can be argued with before the row is written
+  // instead of after. Two pieces of state, because "the user has not touched
+  // this" and "the user unticked it" are different answers and collapsing them
+  // makes the guess reappear the moment you type another word.
+  const [newLastMinute, setNewLastMinute] = useState(false);
+  const [newLastMinuteSet, setNewLastMinuteSet] = useState(false);
+  const guessedLastMinute = looksLastMinute(newItem);
+  const newIsLastMinute = newLastMinuteSet ? newLastMinute : guessedLastMinute;
+
+  // Which standing lists this new item should join. Asked here because the
+  // moment you think of a thing the family forgot is the moment you know whether
+  // it was forgotten once or gets forgotten every time — and the old answer was
+  // to add it, find it in the list, open the edit form, and press a pill.
+  const [newTemplates, setNewTemplates] = useState(() => new Set());
+  const [newNote, setNewNote] = useState("");
   // Which add-on lists this trip is built from. A trip is often several things
   // at once -- an Alaska cruise is an Alaska trip and a cruise -- and until this
   // could be said the app had to guess from the lines the list already carried,
@@ -484,22 +501,89 @@ export default function Packing({
 
   async function add(e) {
     e.preventDefault();
-    if (!newItem.trim()) return;
-    await supabase.from("packing_items").insert({
+    const name = newItem.trim();
+    if (!name) return;
+    setNewNote("");
+
+    const category = (newCategory || "General").trim();
+    const petId = newPetId || null;
+    const { error } = await supabase.from("packing_items").insert({
       trip_id: tripId,
-      item: newItem.trim(),
-      category: (newCategory || "General").trim(),
+      item: name,
+      category,
       assignee: newAssignee,
-      pet_id: newPetId || null,
-      // Guessed from the name, and only ever guessed here. A row typed as
-      // "Veda\u2019s medication" arrives already knowing it cannot go in a bag on
-      // Sunday; being wrong costs one tap in the edit form, and the alternative
-      // is a flag nobody ever sets.
-      last_minute: looksLastMinute(newItem),
+      pet_id: petId,
+      // Still guessed from the name, but the guess is on screen above this
+      // button, so what gets written is what the person saw and left alone.
+      last_minute: newIsLastMinute,
       sort_order: 999,
     });
+    if (error) {
+      setNewNote("That did not save to this trip.");
+      return;
+    }
+
+    // Then the standing lists, if any were picked. Done after the trip row so a
+    // template failure never costs you the item you actually came here to add.
+    const wanted = templates.filter((t) => newTemplates.has(t.id));
+    const kept = [];
+    const failed = [];
+    for (const template of wanted) {
+      // Already on that list for that person? Say so rather than adding a
+      // second one — a template holding the same thing twice quietly puts it on
+      // every future trip twice.
+      const { data: already } = await supabase
+        .from("packing_template_items")
+        .select("id")
+        .eq("template_id", template.id)
+        .ilike("item", name)
+        .eq("assignee", newAssignee)
+        .limit(1);
+      if (already && already.length) {
+        kept.push(template.name);
+        setTemplateItems((rows) => [
+          ...rows,
+          { template_id: template.id, item: name, assignee: newAssignee },
+        ]);
+        continue;
+      }
+      const { error: templateError } = await supabase
+        .from("packing_template_items")
+        .insert({
+          template_id: template.id,
+          item: name,
+          category,
+          assignee: newAssignee,
+          // Which animal it is for travels with it, so a line invented mid-trip
+          // keeps its meaning on every trip after this one.
+          pet_id: petId,
+          sort_order: 999,
+          created_by: userId,
+        });
+      if (templateError) failed.push(template.name);
+      else {
+        kept.push(template.name);
+        // Kept in step with what was just written so the line under the item,
+        // and the pills in the edit form, tell the truth without another read.
+        setTemplateItems((rows) => [
+          ...rows,
+          { template_id: template.id, item: name, assignee: newAssignee },
+        ]);
+      }
+    }
+
     setNewItem("");
     setNewPetId("");
+    setNewTemplates(new Set());
+    setNewLastMinute(false);
+    setNewLastMinuteSet(false);
+    setNewNote(
+      failed.length
+        ? `Added to this trip. It did not save to ${failed.join(" or ")}.`
+        : kept.length
+          ? `Added, and kept on ${kept.join(" and ")}. New trips will start with it; trips that already exist are left alone.`
+          : "",
+    );
     onChange();
   }
 
@@ -1009,60 +1093,148 @@ export default function Packing({
       </p>
 
       {!readOnly && (
-        <form
-          onSubmit={add}
-          className={`card no-print mb-5 grid gap-2 p-4 ${
-            pets.length
-              ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
-              : "sm:grid-cols-[2fr_1fr_auto_auto]"
-          }`}
-        >
-          <input
-            className="field"
-            placeholder="Add an item"
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-          />
-          <input
-            className="field"
-            placeholder="Category"
-            list="packing-categories"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-          />
-          <datalist id="packing-categories">
-            {categories.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-          <select
-            className="field"
-            value={newAssignee}
-            onChange={(e) => setNewAssignee(e.target.value)}
+        <form onSubmit={add} className="card no-print mb-5 space-y-3 p-4">
+          <div
+            className={`grid gap-2 ${
+              pets.length
+                ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
+                : "sm:grid-cols-[2fr_1fr_auto_auto]"
+            }`}
           >
-            {people.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-          {pets.length > 0 && (
+            <input
+              className="field"
+              placeholder="Add an item"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+            />
+            <input
+              className="field"
+              placeholder="Category"
+              list="packing-categories"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+            />
+            <datalist id="packing-categories">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
             <select
               className="field"
-              value={newPetId}
-              onChange={(e) => setNewPetId(e.target.value)}
-              aria-label="Which pet is this for"
-              title="Is this item for one of the animals?"
+              value={newAssignee}
+              onChange={(e) => setNewAssignee(e.target.value)}
             >
-              <option value="">Not for a pet</option>
-              {pets.map((pet) => (
-                <option key={pet.id} value={pet.id}>
-                  For {pet.name}
+              {people.map((p) => (
+                <option key={p} value={p}>
+                  {p}
                 </option>
               ))}
             </select>
+            {pets.length > 0 && (
+              <select
+                className="field"
+                value={newPetId}
+                onChange={(e) => setNewPetId(e.target.value)}
+                aria-label="Which pet is this for"
+                title="Is this item for one of the animals?"
+              >
+                <option value="">Not for a pet</option>
+                {pets.map((pet) => (
+                  <option key={pet.id} value={pet.id}>
+                    For {pet.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button className="btn btn-primary">Add</button>
+          </div>
+
+          {/* The two questions that used to require adding the item, finding it
+              again, and opening its edit form.
+
+              Both are about the same thing from different directions: whether an
+              item can wait in a bag, and whether it should be waiting on every
+              trip. The moment you remember a thing the family forgot is the
+              moment you know both answers, and it is the only moment you will
+              reliably know them. */}
+          <label className="flex items-start gap-2 text-xs font-semibold text-ink-soft">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
+              checked={newIsLastMinute}
+              onChange={(e) => {
+                setNewLastMinute(e.target.checked);
+                setNewLastMinuteSet(true);
+              }}
+            />
+            <span>
+              Cannot be packed ahead
+              <span className="ml-1 font-normal text-ink-faint">
+                {"\u2014"} stays out until the morning you leave
+                {guessedLastMinute && !newLastMinuteSet
+                  ? ", ticked from what you typed"
+                  : ""}
+              </span>
+            </span>
+          </label>
+
+          {templates.length > 0 && (
+            <div className="border-t border-sand pt-3">
+              <p
+                className="text-xs font-semibold text-ink-soft"
+                id="packing-new-keep-label"
+              >
+                Also keep for future trips
+              </p>
+              <div
+                className="mt-1.5 flex flex-wrap gap-1.5"
+                role="group"
+                aria-labelledby="packing-new-keep-label"
+              >
+                {templates.map((t) => {
+                  const on = newTemplates.has(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setNewTemplates((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(t.id)) next.delete(t.id);
+                          else next.add(t.id);
+                          return next;
+                        })
+                      }
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        on
+                          ? "border-teal bg-teal text-white"
+                          : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
+                      }`}
+                    >
+                      {/* The mark carries the state as well as the color,
+                          because a filled pill and an empty one are the same
+                          pill to anyone who does not see color. */}
+                      <span aria-hidden="true">{on ? "\u2713" : "+"}</span>
+                      {t.name}
+                      {t.is_base ? " (base)" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
-          <button className="btn btn-primary">Add</button>
+
+          {newNote && (
+            <p
+              className={`text-xs ${
+                newNote.includes("did not") ? "text-rose" : "text-ink-soft"
+              }`}
+              role="status"
+            >
+              {newNote}
+            </p>
+          )}
         </form>
       )}
 
