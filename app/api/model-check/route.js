@@ -27,6 +27,27 @@ export const maxDuration = 120;
 // The whole check, and what each single-model question is given out of it.
 const ROLL_CALL_MS = 55000;
 const ONE_MODEL_MS = 14000;
+// One named model, given a clock long enough to settle the question the roll call
+// cannot. Fourteen seconds is plenty for a model that works and tells you nothing
+// about one that is merely slow: gemini-3.7-flash came back 504 at exactly the cap
+// on 31 August, which proves only that it takes longer than fourteen seconds.
+// Ninety says whether it ever answers at all.
+const PATIENT_MS = 90000;
+// Long enough for the patient ask plus reading the reply back.
+const PATIENT_ROUTE_MS = 110000;
+
+// One of the app's own function declarations, attached to every probe so each one
+// is the same shape a real request has. A model that handles plain text and falls
+// over on tools passes a bare check and fails in the chat panel.
+const PROBE_TOOL = {
+  name: "note_place",
+  description: "Write down a place worth eating at.",
+  parameters: {
+    type: "object",
+    properties: { name: { type: "string" } },
+    required: ["name"],
+  },
+};
 
 // A question no model can answer from memory. Naming a restaurant was a poor
 // probe: Gemini knew one, answered in two seconds, searched nothing, and the check
@@ -56,17 +77,7 @@ async function probe({ grounded }) {
       // One declaration, so this exercises the same shape the chat route sends:
       // our own function calling and Google's search in the same request, which
       // is the combination that needs the server-side invocation flag.
-      tools: [
-        {
-          name: "note_place",
-          description: "Write down a place worth eating at.",
-          parameters: {
-            type: "object",
-            properties: { name: { type: "string" } },
-            required: ["name"],
-          },
-        },
-      ],
+      tools: [PROBE_TOOL],
       temperature: 0,
       grounded,
       deadline: Date.now() + PROBE_MS,
@@ -109,7 +120,7 @@ async function probe({ grounded }) {
   }
 }
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -118,6 +129,66 @@ export async function GET() {
     // Spelled out because a browser looking at raw JSON will otherwise guess, and
     // guesses turn Curaçao into mojibake.
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  }
+
+  // ?model=<name> asks that one model, patiently, and nothing else. The roll call
+  // gives every model fourteen seconds, which is a fair question to ask of a
+  // model that is supposed to answer a family in a hurry and a useless one to ask
+  // of a model you are deciding whether to trust at all.
+  const wanted = new URL(request.url).searchParams.get("model");
+  if (wanted) {
+    const known = gemini.candidateModels().map((c) => c.model);
+    if (!known.includes(wanted)) {
+      return NextResponse.json(
+        {
+          error: `Not a model this app knows about. It knows: ${known.join(", ")}.`,
+        },
+        { status: 400 },
+      );
+    }
+    const started = Date.now();
+    const out = await gemini.tryModel({
+      model: wanted,
+      budgetMs: Math.min(PATIENT_MS, PATIENT_ROUTE_MS - 8000),
+      tools: [PROBE_TOOL],
+    });
+    // Written down like any other skip, so tomorrow's question about today's
+    // answer has somewhere to look.
+    if (!out.ok) {
+      await recordRefusals(supabase, {
+        userId: user.id,
+        asked: `patient check: ${wanted}`,
+        refusals: [
+          {
+            model: wanted,
+            status: out.status,
+            grounded: false,
+            quotaId: out.quotaId || null,
+            quotaMetric: out.quotaMetric || null,
+            quotaValue: out.quotaValue ?? null,
+            retryMs: out.retryMs ?? null,
+            searchQuota: false,
+            detail: out.message,
+          },
+        ],
+      });
+    }
+    return NextResponse.json(
+      {
+        one: {
+          ...out,
+          inLadder: gemini.modelList().includes(wanted),
+          gaveItMs: Math.min(PATIENT_MS, PATIENT_ROUTE_MS - 8000),
+          // A model can answer and still be no use here. The chat route gives a
+          // searching turn 62 seconds and a plain one 40, so anything slower
+          // than that answers this page and times out the family.
+          tooSlowForChat: out.ok && out.ms > 40000,
+        },
+        checkedAt: new Date().toISOString(),
+        tookMs: Date.now() - started,
+      },
+      { headers: { "content-type": "application/json; charset=utf-8" } },
+    );
   }
 
   const withSearch = await probe({ grounded: true });
@@ -145,17 +216,7 @@ export async function GET() {
       // The same shape a real request has -- one of our own function
       // declarations -- because a model that handles plain text and falls over on
       // tools is a model that fails in the app and passes here.
-      tools: [
-        {
-          name: "note_place",
-          description: "Write down a place worth eating at.",
-          parameters: {
-            type: "object",
-            properties: { name: { type: "string" } },
-            required: ["name"],
-          },
-        },
-      ],
+      tools: [PROBE_TOOL],
     });
     rollCall.push({ ...out, inLadder });
   }

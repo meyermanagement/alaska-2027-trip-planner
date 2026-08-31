@@ -9,8 +9,11 @@ import Link from "next/link";
 
 function Line({ label, value }) {
   return (
-    <div className="flex gap-3 border-b border-sand-deep/40 py-2 text-sm last:border-0">
-      <span className="w-40 shrink-0 text-ink-soft">{label}</span>
+    // Label beside the value where there is room, above it where there is not.
+    // At 320px a fixed 160px label column left about a hundred pixels for the
+    // value, and "(TimeoutError)" came out as "(Timeou tError)".
+    <div className="flex flex-col gap-0.5 border-b border-sand-deep/40 py-2 text-sm last:border-0 sm:flex-row sm:gap-3">
+      <span className="text-ink-soft sm:w-40 sm:shrink-0">{label}</span>
       <span className="min-w-0 break-words text-ink">{value}</span>
     </div>
   );
@@ -40,7 +43,7 @@ function Refusal({ r }) {
 // One model's verdict. Green when it answered, amber when it is out of quota for
 // now, rose when it is not answering at all -- because "come back tomorrow" and
 // "take it out of the ladder" are different instructions.
-function ModelRow({ r }) {
+function ModelRow({ r, onPatient, patient, busy }) {
   const quota = r.status === 429;
   const tone = r.ok
     ? "border-teal/40 bg-teal/5"
@@ -70,6 +73,57 @@ function ModelRow({ r }) {
       {r.message ? (
         <p className="mt-1 break-words text-xs text-ink-faint">{r.message}</p>
       ) : null}
+
+      {/* A 504 here is this page's own fourteen-second cap running out, not
+          Google's answer. Saying so, and offering to wait properly, is the
+          difference between "this model is dead" and "this model is slow" -- and
+          gemini-3.7-flash was shelved on that exact confusion. */}
+      {r.status === 504 && !r.skipped ? (
+        <>
+          <p className="mt-2 text-xs text-ink-soft">
+            That is this page giving up, not Google refusing. All it proves is
+            that this model takes longer than the roll call allows.
+          </p>
+          <button
+            onClick={() => onPatient(r.model)}
+            disabled={busy}
+            className="mt-2 rounded-lg border border-ink-soft/30 px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-60"
+          >
+            {busy ? "Waiting…" : "Ask it again, and wait 90 seconds"}
+          </button>
+        </>
+      ) : null}
+
+      {patient ? (
+        <div className="mt-3 rounded-lg border border-sand-deep bg-white p-3">
+          <Line label="Given" value={`${patient.gaveItMs} ms`} />
+          <Line label="Answered" value={patient.ok ? "Yes" : "No"} />
+          <Line label="Took" value={`${patient.ms} ms`} />
+          {patient.said ? (
+            <Line label="Said" value={`“${patient.said}”`} />
+          ) : null}
+          {patient.called?.length ? (
+            <Line label="Called" value={patient.called.join(", ")} />
+          ) : null}
+          {patient.message ? (
+            <Line label="What came back" value={patient.message} />
+          ) : null}
+          {patient.tooSlowForChat ? (
+            <p className="mt-2 text-xs text-ink">
+              It answers, but not fast enough to be any use in the chat panel: a
+              searching turn there is allowed 62 seconds and a plain one 40, so
+              this model would answer this page and time out the family. Leave
+              it out of the ladder.
+            </p>
+          ) : patient.ok ? (
+            <p className="mt-2 text-xs text-ink">
+              It answers, and quickly enough for the chat panel. It can go back
+              into the ladder — set GEMINI_MODELS in Vercel to the models you
+              want, in order, with this one where you want it.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -78,11 +132,48 @@ export default function ModelCheckPage() {
   const [state, setState] = useState("idle");
   const [out, setOut] = useState(null);
   const [error, setError] = useState("");
+  // Keyed by model name, so asking about one does not clear the roll call.
+  const [patient, setPatient] = useState({});
+  const [waitingOn, setWaitingOn] = useState("");
+
+  async function askPatiently(model) {
+    setWaitingOn(model);
+    try {
+      const res = await fetch(
+        `/api/model-check?model=${encodeURIComponent(model)}`,
+        { cache: "no-store" },
+      );
+      const json = await res.json().catch(() => null);
+      setPatient((was) => ({
+        ...was,
+        [model]: json?.one || {
+          ok: false,
+          ms: 0,
+          gaveItMs: 0,
+          message:
+            json?.error ||
+            `The check itself failed (${res.status}). If that is a timeout, this model is slower than the page can wait.`,
+        },
+      }));
+    } catch (err) {
+      setPatient((was) => ({
+        ...was,
+        [model]: {
+          ok: false,
+          ms: 0,
+          gaveItMs: 0,
+          message: err?.message || "The check could not be reached.",
+        },
+      }));
+    }
+    setWaitingOn("");
+  }
 
   async function run() {
     setState("running");
     setError("");
     setOut(null);
+    setPatient({});
     try {
       const res = await fetch("/api/model-check", { cache: "no-store" });
       const json = await res.json().catch(() => null);
@@ -221,7 +312,13 @@ export default function ModelCheckPage() {
                 answers, it can go back in.
               </p>
               {out.rollCall.map((r, i) => (
-                <ModelRow key={i} r={r} />
+                <ModelRow
+                  key={i}
+                  r={r}
+                  onPatient={askPatiently}
+                  patient={patient[r.model]}
+                  busy={waitingOn === r.model}
+                />
               ))}
             </section>
           ) : null}
