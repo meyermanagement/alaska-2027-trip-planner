@@ -805,7 +805,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     supabase
       .from("pets")
       .select(
-        "id, name, species, breed, date_of_birth, sex, is_sterilized, weight_lb, travel_style, carrier_size, is_service_animal, rabies_expiration, health_certificate_expiration, medications, dietary_notes, temperament_notes, notes",
+        "id, name, species, breed, date_of_birth, sex, is_sterilized, weight_lb, travel_style, carrier_size, is_service_animal, rabies_expiration, health_certificate_expiration, coggins_expiration, medications, dietary_notes, temperament_notes, notes",
       )
       .order("sort_order", { ascending: true }),
     supabase

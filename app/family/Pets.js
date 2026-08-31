@@ -6,15 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import { ensurePetTemplate, renamePetTemplate } from "@/lib/pets/template";
 import { formatDayYear, isPastTrip } from "@/lib/format";
 import {
+  PAPERS,
   SPECIES,
-  TRAVEL_STYLES,
   cabinOutlook,
   petAge,
   petWarnings,
   PET_SEXES,
   petSexPhrase,
   speciesLabel,
+  speciesProfile,
   travelStyleLabel,
+  travelStylesFor,
   trimNumber,
 } from "@/lib/pets/pets";
 
@@ -143,7 +145,7 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
         <h2 className="font-display text-2xl font-semibold">Pets</h2>
         <p className="mt-1 text-sm text-ink-soft">
           Who else is in the family, and what happens to them when we go away.
-          The weight and the rabies date are the two that decide things: one
+          The weight and the paperwork dates are the two that decide things: one
           sets whether a flight is even possible, the other can stop a pet at a
           counter. Whether one is coming is set on the trip itself, or just tell
           Aly.
@@ -285,19 +287,15 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
 // as a short record rather than a mostly-empty one.
 function PetFacts({ pet }) {
   const facts = [
-    [
-      "Rabies certificate",
-      pet.rabies_expiration
-        ? `through ${formatDayYear(pet.rabies_expiration)}`
-        : null,
-    ],
-    [
-      "Health certificate",
-      pet.health_certificate_expiration
-        ? `through ${formatDayYear(pet.health_certificate_expiration)}`
-        : null,
-    ],
-    ["Carrier", pet.carrier_size],
+    ...speciesProfile(pet.species).papers.map((key) => {
+      const paper = PAPERS[key];
+      const value = paper ? pet[paper.column] : null;
+      return [
+        paper?.short || "",
+        value ? `through ${formatDayYear(value)}` : null,
+      ];
+    }),
+    [speciesProfile(pet.species).carrier?.label || "Carrier", pet.carrier_size],
     ["Microchip", pet.microchip_number],
     ["Vet", [pet.vet_name, pet.vet_phone].filter(Boolean).join(" · ") || null],
     ["Medication", pet.medications],
@@ -340,6 +338,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
     microchip_number: pet?.microchip_number || "",
     rabies_expiration: pet?.rabies_expiration || "",
     health_certificate_expiration: pet?.health_certificate_expiration || "",
+    coggins_expiration: pet?.coggins_expiration || "",
     vet_name: pet?.vet_name || "",
     vet_phone: pet?.vet_phone || "",
     medications: pet?.medications || "",
@@ -381,6 +380,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
       microchip_number: text(form.microchip_number),
       rabies_expiration: form.rabies_expiration || null,
       health_certificate_expiration: form.health_certificate_expiration || null,
+      coggins_expiration: form.coggins_expiration || null,
       vet_name: text(form.vet_name),
       vet_phone: text(form.vet_phone),
       medications: text(form.medications),
@@ -391,7 +391,12 @@ function PetForm({ pet, busy, onCancel, onSave }) {
     if (message) setError(message);
   }
 
-  const style = TRAVEL_STYLES.find((s) => s.id === form.travel_style);
+  // Every question below that differs between a dog and a horse comes from here.
+  // The species select sits at the top of the form on purpose: answer it and the
+  // rest of the form changes under you, which is the whole point.
+  const profile = speciesProfile(form.species);
+  const styles = travelStylesFor(form.species);
+  const style = styles.find((s) => s.id === form.travel_style);
 
   return (
     <form
@@ -444,23 +449,23 @@ function PetForm({ pet, busy, onCancel, onSave }) {
             ))}
           </select>
         </label>
-        <label className="block text-xs font-semibold">
-          Spayed or neutered (optional)
-          <select
-            className="field mt-1 text-sm"
-            value={form.is_sterilized}
-            onChange={set("is_sterilized")}
-          >
-            <option value="">Not recorded</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          <span className="mt-1 block font-normal text-ink-soft">
-            Boarding kennels ask on every form and some will not take an animal
-            that has not been fixed, so it is worth having the answer before you
-            call.
-          </span>
-        </label>
+        {profile.askFixed && (
+          <label className="block text-xs font-semibold">
+            {profile.fixedLabel} (optional)
+            <select
+              className="field mt-1 text-sm"
+              value={form.is_sterilized}
+              onChange={set("is_sterilized")}
+            >
+              <option value="">Not recorded</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+            <span className="mt-1 block font-normal text-ink-soft">
+              {profile.fixedHint}
+            </span>
+          </label>
+        )}
         <label className="block text-xs font-semibold">
           Date of birth (optional)
           <input
@@ -470,22 +475,23 @@ function PetForm({ pet, busy, onCancel, onSave }) {
             onChange={set("date_of_birth")}
           />
         </label>
-        <label className="block text-xs font-semibold">
-          Weight in pounds (optional)
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            inputMode="decimal"
-            className="field mt-1 text-sm"
-            value={form.weight_lb}
-            onChange={set("weight_lb")}
-          />
-          <span className="mt-1 block font-normal text-ink-soft">
-            Airlines and hotels write their limits in pounds, and the airline
-            limit counts the carrier too.
-          </span>
-        </label>
+        {profile.askWeight && (
+          <label className="block text-xs font-semibold">
+            Weight in pounds (optional)
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              inputMode="decimal"
+              className="field mt-1 text-sm"
+              value={form.weight_lb}
+              onChange={set("weight_lb")}
+            />
+            <span className="mt-1 block font-normal text-ink-soft">
+              {profile.weightHint}
+            </span>
+          </label>
+        )}
         <label className="block text-xs font-semibold">
           How they travel (optional)
           <select
@@ -494,7 +500,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
             onChange={set("travel_style")}
           >
             <option value="">Not sure yet</option>
-            {TRAVEL_STYLES.map((s) => (
+            {styles.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label}
               </option>
@@ -508,59 +514,64 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         </label>
       </div>
 
-      <label className="flex items-start gap-2 rounded-lg border border-teal/25 bg-white/60 p-2.5 text-xs font-semibold">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={form.is_service_animal}
-          onChange={(e) =>
-            setForm({ ...form, is_service_animal: e.target.checked })
-          }
-        />
-        <span>
-          Trained service animal
-          <span className="mt-0.5 block font-normal text-ink-soft">
-            A different set of rules entirely: no pet fee, no weight limit, no
-            breed restriction, and allowed where pets are not. Airlines ask for
-            the Department of Transportation service animal form rather than a
-            pet booking. An emotional support animal is not this — US airlines
-            stopped treating those as service animals in 2021.
+      {profile.serviceAnimal && (
+        <label className="flex items-start gap-2 rounded-lg border border-teal/25 bg-white/60 p-2.5 text-xs font-semibold">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={form.is_service_animal}
+            onChange={(e) =>
+              setForm({ ...form, is_service_animal: e.target.checked })
+            }
+          />
+          <span>
+            Trained service animal
+            <span className="mt-0.5 block font-normal text-ink-soft">
+              A different set of rules entirely: no pet fee, no weight limit, no
+              breed restriction, and allowed where pets are not. Airlines ask
+              for the Department of Transportation service animal form rather
+              than a pet booking. An emotional support animal is not this — US
+              airlines stopped treating those as service animals in 2021.
+              {form.species === "horse"
+                ? " Under the ADA only dogs and miniature horses count, which is why the question is here at all."
+                : ""}
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      )}
 
       <div className="grid gap-3 border-t border-teal/30 pt-3 sm:grid-cols-2">
-        <label className="block text-xs font-semibold">
-          Rabies certificate good through (optional)
-          <input
-            type="date"
-            className="field mt-1 text-sm"
-            value={form.rabies_expiration}
-            onChange={set("rabies_expiration")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Health certificate good through (optional)
-          <input
-            type="date"
-            className="field mt-1 text-sm"
-            value={form.health_certificate_expiration}
-            onChange={set("health_certificate_expiration")}
-          />
-          <span className="mt-1 block font-normal text-ink-soft">
-            Issued close to departure rather than renewed, so this one usually
-            has to be got again for each trip that needs it.
-          </span>
-        </label>
-        <label className="block text-xs font-semibold">
-          Carrier (optional)
-          <input
-            className="field mt-1 text-sm"
-            placeholder="18 x 11 x 11 soft-sided"
-            value={form.carrier_size}
-            onChange={set("carrier_size")}
-          />
-        </label>
+        {profile.papers.map((key) => {
+          const paper = PAPERS[key];
+          if (!paper) return null;
+          return (
+            <label key={key} className="block text-xs font-semibold">
+              {paper.label} (optional)
+              <input
+                type="date"
+                className="field mt-1 text-sm"
+                value={form[paper.column]}
+                onChange={set(paper.column)}
+              />
+              {paper.hint && (
+                <span className="mt-1 block font-normal text-ink-soft">
+                  {paper.hint}
+                </span>
+              )}
+            </label>
+          );
+        })}
+        {profile.carrier && (
+          <label className="block text-xs font-semibold">
+            {profile.carrier.label} (optional)
+            <input
+              className="field mt-1 text-sm"
+              placeholder={profile.carrier.placeholder}
+              value={form.carrier_size}
+              onChange={set("carrier_size")}
+            />
+          </label>
+        )}
         <label className="block text-xs font-semibold">
           Microchip number (optional)
           <input
@@ -606,7 +617,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
           Temperament (optional)
           <input
             className="field mt-1 text-sm"
-            placeholder="Crate trained, nervous around other dogs, fine in a car"
+            placeholder={profile.temperamentPlaceholder}
             value={form.temperament_notes}
             onChange={set("temperament_notes")}
           />

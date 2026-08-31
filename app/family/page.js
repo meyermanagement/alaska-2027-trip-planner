@@ -75,7 +75,7 @@ export default async function PeoplePage() {
     supabase
       .from("pets")
       .select(
-        "id, name, species, breed, color, sort_order, date_of_birth, sex, is_sterilized, weight_lb, travel_style, carrier_size, is_service_animal, microchip_number, rabies_expiration, health_certificate_expiration, vet_name, vet_phone, medications, dietary_notes, temperament_notes, notes",
+        "id, name, species, breed, color, sort_order, date_of_birth, sex, is_sterilized, weight_lb, travel_style, carrier_size, is_service_animal, microchip_number, rabies_expiration, health_certificate_expiration, coggins_expiration, vet_name, vet_phone, medications, dietary_notes, temperament_notes, notes",
       )
       .order("sort_order", { ascending: true }),
     supabase
