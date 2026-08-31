@@ -45,6 +45,15 @@ export default function Templates({ travelers, templates, items }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  // Renaming the list itself. A name is the only part of a template you cannot
+  // fix from here: "Cruise Add-ons" made sense when there was one cruise, and a
+  // list called that while the family has a Disney cruise and an Alaska cruise is
+  // a list nobody trusts. The alternative was to build the list again under a
+  // better name and move every item across by hand.
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [nameError, setNameError] = useState("");
+
   const template = templates.find((t) => t.id === templateId) || null;
   const mine = useMemo(
     () => items.filter((i) => i.template_id === templateId),
@@ -175,6 +184,46 @@ export default function Templates({ travelers, templates, items }) {
 
   // Starting a new person off with a copy of somebody else's list, which is what
   // an empty section almost always wants.
+  function startRename() {
+    if (!template) return;
+    setRenaming(true);
+    setNameDraft(template.name || "");
+    setNameError("");
+  }
+
+  async function submitRename(e) {
+    e.preventDefault();
+    if (!template) return;
+    const name = nameDraft.trim();
+    setNameError("");
+    if (!name) {
+      setNameError("A list needs a name.");
+      return;
+    }
+    if (name === (template.name || "").trim()) {
+      setRenaming(false);
+      return;
+    }
+    // Two lists with the same name is a trap rather than an error: every place
+    // the app names a template -- the pills on a trip's packing form, the chips
+    // that say what a trip is built from, what Aly reads back -- becomes a guess.
+    const clash = templates.find(
+      (t) =>
+        t.id !== template.id &&
+        (t.name || "").trim().toLowerCase() === name.toLowerCase(),
+    );
+    if (clash) {
+      setNameError(
+        "There is already a list called that. Two with the same name makes every other screen ambiguous.",
+      );
+      return;
+    }
+    const ok = await run(() =>
+      supabase.from("packing_templates").update({ name }).eq("id", template.id),
+    );
+    if (ok) setRenaming(false);
+  }
+
   async function copyFrom(person, from) {
     const rows = mine
       .filter((i) => (i.assignee || SHARED) === from)
@@ -221,6 +270,9 @@ export default function Templates({ travelers, templates, items }) {
                   setTemplateId(t.id);
                   setWho("all");
                   setEditingId(null);
+                  // A half-typed name belongs to the list it was typed for.
+                  setRenaming(false);
+                  setNameError("");
                   setAdding(null);
                 }}
                 className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
@@ -241,7 +293,60 @@ export default function Templates({ travelers, templates, items }) {
       )}
 
       <div className="card mb-4 p-4">
-        <h2 className="font-display text-lg font-semibold">{template.name}</h2>
+        {renaming ? (
+          <form onSubmit={submitRename} className="space-y-2">
+            <label
+              className="block text-xs font-semibold text-ink-soft"
+              htmlFor="template-name"
+            >
+              What this list is called
+            </label>
+            <input
+              id="template-name"
+              className="field font-display text-lg font-semibold"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              // The name is the thing being changed, so the cursor starts in it
+              // rather than making you find the one field on the form.
+              autoFocus
+            />
+            <div className="flex flex-wrap gap-2">
+              <button className="btn btn-primary" disabled={busy}>
+                {busy ? "Saving\u2026" : "Save name"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setRenaming(false);
+                  setNameError("");
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+            <p
+              className={`text-xs ${nameError ? "text-rose" : "text-ink-soft"}`}
+              role={nameError ? "alert" : undefined}
+            >
+              {nameError ||
+                "Renaming a list changes what it is called everywhere \u2014 on each trip that uses it, and in what Aly reads back to you. Nothing packed changes, and no trip loses the list."}
+            </p>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="font-display text-lg font-semibold">
+              {template.name}
+            </h2>
+            <button
+              type="button"
+              onClick={startRename}
+              className="text-xs font-semibold text-teal underline decoration-teal/40 underline-offset-2 hover:decoration-teal"
+            >
+              Rename
+            </button>
+          </div>
+        )}
         {template.description && (
           <p className="mt-1 text-sm text-ink-soft">{template.description}</p>
         )}
