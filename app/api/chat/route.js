@@ -21,8 +21,8 @@ import {
   shouldLookUp,
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
-import { splitPlaceCalls } from "@/lib/places/cards";
-import { isRollCall, writeTheWords } from "@/lib/places/rollcall";
+import { mergePlaces, splitPlaceCalls } from "@/lib/places/cards";
+import { needsWords, writeTheWords } from "@/lib/places/rollcall";
 import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
   ANSWERING_TOOLS,
@@ -316,13 +316,21 @@ export async function POST(request) {
       const words = await generate({
         system: [system, answerAsWell(said)].join("\n\n"),
         messages,
-        tools: tools.filter((tool) => ANSWERING_TOOLS.has(tool.name)),
+        // A shortlist already on screen means the shortlist tool comes away.
+        // Asked the same trip twice, a model does not repeat itself exactly --
+        // it offers "Quinta da Regaleira" and then "Quinta da Regaleira Guided
+        // Tour" -- and the family gets the same place on two cards.
+        tools: tools.filter(
+          (tool) =>
+            ANSWERING_TOOLS.has(tool.name) &&
+            !(shortlist.length && tool.name === "show_places"),
+        ),
         grounded: lookUp,
       });
       if (words?.text || (words?.calls || []).length) {
         const { places: more } = splitPlaceCalls(words.calls);
         const { followups: nextQuestions } = splitFollowupCalls(words.calls);
-        shortlistAll = shortlist.concat(more);
+        shortlistAll = mergePlaces(shortlist, more);
         if (nextQuestions.length) followups = nextQuestions;
         result = {
           ...result,
@@ -338,13 +346,15 @@ export async function POST(request) {
     }
   }
 
-  // She showed the shortlist and then wrote the shortlist out again, which is
-  // the whole reply the family reads above the cards. The names are already on
-  // the cards and the button is already on every card, so that reply says
-  // nothing. One more turn for the words alone, with show_places taken away so
-  // a third listing is not available to her, and with every change tool still
+  // Cards, and nothing worth reading above them. Either she wrote the shortlist
+  // out again -- the names are already on the cards and the button is already on
+  // every card, so that reply says nothing -- or she wrote nothing at all and
+  // treated the cards as the whole answer, which is worse: "Which of these
+  // should we add?" is a question asking to be advised, and it came back as ten
+  // names. One more turn for the words alone, with show_places taken away so a
+  // third listing is not available to her, and with every change tool still
   // withheld for the same reason as above.
-  if (isRollCall(result.text, shortlistAll)) {
+  if (needsWords(result.text, shortlistAll)) {
     try {
       const better = await generate({
         system: [system, writeTheWords(said, shortlistAll)].join("\n\n"),
@@ -355,7 +365,7 @@ export async function POST(request) {
       // Only if the second try is actually an answer. A model that comes back
       // with the same roll call, or with nothing, leaves the first reply alone:
       // thin words above the cards beat no words above the cards.
-      if (better?.text && !isRollCall(better.text, shortlistAll)) {
+      if (better?.text && !needsWords(better.text, shortlistAll)) {
         const { followups: nextQuestions } = splitFollowupCalls(
           better.calls || [],
         );
@@ -656,10 +666,17 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
   });
 }
 
-// What the transcript says when the answer was entirely cards. Reopening a
-// conversation to a blank assistant message would look like a fault.
+// What the transcript says when the answer was entirely cards.
+//
+// This is now the last resort rather than the ordinary case: cards with nothing
+// said above them get a second turn for the words, so reaching this line means
+// that turn came back empty too. It used to read the names out -- every one of
+// them already on a card three inches below, which is what "Livraria Bertrand;
+// Quinta da Regaleira; ... Tap Add to itinerary on any one" was -- and reading
+// them out is not an answer however many times it is written. So it says what
+// actually happened instead, and reopening the conversation next week shows the
+// cards with an honest line above them rather than a blank message.
 function placesLine(places) {
-  const names = places.map((p) => p.name).join("; ");
-  const tap = places.length === 1 ? "it" : "any one";
-  return `${names}. Tap Add to itinerary on ${tap}, or tell me which.`;
+  const these = places.length === 1 ? "One place" : `${places.length} places`;
+  return `${these} to look at below. I did not manage to get the words out this time — ask me again and I will say which one I would pick and why.`;
 }
