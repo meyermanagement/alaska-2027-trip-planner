@@ -94,6 +94,27 @@ export default async function PackingTemplatesPage() {
   // An animal's list is a different rule and is worked out separately: it applies
   // whenever the animal is coming, so its reach is the trip roster rather than
   // anything about the list itself.
+  // With no templates at all, the screen offers to build the first one out of a
+  // trip the family has already packed for -- so it has to know which trips those
+  // are. Read only in that case, and only the count: a trip with an empty list is
+  // not a source, and offering it would end in "I found nothing to copy".
+  let packedTrips = [];
+  if (familyTemplates.length === 0) {
+    const { data: trips } = await supabase
+      .from("trips")
+      .select("id, name, start_date, packing_items(count)")
+      .eq("family_id", familyId)
+      .order("start_date", { ascending: false });
+    packedTrips = (trips || [])
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        start_date: t.start_date || null,
+        itemCount: t.packing_items?.[0]?.count || 0,
+      }))
+      .filter((t) => t.itemCount > 0);
+  }
+
   let tripsByTemplate = {};
   let tripsByPet = {};
   // Drafts are not here: nothing packs for a draft, so a draft is not somewhere
@@ -164,6 +185,7 @@ export default async function PackingTemplatesPage() {
           templates={familyTemplates}
           items={items || []}
           tripsByTemplate={tripsByTemplate}
+          packedTrips={packedTrips}
         />
         <PetTemplates
           pets={pets || []}

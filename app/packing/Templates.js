@@ -7,6 +7,10 @@ import { assigneeColor } from "@/lib/format";
 import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
 import PropagatePanel from "@/components/PropagatePanel";
 import TripsUsing from "@/components/TripsUsing";
+import FirstTemplate from "@/components/FirstTemplate";
+import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
+import { TEMPLATES_FOCUS } from "@/lib/agent/context";
+import { blankRequest } from "@/lib/packing/newTemplate";
 
 const SHARED = "Shared";
 
@@ -40,6 +44,9 @@ export default function Templates({
   // trips each list reaches, worked out on the server by the same rule the push
   // button uses.
   tripsByTemplate = {},
+  // Trips with a packing list of their own, offered as the source for a first
+  // template. Only read when there are no templates at all.
+  packedTrips = [],
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -256,11 +263,22 @@ export default function Templates({
   }
 
   if (!template) {
-    return (
-      <p className="card p-6 text-center text-sm text-ink-soft">
-        There are no packing templates saved yet. Create a trip and Aly will
-        build one, or ask her to start a packing template for the family.
-      </p>
+    return <FirstTemplate trips={packedTrips} />;
+  }
+
+  // The way to a second list. It is deliberately not a form: what a list is for
+  // is a sentence, not four fields, and Aly has to see the sentence anyway. So
+  // the button writes the brief into her box with the two things only they know
+  // left blank, and does NOT send it -- a prompt that sent itself half-written
+  // would produce a list built on the instructions alone.
+  function newTemplate() {
+    window.dispatchEvent(
+      new CustomEvent(ASK_ALY_EVENT, {
+        detail: {
+          seed: blankRequest({ hasBase: templates.some((t) => t.is_base) }),
+          focus: TEMPLATES_FOCUS,
+        },
+      }),
     );
   }
 
@@ -268,9 +286,9 @@ export default function Templates({
     <section>
       <PropagatePanel />
 
-      {templates.length > 1 && (
-        <div className="no-print mb-4 flex flex-wrap gap-2">
-          {templates.map((t) => {
+      <div className="no-print mb-4 flex flex-wrap items-stretch gap-2">
+        {templates.length > 1 &&
+          templates.map((t) => {
             const on = t.id === templateId;
             return (
               <button
@@ -298,8 +316,17 @@ export default function Templates({
               </button>
             );
           })}
-        </div>
-      )}
+        <button
+          type="button"
+          onClick={newTemplate}
+          className="rounded-xl border border-dashed border-teal/50 px-3 py-2 text-left text-sm text-teal transition hover:border-teal hover:bg-teal-soft/30"
+        >
+          <span className="block font-semibold">+ Create packing template</span>
+          <span className="mt-0.5 block text-xs text-ink-soft">
+            Aly builds it with you
+          </span>
+        </button>
+      </div>
 
       <div className="card mb-4 p-4">
         {renaming ? (

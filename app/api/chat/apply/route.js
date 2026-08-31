@@ -432,7 +432,7 @@ export async function POST(request) {
           // Anything else in this batch that named the new list can now find it.
           known.packing_templates.set(outcome.id, {
             name: patch.name,
-            is_base: false,
+            is_base: Boolean(outcome.isBase),
           });
           // And it is no longer merely pending, so the items resolve to the real
           // id rather than being handed straight back as needsTemplate.
@@ -440,13 +440,16 @@ export async function POST(request) {
           if (was >= 0) pendingTemplates.splice(was, 1);
         }
         if (!outcome.error) {
+          const baseNote = outcome.isBase
+            ? ", and it is now the base list every trip is built from"
+            : "";
           extra = outcome.copied
             ? ` — ${outcome.copied} item${outcome.copied === 1 ? "" : "s"} copied${
                 outcome.skipped
                   ? `, ${outcome.skipped} left off because the base list already covers them`
                   : ""
-              }`
-            : " — empty for now";
+              }${baseNote}`
+            : ` — empty for now${baseNote}`;
         }
       } else if (tool === "propagate_templates") {
         const outcome = await applyPropagation({
@@ -841,16 +844,34 @@ async function writeTemplate({ supabase, patch, familyId }) {
     ...row
   } = patch;
 
+  // The first list a family has is the base, whatever it is called. Every trip
+  // is built from the base plus whichever add-ons apply, so a family whose only
+  // list is not the base gets an empty packing list on every new trip and no
+  // sign of why. create_template cannot be trusted to decide this -- it is not
+  // something the user says out loud -- so it is decided here, from whether one
+  // exists. An animal's list is never the base: it applies when that animal is
+  // coming, not to every trip.
+  let isBase = false;
+  if (!row.pet_id) {
+    const { data: already } = await supabase
+      .from("packing_templates")
+      .select("id")
+      .eq("family_id", familyId)
+      .is("pet_id", null)
+      .limit(1);
+    isBase = !(already || []).length;
+  }
+
   const { data, error } = await supabase
     .from("packing_templates")
-    .insert({ ...row, family_id: familyId })
+    .insert({ ...row, family_id: familyId, is_base: isBase })
     .select("id")
     .single();
   if (error || !data?.id) {
     return { error: error || { message: "Could not start that list." } };
   }
   const id = data.id;
-  if (!fromList && !fromTrip) return { id, copied: 0 };
+  if (!fromList && !fromTrip) return { id, copied: 0, isBase };
 
   const columns = "category, item, assignee, quantity, sort_order, last_minute";
   const { data: source, error: readError } = fromTrip
@@ -882,7 +903,7 @@ async function writeTemplate({ supabase, patch, familyId }) {
   // Copying from another packing template is left alone: that is deliberate
   // reorganizing, and an add-on's contents are already additional.
   let excludeItems = null;
-  if (fromTrip) {
+  if (fromTrip && !isBase) {
     const { data: base } = await supabase
       .from("packing_templates")
       .select("id")
@@ -932,7 +953,7 @@ async function writeTemplate({ supabase, patch, familyId }) {
       message: `I could not copy the items in, so I did not start “${row.name}”: ${itemsError.message}`,
     });
   }
-  return { id, copied: items.length, skipped };
+  return { id, copied: items.length, skipped, isBase };
 }
 
 // An empty list left behind by a half-finished copy is worse than no list: the
