@@ -14,6 +14,7 @@ import {
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import AskAlyDrawer from "./AskAlyDrawer";
 import PromoteDraft from "./PromoteDraft";
+import TripRoster from "./TripRoster";
 
 /**
  * A draft, shown as the thing it actually is.
@@ -40,11 +41,19 @@ export default function DraftView({
   tasks = [],
   packing = [],
   travelers = [],
-  going = [],
+  going: initialGoing = [],
+  pets = [],
+  petLinks: initialPetLinks = [],
+  readOnly = false,
   today,
 }) {
   const router = useRouter();
   const [asked, setAsked] = useState(null);
+  // Held here rather than in the widget so the rest of the screen can read them:
+  // a draft's roster is the answer to one of the six, and the line at the bottom
+  // that says who is going has to move when somebody taps a name.
+  const [going, setGoing] = useState(initialGoing);
+  const [petLinks, setPetLinks] = useState(initialPetLinks);
 
   const progress = useMemo(() => basicsProgress(trip), [trip]);
   const next = useMemo(() => nextBasic(trip), [trip]);
@@ -63,12 +72,6 @@ export default function DraftView({
       }),
     );
   }
-
-  // Who is on it, by name. A draft usually has nobody on the roster yet, and
-  // saying so is more useful than an empty row.
-  const goingNames = travelers
-    .filter((t) => going.includes(t.id))
-    .map((t) => t.name);
 
   // The days, only as a loose list. A draft's itinerary is a sketch, so it is
   // grouped by date and left flat rather than being given the real day view --
@@ -193,11 +196,25 @@ export default function DraftView({
           )}
         </div>
 
-        {goingNames.length > 0 && (
-          <p className="mt-4 text-xs text-ink-soft">
-            Going: {goingNames.join(", ")}
-          </p>
-        )}
+        {/* Who is coming, decided here rather than described here.
+            This was one grey line of text reading "Going: Mark, Steph", which is
+            a report on a decision nobody could make on this screen, and it never
+            mentioned the animals at all. It is the same widget the real trip
+            screen uses, so a tap does the same thing in both places -- and on a
+            draft what it does not do is start a packing list. */}
+        <TripRoster
+          className="mt-5 rounded-xl border border-dashed border-[var(--line-strong)] bg-white/50 p-4"
+          trip={trip}
+          people={travelers}
+          pets={pets}
+          going={going}
+          onGoingChange={setGoing}
+          petLinks={petLinks}
+          onPetLinksChange={setPetLinks}
+          packing={packing}
+          readOnly={readOnly}
+          draft
+        />
       </header>
 
       {/* The six. This is the screen's subject, not a sidebar. */}

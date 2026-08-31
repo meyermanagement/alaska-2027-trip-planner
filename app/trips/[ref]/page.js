@@ -233,6 +233,9 @@ export default async function TripPage({ params, searchParams }) {
           packing={packing.data || []}
           travelers={(travelers.data || []).filter((t) => t.is_person)}
           going={(roster.data || []).map((r) => r.traveler_id)}
+          pets={pets.data || []}
+          petLinks={petLinks.data || []}
+          readOnly={access?.can?.isSecondary === true}
           today={todayISO()}
         />
         <FooterBar displayName={profile?.display_name} />

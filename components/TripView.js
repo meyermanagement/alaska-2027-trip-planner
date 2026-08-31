@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { sortItinerary } from "@/lib/day/order";
 import { daysUntil, formatRange, isDraftTrip, isPastTrip } from "@/lib/format";
 import PromoteDraft from "./PromoteDraft";
-import MembershipChips from "./MembershipChips";
+import TripRoster from "./TripRoster";
 import TripForm from "./TripForm";
 import Itinerary from "./Itinerary";
 import Packing from "./Packing";
@@ -15,10 +15,8 @@ import Notes from "./Notes";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import { lookSummary } from "@/lib/tips/run";
-import { syncPackingForTraveler } from "@/lib/packing/roster";
+import { isComing } from "@/lib/pets/pets";
 import { SECONDARY } from "@/lib/travelers/access";
-import { syncPackingForPet } from "@/lib/pets/packing";
-import { ARRANGEMENTS, arrangementLabel, isComing } from "@/lib/pets/pets";
 
 /**
  * What the look put on the other tabs, said on the tab that started it.
@@ -186,13 +184,6 @@ export default function TripView({
   // rather than on the Family tab: "is the dog coming to Curaçao" is a fact
   // about Curaçao, and answering it used to mean opening the dog.
   const [petLinks, setPetLinks] = useState(initialPetLinks);
-  const [petBusy, setPetBusy] = useState(null);
-  const [petNote, setPetNote] = useState("");
-  const [rosterBusy, setRosterBusy] = useState(null);
-  // What the packing list did about it, said out loud. A list that grows by six
-  // lines while you tap a name is unnerving otherwise, and the reason two of
-  // somebody's things survived being taken off has to be visible to be trusted.
-  const [rosterNote, setRosterNote] = useState("");
   // The trip row itself can change under us: the database keeps the dates in
   // step with the itinerary, and anyone in the family can edit the details.
   const [info, setInfo] = useState(trip);
@@ -313,107 +304,6 @@ export default function TripView({
     };
   }, [supabase, trip.id, refetch]);
 
-  // Who is on the trip. Tapping a name saves straight away.
-  //
-  // The chip hands back its own shape — { id, label, color } — not the traveler
-  // it was built from, so the real person has to be looked up here. Passing the
-  // chip straight through was the whole reason a roster tap on this page never
-  // touched the packing list: the sync had no name to work with and quietly did
-  // nothing, which is how somebody's things came to sit on a list they were not
-  // traveling on.
-  async function toggleTraveler(chip, nowGoing) {
-    const person = people.find((p) => p.id === chip?.id) || chip;
-    if (!person?.id || !person?.name) return;
-    setRosterBusy(person.id);
-    setGoing((prev) =>
-      nowGoing ? [...prev, person.id] : prev.filter((id) => id !== person.id),
-    );
-    setRosterNote("");
-    if (nowGoing) {
-      await supabase
-        .from("trip_travelers")
-        .insert({ trip_id: trip.id, traveler_id: person.id });
-    } else {
-      await supabase
-        .from("trip_travelers")
-        .delete()
-        .eq("trip_id", trip.id)
-        .eq("traveler_id", person.id);
-    }
-    // The roster and the packing list were two facts that only agreed at the
-    // moment the trip was made. Now the tap carries both: their own lines from
-    // the base list arrive with them, and go when they do.
-    const sync = await syncPackingForTraveler({
-      supabase,
-      tripId: trip.id,
-      familyId: trip.family_id,
-      person,
-      going: nowGoing,
-    });
-    if (sync.added || sync.removed) await refetch("packing_items");
-    setRosterNote(sync.message || "");
-    setRosterBusy(null);
-  }
-
-  // A tap says the animal is on the trip; the arrangement that appears next to
-  // it says what that means. A tap alone lands on "coming", because that is what
-  // somebody tapping a pet's name on a trip almost always means, and boarding or
-  // a sitter is one more choice away rather than a question up front.
-  async function setPetArrangement(pet, arrangement) {
-    if (!pet?.id) return;
-    setPetBusy(pet.id);
-    setPetNote("");
-
-    if (!arrangement) {
-      await supabase
-        .from("trip_pets")
-        .delete()
-        .eq("trip_id", trip.id)
-        .eq("pet_id", pet.id);
-      setPetLinks((prev) => prev.filter((l) => l.pet_id !== pet.id));
-    } else {
-      // The row is the decision, not its absence, so changing an arrangement is
-      // an upsert rather than a delete and an insert.
-      const { error } = await supabase
-        .from("trip_pets")
-        .upsert(
-          { trip_id: trip.id, pet_id: pet.id, arrangement },
-          { onConflict: "trip_id,pet_id" },
-        );
-      if (error) {
-        setPetNote(error.message);
-        setPetBusy(null);
-        return;
-      }
-      setPetLinks((prev) => [
-        ...prev.filter((l) => l.pet_id !== pet.id),
-        { trip_id: trip.id, pet_id: pet.id, arrangement },
-      ]);
-    }
-
-    // Their things follow them, exactly as a person's do.
-    const sync = await syncPackingForPet({
-      supabase,
-      tripId: trip.id,
-      familyId: trip.family_id,
-      pet,
-      arrangement: arrangement || null,
-    });
-    if (sync.added || sync.removed || sync.restored)
-      await refetch("packing_items");
-    setPetNote(sync.message || sync.error || "");
-    setPetBusy(null);
-  }
-
-  function togglePet(chip, nowOn) {
-    // The chip only carries an id, a label and a color, so the real record has
-    // to be looked up here. Passing the chip straight through is the bug that
-    // once broke the roster packing sync.
-    const pet = pets.find((p) => p.id === chip?.id);
-    if (!pet) return;
-    setPetArrangement(pet, nowOn ? "coming" : null);
-  }
-
   async function saveTrip(values) {
     const { data, error } = await supabase
       .from("trips")
@@ -449,12 +339,6 @@ export default function TripView({
     .filter(Boolean);
   // Only the animals actually coming are offered on the packing form: a dog with
   // a sitter does not need a line on this trip's list.
-  // Which animals have anything on the packing list at all, so the set-aside
-  // wording only appears where there is something to set aside.
-  const petsWithLines = useMemo(
-    () => new Set(packing.map((p) => p.pet_id).filter(Boolean)),
-    [packing],
-  );
   const petsComing = petsOnTrip
     .filter(({ arrangement }) => isComing(arrangement))
     .map(({ pet }) => pet);
@@ -545,129 +429,20 @@ export default function TripView({
                 </p>
               )}
 
-              {people.length > 0 && (
-                <div className="mt-4">
-                  <p className="section-label">
-                    {past ? "Who went" : "Who is going"}
-                    {!readOnly && (
-                      <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
-                        — tap a name to change it
-                      </span>
-                    )}
-                  </p>
-                  <div className="mt-1.5">
-                    <MembershipChips
-                      items={people.map((p) => ({
-                        id: p.id,
-                        label: p.name,
-                        color: p.color,
-                      }))}
-                      activeIds={going}
-                      busyId={rosterBusy}
-                      onToggle={readOnly ? null : toggleTraveler}
-                    />
-                  </div>
-                  {rosterNote && (
-                    <p
-                      aria-live="polite"
-                      className="no-print mt-1.5 text-[0.82rem] text-ink-soft"
-                    >
-                      {rosterNote}
-                    </p>
-                  )}
-                  <p className="mt-1.5 hidden text-sm text-ink-soft print:block">
-                    {goingNames.length ? goingNames.join(", ") : "Nobody yet"}
-                  </p>
-                </div>
-              )}
-
-              {pets.length > 0 && (
-                <div className="mt-4">
-                  <p className="section-label">
-                    {past ? "Pets on this trip" : "Pets"}
-                    {!readOnly && (
-                      <span className="no-print ml-1.5 font-normal normal-case tracking-normal">
-                        — tap an animal to settle it for this trip, then say
-                        what is happening to it
-                      </span>
-                    )}
-                  </p>
-                  <div className="mt-1.5">
-                    <MembershipChips
-                      items={pets.map((p) => ({
-                        id: p.id,
-                        label: p.name,
-                        color: p.color,
-                      }))}
-                      activeIds={petLinks.map((l) => l.pet_id)}
-                      busyId={petBusy}
-                      onToggle={readOnly ? null : togglePet}
-                    />
-                  </div>
-                  {petLinks.length > 0 && (
-                    <div className="no-print mt-2 space-y-1.5">
-                      {petsOnTrip.map(({ pet, arrangement }) => (
-                        <div
-                          key={pet.id}
-                          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
-                        >
-                          <span className="font-semibold">{pet.name}</span>
-                          {readOnly ? (
-                            // What is happening to the animal is worth knowing
-                            // even for somebody who cannot decide it, so the
-                            // answer stays and only the menu goes.
-                            <span className="text-xs text-ink-soft">
-                              {arrangementLabel(arrangement)}
-                            </span>
-                          ) : (
-                            <select
-                              className="field w-auto py-1 text-xs"
-                              value={arrangement}
-                              disabled={petBusy === pet.id}
-                              onChange={(e) =>
-                                setPetArrangement(pet, e.target.value)
-                              }
-                              aria-label={`What happens to ${pet.name} on this trip`}
-                            >
-                              {ARRANGEMENTS.map((a) => (
-                                <option key={a.id} value={a.id}>
-                                  {a.label}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                          {!isComing(arrangement) && (
-                            <span className="text-xs text-ink-soft">
-                              not traveling
-                              {petsWithLines.has(pet.id)
-                                ? " — their things are set aside, not deleted"
-                                : ""}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {petNote && (
-                    <p
-                      aria-live="polite"
-                      className="no-print mt-1.5 text-[0.82rem] text-ink-soft"
-                    >
-                      {petNote}
-                    </p>
-                  )}
-                  <p className="mt-1.5 hidden text-sm text-ink-soft print:block">
-                    {petsOnTrip.length
-                      ? petsOnTrip
-                          .map(
-                            ({ pet, arrangement }) =>
-                              `${pet.name} — ${arrangementLabel(arrangement)}`,
-                          )
-                          .join(", ")
-                      : "No pets on this trip"}
-                  </p>
-                </div>
-              )}
+              <TripRoster
+                className="mt-4"
+                trip={info}
+                people={people}
+                pets={pets}
+                going={going}
+                onGoingChange={setGoing}
+                petLinks={petLinks}
+                onPetLinksChange={setPetLinks}
+                packing={packing}
+                readOnly={readOnly}
+                past={past}
+                onPackingChanged={() => refetch("packing_items")}
+              />
             </div>
             <dl className="grid grid-cols-3 gap-3 text-center sm:gap-4">
               {stats.map((s) => (
