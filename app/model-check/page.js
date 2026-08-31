@@ -43,11 +43,21 @@ function Refusal({ r }) {
 // One model's verdict. Green when it answered, amber when it is out of quota for
 // now, rose when it is not answering at all -- because "come back tomorrow" and
 // "take it out of the ladder" are different instructions.
+// Google's words for a model that is over capacity rather than broken. Kept in
+// step with HIGH_DEMAND in lib/agent/providers/gemini.js, which is what decides
+// to move on rather than ask a busy model twice more.
+const BUSY = /high demand|over ?capacity|overloaded|try again later/i;
+
 function ModelRow({ r, onPatient, patient, busy }) {
   const quota = r.status === 429;
+  const overCapacity = !r.ok && r.status >= 500 && BUSY.test(r.message || "");
+  // Amber for anything that comes back on its own, rose for anything that needs
+  // somebody to do something. Painting a busy model the same colour as a broken
+  // one is how gemini-3.7-flash got shelved for a fortnight.
+  const temporary = quota || overCapacity;
   const tone = r.ok
     ? "border-teal/40 bg-teal/5"
-    : quota
+    : temporary
       ? "border-amber/40 bg-amber/5"
       : "border-rose/30 bg-rose/5";
   const verdict = r.skipped
@@ -58,7 +68,9 @@ function ModelRow({ r, onPatient, patient, busy }) {
         ? `Out of allowance${r.quotaMetric ? ` (${r.quotaMetric})` : ""}${
             r.retryMs ? `, asks for ${Math.round(r.retryMs / 1000)}s` : ""
           } — this one comes back on its own`
-        : `Failed (${r.status ?? "—"}) after ${r.ms ?? 0} ms`;
+        : overCapacity
+          ? `Over capacity right now (${r.status}) — nothing wrong with the model or the key, and nothing to fix. Aly passes it over and asks the next one.`
+          : `Failed (${r.status ?? "—"}) after ${r.ms ?? 0} ms`;
   return (
     <div className={`mt-2 rounded-lg border p-3 ${tone}`}>
       <div className="flex flex-wrap items-baseline gap-2">
@@ -78,7 +90,7 @@ function ModelRow({ r, onPatient, patient, busy }) {
           Google's answer. Saying so, and offering to wait properly, is the
           difference between "this model is dead" and "this model is slow" -- and
           gemini-3.7-flash was shelved on that exact confusion. */}
-      {r.status === 504 && !r.skipped ? (
+      {r.status === 504 && !r.skipped && !overCapacity ? (
         <>
           <p className="mt-2 text-xs text-ink-soft">
             That is this page giving up, not Google refusing. All it proves is
@@ -120,6 +132,16 @@ function ModelRow({ r, onPatient, patient, busy }) {
               It answers, and quickly enough for the chat panel. It can go back
               into the ladder — set GEMINI_MODELS in Vercel to the models you
               want, in order, with this one where you want it.
+            </p>
+          ) : BUSY.test(patient.message || "") ? (
+            <p className="mt-2 text-xs text-ink">
+              Busy, not broken. Nothing is wrong with the model, the key or the
+              app, and there is nothing to change — Google is turning requests
+              away because too many people are asking this particular model at
+              once. Aly gives it one more go, in case it was a brief spike, and
+              then passes it over and asks the next model — which is why answers
+              still arrive. Worth checking again in a few hours before deciding
+              anything about the ladder.
             </p>
           ) : null}
         </div>
