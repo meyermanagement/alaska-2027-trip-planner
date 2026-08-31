@@ -22,7 +22,12 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { mergePlaces, splitPlaceCalls } from "@/lib/places/cards";
-import { needsWords, writeTheWords } from "@/lib/places/rollcall";
+import {
+  needsCards,
+  needsWords,
+  showThePlaces,
+  writeTheWords,
+} from "@/lib/places/rollcall";
 import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
   ANSWERING_TOOLS,
@@ -485,6 +490,47 @@ export async function POST(request) {
       }
     } catch {
       // The cards still stand, and so does the thin line above them.
+    }
+  }
+
+  // The same failure the other way round: real recommendations, written out in
+  // the reply as a bold list, and nothing underneath to tap. Her words were fine;
+  // what went missing was the photograph, the price, the map, the link and the
+  // Add to itinerary button on each place. One more turn with show_places as the
+  // only tool she is given, and her words left exactly as they are.
+  if (
+    needsCards(said, result.text, shortlistAll) &&
+    // Nothing proposed. A change she has just carried out reads like a
+    // recommendation -- it names the place, the day and the time -- and cards for
+    // somewhere they have already asked to add are noise sitting under a receipt.
+    !changeCalls.length &&
+    clock(EXTRA_TURN_MS)
+  ) {
+    const cardsBy = clock(EXTRA_TURN_MS);
+    try {
+      const carded = await generate({
+        system: [system, showThePlaces(said, result.text)].join("\n\n"),
+        messages,
+        tools: tools.filter((tool) => tool.name === "show_places"),
+        // The places are already named in the answer above. This turn is putting
+        // them on cards, not researching them again.
+        grounded: false,
+        deadline: cardsBy,
+      });
+      const { places: named } = splitPlaceCalls(carded?.calls || []);
+      if (named.length) {
+        shortlistAll = mergePlaces(shortlistAll, named);
+        result = {
+          ...result,
+          // Her answer stands. Anything she wrote on this turn is a second copy
+          // of what they have already read, so it is dropped.
+          sources: (result.sources || []).concat(carded.sources || []),
+          refusals: (result.refusals || []).concat(carded.refusals || []),
+        };
+      }
+    } catch {
+      // The answer stands without them. They have the names and have to add
+      // them by hand, which is what happened before this existed.
     }
   }
 
