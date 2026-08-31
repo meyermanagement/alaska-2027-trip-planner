@@ -9,7 +9,11 @@ import {
   NEW_TRIP_FOCUS,
   LOG_TRIP_FOCUS,
 } from "@/lib/agent/context";
-import { validateAction, pendingTripNames } from "@/lib/agent/tools";
+import {
+  validateAction,
+  pendingTripNames,
+  pendingTemplateNames,
+} from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
 import { resolveAccess } from "@/lib/travelers/access";
 import {
@@ -549,6 +553,7 @@ export async function POST(request) {
   // A trip being created in this same turn has no id yet, so the itinerary and
   // packing rows that came with it are filed against its name instead.
   const pendingTrips = pendingTripNames(changeCalls);
+  const pendingTemplates = pendingTemplateNames(changeCalls);
   for (const call of changeCalls) {
     const { action, error } = validateAction(call, {
       travelerNames: ctx.travelerNames,
@@ -556,6 +561,7 @@ export async function POST(request) {
       known: ctx.known,
       focusTripId: ctx.focusTripId,
       pendingTrips,
+      pendingTemplates,
       newTripDraft: focus === NEW_TRIP_FOCUS,
       loggedTrip: focus === LOG_TRIP_FOCUS,
     });

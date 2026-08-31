@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   validateAction,
   pendingTripNames,
+  pendingTemplateNames,
   FAMILY_TABLES,
   EDIT_TOOLS,
   REVIEW_TOOLS,
@@ -327,12 +328,23 @@ export async function POST(request) {
   // Names of trips this batch is about to create, so their contents validate
   // against a trip that does not have an id yet.
   const pendingTrips = pendingTripNames(ordered);
+  // Same for the packing templates this batch starts: create_template is ranked
+  // first above, so by the time an item is written its list exists -- but the
+  // revalidation happens before that, and has to accept the name meanwhile.
+  const pendingTemplates = pendingTemplateNames(ordered);
 
   for (const raw of ordered) {
     // Revalidate from scratch rather than trusting the client's patch.
     const { action, error } = validateAction(
       { name: raw?.tool, args: { ...(raw?.patch || {}), id: raw?.id } },
-      { travelerNames, travelerIds, known, focusTripId: tripId, pendingTrips },
+      {
+        travelerNames,
+        travelerIds,
+        known,
+        focusTripId: tripId,
+        pendingTrips,
+        pendingTemplates,
+      },
     );
 
     if (!action) {
@@ -359,6 +371,17 @@ export async function POST(request) {
         ok: false,
         summary: action.summary,
         error: `Approve the new trip “${action.needsTrip}” first, then this will save into it.`,
+      });
+      continue;
+    }
+
+    // The same for its packing template. Reachable only when the list was left
+    // out of this batch, since create_template is applied before its contents.
+    if (action.needsTemplate) {
+      results.push({
+        ok: false,
+        summary: action.summary,
+        error: `Approve the new packing template “${action.needsTemplate}” first, then this will save onto it.`,
       });
       continue;
     }
@@ -407,6 +430,10 @@ export async function POST(request) {
             name: patch.name,
             is_base: false,
           });
+          // And it is no longer merely pending, so the items resolve to the real
+          // id rather than being handed straight back as needsTemplate.
+          const was = pendingTemplates.indexOf(patch.name);
+          if (was >= 0) pendingTemplates.splice(was, 1);
         }
         if (!outcome.error) {
           extra = outcome.copied
