@@ -19,6 +19,7 @@ import { applyPropagation } from "@/lib/packing/propagateRun";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 import { REFUSAL, SECONDARY, resolveAccess } from "@/lib/travelers/access";
 import { tripPath, tripRef, freeTripSlug } from "@/lib/trips/route";
+import { BASIC_IDS } from "@/lib/trips/basics";
 
 export const runtime = "nodejs";
 // Writing eighty rows one at a time can outlast the default budget, and a
@@ -402,6 +403,7 @@ export async function POST(request) {
           id,
           patch,
           familyId,
+          userId: user.id,
         });
         dbError = outcome.error;
         if (outcome.slug) createdSlug = outcome.slug;
@@ -942,7 +944,7 @@ async function rollback(supabase, id, error) {
   return { copied: 0, error };
 }
 
-async function writeTrip({ supabase, tool, id, patch, familyId }) {
+async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
   if (tool === "delete_trip") {
     const { error } = await supabase.from("trips").delete().eq("id", id);
     return { error };
@@ -955,8 +957,46 @@ async function writeTrip({ supabase, tool, id, patch, familyId }) {
     // old link. So this is now cosmetic, which is exactly what it should be.
     if (row.name)
       row.slug = await freeTripSlug(supabase, familyId, row.name, id);
+
+    // What the six said before this change, read before the write rather than
+    // after it, because after it there is nothing left to read. Only the six:
+    // a rename or a new emoji is not one of the things a trip is made of.
+    const touched = BASIC_IDS.filter(
+      (b) => b !== "where" && b !== "when" && row[b] !== undefined,
+    );
+    let before = null;
+    if (touched.length) {
+      const { data } = await supabase
+        .from("trips")
+        .select(touched.join(", "))
+        .eq("id", id)
+        .maybeSingle();
+      before = data || null;
+    }
+
     const { error } = await supabase.from("trips").update(row).eq("id", id);
-    return { error };
+    if (error) return { error };
+
+    // The old answer, kept. A text column remembers only its latest value, and
+    // "one apartment in Lisbon, we do not want to move" is worth reading back
+    // after two hotels in two regions have overtaken it -- it says something
+    // true about the family that the hotels do not.
+    //
+    // Written after the update and never allowed to fail the change: a history
+    // row that could break a trip edit would be a worse feature than no history.
+    if (before) {
+      const rows = touched
+        .filter((b) => String(before[b] ?? "") !== String(row[b] ?? ""))
+        .map((b) => ({
+          trip_id: id,
+          basic: b,
+          previous_value: before[b] ?? null,
+          new_value: row[b] ?? null,
+          changed_by: userId || null,
+        }));
+      if (rows.length) await supabase.from("trip_basic_history").insert(rows);
+    }
+    return { error: null };
   }
 
   // create_trip

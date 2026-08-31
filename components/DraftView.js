@@ -15,6 +15,7 @@ import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import AskAlyDrawer from "./AskAlyDrawer";
 import PromoteDraft from "./PromoteDraft";
 import TripRoster from "./TripRoster";
+import BasicAnswer from "./BasicAnswer";
 
 /**
  * A draft, shown as the thing it actually is.
@@ -44,6 +45,7 @@ export default function DraftView({
   going: initialGoing = [],
   pets = [],
   petLinks: initialPetLinks = [],
+  basicHistory = [],
   readOnly = false,
   today,
 }) {
@@ -245,9 +247,17 @@ export default function DraftView({
                     {basic.label}
                   </p>
                   {answered ? (
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink">
-                      {value}
-                    </p>
+                    <div className="mt-1.5">
+                      <BasicAnswer
+                        trip={trip}
+                        basic={basic.id}
+                        label={basic.label}
+                        value={value}
+                        itinerary={itinerary}
+                        history={basicHistory}
+                        onAsk={readOnly ? null : ask}
+                      />
+                    </div>
                   ) : (
                     <>
                       <p className="mt-1.5 text-sm font-semibold leading-snug text-ink">

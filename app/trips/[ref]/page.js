@@ -119,6 +119,7 @@ export default async function TripPage({ params, searchParams }) {
     tripTemplates,
     pets,
     petLinks,
+    basicHistory,
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -209,6 +210,16 @@ export default async function TripPage({ params, searchParams }) {
       .from("trip_pets")
       .select("pet_id, arrangement")
       .eq("trip_id", trip.id),
+    // Every change to one of the six things a trip is made of. A text column
+    // remembers only its latest value, and the answer it replaced is often the
+    // more interesting one: "one apartment in Lisbon, we do not want to move"
+    // says something the two hotels that overtook it do not.
+    supabase
+      .from("trip_basic_history")
+      .select("id, basic, previous_value, new_value, created_at")
+      .eq("trip_id", trip.id)
+      .order("created_at", { ascending: false })
+      .limit(40),
   ]);
 
   // A draft gets its own screen. The trip screen below is built to answer "what
@@ -235,6 +246,7 @@ export default async function TripPage({ params, searchParams }) {
           going={(roster.data || []).map((r) => r.traveler_id)}
           pets={pets.data || []}
           petLinks={petLinks.data || []}
+          basicHistory={basicHistory.data || []}
           readOnly={access?.can?.isSecondary === true}
           today={todayISO()}
         />
