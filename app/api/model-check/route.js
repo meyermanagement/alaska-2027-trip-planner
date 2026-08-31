@@ -19,7 +19,14 @@ export const dynamic = "force-dynamic";
 // Without these two lines the check is cut off at ten seconds and the page never
 // loads at all - which is a poor way to diagnose a timeout.
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Sixty covered the two search probes. The model-by-model roll call is asked for
+// on top of those, one name at a time so a per-minute burst limit cannot be
+// mistaken for a broken model.
+export const maxDuration = 120;
+
+// The whole check, and what each single-model question is given out of it.
+const ROLL_CALL_MS = 55000;
+const ONE_MODEL_MS = 14000;
 
 // A question no model can answer from memory. Naming a restaurant was a poor
 // probe: Gemini knew one, answered in two seconds, searched nothing, and the check
@@ -116,6 +123,43 @@ export async function GET() {
   const withSearch = await probe({ grounded: true });
   const withoutSearch = await probe({ grounded: false });
 
+  // Every model by name, in order, including the ones that are not in the ladder.
+  // "Why did gemini-3.6-flash fail and the small one answer?" has no answer in
+  // the logs when the failure was not a quota refusal, and until 31 August only
+  // quota refusals were written down. This asks each one directly instead.
+  const rollCall = [];
+  const rollCallBy = Date.now() + ROLL_CALL_MS;
+  for (const { model, inLadder } of gemini.candidateModels()) {
+    const left = rollCallBy - Date.now();
+    if (left < 6000) {
+      rollCall.push({
+        model,
+        inLadder,
+        skipped: "Ran out of time before this one was asked.",
+      });
+      continue;
+    }
+    const out = await gemini.tryModel({
+      model,
+      budgetMs: Math.min(ONE_MODEL_MS, left),
+      // The same shape a real request has -- one of our own function
+      // declarations -- because a model that handles plain text and falls over on
+      // tools is a model that fails in the app and passes here.
+      tools: [
+        {
+          name: "note_place",
+          description: "Write down a place worth eating at.",
+          parameters: {
+            type: "object",
+            properties: { name: { type: "string" } },
+            required: ["name"],
+          },
+        },
+      ],
+    });
+    rollCall.push({ ...out, inLadder });
+  }
+
   // Same record the chat route writes, so a check run at midnight is still
   // readable in the morning.
   for (const [label, result] of [
@@ -169,6 +213,7 @@ export async function GET() {
       models: gemini.modelList(),
       withSearch,
       withoutSearch,
+      rollCall,
       checkedAt: new Date().toISOString(),
     },
     { headers: { "content-type": "application/json; charset=utf-8" } },

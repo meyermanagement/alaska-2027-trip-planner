@@ -37,6 +37,43 @@ function Refusal({ r }) {
   );
 }
 
+// One model's verdict. Green when it answered, amber when it is out of quota for
+// now, rose when it is not answering at all -- because "come back tomorrow" and
+// "take it out of the ladder" are different instructions.
+function ModelRow({ r }) {
+  const quota = r.status === 429;
+  const tone = r.ok
+    ? "border-teal/40 bg-teal/5"
+    : quota
+      ? "border-amber/40 bg-amber/5"
+      : "border-rose/30 bg-rose/5";
+  const verdict = r.skipped
+    ? r.skipped
+    : r.ok
+      ? `Answered in ${r.ms} ms${r.called?.length ? ` by calling ${r.called.join(", ")}` : r.said ? `: “${r.said}”` : ""}`
+      : quota
+        ? `Out of allowance${r.quotaMetric ? ` (${r.quotaMetric})` : ""}${
+            r.retryMs ? `, asks for ${Math.round(r.retryMs / 1000)}s` : ""
+          } — this one comes back on its own`
+        : `Failed (${r.status ?? "—"}) after ${r.ms ?? 0} ms`;
+  return (
+    <div className={`mt-2 rounded-lg border p-3 ${tone}`}>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="font-medium text-ink">{r.model}</span>
+        <span className="text-xs text-ink-faint">
+          {r.inLadder ? "in the ladder" : "not in the ladder"}
+        </span>
+      </div>
+      {/* The allowance Google names is one unbroken 68-character word, and on a
+          320px phone it carried the card off the side of the screen. */}
+      <p className="mt-1 break-words text-sm text-ink-soft">{verdict}</p>
+      {r.message ? (
+        <p className="mt-1 break-words text-xs text-ink-faint">{r.message}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ModelCheckPage() {
   const [state, setState] = useState("idle");
   const [out, setOut] = useState(null);
@@ -75,8 +112,10 @@ export default function ModelCheckPage() {
       </h1>
       <p className="mt-2 text-sm text-ink-soft">
         This asks Google two of the smallest questions it can — one with search
-        attached, one without — using the key this deployment actually has, and
-        shows you what came back. It takes up to half a minute.
+        attached, one without — then asks every model in the ladder, and the
+        shelved ones, the same small question by name. It uses the key this
+        deployment actually has and shows you what came back, verbatim. It takes
+        up to a minute and a half.
       </p>
 
       <button
@@ -169,6 +208,23 @@ export default function ModelCheckPage() {
               <Refusal key={i} r={r} />
             ))}
           </section>
+
+          {out.rollCall?.length ? (
+            <section className="mt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-faint">
+                Each model, asked by name
+              </h2>
+              <p className="mt-1 text-sm text-ink-soft">
+                One small question each, with a function declaration attached so
+                it is the same shape a real request has. The ones marked “not in
+                the ladder” are shelved names being re-checked — if one of them
+                answers, it can go back in.
+              </p>
+              {out.rollCall.map((r, i) => (
+                <ModelRow key={i} r={r} />
+              ))}
+            </section>
+          ) : null}
 
           <section className="mt-6">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-faint">

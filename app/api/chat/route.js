@@ -471,6 +471,11 @@ export async function POST(request) {
         // of a request that has already spent most of its allowance.
         grounded: false,
         deadline: betterBy,
+        // Not the model that just read the names out. This retry existed before
+        // and kept failing: the same model, the same question, the same
+        // temperature, and so the same roll call a second time. Asking a
+        // different one is the difference between a retry and a repeat.
+        avoid: result.model ? [result.model] : [],
       });
       // Only if the second try is actually an answer. A model that comes back
       // with the same roll call, or with nothing, leaves the first reply alone:
