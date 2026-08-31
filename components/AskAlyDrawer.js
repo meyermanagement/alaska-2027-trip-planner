@@ -61,8 +61,14 @@ export default function AskAlyDrawer({
    * whoever is asking, so two people on the same trip keep two conversations and
    * neither can reach the other's.
    *
-   * Building a trip from nothing is the exception and starts fresh -- the second
-   * trip idea has no business arriving in the middle of the first.
+   * Two openings do not resume. Building a trip from nothing starts fresh: the
+   * second trip idea has no business arriving in the middle of the first. And
+   * pressing Ask Aly with no trip in play -- from Home, or the trips list --
+   * lands on the list of conversations, because there the question is which
+   * conversation, and an index of them is a better answer than the last one.
+   * Somebody who arrives with a question already typed is past that point, so a
+   * seeded opening with no trip resumes the general thread rather than showing
+   * them a list they did not ask for.
    */
   const openWith = useCallback(
     async (opening) => {
@@ -70,6 +76,11 @@ export default function AskAlyDrawer({
       setOpen(true);
       if (wanted === "new_trip" || wanted === "log_trip") {
         setCurrent({ id: null, title: null, tripName: trip?.name });
+        return;
+      }
+      // Home: the list, as it was. `current` null is what draws it.
+      if (!trip?.id && !opening?.seeded) {
+        setCurrent(null);
         return;
       }
       setResuming(true);
@@ -128,7 +139,7 @@ export default function AskAlyDrawer({
       // Either way this goes to the conversation about this trip: somebody who
       // has already typed their question does not want a list, and somebody who
       // pressed the button plainly does not want to start over.
-      openWith({ focus: detail.focus });
+      openWith({ focus: detail.focus, seeded: Boolean(detail.seed) });
     };
     window.addEventListener(ASK_ALY_EVENT, onAsk);
     return () => window.removeEventListener(ASK_ALY_EVENT, onAsk);
