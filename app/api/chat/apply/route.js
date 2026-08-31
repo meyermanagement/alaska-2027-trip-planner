@@ -66,6 +66,7 @@ const LANDING_PATH = {
   update_rewards_program: ["/wallet", "the Wallet"],
   delete_rewards_program: ["/wallet", "the Wallet"],
   create_template: ["/packing", "the packing templates"],
+  rename_template: ["/packing", "the packing templates"],
   add_template_item: ["/packing", "the packing templates"],
   update_template_item: ["/packing", "the packing templates"],
   delete_template_item: ["/packing", "the packing templates"],
@@ -659,7 +660,11 @@ export async function POST(request) {
       } else if (tool.startsWith("delete_")) {
         const { error: e } = await supabase.from(table).delete().eq("id", id);
         dbError = e;
-      } else if (tool.startsWith("update_")) {
+        // rename_template is named for what it does rather than for the branch it
+        // needs, and the fall-through below is an INSERT: without it here, a
+        // rename would have quietly created a second list under the new name and
+        // left the first one where it was. The one thing a rename must never do.
+      } else if (tool.startsWith("update_") || tool === "rename_template") {
         const row = { ...patch };
         if (table === "packing_items" && row.is_packed !== undefined) {
           row.packed_by = row.is_packed ? user.id : null;
