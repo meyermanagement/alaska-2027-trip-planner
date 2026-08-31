@@ -271,15 +271,21 @@ export async function POST(request) {
     const room = Math.min(want, spare());
     return room >= MIN_TURN_MS ? Date.now() + room : null;
   };
+  // How much of the request went on building the trip's context before a model
+  // was asked anything. It comes out of the same allowance as the answer, so a
+  // slow context makes a fast model look like a slow one.
+  const beforeMs = askedAt - startedAt;
+  const firstBy =
+    clock(lookUp ? GROUNDED_TURN_MS : PLAIN_TURN_MS) ||
+    Date.now() + MIN_TURN_MS;
+  const gaveMs = firstBy - Date.now();
   try {
     result = await generate({
       system,
       messages,
       tools,
       grounded: lookUp,
-      deadline:
-        clock(lookUp ? GROUNDED_TURN_MS : PLAIN_TURN_MS) ||
-        Date.now() + MIN_TURN_MS,
+      deadline: firstBy,
     });
   } catch (first) {
     failed = first;
@@ -314,6 +320,7 @@ export async function POST(request) {
       wantedSearch: lookUp,
       searched: false,
       refusals: err?.refusals,
+      turn: { gaveMs, beforeMs, grounded: lookUp },
     });
     return NextResponse.json(
       {
@@ -626,6 +633,7 @@ export async function POST(request) {
       wantedSearch: lookUp,
       searched: result.searched,
       refusals,
+      turn: { gaveMs, beforeMs, grounded: lookUp },
     });
   }
   if (lookUp && !result.searched && reply && !isClarifying(reply)) {
