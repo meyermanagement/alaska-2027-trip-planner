@@ -468,10 +468,16 @@ export async function POST(request) {
   // She called the tool and said nothing, which is common when the tool call was
   // the whole answer. The waiting sentence has to come from somewhere.
   if (look && !reply) reply = lookLine(look);
+  // Nothing at all: no words, no change, no shortlist, and no complaint to pass
+  // on. This used to say "I am not sure how to help with that yet.", which reads
+  // as a limit of the app and blames the question. It is not either of those --
+  // reaching this line means something upstream came back empty, and the honest
+  // thing is to say so and let them press again, which now usually works because
+  // the ladder no longer accepts silence as an answer.
   if (!reply && actions.length === 0 && places.length === 0) {
     reply = problems.length
       ? Array.from(new Set(problems)).join(" ")
-      : "I am not sure how to help with that yet.";
+      : "Something went wrong at my end and I lost that one. Ask me again.";
   }
 
   // What Aly proposed matters as much as what she said, so the transcript keeps
