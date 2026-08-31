@@ -8,7 +8,12 @@
 // what they want - and Aly proposes the change the same way she would if they had
 // typed it. One path for every change, and the confirmation card still appears.
 
-import { KIND_LABELS, addRequest, moreRequest } from "@/lib/places/cards";
+import {
+  KIND_LABELS,
+  addRequest,
+  groupPlaces,
+  moreRequest,
+} from "@/lib/places/cards";
 import { directionsLink } from "@/lib/places/here";
 
 // A bare number in brackets is ambiguous - it could be a price or a distance -
@@ -53,9 +58,12 @@ function Card({ place, onAdd, onMore, busy, here }) {
 
       <div className="flex flex-1 flex-col p-3">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="text-sm font-semibold leading-snug text-ink">
+          {/* Under the list's own heading, so a screen reader reads "Most
+              popular" and then the places on it rather than nine things at the
+              same level. */}
+          <h5 className="text-sm font-semibold leading-snug text-ink">
             {place.name}
-          </h4>
+          </h5>
           <span className="shrink-0 rounded-full bg-sand px-2 py-0.5 text-[11px] font-medium text-ink-soft">
             {label}
           </span>
@@ -169,19 +177,45 @@ export default function PlaceCards({
   here = null,
 }) {
   if (!Array.isArray(places) || !places.length) return null;
+  // Two lists when there are two lists to show, and one when there is not. The
+  // grouping is decided in one place so the heading can never appear over a
+  // shortlist that was never split.
+  const sections = groupPlaces(places);
+  const split = sections.length > 1;
   return (
-    <ul className="mt-2 grid gap-2 sm:grid-cols-2">
-      {places.map((place, i) => (
-        <Card
-          key={`${place.name}-${i}`}
-          place={place}
-          onAdd={onAdd}
-          onMore={onMore}
-          busy={busy}
-          here={here}
-        />
+    <div className="mt-2">
+      {sections.map((section, s) => (
+        <section
+          key={section.group || `loose-${s}`}
+          className={s ? "mt-4" : ""}
+        >
+          {split && section.label ? (
+            <div className="mb-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                {section.label}
+              </h4>
+              {section.note ? (
+                <p className="mt-0.5 text-[11px] leading-snug text-ink-faint">
+                  {section.note}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {section.places.map((place, i) => (
+              <Card
+                key={`${place.name}-${i}`}
+                place={place}
+                onAdd={onAdd}
+                onMore={onMore}
+                busy={busy}
+                here={here}
+              />
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }
 
