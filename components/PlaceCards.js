@@ -15,6 +15,7 @@ import {
   moreRequest,
 } from "@/lib/places/cards";
 import { directionsLink } from "@/lib/places/here";
+import { missingNightly, nightlyLine } from "@/lib/places/stay";
 
 // A bare number in brackets is ambiguous - it could be a price or a distance -
 // so the count says what it counts. Grouped with commas, because 3140 reviews
@@ -41,6 +42,7 @@ function Stars({ rating, count }) {
 
 function Card({ place, onAdd, onMore, busy, here }) {
   const label = KIND_LABELS[place.kind] || KIND_LABELS.do;
+  const nightly = nightlyLine(place);
   // Only offered when they have said where they are: directions from nowhere is
   // just the map link with extra steps.
   const directions = here ? directionsLink(place, here) : null;
@@ -73,7 +75,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
             place by, so they belong together rather than stacked. */}
         <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs text-ink-soft">
           {place.area ? <span>{place.area}</span> : null}
-          {place.price ? (
+          {place.price && !nightly ? (
             <span className="whitespace-nowrap tabular-nums">
               {place.area ? <span aria-hidden="true">· </span> : null}
               {place.price}
@@ -81,7 +83,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
           ) : null}
           {place.rating ? (
             <span className="whitespace-nowrap">
-              {place.area || place.price ? (
+              {place.area || (place.price && !nightly) ? (
                 <span aria-hidden="true">· </span>
               ) : null}
               <Stars rating={place.rating} count={place.ratingCount} />
@@ -99,8 +101,43 @@ function Card({ place, onAdd, onMore, busy, here }) {
           ) : null}
         </p>
 
+        {/* What a night costs on their own dates, given a line of its own rather
+            than a place in the run of area-price-rating. It is the number the
+            decision turns on, and $$$$ never separated one hotel from another. */}
+        {nightly ? (
+          <p className="mt-1.5 text-xs font-semibold tabular-nums text-ink">
+            {nightly}
+          </p>
+        ) : missingNightly(place) ? (
+          <p className="mt-1.5 text-xs text-ink-faint">
+            No nightly average for these dates yet
+          </p>
+        ) : null}
+
         {place.why ? (
           <p className="mt-2 text-xs leading-relaxed text-ink">{place.why}</p>
+        ) : null}
+
+        {/* Only ever a program the family is actually in: the shortlist is checked
+            against their own rows before it reaches this component, and a perk
+            whose program is not theirs has already been removed. */}
+        {place.program ? (
+          <div className="mt-2 rounded-lg bg-glacier/40 px-2.5 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-teal">
+              Through your programs
+            </p>
+            <p className="mt-0.5 text-xs font-semibold leading-snug text-ink">
+              {place.program}
+            </p>
+            {place.perk ? (
+              <p className="mt-0.5 text-xs leading-relaxed text-ink">
+                {place.perk}
+              </p>
+            ) : null}
+            <p className="mt-0.5 text-[11px] leading-snug text-ink-soft">
+              Worth confirming when you book.
+            </p>
+          </div>
         ) : null}
 
         {place.address ? (

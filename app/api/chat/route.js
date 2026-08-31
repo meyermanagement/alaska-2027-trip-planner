@@ -26,6 +26,7 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { mergePlaces, splitPlaceCalls } from "@/lib/places/cards";
+import { withPrograms } from "@/lib/places/stay";
 import {
   needsCards,
   needsWords,
@@ -557,8 +558,15 @@ export async function POST(request) {
     }
   }
 
+  // A perk is only shown when it is theirs. A model asked about hotels will
+  // offer Hilton Honors breakfast to somebody with no Hilton account, and a perk
+  // that turns out not to exist is worse than none, because it was a reason to
+  // book. So every program named is checked against the family's own rows here,
+  // once, after the shortlist has finished being assembled.
   const places = withDistance(
-    await enrich(shortlistAll, { bias: bias(here) }),
+    await enrich(withPrograms(shortlistAll, ctx.rewards), {
+      bias: bias(here),
+    }),
     here,
   );
 
