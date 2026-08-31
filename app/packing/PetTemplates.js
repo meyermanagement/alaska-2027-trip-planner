@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import TripsUsing from "@/components/TripsUsing";
 import { speciesLabel } from "@/lib/pets/pets";
 import { assigneeColor } from "@/lib/format";
 
@@ -27,6 +28,12 @@ export default function PetTemplates({
   templates = [],
   items = [],
   people = [],
+  // { [petId]: [{ id, name, start_date, href, draft }] } -- the upcoming trips
+  // each animal is actually on. Keyed by the animal rather than by its list,
+  // because that is the rule: an animal's list applies whenever the animal comes,
+  // so a trip it is not on is a trip the list does not reach however the list is
+  // built.
+  tripsByPet = {},
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -196,6 +203,16 @@ export default function PetTemplates({
                 </button>
               )}
             </div>
+
+            {template && (
+              <div className="px-4 pt-3">
+                <TripsUsing
+                  className=""
+                  trips={tripsByPet[pet.id]}
+                  empty={`${pet.name} is not on any upcoming trip, so this list is not reaching one. Put ${pet.name} on a trip and the list follows.`}
+                />
+              </div>
+            )}
 
             {!template ? (
               <p className="px-4 py-3.5 text-sm text-ink-soft">

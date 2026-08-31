@@ -5,6 +5,10 @@ import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
+import { templateScope } from "@/lib/packing/propagate";
+import { loadPropagation } from "@/lib/packing/propagateRun";
+import { tripPath } from "@/lib/trips/route";
+import { isDraftTrip } from "@/lib/format";
 import Templates from "./Templates";
 import PetTemplates from "./PetTemplates";
 
@@ -82,6 +86,65 @@ export default async function PackingTemplatesPage() {
   const petTemplates = (templates || []).filter((t) => t.pet_id);
   const familyTemplates = (templates || []).filter((t) => !t.pet_id);
 
+  // Which upcoming trips each list actually reaches, worked out from the same
+  // rows and the same rule the push button uses -- a link here that disagreed
+  // with what the button then did would be worse than no link. Loaded after the
+  // templates because it is only used to decorate them, and a failure to read it
+  // should cost the links rather than the screen.
+  //
+  // An animal's list is a different rule and is worked out separately: it applies
+  // whenever the animal is coming, so its reach is the trip roster rather than
+  // anything about the list itself.
+  let tripsByTemplate = {};
+  let tripsByPet = {};
+  const link = (trip) => ({
+    id: trip.id,
+    name: trip.name,
+    start_date: trip.start_date || null,
+    // A draft has no Packing tab to land on -- its screen is the six things it is
+    // still missing -- so the link goes to the draft itself rather than to a tab
+    // that would be ignored.
+    href: tripPath(trip, isDraftTrip(trip) ? null : "packing"),
+    draft: isDraftTrip(trip),
+  });
+  try {
+    const loaded = await loadPropagation({ supabase, familyId });
+    const { byTemplate } = templateScope(loaded);
+    const tripById = new Map(loaded.trips.map((t) => [t.id, t]));
+    tripsByTemplate = Object.fromEntries(
+      Array.from(byTemplate.entries()).map(([templateId, tripIds]) => [
+        templateId,
+        tripIds
+          .map((id) => tripById.get(id))
+          .filter(Boolean)
+          .map((trip) => link(trip)),
+      ]),
+    );
+    if (loaded.trips.length && petTemplates.length) {
+      const { data: petLinks } = await supabase
+        .from("trip_pets")
+        .select("trip_id, pet_id")
+        .in(
+          "trip_id",
+          loaded.trips.map((t) => t.id),
+        );
+      const perPet = new Map();
+      for (const row of petLinks || []) {
+        if (!perPet.has(row.pet_id)) perPet.set(row.pet_id, []);
+        perPet.get(row.pet_id).push(row.trip_id);
+      }
+      tripsByPet = Object.fromEntries(
+        Array.from(perPet.entries()).map(([petId, tripIds]) => [
+          petId,
+          loaded.trips.filter((t) => tripIds.includes(t.id)).map(link),
+        ]),
+      );
+    }
+  } catch {
+    tripsByTemplate = {};
+    tripsByPet = {};
+  }
+
   return (
     <>
       <TopBar />
@@ -103,6 +166,7 @@ export default async function PackingTemplatesPage() {
             .map((t) => t.name)}
           templates={familyTemplates}
           items={items || []}
+          tripsByTemplate={tripsByTemplate}
         />
         <PetTemplates
           pets={pets || []}
@@ -113,6 +177,7 @@ export default async function PackingTemplatesPage() {
           people={(travelers || [])
             .filter((t) => t.is_person)
             .map((t) => t.name)}
+          tripsByPet={tripsByPet}
         />
       </main>
       <AskAlyGeneral focus={TEMPLATES_FOCUS} />

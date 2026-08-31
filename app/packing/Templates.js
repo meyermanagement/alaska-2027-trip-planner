@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
 import PropagatePanel from "@/components/PropagatePanel";
+import TripsUsing from "@/components/TripsUsing";
 
 const SHARED = "Shared";
 
@@ -31,7 +32,15 @@ const EMPTY_DRAFT = {
  * Anyone with items but no longer on the travelers list still gets a section, so
  * a name nobody uses any more can be corrected instead of being invisible.
  */
-export default function Templates({ travelers, templates, items }) {
+export default function Templates({
+  travelers,
+  templates,
+  items,
+  // { [templateId]: [{ id, name, start_date, href, draft }] } -- the upcoming
+  // trips each list reaches, worked out on the server by the same rule the push
+  // button uses.
+  tripsByTemplate = {},
+}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -350,6 +359,14 @@ export default function Templates({ travelers, templates, items }) {
         {template.description && (
           <p className="mt-1 text-sm text-ink-soft">{template.description}</p>
         )}
+        <TripsUsing
+          trips={tripsByTemplate[template.id]}
+          empty={
+            template.is_base
+              ? "You have no upcoming trips, so there is nothing for this list to reach yet. Every trip you create starts from it."
+              : "No upcoming trip uses this add-on. Say a trip is this kind of trip on its own Packing tab, and this list will start reaching it."
+          }
+        />
         {mine.length === 0 && (
           <p className="mt-2 text-sm text-ink-soft">
             {template.is_base
