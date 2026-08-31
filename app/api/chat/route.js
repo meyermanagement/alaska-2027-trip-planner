@@ -48,9 +48,41 @@ import {
 } from "@/lib/agent/thread";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Sixty seconds was the whole request, and one grounded question no longer fits
+// in it. Two questions in a row came back as "That took longer than I am allowed
+// to think" -- both of them the trip-wide kind, both of them searching the web,
+// and the one before them that did answer took 45.2 of the model's 46 seconds. It
+// was not a large paste, which is what that message blames, and there was nothing
+// to ask less of.
+export const maxDuration = 120;
+
+// One clock for the whole request, so every model turn is drawn from the same
+// allowance instead of each one assuming it has the full 46 seconds. Three turns
+// each helping themselves to 46 is how a route with a sixty-second limit gets cut
+// off mid-sentence with nothing written down.
+const ROUTE_BUDGET_MS = 105000;
+// Held back for the work after the model: finding photographs for the cards,
+// measuring distances, writing the answer down, and getting the response out.
+const RESERVE_MS = 14000;
+// A grounded question is a search and then an answer about what came back, and it
+// is the search that is slow.
+const GROUNDED_TURN_MS = 62000;
+const PLAIN_TURN_MS = 40000;
+// When the grounded attempt runs out of time, one more without the searching. An
+// answer from what she already knows, saying it did not get to look, beats an
+// apology with the question left hanging.
+const RESCUE_TURN_MS = 26000;
+// The turns that improve an answer she has already given -- her own notes, the
+// words above a proposal, the words above a shortlist. Worth having and never
+// worth the whole allowance.
+const EXTRA_TURN_MS = 34000;
+// Below this there is no point starting: a call that gets cut off mid-sentence
+// costs the same as one that was never made and produces less.
+const MIN_TURN_MS = 12000;
 
 export async function POST(request) {
+  // Where the request's own allowance starts. Read by every model turn below.
+  const startedAt = Date.now();
   let payload;
   try {
     payload = await request.json();
@@ -219,10 +251,52 @@ export async function POST(request) {
   }
 
   let result;
+  let failed = null;
   const askedAt = Date.now();
+  // What is left of the request's own allowance, once the work after the model is
+  // set aside. Every turn below asks this rather than assuming.
+  const spare = () => ROUTE_BUDGET_MS - (Date.now() - startedAt) - RESERVE_MS;
+  // The clock a turn should be given: what it wants, or what is left, whichever
+  // is less. Null when there is not enough left to be worth starting.
+  const clock = (want) => {
+    const room = Math.min(want, spare());
+    return room >= MIN_TURN_MS ? Date.now() + room : null;
+  };
   try {
-    result = await generate({ system, messages, tools, grounded: lookUp });
-  } catch (err) {
+    result = await generate({
+      system,
+      messages,
+      tools,
+      grounded: lookUp,
+      deadline:
+        clock(lookUp ? GROUNDED_TURN_MS : PLAIN_TURN_MS) ||
+        Date.now() + MIN_TURN_MS,
+    });
+  } catch (first) {
+    failed = first;
+    // Out of time on a question that was searching the web. The search is the
+    // slow half, so there is one more go without it: she answers from the trip
+    // and from what she knows, and the app adds the line saying she did not get
+    // to look, which it does for every unsearched answer already.
+    const rescueBy = first?.timedOut && lookUp ? clock(RESCUE_TURN_MS) : null;
+    if (rescueBy) {
+      try {
+        result = await generate({
+          system,
+          messages,
+          tools,
+          grounded: false,
+          deadline: rescueBy,
+        });
+        failed = null;
+      } catch {
+        // Keep the first failure. It is the one worth reporting: it says the
+        // time ran out, and it did.
+      }
+    }
+  }
+  if (failed) {
+    const err = failed;
     const status = err instanceof ModelError ? err.status : 502;
     // Why it failed, kept where it can be looked up tomorrow.
     await recordRefusals(supabase, {
@@ -236,9 +310,13 @@ export async function POST(request) {
       {
         error: err.timedOut
           ? // The provider says only that it ran out of time. What to do about it
-            // depends on what was asked, and in chat the thing that reliably runs
-            // long is a very large paste.
-            `${err.message} Ask for a little less at a time — and if you were pasting a long list, paste it in two halves.`
+            // depends on what was asked, and the old advice -- ask less, split
+            // your paste in half -- was wrong for the questions this actually
+            // happens on. Both of the ones that failed were one sentence about a
+            // whole trip, with the web being searched behind them, and there was
+            // nothing to ask less of. So say which half is slow and what a
+            // smaller version of the same question looks like.
+            `${err.message} Searching the web about a whole trip is the slow part. Ask me about one day, one town or one evening and I will get there — or ask me the same thing again and I will answer it from what I already know about the trip.`
           : err.message || "The assistant is unavailable right now.",
       },
       { status: status === 403 ? 500 : status },
@@ -250,7 +328,8 @@ export async function POST(request) {
   // an answer it cannot see is no use to it. Once only, and with the tool taken
   // away the second time, so a recall cannot become a loop.
   const { asked: recallAsk } = splitRecallCalls(result.calls);
-  if (recallAsk) {
+  if (recallAsk && clock(EXTRA_TURN_MS)) {
+    const extraBy = clock(EXTRA_TURN_MS);
     let found = [];
     try {
       const { data: store } = await supabase
@@ -284,6 +363,10 @@ export async function POST(request) {
         messages,
         tools: tools.filter((tool) => tool.name !== "recall_lessons"),
         grounded: lookUp,
+        // Drawn from the same allowance as everything else. When the first turn
+        // has already spent it, her notes go unread rather than the whole
+        // request being cut off with nothing written down.
+        deadline: extraBy,
       });
       // Only take the second answer if there is one: a reply that came back empty
       // would throw away a perfectly good first attempt.
@@ -320,7 +403,13 @@ export async function POST(request) {
   // twice, and with the shortlist tools left in because "where can we go from
   // Lisbon" is answered in cards.
   let shortlistAll = shortlist;
-  if (!result.text && changeCalls.length && asksSomething(said)) {
+  if (
+    !result.text &&
+    changeCalls.length &&
+    asksSomething(said) &&
+    clock(EXTRA_TURN_MS)
+  ) {
+    const wordsBy = clock(EXTRA_TURN_MS);
     try {
       const words = await generate({
         system: [system, answerAsWell(said)].join("\n\n"),
@@ -335,6 +424,7 @@ export async function POST(request) {
             !(shortlist.length && tool.name === "show_places"),
         ),
         grounded: lookUp,
+        deadline: wordsBy,
       });
       if (words?.text || (words?.calls || []).length) {
         const { places: more } = splitPlaceCalls(words.calls);
@@ -363,13 +453,19 @@ export async function POST(request) {
   // names. One more turn for the words alone, with show_places taken away so a
   // third listing is not available to her, and with every change tool still
   // withheld for the same reason as above.
-  if (needsWords(result.text, shortlistAll)) {
+  if (needsWords(result.text, shortlistAll) && clock(EXTRA_TURN_MS)) {
+    const betterBy = clock(EXTRA_TURN_MS);
     try {
       const better = await generate({
         system: [system, writeTheWords(said, shortlistAll)].join("\n\n"),
         messages,
         tools: tools.filter((tool) => tool.name === "offer_followups"),
-        grounded: lookUp,
+        // The words are the point of this turn and the searching is not: she is
+        // being asked to say something about a shortlist that is already on the
+        // screen. Taking the search away is what makes it affordable at the end
+        // of a request that has already spent most of its allowance.
+        grounded: false,
+        deadline: betterBy,
       });
       // Only if the second try is actually an answer. A model that comes back
       // with the same roll call, or with nothing, leaves the first reply alone:
