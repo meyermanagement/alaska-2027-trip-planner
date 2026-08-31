@@ -2,21 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ensurePetTemplate, renamePetTemplate } from "@/lib/pets/template";
-import {
-  formatDayYear,
-  formatRange,
-  isDraftTrip,
-  isPastTrip,
-} from "@/lib/format";
+import { formatDayYear, isPastTrip } from "@/lib/format";
 import {
   SPECIES,
   TRAVEL_STYLES,
-  arrangementLabel,
   cabinOutlook,
-  isComing,
   petAge,
   petWarnings,
   PET_SEXES,
@@ -25,7 +17,6 @@ import {
   travelStyleLabel,
   trimNumber,
 } from "@/lib/pets/pets";
-import { tripPath } from "@/lib/trips/route";
 
 const CHIP_COLORS = [
   "#b45309",
@@ -250,64 +241,6 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
               )}
 
               <PetFacts pet={pet} />
-
-              <div className="mt-4 border-t border-sand-deep pt-3">
-                <p className="section-label">Trips</p>
-                {(() => {
-                  // Read-only on purpose. Whether an animal is coming is a fact
-                  // about the trip, not about the animal, and deciding it here
-                  // meant scrolling every upcoming trip inside every pet's card
-                  // to answer a question you only ever ask while looking at one
-                  // trip. So this reports, and the trip screen decides.
-                  if (upcoming.length === 0)
-                    return (
-                      <p className="mt-1 text-sm text-ink-soft">
-                        Nothing coming up to decide about yet.
-                      </p>
-                    );
-                  const on = upcoming.filter((trip) =>
-                    links.some(
-                      (l) => l.pet_id === pet.id && l.trip_id === trip.id,
-                    ),
-                  );
-                  if (on.length === 0)
-                    return (
-                      <p className="mt-1 text-sm text-ink-soft">
-                        Not on any upcoming trip. Open a trip and say whether{" "}
-                        {pet.name} is coming.
-                      </p>
-                    );
-                  return (
-                    <ul className="mt-1 space-y-1">
-                      {on.map((trip) => {
-                        const link = links.find(
-                          (l) => l.pet_id === pet.id && l.trip_id === trip.id,
-                        );
-                        return (
-                          <li
-                            key={trip.id}
-                            className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm"
-                          >
-                            <Link
-                              href={tripPath(trip)}
-                              className="font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                            >
-                              {trip.name}
-                              {isDraftTrip(trip) ? " (draft)" : ""}
-                            </Link>
-                            <span className="text-xs text-ink-soft">
-                              {formatRange(trip.start_date, trip.end_date)}
-                            </span>
-                            <span className="chip border border-[var(--line)] bg-white text-xs text-ink-soft">
-                              {arrangementLabel(link?.arrangement)}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  );
-                })()}
-              </div>
 
               {editing === pet.id && (
                 <PetForm
