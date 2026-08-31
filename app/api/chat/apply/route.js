@@ -464,6 +464,40 @@ export async function POST(request) {
                 outcome.totals.trips === 1 ? "" : "s"
               }`
             : " — nothing to change, the upcoming trips already match";
+      } else if (tool === "set_trip_templates") {
+        // The list replaces what was there, so this is a delete and an insert
+        // rather than an add: taking the Disney list off a trip is how somebody
+        // corrects a wrong guess, and there is no other way to say it.
+        const ids = Array.isArray(patch.template_ids) ? patch.template_ids : [];
+        const del = await supabase
+          .from("trip_templates")
+          .delete()
+          .eq("trip_id", patch.trip_id);
+        dbError = del.error;
+        if (!dbError && ids.length) {
+          const ins = await supabase.from("trip_templates").insert(
+            ids.map((template_id) => ({
+              trip_id: patch.trip_id,
+              template_id,
+            })),
+          );
+          dbError = ins.error;
+        }
+        if (!dbError) {
+          // The stamp is what makes an empty list mean "none" rather than
+          // "nobody has said", which is the difference between honoring the
+          // answer and quietly guessing over it.
+          const stamped = await supabase
+            .from("trips")
+            .update({ templates_chosen_at: new Date().toISOString() })
+            .eq("id", patch.trip_id);
+          dbError = stamped.error;
+        }
+        if (!dbError) {
+          extra = ids.length
+            ? ""
+            : " — the base list only, which is now recorded as the answer rather than a gap";
+        }
       } else if (tool === "start_packing_list") {
         const outcome = await fillPackingFromBase({
           supabase,

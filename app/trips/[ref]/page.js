@@ -116,6 +116,7 @@ export default async function TripPage({ params, searchParams }) {
     facts,
     templates,
     templateItems,
+    tripTemplates,
     pets,
     petLinks,
   ] = await Promise.all([
@@ -174,7 +175,10 @@ export default async function TripPage({ params, searchParams }) {
     // the suitcase.
     supabase
       .from("packing_templates")
-      .select("id, name, is_base")
+      // pet_id, so the packing screen can leave an animal's own list out of the
+      // add-ons a trip is built from: whether the dog is coming is a roster
+      // question, not a question about what kind of trip this is.
+      .select("id, name, is_base, pet_id")
       .eq("family_id", trip.family_id)
       .order("is_base", { ascending: false })
       .order("name", { ascending: true }),
@@ -185,6 +189,13 @@ export default async function TripPage({ params, searchParams }) {
     supabase
       .from("packing_template_items")
       .select("template_id, item, assignee"),
+    // Which add-on lists this trip says it is built from. A trip can be several
+    // things at once -- an Alaska cruise is an Alaska trip and a cruise -- and
+    // the packing screen is where that gets corrected.
+    supabase
+      .from("trip_templates")
+      .select("template_id")
+      .eq("trip_id", trip.id),
     // The family's animals, and which of them are on this trip. Whether the dog
     // is coming is a fact about the trip, so it is decided here rather than
     // inside the dog's card on the Family tab.
@@ -248,6 +259,8 @@ export default async function TripPage({ params, searchParams }) {
         everLooked={Boolean(facts.data?.checked_at)}
         packingTemplates={templates.data || []}
         packingTemplateItems={templateItems.data || []}
+        tripTemplateIds={(tripTemplates.data || []).map((r) => r.template_id)}
+        templatesChosen={Boolean(trip.templates_chosen_at)}
         today={todayISO()}
         userId={user.id}
         userName={profile?.display_name || "Family member"}

@@ -34,6 +34,8 @@ export default function Packing({
   onChange,
   templates = [],
   templateItems: initialTemplateItems = [],
+  tripTemplateIds = [],
+  templatesChosen = false,
   tips = [],
   today,
   start = null,
@@ -58,6 +60,18 @@ export default function Packing({
   // bringing it" are two different facts, and the old shape could only hold one
   // of them by making the horse the owner of its own hay.
   const [newPetId, setNewPetId] = useState("");
+  // Which add-on lists this trip is built from. A trip is often several things
+  // at once -- an Alaska cruise is an Alaska trip and a cruise -- and until this
+  // could be said the app had to guess from the lines the list already carried,
+  // which cannot work for a trip that has no lines yet.
+  const [addOns, setAddOns] = useState(() => new Set(tripTemplateIds));
+  // Named for what it means rather than what it is: an empty set of add-ons is a
+  // real answer once somebody has given it, and different from nobody having
+  // been asked -- which is the only thing standing between "no add-ons" and the
+  // guess quietly putting them back.
+  const [everChosen, setEverChosen] = useState(templatesChosen);
+  const [savingAddOn, setSavingAddOn] = useState(null);
+  const [addOnNote, setAddOnNote] = useState("");
   const [editingId, setEditingId] = useState(null);
   // Sending the item being edited to a packing template. One pill per template,
   // pressed on and pressed off, because the old shape — a dropdown of templates
@@ -287,6 +301,55 @@ export default function Packing({
    * trip changes, and neither does any trip that already exists: a template is
    * only read when a new trip is built.
    */
+  /**
+   * Say which add-on lists this trip is built from.
+   *
+   * Written as a replacement rather than an add or a remove, because that is
+   * what it is: the row set is the answer, and taking one off is how a wrong
+   * guess gets corrected. The stamp on the trip is what makes "none" mean none.
+   */
+  async function toggleAddOn(template) {
+    if (readOnly || savingAddOn) return;
+    const on = addOns.has(template.id);
+    setSavingAddOn(template.id);
+    setAddOnNote("");
+    const { error } = on
+      ? await supabase
+          .from("trip_templates")
+          .delete()
+          .eq("trip_id", tripId)
+          .eq("template_id", template.id)
+      : await supabase
+          .from("trip_templates")
+          .insert({ trip_id: tripId, template_id: template.id });
+    if (error) {
+      setSavingAddOn(null);
+      setAddOnNote(`That did not save: ${error.message}`);
+      return;
+    }
+    const stamped = await supabase
+      .from("trips")
+      .update({ templates_chosen_at: new Date().toISOString() })
+      .eq("id", tripId);
+    setSavingAddOn(null);
+    if (stamped.error) {
+      setAddOnNote(`That did not save: ${stamped.error.message}`);
+      return;
+    }
+    setAddOns((prev) => {
+      const next = new Set(prev);
+      if (on) next.delete(template.id);
+      else next.add(template.id);
+      return next;
+    });
+    setEverChosen(true);
+    setAddOnNote(
+      on
+        ? `${template.name} no longer counts for this trip. Nothing was removed from the list below — this decides what a rebuilt list starts from and which template changes reach this trip.`
+        : `${template.name} counts for this trip now. Nothing was added to the list below yet: rebuild the list, or push the templates from the Packing templates tab, to bring its items in.`,
+    );
+  }
+
   async function toggleTemplate(chosen) {
     const name = editDraft.item.trim();
     if (!chosen || !name) return;
@@ -740,6 +803,13 @@ export default function Packing({
     );
   }
 
+  // The lists a trip can be built from on top of the base one. An animal's list
+  // is not one of these: whether the dog is coming is decided by the roster, not
+  // by what kind of trip this is.
+  const addOnTemplates = (templates || []).filter(
+    (t) => t && !t.is_base && !t.pet_id,
+  );
+
   const packed = items.filter((i) => i.is_packed).length;
   const pct = items.length ? Math.round((packed / items.length) * 100) : 0;
 
@@ -765,6 +835,56 @@ export default function Packing({
         emptyLooked="Nothing worth flagging about what to take at the moment. Packing tips only appear when there is something specific to say about where you are going, when, or what you have told the app you like."
         readOnly={readOnly}
       />
+      {/* What this trip counts as. Above the list because it decides what the
+          list would be built from, and because the question "why has the cruise
+          stuff not appeared" is asked here. */}
+      {addOnTemplates.length > 0 && (
+        <div className="no-print mb-4 rounded-[0.875rem] border border-[var(--line)] bg-sand/40 p-4">
+          <p className="text-sm font-semibold text-ink">
+            What this trip is built from
+          </p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Every trip starts from the base list. Add-ons stack, so a trip can
+            be more than one thing — an Alaska cruise is both.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {addOnTemplates.map((t) => {
+              const on = addOns.has(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => toggleAddOn(t)}
+                  disabled={readOnly || Boolean(savingAddOn)}
+                  aria-pressed={on}
+                  className={`chip border text-left ${
+                    on
+                      ? "border-teal/40 bg-teal/10 font-semibold text-teal"
+                      : "border-[var(--line)] bg-white text-ink-soft"
+                  } ${readOnly ? "cursor-default" : ""} ${
+                    savingAddOn === t.id ? "opacity-60" : ""
+                  }`}
+                >
+                  {on ? "✓ " : ""}
+                  {t.name}
+                </button>
+              );
+            })}
+          </div>
+          {!everChosen && (
+            <p className="mt-3 text-xs text-ink-soft">
+              Nobody has said yet, so the app is guessing from what this list
+              already carries. Tap the ones that apply — or tap one on and off
+              again to record that none of them do.
+            </p>
+          )}
+          {addOnNote && (
+            <p className="mt-2 text-xs font-semibold text-ink-soft">
+              {addOnNote}
+            </p>
+          )}
+        </div>
+      )}
       {stranded.length > 0 && (
         <div
           // Not .card: that class sets a white background later in the sheet than

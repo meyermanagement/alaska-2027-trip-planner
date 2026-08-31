@@ -738,6 +738,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     pets,
     tripPets,
     insights,
+    tripTemplates,
   ] = await Promise.all([
     supabase.from("trips").select("*").order("start_date", { ascending: true }),
     supabase
@@ -819,6 +820,10 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
       .select(
         "item_id, trip_id, fingerprint, dress_code, arrive_minutes, arrive_why, heads_up, bring",
       ),
+    // Which add-on packing lists each trip says it is built from. Loaded so Aly
+    // can see what a trip already claims to be before she proposes a change to
+    // it, and so she does not offer to add a list a trip is already using.
+    supabase.from("trip_templates").select("trip_id, template_id"),
   ]);
 
   return buildContext({
@@ -836,6 +841,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     rewards: rewards.data || [],
     templates: templates.data || [],
     templateItems: templateItems.data || [],
+    tripTemplates: tripTemplates.data || [],
     lessons: lessons.data || [],
     pets: pets.data || [],
     tripPets: tripPets.data || [],

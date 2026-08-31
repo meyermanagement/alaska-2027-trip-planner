@@ -110,6 +110,8 @@ export default function TripView({
   tips = [],
   everLooked = false,
   packingTemplates = [],
+  tripTemplateIds = [],
+  templatesChosen = false,
   packingTemplateItems = [],
   userId,
   userName,
@@ -794,6 +796,8 @@ export default function TripView({
             userId={userId}
             templates={packingTemplates}
             templateItems={packingTemplateItems}
+            tripTemplateIds={tripTemplateIds}
+            templatesChosen={templatesChosen}
             onChange={() => refetch("packing_items")}
             readOnly={readOnly}
           />
