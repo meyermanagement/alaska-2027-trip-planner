@@ -47,9 +47,13 @@ export async function POST(request) {
     ownTripId = data?.id || null;
   }
 
+  // Deliberately a new one, not the trip's existing thread: this endpoint is
+  // only reached by asking for a fresh conversation, and Aly opening on the last
+  // one is handled before the panel is drawn.
   const { id, error: makeError } = await ensureConversation(supabase, user.id, {
     tripId: ownTripId,
     focus,
+    resume: false,
   });
   if (makeError || !id) {
     return NextResponse.json(

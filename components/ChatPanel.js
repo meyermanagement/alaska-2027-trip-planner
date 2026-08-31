@@ -163,6 +163,18 @@ function shortSource(title) {
   return `${text.slice(0, 27).trimEnd()}\u2026`;
 }
 
+// Two labels that would read as the same line. Used to keep the trip's name out
+// of the panel's subheading when it is already the heading.
+function sameThing(a, b) {
+  const left = String(a || "")
+    .trim()
+    .toLowerCase();
+  const right = String(b || "")
+    .trim()
+    .toLowerCase();
+  return Boolean(left) && left === right;
+}
+
 export default function ChatPanel({
   trip,
   onApplied,
@@ -656,7 +668,14 @@ export default function ChatPanel({
             </h2>
             <p className="mt-1 truncate text-xs text-ink-soft">
               {conversationId
-                ? conversationTripName || (trip ? trip.name : "All trips")
+                ? // The trip is the heading on a resumed trip thread, so saying
+                  // it again underneath would only push the section out of view.
+                  sameThing(
+                    conversationTitle,
+                    conversationTripName || trip?.name,
+                  )
+                  ? "Carrying on"
+                  : conversationTripName || (trip ? trip.name : "All trips")
                 : focus === "log_trip"
                   ? "A trip you have taken"
                   : focus === "new_trip"
