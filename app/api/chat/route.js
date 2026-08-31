@@ -69,6 +69,14 @@ export async function POST(request) {
     typeof payload?.message === "string" ? payload.message.trim() : "";
   // A second go at a question that failed to reach the model at all.
   const retry = payload?.retry === true;
+  // One id per press of Send, made by the screen and written on the question and
+  // on everything answered on the back of it. One question came back as two
+  // answers on screen and the rows kept no record of which press each belonged
+  // to, so there was no way afterwards to tell that from two questions asked.
+  const askId =
+    typeof payload?.askId === "string" && /^[0-9a-f-]{36}$/i.test(payload.askId)
+      ? payload.askId
+      : null;
   if (!said) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
@@ -206,6 +214,7 @@ export async function POST(request) {
       tripId: threadTripId,
       role: "user",
       body: said,
+      askId,
     });
   }
 
@@ -520,6 +529,8 @@ export async function POST(request) {
       places,
       // And so do the ways on from it.
       followups,
+      // Same id as the question above, so one press is one query.
+      askId,
     });
   }
 

@@ -351,7 +351,14 @@ export default function ChatPanel({
     setBusy(true);
 
     const control = new AbortController();
-    askRef.current = { control, asked: clean, stopped: false };
+    // One id for this press, written on the question and on everything answered
+    // on the back of it. One question came back as two answers on screen and the
+    // rows kept no record of which press each belonged to, so afterwards there
+    // was no telling that from two questions asked.
+    const askId =
+      globalThis.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random()}`.slice(0, 36);
+    askRef.current = { control, asked: clean, stopped: false, askId };
 
     try {
       // Only the new message goes up; the server reads the rest of the thread
@@ -367,6 +374,7 @@ export default function ChatPanel({
           conversationId: conversationRef.current,
           // So the route does not write the question down a second time.
           retry: again || undefined,
+          askId,
           // Only ever what they chose to share, and only for this question.
           here: hereRef.current || undefined,
         }),
@@ -426,7 +434,7 @@ export default function ChatPanel({
       // so this is the part that actually happens: the same loop the button
       // drives, with the panel standing in for the button's progress line.
       if (data.look) {
-        await carryOut(data.look);
+        await carryOut(data.look, askId);
       }
     } catch (err) {
       // Stopping it yourself is not a failure, and should not be reported as one.
@@ -467,7 +475,7 @@ export default function ChatPanel({
   // grounded question uses most of a route's sixty seconds, and walking a trip
   // takes five. Whatever it finds is saved as it goes, so closing the drawer
   // halfway costs the rest of the look and nothing that was already found.
-  async function carryOut(look) {
+  async function carryOut(look, askId = null) {
     setLooking("Looking…");
     const { found, error } = await runLook({
       tripId: look.tripId,
@@ -475,17 +483,28 @@ export default function ChatPanel({
       onNote: setLooking,
     });
     setLooking("");
-    setMessages((m) => [
-      ...m,
-      {
-        role: "assistant",
-        text: error
-          ? found
-            ? `${foundLine(found, look)} I stopped early though — ${error}`
-            : `I could not finish looking. ${error}`
-          : foundLine(found, look),
-      },
-    ]);
+    const said = error
+      ? found
+        ? `${foundLine(found, look)} I stopped early though — ${error}`
+        : `I could not finish looking. ${error}`
+      : foundLine(found, look);
+    setMessages((m) => [...m, { role: "assistant", text: said }]);
+    // And written down, because this line only ever existed in the browser. It
+    // arrives under her answer some seconds later -- which is what "one
+    // question, two responses" looks like -- and was gone the next time the
+    // conversation was opened. A transcript that loses half of what was read is
+    // worse than one that never showed it.
+    const conversationId = conversationRef.current;
+    if (conversationId) {
+      fetch("/api/chat/note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, body: said, askId }),
+      }).catch(() => {
+        // It is on screen either way. Saying it could not be filed would be a
+        // second interruption about the app rather than about the trip.
+      });
+    }
     // The tips are rows on the page behind this drawer, so the page has to be
     // told. Without this they appear on the next navigation and look late.
     if (found) router.refresh();
