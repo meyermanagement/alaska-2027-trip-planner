@@ -315,9 +315,41 @@ export default function ChatPanel({
     };
   }, [conversationId]);
 
+  // Where the panel jumps when something new lands.
+  //
+  // It used to jump to the bottom of the panel every time, which is right for a
+  // question you just asked and wrong for an answer: a long answer from Aly
+  // arrived with the family staring at its last sentence, having to scroll back
+  // up to find where it started. So a new answer is pinned to its own first
+  // line instead -- her answers get read from the top like anything else -- and
+  // everything else still goes to the bottom, because your own question, the
+  // thinking line, and a receipt saying what just saved are all things you want
+  // to see the end of.
+  const answerRef = useRef(null);
+  const seenAnswers = useRef(0);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const answers = messages.filter(
+      (m) => m.role === "assistant" && m.kind !== "receipt",
+    ).length;
+    // A saved thread arriving all at once is not an answer landing: reopening a
+    // conversation should show you where you left off, at the end of it.
+    const landed = !loadingHistory && answers > seenAnswers.current;
+    seenAnswers.current = answers;
+    const node = answerRef.current;
+    if (landed && node) {
+      // Measured rather than read off offsetTop, which is relative to whichever
+      // ancestor happens to be positioned and not to the box that scrolls.
+      const top =
+        el.scrollTop +
+        node.getBoundingClientRect().top -
+        el.getBoundingClientRect().top -
+        12;
+      el.scrollTop = Math.max(0, top);
+      return;
+    }
+    el.scrollTop = el.scrollHeight;
   }, [messages, pending, busy, loadingHistory]);
 
   // Opened with an opening message already written. It waits for the saved
@@ -834,6 +866,14 @@ export default function ChatPanel({
         {messages.map((m, i) => (
           <div
             key={i}
+            /* The newest answer, so the panel can scroll to the top of it. */
+            ref={
+              i === messages.length - 1 &&
+              m.role === "assistant" &&
+              m.kind !== "receipt"
+                ? answerRef
+                : undefined
+            }
             className={
               m.role === "user" ? "flex justify-end" : "flex justify-start"
             }
