@@ -16,6 +16,7 @@ import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
 import { lookSummary } from "@/lib/tips/run";
+import { onTipResolved } from "@/lib/tips/cleared";
 import { isComing } from "@/lib/pets/pets";
 import { SECONDARY } from "@/lib/travelers/access";
 
@@ -144,6 +145,30 @@ export default function TripView({
   // card so the Tips tab can keep saying it after somebody has been off to
   // read the tips on another tab and come back.
   const [landed, setLanded] = useState(null);
+  // Tips cleared on this screen since it loaded. The count on the Tips tab is
+  // worked out from the server's list, and clearing a tip is optimistic -- the
+  // card goes at once and the row is written behind it -- so without this the
+  // number would sit there counting a tip that is no longer on the tab. The
+  // same window event the header band listens to carries it.
+  const [gone, setGone] = useState(() => new Set());
+  useEffect(
+    () =>
+      onTipResolved((id, status) =>
+        setGone((prev) => {
+          const next = new Set(prev);
+          if (status) next.add(id);
+          else next.delete(id);
+          return next;
+        }),
+      ),
+    [],
+  );
+  // What the Tips tab is holding, counted for the badge. Trip-scope only,
+  // because that is what the tab shows: a look also files against the Itinerary
+  // and Packing tabs, and those tips are counted on the cards they belong to.
+  const tipCount = tips.filter(
+    (tip) => tip.scope === "trip" && !gone.has(tip.id),
+  ).length;
   // Whether the tab bar has anything past its right edge. Measured, not guessed
   // from a breakpoint: the labels are words, and how many fit depends on the font
   // the device actually used.
@@ -421,12 +446,6 @@ export default function TripView({
                 <span className="font-semibold">
                   {formatRange(info.start_date, info.end_date)}
                 </span>
-                {info.dates_auto !== false && (
-                  <span className="no-print block text-ink-soft/80 sm:inline">
-                    <span className="hidden sm:inline"> · </span>
-                    from the itinerary
-                  </span>
-                )}
                 {info.destination && (
                   <span className="block sm:inline">
                     <span className="hidden sm:inline"> · </span>
@@ -502,6 +521,18 @@ export default function TripView({
                 }`}
               >
                 {t.label}
+                {/* The same red count the menu bar puts on Reminders, for the
+                    same reason: a tab worth opening should say so from the
+                    outside. Tips are the one thing on a trip that arrive
+                    without anybody asking -- a look files them while you are
+                    reading something else -- so the tab is the only place that
+                    can mention them. */}
+                {t.id === "tips" && tipCount > 0 && (
+                  <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] font-bold leading-[1.15rem] text-white">
+                    {tipCount}
+                    <span className="sr-only"> tips to read</span>
+                  </span>
+                )}
               </button>
             ))}
           </nav>

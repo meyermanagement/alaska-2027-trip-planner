@@ -115,6 +115,15 @@ export default function Packing({
   // page; the copy here only exists so a row written from this form shows up in
   // the labels without another read.
   const [templateItems, setTemplateItems] = useState(initialTemplateItems);
+  // What the row looked like when its edit form opened, kept so a save can tell
+  // what actually changed. Only the fields a template also carries are worth
+  // remembering here.
+  const [editBefore, setEditBefore] = useState(null);
+  // The question asked after a save that changed an item the templates also
+  // hold: should the standing lists be changed too? Held as a whole little
+  // problem -- what changed, on which lists, and what came of answering -- so
+  // the card can be drawn away from the row, which by then has closed.
+  const [askTemplate, setAskTemplate] = useState(null);
   const [tidying, setTidying] = useState(false);
   const [tidyNote, setTidyNote] = useState("");
   const [editDraft, setEditDraft] = useState({
@@ -266,6 +275,14 @@ export default function Packing({
   function startEdit(item) {
     setEditingId(item.id);
     setToTemplate(null);
+    setAskTemplate(null);
+    setEditBefore({
+      item: item.item || "",
+      category: item.category || "",
+      assignee: oneOrShared(item.assignee, people),
+      quantity: item.quantity || "",
+      petId: item.pet_id || "",
+    });
     setEditDraft({
       item: item.item || "",
       category: item.category || "",
@@ -295,7 +312,131 @@ export default function Packing({
       })
       .eq("id", editingId);
     setEditingId(null);
+    askAboutTemplates(editBefore, {
+      item: editDraft.item.trim(),
+      category: (editDraft.category || "General").trim(),
+      assignee: editDraft.assignee,
+      quantity: editDraft.quantity.trim(),
+      petId: editDraft.petId || "",
+    });
+    setEditBefore(null);
     onChange();
+  }
+
+  /**
+   * Having changed an item on this trip, ask whether the standing lists should
+   * change with it.
+   *
+   * An item edited here has usually arrived from a template, and the correction
+   * being made -- the right size, the better brand, the category it should have
+   * been in all along -- is nearly always true of the next trip as well. Until
+   * now the trip's copy quietly diverged and the template went on handing out
+   * the old version forever.
+   *
+   * Asked rather than done, because the other half of the time the change is
+   * about this trip alone: two of something for a longer stay, a category made
+   * up for one itinerary. And asked only when there is something to ask about:
+   * the item has to be on a template, and something a template carries has to
+   * have actually changed. Renaming is included deliberately -- matching is by
+   * name, so a rename is exactly the edit that would otherwise strand the trip's
+   * copy from the line it came from.
+   */
+  function askAboutTemplates(before, after) {
+    if (!before || readOnly) return;
+    const on = keptFor(before.item).filter(
+      (k) => k.assignee === before.assignee,
+    );
+    if (!on.length) return;
+    const changed = [
+      "item",
+      "category",
+      "assignee",
+      "quantity",
+      "petId",
+    ].filter((field) => (before[field] || "") !== (after[field] || ""));
+    if (!changed.length) return;
+    setAskTemplate({ before, after, on, state: "asking", message: "" });
+  }
+
+  /**
+   * Say yes: write the same change onto every template that holds the item.
+   *
+   * Matched on the old name and the old person, which is how the item was found
+   * in the first place, and written by id so a template holding two lines with
+   * the same name cannot lose the wrong one. The local copy of the template
+   * rows is patched alongside, so the "Kept on" line under the item tells the
+   * truth without waiting for the page to be read again.
+   */
+  async function applyToTemplates() {
+    if (!askTemplate || askTemplate.state === "saving") return;
+    const { before, after, on } = askTemplate;
+    setAskTemplate((a) => ({ ...a, state: "saving", message: "" }));
+    const ids = on.map((t) => t.id);
+    const { data: rows, error: readError } = await supabase
+      .from("packing_template_items")
+      .select("id, template_id, item, assignee")
+      .in("template_id", ids);
+    if (readError) {
+      setAskTemplate((a) => ({
+        ...a,
+        state: "asking",
+        message: `That did not save: ${readError.message}`,
+      }));
+      return;
+    }
+    const wanted = (rows || []).filter(
+      (row) =>
+        String(row.item || "")
+          .trim()
+          .toLowerCase() === before.item.trim().toLowerCase() &&
+        (row.assignee || "Shared") === before.assignee,
+    );
+    if (!wanted.length) {
+      setAskTemplate((a) => ({
+        ...a,
+        state: "asking",
+        message: "That line is no longer on the template.",
+      }));
+      return;
+    }
+    const { error } = await supabase
+      .from("packing_template_items")
+      .update({
+        item: after.item,
+        category: after.category,
+        assignee: after.assignee,
+        quantity: after.quantity || null,
+        pet_id: after.petId || null,
+      })
+      .in(
+        "id",
+        wanted.map((row) => row.id),
+      );
+    if (error) {
+      setAskTemplate((a) => ({
+        ...a,
+        state: "asking",
+        message: `That did not save: ${error.message}`,
+      }));
+      return;
+    }
+    const touched = new Set(wanted.map((row) => row.template_id));
+    setTemplateItems((current) =>
+      current.map((row) =>
+        touched.has(row.template_id) &&
+        String(row.item || "")
+          .trim()
+          .toLowerCase() === before.item.trim().toLowerCase() &&
+        (row.assignee || "Shared") === before.assignee
+          ? { ...row, item: after.item, assignee: after.assignee }
+          : row,
+      ),
+    );
+    setAskTemplate({
+      ...askTemplate,
+      state: "done",
+      message: `Changed on ${on.map((t) => t.name).join(" and ")}. Trips that already exist keep the version they have.`,
+    });
   }
 
   /**
@@ -953,13 +1094,9 @@ export default function Packing({
       >
         <div
           className={`grid gap-2 ${
-            category === NEW_CATEGORY
-              ? pets.length
-                ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
-                : "sm:grid-cols-[2fr_1fr_auto_auto]"
-              : pets.length
-                ? "sm:grid-cols-[2fr_auto_auto_auto]"
-                : "sm:grid-cols-[2fr_auto_auto]"
+            pets.length
+              ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
+              : "sm:grid-cols-[2fr_1fr_auto_auto]"
           }`}
         >
           <input
@@ -974,26 +1111,27 @@ export default function Packing({
             autoFocus
             required
           />
-          {/* Only asked when the answer is not already known. Pressing Add on
-    the Toiletries card has said "Toiletries" more plainly than typing
-    it would. */}
-          {category === NEW_CATEGORY && (
-            <>
-              <input
-                className="field"
-                placeholder="New category"
-                list="packing-categories"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                required
-              />
-              <datalist id="packing-categories">
-                {categories.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-            </>
-          )}
+          {/* Always asked, and answered before you get here: pressing Add on
+              the Toiletries card fills this in with Toiletries. It was hidden
+              for a while on the reasoning that the press had already said it,
+              which is true right up to the moment you notice the thing you are
+              typing belongs somewhere else -- and then the only way to move it
+              was to add it in the wrong place and edit it. */}
+          <>
+            <input
+              className="field"
+              placeholder="Category"
+              list="packing-categories"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              required
+            />
+            <datalist id="packing-categories">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </>
           <select
             className="field"
             value={newAssignee}
@@ -1288,6 +1426,72 @@ export default function Packing({
         <p className="no-print mb-4 text-xs font-semibold text-ink-soft">
           {tidyNote}
         </p>
+      )}
+      {/* Asked after the save, not before it: the change to this trip is never
+          in doubt, and holding it hostage to a second question about future
+          trips would be the wrong way round. The card sits here rather than on
+          the row because the row has closed by the time there is anything to
+          ask, and a question that appears where you are no longer looking is a
+          question nobody answers. */}
+      {askTemplate && (
+        <div className="no-print mb-4 rounded-2xl border border-amber/45 bg-amber/10 px-4 py-3">
+          {askTemplate.state === "done" ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-ink">{askTemplate.message}</p>
+              <button
+                type="button"
+                className="btn btn-ghost px-3 py-1.5 text-xs"
+                onClick={() => setAskTemplate(null)}
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-ink">
+                {askTemplate.before.item === askTemplate.after.item
+                  ? `You changed “${askTemplate.after.item}”, which is kept on ${askTemplate.on
+                      .map((t) => t.name)
+                      .join(" and ")}.`
+                  : `You renamed “${askTemplate.before.item}” to “${askTemplate.after.item}”. The old name is kept on ${askTemplate.on
+                      .map((t) => t.name)
+                      .join(" and ")}.`}
+              </p>
+              <p className="mt-1 text-[0.8rem] leading-snug text-ink-soft">
+                Change it there too, so trips you make from now on start with
+                this version? Trips that already exist are left alone either
+                way.
+              </p>
+              {askTemplate.message && (
+                <p className="mt-1.5 text-[0.8rem] font-semibold text-rose">
+                  {askTemplate.message}
+                </p>
+              )}
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary px-3 py-1.5 text-xs disabled:opacity-70"
+                  disabled={askTemplate.state === "saving"}
+                  onClick={applyToTemplates}
+                >
+                  {askTemplate.state === "saving"
+                    ? "Changing…"
+                    : askTemplate.on.length > 1
+                      ? "Change the templates too"
+                      : `Change ${askTemplate.on[0].name} too`}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost px-3 py-1.5 text-xs"
+                  disabled={askTemplate.state === "saving"}
+                  onClick={() => setAskTemplate(null)}
+                >
+                  Just this trip
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       )}
       <div className="card mb-4 p-4">
         <div className="flex items-center justify-between text-sm font-semibold">
