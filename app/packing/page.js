@@ -117,23 +117,24 @@ export default async function PackingTemplatesPage() {
       .filter((t) => t.itemCount > 0);
   }
 
-  // The lists people actually tick, above the lists trips are made from. A trip
+  // A quiet line of links above the heading, so the list somebody actually ticks
+  // is one tap from here instead of three screens away. A trip
   // that started before today but has not ended yet is the most important one on
   // this screen, so the window is "has not ended" rather than "has not started"
   // -- which is the one place this disagrees with loadPropagation, and it should:
   // a push writes onto trips that have not begun, but you pack for the trip you
   // are on. Drafts are excluded here for the same reason they are excluded there.
   //
-  // The counts come from the item rows rather than a count() so that packed and
-  // total arrive together in one read, and the same stashed_at filter the trip's
-  // own Packing tab uses is applied -- a stashed line is not on the list, so it
-  // should not be in the total somebody is measuring themselves against.
+  // How many lines each list has, with the same stashed_at filter the trip's own
+  // Packing tab uses -- a stashed line is not on the list, so it should not be in
+  // the count. It is here only so a link can say whether there is a list at all.
   const today = homeToday();
   const { data: soonTrips } = await supabase
     .from("trips")
-    .select(
-      "id, name, cover_emoji, start_date, end_date, status, public_id, slug",
-    )
+    // Only what a link needs: the name to show, the key and slug to build the
+    // URL, the status to close it out. Dates are filtered and ordered on without
+    // being read back, because nothing here says them out loud any more.
+    .select("id, name, status, public_id, slug")
     .eq("family_id", familyId)
     .neq("status", "draft")
     .or(`end_date.gte.${today},and(end_date.is.null,start_date.gte.${today})`)
@@ -144,27 +145,20 @@ export default async function PackingTemplatesPage() {
   const { data: soonItems } = soonIds.length
     ? await supabase
         .from("packing_items")
-        .select("trip_id, is_packed")
+        .select("trip_id")
         .in("trip_id", soonIds)
         .is("stashed_at", null)
     : { data: [] };
 
   const counts = new Map();
   for (const row of soonItems || []) {
-    const at = counts.get(row.trip_id) || { packed: 0, total: 0 };
-    at.total += 1;
-    if (row.is_packed) at.packed += 1;
-    counts.set(row.trip_id, at);
+    counts.set(row.trip_id, (counts.get(row.trip_id) || 0) + 1);
   }
   const upcoming = (soonTrips || [])
     // The same closed-status rule the push uses, imported rather than repeated,
     // so a trip that stops being upcoming stops being both at once.
     .filter((t) => !CLOSED.includes(String(t.status || "").toLowerCase()))
-    .map((t) => ({
-      ...t,
-      packed: counts.get(t.id)?.packed || 0,
-      total: counts.get(t.id)?.total || 0,
-    }));
+    .map((t) => ({ ...t, total: counts.get(t.id) || 0 }));
 
   let tripsByTemplate = {};
   let tripsByPet = {};
@@ -218,6 +212,7 @@ export default async function PackingTemplatesPage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-28 pt-7">
+        <TripPackingLinks trips={upcoming} />
         <div className="mb-6">
           <h1 className="font-display text-3xl font-semibold">
             Packing templates
@@ -229,7 +224,6 @@ export default async function PackingTemplatesPage() {
             nothing you have already ticked off gets rewritten underneath you.
           </p>
         </div>
-        <TripPackingLinks trips={upcoming} />
         <Templates
           travelers={(travelers || [])
             .filter((t) => t.is_person)
