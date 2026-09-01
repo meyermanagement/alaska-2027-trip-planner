@@ -14,6 +14,7 @@ import Tasks from "./Tasks";
 import Notes from "./Notes";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
+import LookForTips from "./LookForTips";
 import { lookSummary } from "@/lib/tips/run";
 import { isComing } from "@/lib/pets/pets";
 import { SECONDARY } from "@/lib/travelers/access";
@@ -75,7 +76,7 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
         <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink-soft">
           {everLooked
             ? "Nothing on the Itinerary or Packing tabs at the moment. A look covers your next few bookings and your packing list as well as the trip itself, so anything worth saying about those will land there."
-            : "A look here covers your next few bookings and your packing list too. Whatever it finds about those lands on the Itinerary and Packing tabs, and this will say how much went where."}
+            : "A look covers your next few bookings and your packing list too — press Look for tips at the top of this trip. Whatever it finds about those lands on the Itinerary and Packing tabs, and this will say how much went where."}
         </p>
       )}
     </section>
@@ -86,13 +87,14 @@ const TABS = [
   // Overview first, and the one a trip opens on. It holds what a trip is --
   // who is going, what it is for, how it is coming along -- which used to be
   // stacked in the header above every other tab whether or not it was being
-  // read. Tips sits after the two working tabs: it is where the advice about the
-  // trip as a whole lives, and the one place that can ask for a look, but it is
-  // a thing you go to rather than a thing you land on.
+  // read. Then the two tabs a trip is actually worked on, Itinerary and Packing.
+  // Tips comes after them, because it is now only a place to read what a look
+  // found: the button that starts one moved to the header, where it keeps
+  // running whichever tab you move on to.
   { id: "overview", label: "Overview" },
   { id: "itinerary", label: "Itinerary" },
-  { id: "tips", label: "Tips" },
   { id: "packing", label: "Packing" },
+  { id: "tips", label: "Tips" },
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
 ];
@@ -449,6 +451,25 @@ export default function TripView({
           </div>
         )}
 
+        {/* Under the location, spanning the width the header was wasting to the
+            right of it, and on every tab. A look takes most of a minute; asking
+            for one used to mean going to the Tips tab and waiting there, on the
+            tab least likely to be the one that changed. Started from here it
+            runs while you read the itinerary or tick off the packing list, and
+            says where it filed things when it is done. */}
+        {!editing && (
+          <LookForTips
+            tripId={trip.id}
+            chain={lookAt}
+            scope="trip"
+            hasTips={tips.length > 0}
+            onLooked={setLanded}
+            onGo={setTab}
+            readOnly={readOnly}
+            className="no-print border-t border-[var(--line)] px-5 py-3"
+          />
+        )}
+
         {/* Six tabs do not fit on a narrow phone, so the bar scrolls sideways.
             It always did, but with four it only just overflowed and the cut fell
             in the gap between two tabs, which read as an edge. Past that the cut
@@ -494,27 +515,23 @@ export default function TripView({
       </section>
 
       <div className="mt-6">
-        {/* The Tips tab holds the advice about the trip as a whole, and it is
-            the one place on the page that can ask for a look.
-
-            It used to sit on the itinerary tab, on the reasoning that most of
-            these tips are about dates and bookings. But one press walks the trip,
-            the packing list and the next few bookings, so the same button on
-            three tabs was three ways to spend the same minute with no way to tell
-            which one had already been pressed — and the tab it was pressed on was
-            usually not the tab that changed. So the button lives here, once, and
-            says where its tips went. */}
+        {/* The Tips tab holds the advice about the trip as a whole, and now only
+            that. The button that asks for a look moved up into the header: the
+            same press was never really about this tab -- it walks the trip, the
+            packing list and the next few bookings -- and having it here meant
+            waiting out most of a minute on the tab least likely to be the one
+            that changed. */}
         {tab === "tips" && (
           <ProTips
+            canLook={false}
+            showEmpty
             tips={tips.filter((tip) => tip.scope === "trip")}
             today={today}
             tripId={trip.id}
             scope="trip"
             everLooked={everLooked}
-            chain={lookAt}
             heading="Pro tips for this trip"
-            onLooked={setLanded}
-            onGo={setTab}
+            emptyFresh="Nothing here yet. Look for tips, at the top of this trip, and anything genuinely useful about these particular plans will show up here."
             readOnly={readOnly}
           />
         )}

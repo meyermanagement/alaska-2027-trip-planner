@@ -48,6 +48,12 @@ export default function ProTips({
   // which is right on a trip and wrong in the Wallet.
   emptyLooked = "Nothing worth flagging here at the moment. Tips only appear when there is something specific to say about your dates, your plans, or what you have told the app you like.",
   emptyFresh = "Nothing here yet. Ask for a look and anything genuinely useful about these particular plans will show up.",
+  // Whether to stay on screen with nothing to show. Normally an empty section
+  // with no button is furniture, so it goes; the trip's Tips tab is the
+  // exception, because it is a tab somebody chose to open and a tab that renders
+  // nothing at all reads as broken. Its button now lives in the header above it,
+  // so the empty wording has somewhere to point.
+  showEmpty = false,
   compact = false,
   // Handed the breakdown when a look finishes, so the screen that owns the button
   // can say where the tips went. A trip look writes to three tabs, and the tab it
@@ -286,7 +292,8 @@ export default function ProTips({
   // what the dress code is, which door to use, what the park will not let you
   // carry -- to protect a dismiss button that is gated separately a few lines
   // down. This hides the empty case only.
-  if (!shown.length && !offersLook && !busy && !note && !problem) return null;
+  if (!shown.length && !offersLook && !showEmpty && !busy && !note && !problem)
+    return null;
 
   return (
     <section
