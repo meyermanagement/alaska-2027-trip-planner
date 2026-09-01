@@ -398,7 +398,7 @@ export default function TripView({
              description, the roster and the counting tiles moved to the
              Overview tab, because a header that is read once should not take a
              third of the screen on the four tabs where it is not being read. */
-          <div className="flex items-start justify-between gap-3 px-5 py-4">
+          <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                 <span className="emoji-badge" aria-hidden="true">
@@ -435,39 +435,41 @@ export default function TripView({
                 )}
               </p>
             </div>
-            {/* Top right on every width. It used to be a text link tucked in
-                beside the emoji; a header this short can afford a real button,
-                and the one that does not wrap below the dates on a phone is the
-                one that is not in the same wrapping row as them. */}
-            {!readOnly && (
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="btn btn-ghost no-print mt-0.5 shrink-0 px-3 py-1.5 text-xs"
-              >
-                Edit trip
-              </button>
-            )}
-          </div>
-        )}
+            {/* The right hand column, and both things it holds. Edit trip was
+                here on its own, leaving a blank strip below it as tall as the
+                dates and the place put together -- so the look goes under it,
+                which is also the only spot on the page that is on every tab.
 
-        {/* Under the location, spanning the width the header was wasting to the
-            right of it, and on every tab. A look takes most of a minute; asking
-            for one used to mean going to the Tips tab and waiting there, on the
-            tab least likely to be the one that changed. Started from here it
-            runs while you read the itinerary or tick off the packing list, and
-            says where it filed things when it is done. */}
-        {!editing && (
-          <LookForTips
-            tripId={trip.id}
-            chain={lookAt}
-            scope="trip"
-            hasTips={tips.length > 0}
-            onLooked={setLanded}
-            onGo={setTab}
-            readOnly={readOnly}
-            className="no-print border-t border-[var(--line)] px-5 py-3"
-          />
+                A look takes most of a minute. Asked for on the Tips tab, as it
+                used to be, the wait happened on the tab least likely to be the
+                one that changed: one press walks the trip, its packing list and
+                the next few bookings. Started from here it runs while the
+                itinerary is read or the packing list ticked off.
+
+                On a phone the column drops below the title and both buttons go
+                full width, which is a better tap target than a 120px stack
+                squeezing the trip's name into four lines. */}
+            <div className="no-print flex shrink-0 flex-col items-stretch gap-2 sm:w-44">
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="btn btn-ghost no-print w-full px-3 py-1.5 text-xs"
+                >
+                  Edit trip
+                </button>
+              )}
+              <LookForTips
+                tripId={trip.id}
+                chain={lookAt}
+                scope="trip"
+                hasTips={tips.length > 0}
+                onLooked={setLanded}
+                onGo={setTab}
+                readOnly={readOnly}
+              />
+            </div>
+          </div>
         )}
 
         {/* Six tabs do not fit on a narrow phone, so the bar scrolls sideways.

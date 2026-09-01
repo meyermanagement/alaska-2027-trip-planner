@@ -114,66 +114,32 @@ export default function LookForTips({
     return null;
 
   return (
-    /* A row, not a column: the header has a wide empty strip to the right of the
-       dates, and a button on its own out there wastes the same space it was
-       moved into. So the button sits under the location and everything the look
-       has to say about itself -- the seconds climbing, the count it found, the
-       tabs it filed against -- runs along the line beside it. */
-    <div className={className}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <button
-          type="button"
-          onClick={look}
-          disabled={busy}
-          className="btn btn-ghost no-print shrink-0 px-3 py-1.5 text-xs disabled:opacity-60"
-        >
-          {busy ? (
-            <span className="flex items-center gap-1.5">
-              <Spinner className="h-3.5 w-3.5" />
-              Looking…
-            </span>
-          ) : hasTips ? (
-            "Look again"
-          ) : (
-            "Look for tips"
-          )}
-        </button>
+    /* A column, sized by whoever placed it: this sits in the header's right
+       hand column under Edit trip, which is where the card was leaving a blank
+       strip the height of two buttons. Filling it with the one thing on this
+       screen that does work worth waiting for is a better use of it than air.
 
-        {problem ? (
-          <p
-            role="alert"
-            className="min-w-0 basis-full text-[0.82rem] text-rose sm:flex-1 sm:basis-0"
-          >
-            {problem}
-          </p>
-        ) : busy ? (
-          <p
-            aria-live="polite"
-            className="min-w-0 basis-full text-[0.82rem] text-ink-soft sm:flex-1 sm:basis-0"
-          >
-            {note || "Looking…"}
-            {elapsed ? ` \u00b7 ${elapsed}s` : ""}
-          </p>
-        ) : note ? (
-          <p
-            aria-live="polite"
-            className="min-w-0 basis-full text-[0.82rem] text-ink-soft sm:flex-1 sm:basis-0"
-          >
-            {note}
-          </p>
+       And it is drawn as the primary button, not a ghost like Edit trip. On a
+       trip with no tips yet this is the press that fetches them, and a look
+       that nobody notices is a look nobody asks for. */
+    <div className={className}>
+      <button
+        type="button"
+        onClick={look}
+        disabled={busy}
+        className="btn btn-primary no-print w-full px-3 py-1.5 text-xs disabled:opacity-70"
+      >
+        {busy ? (
+          <span className="flex items-center justify-center gap-1.5">
+            <Spinner className="h-3.5 w-3.5" />
+            Looking…
+          </span>
+        ) : hasTips ? (
+          "Look again"
         ) : (
-          /* What the button is for, on the line beside it, where a heading over
-             an empty card used to say it. */
-          /* Off the phone entirely: a sentence explaining a button, set in a
-             column three words wide beside it, is worse than the button
-             standing on its own. */
-          <p className="hidden min-w-0 text-[0.82rem] text-ink-soft sm:block sm:flex-1">
-            {hasTips
-              ? "Runs while you carry on reading; new tips land on the tab they belong to."
-              : "Aly reads these dates and plans and files what she finds on the tab it belongs to. Carry on while it runs."}
-          </p>
+          "Look for tips"
         )}
-      </div>
+      </button>
 
       {/* The bar is both: a fill for how many places are done, and a shimmer
           across the rest so the middle of a check still moves. */}
@@ -198,17 +164,49 @@ export default function LookForTips({
         </div>
       ) : null}
 
+      {problem ? (
+        <p
+          role="alert"
+          className="mt-1.5 text-[0.78rem] leading-snug text-rose"
+        >
+          {problem}
+        </p>
+      ) : busy ? (
+        <p
+          aria-live="polite"
+          className="mt-1.5 text-[0.78rem] leading-snug text-ink-soft"
+        >
+          {note || "Looking…"}
+          {elapsed ? ` \u00b7 ${elapsed}s` : ""}
+        </p>
+      ) : note ? (
+        <p
+          aria-live="polite"
+          className="mt-1.5 text-[0.78rem] leading-snug text-ink-soft"
+        >
+          {note}
+        </p>
+      ) : (
+        /* One line, not the paragraph a heading over an empty card used to
+           carry: in a column this narrow the sentence was taller than the
+           button it explained. Off the phone entirely, where it would push
+           the tab bar down for no gain. */
+        <p className="mt-1.5 hidden text-[0.78rem] leading-snug text-ink-soft sm:block">
+          Runs while you carry on reading.
+        </p>
+      )}
+
       {/* The tabs a look actually filed something against. The button can be
           pressed from any tab now, so a count with no way to reach what it
           counted is worse here than it was on the Tips tab. */}
       {!busy && onGo && landed.length ? (
-        <div className="no-print mt-1.5 flex flex-wrap gap-2">
+        <div className="no-print mt-1.5 flex flex-wrap gap-1.5">
           {landed.map((place) => (
             <button
               key={place.tab}
               type="button"
               onClick={() => onGo(place.tab)}
-              className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn-ghost px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
             >
               {`Open ${place.label.replace(/^the /, "")}`}
             </button>
