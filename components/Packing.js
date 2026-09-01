@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import CategoryPicker from "./CategoryPicker";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
@@ -43,6 +44,9 @@ export default function Packing({
   readOnly = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
+  // The lowest sort_order this screen has handed out under each heading, so two
+  // quick adds do not collide. See topOfCategory.
+  const handFloor = useRef(new Map());
   const [who, setWho] = useState("all");
   // Finding a line on a list of a hundred and eleven. Spelling is forgiven --
   // see lib/packing/find -- because the question you arrive with is usually
@@ -234,7 +238,15 @@ export default function Packing({
     );
 
   const categories = useMemo(() => {
-    const list = Array.from(new Set(items.map((i) => i.category)));
+    // The headings this trip actually uses, which is what the picker offers.
+    // Read off the rows rather than from a fixed list, so a heading somebody
+    // invented an hour ago is offered back to the next person instead of being
+    // retyped slightly differently.
+    const list = Array.from(
+      new Set(
+        items.map((i) => (i.category || "General").trim()).filter(Boolean),
+      ),
+    );
     return list.sort((a, b) => a.localeCompare(b));
   }, [items]);
 
@@ -269,6 +281,43 @@ export default function Packing({
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [visible]);
+
+  /**
+   * The sort_order a line just written should get, so that it lands at the top
+   * of its heading rather than the bottom.
+   *
+   * Everything that a generated list wrote is numbered from 1 upwards, and the
+   * list is read back ordered by that number, so a new line only has to be
+   * smaller than the smallest one already there. The first line under a brand
+   * new heading gets 0, the next gets -1, and so on downwards -- which reads
+   * backwards until you remember that ascending order puts the smallest first.
+   *
+   * Why the top: a thing you remember while standing over an open suitcase is
+   * the thing most likely to be forgotten, and 999 buried it under sixty rows
+   * of things you had already thought of. It also meant every line added by
+   * hand shared one number, so their order among themselves was whatever the
+   * database felt like that day.
+   */
+  function topOfCategory(category) {
+    const key = (category || "General").trim().toLowerCase();
+    let smallest = 1;
+    for (const row of items)
+      if ((row.category || "General").trim().toLowerCase() === key)
+        smallest = Math.min(smallest, row.sort_order ?? 0);
+    // The form stays open after an add, on purpose -- remembering one forgotten
+    // thing is how you remember the next two -- so two lines can be written
+    // before the reread that would have told the second one about the first.
+    // Remembering the last number handed out keeps them in the order they were
+    // typed instead of leaving both on the same number for the database to
+    // break however it likes.
+    const last = handFloor.current.get(key);
+    const next = Math.min(
+      smallest - 1,
+      last === undefined ? Infinity : last - 1,
+    );
+    handFloor.current.set(key, next);
+    return next;
+  }
 
   async function toggle(item) {
     await supabase
@@ -315,11 +364,20 @@ export default function Packing({
   async function saveEdit(e) {
     e.preventDefault();
     if (!editDraft.item.trim()) return;
+    const category = (editDraft.category || "General").trim();
+    // Given a new heading, a line goes to the top of it, for the same reason a
+    // new line does: you moved it just now, and it should be where you can see
+    // that it moved. Left where it was, its number is left alone -- re-saving a
+    // line without touching its heading should not reshuffle the card.
+    const moved =
+      category.toLowerCase() !==
+      (editBefore?.category || "General").trim().toLowerCase();
     await supabase
       .from("packing_items")
       .update({
         item: editDraft.item.trim(),
-        category: (editDraft.category || "General").trim(),
+        category,
+        ...(moved ? { sort_order: topOfCategory(category) } : null),
         assignee: editDraft.assignee,
         quantity: editDraft.quantity.trim() || null,
         notes: editDraft.notes.trim() || null,
@@ -330,7 +388,7 @@ export default function Packing({
     setEditingId(null);
     askAboutTemplates(editBefore, {
       item: editDraft.item.trim(),
-      category: (editDraft.category || "General").trim(),
+      category,
       assignee: editDraft.assignee,
       quantity: editDraft.quantity.trim(),
       petId: editDraft.petId || "",
@@ -690,7 +748,7 @@ export default function Packing({
       // Still guessed from the name, but the guess is on screen above this
       // button, so what gets written is what the person saw and left alone.
       last_minute: newIsLastMinute,
-      sort_order: 999,
+      sort_order: topOfCategory(category),
     });
     if (error) {
       setNewNote("That did not save to this trip.");
@@ -823,17 +881,10 @@ export default function Packing({
             required
           />
           <div className="grid gap-2 sm:grid-cols-3">
-            <input
-              className="field"
-              placeholder="Category"
-              list="packing-categories"
+            <CategoryPicker
               value={editDraft.category}
-              onChange={(e) =>
-                setEditDraft({
-                  ...editDraft,
-                  category: e.target.value,
-                })
-              }
+              options={categories}
+              onChange={(category) => setEditDraft({ ...editDraft, category })}
             />
             <select
               className="field"
@@ -1133,21 +1184,12 @@ export default function Packing({
               which is true right up to the moment you notice the thing you are
               typing belongs somewhere else -- and then the only way to move it
               was to add it in the wrong place and edit it. */}
-          <>
-            <input
-              className="field"
-              placeholder="Category"
-              list="packing-categories"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              required
-            />
-            <datalist id="packing-categories">
-              {categories.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </>
+          <CategoryPicker
+            value={newCategory}
+            options={categories}
+            onChange={setNewCategory}
+            required
+          />
           <select
             className="field"
             value={newAssignee}
