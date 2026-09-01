@@ -49,7 +49,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
   // just the map link with extra steps.
   const directions = here ? directionsLink(place, here) : null;
   return (
-    <li className="flex flex-col overflow-hidden rounded-xl border border-sand-deep bg-white">
+    <li className="card flex flex-col overflow-hidden">
       {place.photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -68,9 +68,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
           <h5 className="text-sm font-semibold leading-snug text-ink">
             {place.name}
           </h5>
-          <span className="shrink-0 rounded-full bg-sand px-2 py-0.5 text-[11px] font-medium text-ink-soft">
-            {label}
-          </span>
+          <span className="chip shrink-0 bg-sand text-ink-soft">{label}</span>
         </div>
 
         {/* Area, price and rating read as one line: the three things you weigh a
@@ -125,7 +123,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
             drawback tucked onto the end of a sentence of praise gets skimmed
             over by exactly the person it was written for. */}
         {place.tradeoff ? (
-          <p className="mt-2 rounded-lg bg-sand/80 px-2.5 py-2 text-xs leading-relaxed text-ink-soft">
+          <p className="mt-2 rounded-xl bg-sand/80 px-2.5 py-2 text-xs leading-relaxed text-ink-soft">
             <span className="font-semibold text-ink">The trade-off: </span>
             {place.tradeoff}
           </p>
@@ -135,7 +133,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
             against their own rows before it reaches this component, and a perk
             whose program is not theirs has already been removed. */}
         {place.program ? (
-          <div className="mt-2 rounded-lg bg-glacier/40 px-2.5 py-2">
+          <div className="mt-2 rounded-xl bg-teal-soft/70 px-2.5 py-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-teal">
               Through your programs
             </p>
@@ -166,7 +164,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
             type="button"
             onClick={() => onAdd?.(place)}
             disabled={busy}
-            className="rounded-lg bg-teal px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+            className="btn btn-primary btn-sm"
           >
             Add to itinerary
           </button>
@@ -178,7 +176,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
               type="button"
               onClick={() => onMore(place)}
               disabled={busy}
-              className="rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-60"
+              className="btn btn-ghost btn-sm"
             >
               Tell me more
             </button>
@@ -188,7 +186,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
               href={directions}
               target="_blank"
               rel="noreferrer"
-              className="rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink"
+              className="btn btn-ghost btn-sm"
             >
               Directions
             </a>
@@ -198,7 +196,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
               href={place.maps}
               target="_blank"
               rel="noreferrer"
-              className="rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink"
+              className="btn btn-ghost btn-sm"
             >
               Map & photos
             </a>
@@ -208,7 +206,7 @@ function Card({ place, onAdd, onMore, busy, here }) {
               href={place.website}
               target="_blank"
               rel="noreferrer"
-              className="rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink"
+              className="btn btn-ghost btn-sm"
             >
               Website
             </a>

@@ -127,7 +127,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
             type="button"
             onClick={onClose}
             aria-label="Close the assistant"
-            className="shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
+            className="shrink-0 rounded-full p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
           >
             <svg
               viewBox="0 0 20 20"
@@ -201,12 +201,12 @@ export default function ConversationList({ onPick, onNew, onClose }) {
             {conversations.map((c) => (
               <li
                 key={c.id}
-                className="relative rounded-xl border border-[var(--line)] bg-white transition hover:border-teal/50"
+                className="card relative transition hover:border-teal/50"
               >
                 <button
                   type="button"
                   onClick={() => onPick(c)}
-                  className="w-full rounded-xl px-3.5 py-3 text-left transition hover:bg-sand/60"
+                  className="w-full rounded-[0.875rem] px-3.5 py-3 text-left transition hover:bg-sand/60"
                 >
                   <p className="truncate pr-8 text-sm font-semibold text-ink">
                     {c.title}
@@ -228,7 +228,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                     setConfirmId((was) => (was === c.id ? null : c.id))
                   }
                   aria-label={`Delete the conversation ${c.title}`}
-                  className="absolute right-1.5 top-1.5 rounded-lg p-1.5 text-ink-soft transition hover:bg-rose/10 hover:text-rose"
+                  className="absolute right-1.5 top-1.5 rounded-full p-1.5 text-ink-soft transition hover:bg-rose/10 hover:text-rose"
                 >
                   <svg
                     viewBox="0 0 20 20"
@@ -251,7 +251,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                       <button
                         type="button"
                         onClick={() => setConfirmId(null)}
-                        className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-soft transition hover:bg-sand"
+                        className="rounded-full px-2.5 py-1 text-xs font-semibold text-ink-soft transition hover:bg-sand"
                       >
                         Keep
                       </button>
@@ -259,7 +259,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                         type="button"
                         onClick={() => remove(c.id)}
                         disabled={deletingId === c.id}
-                        className="rounded-lg bg-rose/10 px-2 py-1 text-xs font-semibold text-rose transition hover:bg-rose/20 disabled:opacity-50"
+                        className="rounded-full bg-rose/10 px-2.5 py-1 text-xs font-semibold text-rose transition hover:bg-rose/20 disabled:opacity-50"
                       >
                         {deletingId === c.id ? "Deleting…" : "Delete"}
                       </button>
@@ -308,7 +308,7 @@ function SearchResults({ query, results, searching, onPick }) {
                   tripName: r.tripName,
                 })
               }
-              className="w-full rounded-xl border border-[var(--line)] bg-white px-3.5 py-3 text-left transition hover:border-teal/50 hover:bg-sand/60"
+              className="card w-full px-3.5 py-3 text-left transition hover:border-teal/50 hover:bg-sand/60"
             >
               <p className="truncate text-sm font-semibold text-ink">
                 {r.title}

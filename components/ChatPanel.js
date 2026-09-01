@@ -746,7 +746,7 @@ export default function ChatPanel({
               onClick={onBack}
               aria-label="Back to your conversations"
               title="Your conversations"
-              className="-ml-1 shrink-0 rounded-lg p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
+              className="-ml-1 shrink-0 rounded-full p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
             >
               <svg
                 viewBox="0 0 20 20"
@@ -798,7 +798,7 @@ export default function ChatPanel({
               type="button"
               onClick={onClose}
               aria-label="Close the assistant"
-              className="rounded-lg p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
+              className="rounded-full p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
             >
               <svg
                 viewBox="0 0 20 20"
@@ -1020,7 +1020,7 @@ export default function ChatPanel({
               return (
                 <div
                   key={group.key}
-                  className={`rounded-xl border bg-white p-4 ring-1 ${
+                  className={`rounded-[0.875rem] border bg-white p-4 ring-1 ${
                     group.destructive
                       ? "border-rose/50 ring-rose/20"
                       : "border-teal/40 ring-teal/20"
@@ -1171,7 +1171,7 @@ export default function ChatPanel({
         )}
 
         {error && (
-          <div className="rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">
+          <div className="rounded-xl bg-rose/10 px-3 py-2 text-sm text-rose">
             <p>{error}</p>
             {/* The same question again, on one press. Without this the family has
                 to find what they typed, which is gone from the box, and type it
