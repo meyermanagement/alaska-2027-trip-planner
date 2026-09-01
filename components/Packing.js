@@ -874,6 +874,17 @@ export default function Packing({
   const packed = items.filter((i) => i.is_packed).length;
   const pct = items.length ? Math.round((packed / items.length) * 100) : 0;
 
+  // Written once because both wordings below need it, and a link whose text
+  // drifted between the two would read as two different places.
+  const templatesLink = (
+    <Link
+      href="/packing"
+      className="font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+    >
+      edit the packing templates
+    </Link>
+  );
+
   return (
     <section>
       {/* Above the progress bar, because the point of a packing tip is to be read
@@ -896,19 +907,21 @@ export default function Packing({
         emptyLooked="Nothing worth flagging about what to take at the moment. Packing tips only appear when there is something specific to say about where you are going, when, or what you have told the app you like."
         readOnly={readOnly}
       />
-      {/* What this trip counts as. Above the list because it decides what the
-          list would be built from, and because the question "why has the cruise
-          stuff not appeared" is asked here. */}
-      {addOnTemplates.length > 0 && (
-        <div className="no-print mb-4 rounded-[0.875rem] border border-[var(--line)] bg-sand/40 p-4">
-          <p className="text-sm font-semibold text-ink">
-            What this trip is built from
-          </p>
-          <p className="mt-1 text-xs text-ink-soft">
-            Every trip starts from the base list. Add-ons stack, so a trip can
-            be more than one thing — an Alaska cruise is both.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+      {/* What this trip counts as, and where the list came from, in one strip.
+ 
+          These were two things: a panel here with a heading and a paragraph of
+          its own, and a separate sentence further down saying the list started
+          from the templates and that editing them changes future trips. They are
+          the same subject read at the same moment -- "where did these lines come
+          from, and what happens if I change them" -- so they are one strip now,
+          and a shorter one. The heading is gone because "Built from" beside the
+          chips is the heading. */}
+      {addOnTemplates.length > 0 ? (
+        <div className="no-print mb-3 rounded-[0.875rem] border border-[var(--line)] bg-sand/40 px-3.5 py-3">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
+              Built from
+            </span>
             {addOnTemplates.map((t) => {
               const on = addOns.has(t.id);
               return (
@@ -932,19 +945,32 @@ export default function Packing({
               );
             })}
           </div>
+          <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+            Every trip starts from the base list; add-ons stack on top. Changes
+            here stay on this trip — {templatesLink} to change what future trips
+            start with.
+          </p>
           {!everChosen && (
-            <p className="mt-3 text-xs text-ink-soft">
-              Nobody has said yet, so the app is guessing from what this list
-              already carries. Tap the ones that apply — or tap one on and off
+            <p className="mt-1.5 text-xs text-ink-soft">
+              Nobody has said which apply, so this is a guess from the lines the
+              trip already carries. Tap the ones that do — or tap one on and off
               again to record that none of them do.
             </p>
           )}
           {addOnNote && (
-            <p className="mt-2 text-xs font-semibold text-ink-soft">
+            <p className="mt-1.5 text-xs font-semibold text-ink-soft">
               {addOnNote}
             </p>
           )}
         </div>
+      ) : (
+        // No add-ons exist to choose between, so there is nothing to lay out and
+        // the sentence stands on its own rather than in a box of its own.
+        <p className="no-print mb-3 text-xs leading-relaxed text-ink-soft">
+          This list started from the family&rsquo;s packing templates. Changes
+          here stay on this trip — {templatesLink} to change what future trips
+          start with.
+        </p>
       )}
       {stranded.length > 0 && (
         <div
@@ -1056,18 +1082,6 @@ export default function Packing({
           Hide packed
         </label>
       </div>
-
-      <p className="no-print mb-4 text-xs text-ink-soft">
-        This list started from the family&rsquo;s packing templates. Changes
-        here stay on this trip &mdash;{" "}
-        <Link
-          href="/packing"
-          className="font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-        >
-          edit the packing templates
-        </Link>{" "}
-        to change what every future trip starts with.
-      </p>
 
       {!readOnly && (
         <form onSubmit={add} className="card no-print mb-5 space-y-3 p-4">
