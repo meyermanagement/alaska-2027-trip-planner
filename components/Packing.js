@@ -894,7 +894,12 @@ export default function Packing({
           trip, and it lives on the Tips tab; three buttons that each start
           the same five-place walk, on three tabs, is three ways to spend the
           same minute and no way to tell which one you already pressed. What
-          arrives here still arrives here. */}
+          arrives here still arrives here.
+
+          And because there is no button, there is nothing to say when nothing
+          was found: the section hides itself rather than heading a paragraph
+          about its own emptiness. The two empty wordings this used to pass went
+          with it. */}
       <ProTips
         tips={tips}
         today={today}
@@ -903,8 +908,6 @@ export default function Packing({
         everLooked={everLooked}
         canLook={false}
         heading="Before you pack"
-        emptyFresh="Nothing here yet. A look on the Tips tab covers the packing list as well as the trip, and anything worth saying about what to take will land here."
-        emptyLooked="Nothing worth flagging about what to take at the moment. Packing tips only appear when there is something specific to say about where you are going, when, or what you have told the app you like."
         readOnly={readOnly}
       />
       {/* What this trip counts as, and where the list came from, in one strip.

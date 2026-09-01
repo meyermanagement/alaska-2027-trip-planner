@@ -265,14 +265,28 @@ export default function ProTips({
   // is not offered rather than offered and swallowed.
   const canLookHere = mayWrite(readOnly ? SECONDARY : null, "tripTips");
 
+  // Whether pressing anything here would do something. A trip's Tips tab and the
+  // Wallet own the Look button; the packing list and an itinerary card are told
+  // about tips found elsewhere and have no button of their own.
+  const offersLook = Boolean(
+    (canLook ?? Boolean(tripId)) && !compact && canLookHere,
+  );
+
   // After the hooks, so a person's level changing does not change how many of
   // them run.
   //
-  // A secondary traveler sees the tips. Hiding the whole section took the advice
-  // away from the person most likely to need telling -- what the dress code is,
-  // which door to use, what the park will not let you carry -- to protect a
-  // dismiss button that is gated separately a few lines down.
-  if (!shown.length && compact && looked) return null;
+  // Nothing found, and no button to go and find any: then there is nothing to
+  // say, and a heading over a sentence explaining that nothing was said is just
+  // a paragraph of furniture above the thing you came to read. The section goes
+  // entirely. Where the Look button does live the empty wording stays, because
+  // there it is telling you what the button is for.
+  //
+  // A secondary traveler sees the tips that exist. Hiding the section when there
+  // are some took the advice away from the person most likely to need telling --
+  // what the dress code is, which door to use, what the park will not let you
+  // carry -- to protect a dismiss button that is gated separately a few lines
+  // down. This hides the empty case only.
+  if (!shown.length && !offersLook && !busy && !note && !problem) return null;
 
   return (
     <section
@@ -294,7 +308,7 @@ export default function ProTips({
             the same probe found item_insights has no such policy, which is why the
             day research is offered to her and this is not. See
             lib/travelers/allowed.js. */}
-        {(canLook ?? Boolean(tripId)) && !compact && canLookHere ? (
+        {offersLook ? (
           <button
             type="button"
             onClick={look}
