@@ -1048,7 +1048,7 @@ export default function Itinerary({
   return (
     <section>
       <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-xl bg-white p-1 text-xs font-semibold shadow-sm ring-1 ring-sand-deep">
+        <div className="flex gap-1 rounded-full bg-white p-1 text-xs font-semibold shadow-sm ring-1 ring-[var(--line)]">
           {[
             { id: "all", label: "All" },
             { id: "confirmed", label: "Confirmed" },
@@ -1057,8 +1057,10 @@ export default function Itinerary({
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
-              className={`rounded-lg px-3 py-1.5 ${
-                filter === f.id ? "bg-teal text-white" : "text-ink-soft"
+              className={`rounded-full px-3 py-1.5 transition ${
+                filter === f.id
+                  ? "bg-teal text-white"
+                  : "text-ink-soft hover:text-ink"
               }`}
             >
               {f.label}

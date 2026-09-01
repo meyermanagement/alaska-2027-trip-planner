@@ -178,7 +178,7 @@ export default function TripBuilderStart() {
           {TRIP_IDEA_EXAMPLES.map((example) => (
             <div
               key={example}
-              className="flex flex-col justify-between rounded-xl border border-sand-deep bg-sand/50 p-3"
+              className="flex flex-col justify-between rounded-xl border border-[var(--line)] bg-sand/50 p-3"
             >
               <blockquote className="text-xs leading-relaxed text-ink-soft">
                 &ldquo;{example}&rdquo;

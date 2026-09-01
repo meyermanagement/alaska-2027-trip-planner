@@ -15,6 +15,16 @@
   --color-glacier: #1f5675;
   --color-amber: #8f5416;
   --color-rose: #96334c;
+  /* One radius family, so a day tile, a place card and a trip header card all
+     turn the same corner. rounded-xl IS the card radius: it is what most of the
+     app already reached for, so overriding the scale here fixes every surface
+     at once instead of asking a hundred class strings to agree. */
+  --radius-sm: 0.4rem;
+  --radius-md: 0.55rem;
+  --radius-lg: 0.7rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.375rem;
   --font-display: var(--font-display-face), "Iowan Old Style", Georgia, serif;
   --font-sans:
     var(--font-sans-face), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
@@ -31,6 +41,12 @@
   --shadow-card-lift:
     0 1px 2px rgba(36, 31, 24, 0.05), 0 10px 22px -18px rgba(36, 31, 24, 0.4);
   --shadow-inset: inset 0 1px 2px rgba(36, 31, 24, 0.04);
+
+  /* Named for what they are put on, so a new surface picks one rather than a
+     number. Anything interactive and short is a pill instead. */
+  --radius-card: 0.875rem;
+  --radius-panel: 1.125rem;
+  --radius-control: 0.7rem;
 }
 
 html,
@@ -261,7 +277,7 @@ time {
 .card {
   background: var(--color-white);
   border: 1px solid var(--line);
-  border-radius: 0.875rem;
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 
@@ -310,7 +326,7 @@ button.card:hover {
   flex: none;
   width: 2.75rem;
   height: 2.75rem;
-  border-radius: 0.8rem;
+  border-radius: var(--radius-card);
   border: 1px solid var(--line);
   background: linear-gradient(
     180deg,
@@ -346,7 +362,7 @@ select {
 
 .field {
   width: 100%;
-  border-radius: 0.6rem;
+  border-radius: var(--radius-control);
   border: 1px solid var(--line-strong);
   background: var(--color-white);
   padding: 0.6rem 0.75rem;
@@ -485,7 +501,7 @@ input[type="month"]::-webkit-date-and-time-value {
   flex: 0 0 auto;
   width: 4.5rem;
   padding: 0.65rem 0.3rem 0.55rem;
-  border-radius: 0.85rem;
+  border-radius: var(--radius-card);
   border: 1px solid var(--line);
   background: rgba(255, 253, 248, 0.7);
   box-shadow: var(--shadow-card);
@@ -589,7 +605,7 @@ input[type="month"]::-webkit-date-and-time-value {
   flex: 0 0 auto;
   width: 2.1rem;
   height: 2.5rem;
-  border-radius: 0.6rem;
+  border-radius: 999px;
   border: 1px solid var(--line);
   background: rgba(255, 253, 248, 0.7);
   color: var(--color-ink-soft);
@@ -608,7 +624,7 @@ input[type="month"]::-webkit-date-and-time-value {
   .day-tile {
     width: 3.5rem;
     padding: 0.5rem 0.25rem 0.4rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-card);
   }
   .day-tile-wide {
     width: 4.25rem;
@@ -673,7 +689,7 @@ input[type="month"]::-webkit-date-and-time-value {
 .emoji-badge-sm {
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 0.65rem;
+  border-radius: var(--radius-control);
   font-size: 1.15rem;
 }
 
