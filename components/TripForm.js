@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { carryEnd, formatRange } from "@/lib/format";
+import DrawCover from "./DrawCover";
 
 const STATUSES = [
   // Draft keeps the trip out of Upcoming and out of Past until someone moves it.
@@ -185,6 +186,21 @@ export default function TripForm({
           placeholder="A line or two about the trip."
         />
       </label>
+
+      {/* The picture behind the trip, asked for from the form that changes
+          everything else about the trip. It sits below the fields it depends on
+          -- where the trip is and when -- because the drawing is made from those
+          two answers, and above Save because it is not one of them: it writes to
+          the row itself, immediately, and does not wait for the form. */}
+      <section className="rounded-2xl border border-[var(--line)] bg-sand/40 p-4">
+        <h3 className="section-label">The picture on this trip</h3>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+          {trip.cover_image_url
+            ? "Drawn for this trip from where and when it is. Ask for another if it is not right — or tell Aly what to change about it."
+            : "There is no picture on this trip yet. The app will draw one from where and when the trip is: no photograph, no stock library, just a flat illustration of the place."}
+        </p>
+        <DrawCover trip={trip} className="mt-3 sm:max-w-56" />
+      </section>
 
       {error && <p className="text-sm font-semibold text-rose">{error}</p>}
 
