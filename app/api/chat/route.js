@@ -37,7 +37,11 @@ import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
   ANSWERING_TOOLS,
   answerAsWell,
+  asksAdvice,
   asksSomething,
+  gistOf,
+  needsReasons,
+  wordlessLine,
 } from "@/lib/agent/asked";
 import {
   splitRecallCalls,
@@ -427,16 +431,28 @@ export async function POST(request) {
   // twice, and with the shortlist tools left in because "where can we go from
   // Lisbon" is answered in cards.
   let shortlistAll = shortlist;
+  const wantsAdvice = asksAdvice(said);
   if (
-    !result.text &&
-    changeCalls.length &&
+    // Silent, or a handful of words restating the card. "What do you recommend?"
+    // came back as a change to the trip's getting-around line and nothing else:
+    // right answer, none of the answering. The thin version is caught alongside
+    // the silent one because "Updated for you." passes any test for having
+    // spoken while saying nothing a person could weigh.
+    needsReasons(result.text, changeCalls) &&
     asksSomething(said) &&
     clock(EXTRA_TURN_MS)
   ) {
     const wordsBy = clock(EXTRA_TURN_MS);
     try {
       const words = await generate({
-        system: [system, answerAsWell(said)].join("\n\n"),
+        system: [
+          system,
+          // What she proposed, handed back to her. The confirmation cards'
+          // own summaries are built further down the route, so this turn was
+          // being told "you already proposed something" without being told
+          // what -- which is a hard thing to write two paragraphs about.
+          answerAsWell(said, gistOf(changeCalls), { advice: wantsAdvice }),
+        ].join("\n\n"),
         messages,
         // A shortlist already on screen means the shortlist tool comes away.
         // Asked the same trip twice, a model does not repeat itself exactly --
@@ -449,6 +465,10 @@ export async function POST(request) {
         ),
         grounded: lookUp,
         deadline: wordsBy,
+        // Not the model that just answered wordlessly. Asking the same one the
+        // same thing again is how this retry quietly did nothing: a model that
+        // treated the card as the whole answer treats it that way twice.
+        avoid: result.model ? [result.model] : [],
       });
       if (words?.text || (words?.calls || []).length) {
         const { places: more } = splitPlaceCalls(words.calls);
@@ -669,6 +689,11 @@ export async function POST(request) {
   // reaching this line means something upstream came back empty, and the honest
   // thing is to say so and let them press again, which now usually works because
   // the ladder no longer accepts silence as an answer.
+  // A card and no words, after the retry above also came back with nothing. Rare
+  // now, but it has to say something: a proposal sitting alone under a question
+  // reads as an answer that was never given, and there is no way for the family
+  // to tell a considered call from a failure.
+  if (!reply && actions.length && asksSomething(said)) reply = wordlessLine();
   if (!reply && actions.length === 0 && places.length === 0) {
     reply = problems.length
       ? Array.from(new Set(problems)).join(" ")
