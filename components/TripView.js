@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { sortItinerary } from "@/lib/day/order";
 import { daysUntil, formatRange, isDraftTrip, isPastTrip } from "@/lib/format";
 import PromoteDraft from "./PromoteDraft";
-import TripRoster from "./TripRoster";
+import TripOverview from "./TripOverview";
 import TripForm from "./TripForm";
 import Itinerary from "./Itinerary";
 import Packing from "./Packing";
@@ -83,10 +83,13 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
 }
 
 const TABS = [
-  // Itinerary first, because that is what a trip opens on and what somebody
-  // living inside a trip came for. Tips sits second: it is where the advice about
-  // the trip as a whole lives, and the one place that can ask for a look, but it
-  // is a thing you go to rather than a thing you land on.
+  // Overview first, and the one a trip opens on. It holds what a trip is --
+  // who is going, what it is for, how it is coming along -- which used to be
+  // stacked in the header above every other tab whether or not it was being
+  // read. Tips sits after the two working tabs: it is where the advice about the
+  // trip as a whole lives, and the one place that can ask for a look, but it is
+  // a thing you go to rather than a thing you land on.
+  { id: "overview", label: "Overview" },
   { id: "itinerary", label: "Itinerary" },
   { id: "tips", label: "Tips" },
   { id: "packing", label: "Packing" },
@@ -134,7 +137,7 @@ export default function TripView({
   // has no read-only mode: showing the tab today would show a compose box that
   // saves nothing.
   const tabs = readOnly ? TABS.filter((t) => t.id !== "notes") : TABS;
-  const [tab, setTab] = useState("itinerary");
+  const [tab, setTab] = useState("overview");
   // What the last look filed, and where. Held here rather than inside the tips
   // card so the Tips tab can keep saying it after somebody has been off to
   // read the tips on another tab and come back.
@@ -388,99 +391,91 @@ export default function TripView({
             />
           </div>
         ) : (
-          <div className="flex flex-wrap items-start justify-between gap-4 p-5">
+          /* What is worth carrying between tabs, and nothing else: what this
+             trip is called, when it is, where it is, and how far away. The
+             description, the roster and the counting tiles moved to the
+             Overview tab, because a header that is read once should not take a
+             third of the screen on the four tabs where it is not being read. */
+          <div className="flex items-start justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                 <span className="emoji-badge" aria-hidden="true">
                   {info.cover_emoji}
                 </span>
+                <h1 className="font-display text-2xl font-semibold leading-tight">
+                  {info.name}
+                </h1>
                 {countdown !== null && countdown >= 0 && (
                   <span className="chip bg-teal-soft text-teal">
                     {countdown} days away
                   </span>
                 )}
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => setEditing(true)}
-                    className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                  >
-                    Edit trip
-                  </button>
-                )}
               </div>
-              <h1 className="font-display mt-2 text-3xl font-semibold leading-tight">
-                {info.name}
-              </h1>
-              <p className="mt-1 text-sm font-semibold text-ink-soft">
-                {formatRange(info.start_date, info.end_date)}
+              {/* Dates and place on one line where there is room, and on two
+                  where there is not. The separator dot belongs to the place, so
+                  a wrap can never leave a dot stranded at the start of a line
+                  the way an inline "· {destination}" did at 320px. */}
+              <p className="mt-1 text-sm text-ink-soft">
+                <span className="font-semibold">
+                  {formatRange(info.start_date, info.end_date)}
+                </span>
                 {info.dates_auto !== false && (
-                  <span className="no-print ml-1.5 font-normal text-ink-soft/80">
-                    · from the itinerary
+                  <span className="no-print block text-ink-soft/80 sm:inline">
+                    <span className="hidden sm:inline"> · </span>
+                    from the itinerary
+                  </span>
+                )}
+                {info.destination && (
+                  <span className="block sm:inline">
+                    <span className="hidden sm:inline"> · </span>
+                    {info.destination}
                   </span>
                 )}
               </p>
-              {info.destination && (
-                <p className="mt-1 text-sm text-ink-soft">{info.destination}</p>
-              )}
-              {info.summary && (
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-                  {info.summary}
-                </p>
-              )}
-
-              <TripRoster
-                className="mt-4"
-                trip={info}
-                people={people}
-                pets={pets}
-                going={going}
-                onGoingChange={setGoing}
-                petLinks={petLinks}
-                onPetLinksChange={setPetLinks}
-                packing={packing}
-                readOnly={readOnly}
-                past={past}
-                onPackingChanged={() => refetch("packing_items")}
-              />
             </div>
-            <dl className="grid grid-cols-3 gap-3 text-center sm:gap-4">
-              {stats.map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded-xl border border-[var(--line)] bg-sand/70 px-3.5 py-2.5"
-                >
-                  <dt className="section-label">{s.label}</dt>
-                  <dd className="font-display mt-0.5 text-xl font-semibold">
-                    {s.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            {/* Top right on every width. It used to be a text link tucked in
+                beside the emoji; a header this short can afford a real button,
+                and the one that does not wrap below the dates on a phone is the
+                one that is not in the same wrapping row as them. */}
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="btn btn-ghost no-print mt-0.5 shrink-0 px-3 py-1.5 text-xs"
+              >
+                Edit trip
+              </button>
+            )}
           </div>
         )}
 
-        {/* Five tabs do not fit on a narrow phone, so the bar scrolls sideways.
+        {/* Six tabs do not fit on a narrow phone, so the bar scrolls sideways.
             It always did, but with four it only just overflowed and the cut fell
-            in the gap between two tabs, which read as an edge. With five the cut
+            in the gap between two tabs, which read as an edge. Past that the cut
             lands mid-word, which reads as broken. The mask fades the last few
             pixels so the bar looks like it continues rather than like it failed,
-            and tightening the padding below 640px buys back enough room that only
-            the last tab is ever clipped. */}
+            and tightening the padding below 640px buys back enough room.
+
+            Louder than it was. The tabs are now the main thing on this card
+            rather than a footnote under a block of trip details, so they are set
+            on the deeper sand, at a readable size, and the selected one is a
+            white tab with a teal rule under it -- a shape that says "this one"
+            from across the room instead of a slightly different grey. */}
         <div className="relative min-w-0">
           <nav
             ref={tabBarRef}
-            className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand/60 px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand-deep/40 px-2 py-1.5 [scrollbar-width:none] sm:px-3 [&::-webkit-scrollbar]:hidden"
           >
             {tabs.map((t) => (
               <button
                 key={t.id}
                 data-tab={t.id}
+                aria-current={tab === t.id ? "page" : undefined}
                 onClick={() => setTab(t.id)}
-                className={`rounded-lg px-2.5 py-2 text-sm font-semibold whitespace-nowrap transition sm:px-4 ${
+                className={`rounded-lg border-b-2 px-3 py-2.5 text-[0.95rem] font-semibold whitespace-nowrap transition sm:px-5 ${
                   tab === t.id
-                    ? "bg-white text-teal shadow-sm"
-                    : "text-ink-soft hover:text-ink"
+                    ? "border-teal bg-white text-teal shadow-sm"
+                    : "border-transparent text-ink-soft hover:bg-white/50 hover:text-ink"
                 }`}
               >
                 {t.label}
@@ -535,6 +530,22 @@ export default function TripView({
             }}
             everLooked={everLooked}
             onGo={setTab}
+          />
+        )}
+        {tab === "overview" && (
+          <TripOverview
+            trip={info}
+            people={people}
+            pets={pets}
+            going={going}
+            onGoingChange={setGoing}
+            petLinks={petLinks}
+            onPetLinksChange={setPetLinks}
+            packing={packing}
+            stats={stats}
+            readOnly={readOnly}
+            past={past}
+            onPackingChanged={() => refetch("packing_items")}
           />
         )}
         {tab === "itinerary" && (
