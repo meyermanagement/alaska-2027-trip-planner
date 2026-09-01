@@ -4,14 +4,14 @@
   /* Field Journal: cream paper, brown-black ink, one deep spruce accent.
      Warm off-white stands in for pure white so cards sit on the paper rather
      than punching a hole in it — every bg-white in the app reads this. */
-  --color-white: #fffdf8;
+  --color-white: #fdfaf0;
   --color-ink: #241f18;
-  --color-ink-soft: #6e6555;
-  --color-ink-faint: #79705e;
-  --color-sand: #f6f1e6;
-  --color-sand-deep: #f0e9d9;
+  --color-ink-soft: #665e4d;
+  --color-ink-faint: #726853;
+  --color-sand: #f1e9d8;
+  --color-sand-deep: #e6dcc6;
   --color-teal: #1b5a4c;
-  --color-teal-soft: #dce9e2;
+  --color-teal-soft: #d9e6de;
   --color-glacier: #1f5675;
   --color-amber: #8f5416;
   --color-rose: #96334c;
@@ -25,12 +25,11 @@
   color-scheme: light;
 
   /* One hairline and one shadow, used everywhere, so surfaces agree. */
-  --line: rgba(36, 31, 24, 0.1);
-  --line-strong: rgba(36, 31, 24, 0.16);
-  --shadow-card:
-    0 1px 2px rgba(36, 31, 24, 0.04), 0 10px 26px -20px rgba(36, 31, 24, 0.24);
+  --line: #ddd0b4;
+  --line-strong: #c9b998;
+  --shadow-card: 0 1px 1px rgba(36, 31, 24, 0.03);
   --shadow-card-lift:
-    0 1px 2px rgba(36, 31, 24, 0.05), 0 16px 34px -20px rgba(36, 31, 24, 0.3);
+    0 1px 2px rgba(36, 31, 24, 0.05), 0 10px 22px -18px rgba(36, 31, 24, 0.4);
   --shadow-inset: inset 0 1px 2px rgba(36, 31, 24, 0.04);
 }
 
@@ -76,7 +75,7 @@ time {
 .app-shell {
   background-image: linear-gradient(
     180deg,
-    #fffdf8 0%,
+    #f8f2e4 0%,
     var(--color-sand) 30%,
     var(--color-sand) 100%
   );
@@ -108,7 +107,8 @@ time {
 /* Loading placeholders: a slow warm sweep rather than a throb, so a page that
    is filling in reads as patient instead of anxious. */
 .sk {
-  background-color: rgba(36, 31, 24, 0.07);
+  /* Warm, so a loading row looks like blank paper rather than gray glass. */
+  background-color: #e4d9c2;
   background-image: linear-gradient(
     90deg,
     rgba(36, 31, 24, 0) 0%,
