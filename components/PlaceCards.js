@@ -11,6 +11,7 @@
 import {
   KIND_LABELS,
   addRequest,
+  asksForPlaces,
   findMoreRequest,
   groupPlaces,
   moreRequest,
@@ -275,13 +276,28 @@ export default function PlaceCards({
           type="button"
           onClick={onFindMore}
           disabled={busy}
-          className="mt-3 rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-60"
+          className="btn btn-primary mt-3.5 w-full sm:w-auto"
         >
-          Find more
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle
+              cx="9"
+              cy="9"
+              r="6"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            />
+            <path
+              d="M13.5 13.5 17.5 17.5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </svg>
+          Find more like these
         </button>
       ) : null}
     </div>
   );
 }
 
-export { addRequest, findMoreRequest, moreRequest };
+export { addRequest, asksForPlaces, findMoreRequest, moreRequest };

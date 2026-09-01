@@ -16,6 +16,7 @@ import {
 } from "@/lib/agent/picking";
 import PlaceCards, {
   addRequest,
+  asksForPlaces,
   findMoreRequest,
   moreRequest,
 } from "./PlaceCards";
@@ -260,9 +261,23 @@ export default function ChatPanel({
     () => messages.flatMap((m) => (Array.isArray(m.places) ? m.places : [])),
     [messages],
   );
+  // The newest set of cards, and only when the question underneath it was asking
+  // to be shown places. "What should we book first" answers with hotels, so
+  // cards appear under it -- and a second helping there is an answer to a
+  // question nobody asked, because what they wanted was the order to book the
+  // ones they already have.
   const lastPlaces = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i -= 1)
-      if (messages[i]?.places?.length) return i;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (!messages[i]?.places?.length) continue;
+      let asked = "";
+      for (let j = i; j >= 0; j -= 1) {
+        if (messages[j]?.role === "user") {
+          asked = messages[j].text || "";
+          break;
+        }
+      }
+      return asksForPlaces(asked) ? i : -1;
+    }
     return -1;
   }, [messages]);
   const scrollRef = useRef(null);
