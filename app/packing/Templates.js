@@ -552,7 +552,7 @@ export default function Templates({
           </p>
         </div>
 
-        {/* Search and one heading at a time, the same pair the trip's own
+        {/* Search and one category at a time, the same pair the trip's own
             packing list carries, and offered on the same terms: only once the
             list is long enough that reading it is the slow way to answer. */}
         {mine.length >= 12 && (
@@ -579,11 +579,11 @@ export default function Templates({
             {categories.length > 1 && (
               <select
                 className="field"
-                aria-label="Show one heading only"
+                aria-label="Show one category only"
                 value={onlyCategory}
                 onChange={(e) => setOnlyCategory(e.target.value)}
               >
-                <option value="all">All headings</option>
+                <option value="all">All categories</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}

@@ -49,7 +49,7 @@ export default function Packing({
   // half-remembered, and a search that only answers to the exact wording is a
   // search you have to already know the answer to use.
   const [find, setFind] = useState("");
-  // One heading at a time, for the other way of looking: not "where is the
+  // One category at a time, for the other way of looking: not "where is the
   // thing" but "what is under Toiletries".
   const [onlyCategory, setOnlyCategory] = useState("all");
   const [hidePacked, setHidePacked] = useState(false);
@@ -1526,7 +1526,7 @@ export default function Packing({
 
       {/* Two ways of looking, above the pills that were already here. The box
           answers "is this already on the list", which on a hundred and eleven
-          lines is the question the list is worst at; the heading picker answers
+          lines is the question the list is worst at; the category picker answers
           "what is under Toiletries", which used to mean scrolling past
           everything that was not. Both only appear once the list is long enough
           for either to be worth a row of screen -- a search box over eight
@@ -1555,11 +1555,11 @@ export default function Packing({
           {categories.length > 1 && (
             <select
               className="field"
-              aria-label="Show one heading only"
+              aria-label="Show one category only"
               value={onlyCategory}
               onChange={(e) => setOnlyCategory(e.target.value)}
             >
-              <option value="all">All headings</option>
+              <option value="all">All categories</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -1721,7 +1721,7 @@ export default function Packing({
                 onClick={() => startAdd(NEW_CATEGORY)}
                 className="w-full px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-teal"
               >
-                + Add under a new heading
+                + Add under a new category
               </button>
             )}
           </div>
