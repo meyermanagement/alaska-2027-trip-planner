@@ -4,6 +4,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
+import {
+  applyLabel,
+  chosenActions,
+  forgetGroup,
+  locked,
+  nothingChosen,
+  pickable,
+  tickKey,
+  toggle,
+} from "@/lib/agent/picking";
 import PlaceCards, { addRequest, moreRequest } from "./PlaceCards";
 import WhereIAm, { readStored } from "./WhereIAm";
 import { runLook } from "@/lib/tips/run";
@@ -205,6 +215,9 @@ export default function ChatPanel({
   // so closing the drawer in a taxi does not mean saying it again.
   const [here, setHere] = useState(null);
   const [applyingKey, setApplyingKey] = useState(null);
+  // Lines the family has turned off, by chunk. Everything arrives ticked, so
+  // this stays empty until somebody says otherwise.
+  const [skipped, setSkipped] = useState(() => new Set());
   const applying = applyingKey !== null;
   const [packingBusy, setPackingBusy] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -514,6 +527,10 @@ export default function ChatPanel({
   // long paste can be approved in the order the family cares about.
   async function apply(group) {
     if (!pending || applying || !group?.actions?.length) return;
+    // Only the lines still ticked go up. Everything the family turned off is
+    // dropped with the chunk, never saved and never mentioned again.
+    const sending = chosenActions(group, skipped);
+    if (!sending.length) return;
     setApplyingKey(group.key);
     setError("");
     try {
@@ -522,7 +539,7 @@ export default function ChatPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tripId,
-          actions: group.actions,
+          actions: sending,
           conversationId: conversationRef.current,
         }),
       });
@@ -567,7 +584,7 @@ export default function ChatPanel({
         const results = data.results || [];
         setSavedActions((prev) => [
           ...prev,
-          ...group.actions.filter((a, i) =>
+          ...sending.filter((a, i) =>
             results[i] ? results[i].ok !== false : true,
           ),
         ]);
@@ -578,6 +595,7 @@ export default function ChatPanel({
         const left = (p?.groups || []).filter((g) => g.key !== group.key);
         return left.length ? { groups: left } : null;
       });
+      setSkipped((prev) => forgetGroup(prev, group));
       // The trip this panel belongs to is gone, so refreshing would re-render a
       // page for a trip that no longer exists and land on a 404. Replace rather
       // than push: going Back should not return to a trip that was deleted.
@@ -646,6 +664,7 @@ export default function ChatPanel({
       const left = (p?.groups || []).filter((g) => g.key !== key);
       return left.length ? { groups: left } : null;
     });
+    setSkipped((prev) => forgetGroup(prev, { key }));
   }
 
   return (
@@ -916,6 +935,8 @@ export default function ChatPanel({
                   (g) => g.wipes && g.category === group.category,
                 );
               const blocked = Boolean(waitingOn) || waitingForWipe;
+              const canPick = pickable(group);
+              const noneLeft = nothingChosen(group, skipped);
               return (
                 <div
                   key={group.key}
@@ -928,33 +949,74 @@ export default function ChatPanel({
                   <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                     {group.label} · {count} change{count === 1 ? "" : "s"}
                   </p>
+                  {canPick && (
+                    <p className="mt-1 text-xs text-ink-soft">
+                      Untick anything you do not want. Only the ticked lines are
+                      saved.
+                    </p>
+                  )}
                   {/* A pasted list can be dozens of rows. Cap the height so the
                       buttons stay in reach without scrolling the card away. */}
                   <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto pr-1">
-                    {group.actions.map((a, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-ink">
-                        <span
-                          aria-hidden="true"
-                          className={
-                            group.destructive ? "text-rose" : "text-teal"
-                          }
-                        >
-                          •
-                        </span>
-                        <span>
-                          {a.summary}
-                          {a.caution && (
-                            /* Something the change could not do, said before it
+                    {group.actions.map((a, i) => {
+                      const k = tickKey(group, i);
+                      const held = locked(a, group);
+                      const on = held || !skipped.has(k);
+                      // The whole line toggles, not just the box: an 18px target
+                      // is a fiddle with a thumb, and the words beside it are the
+                      // thing being decided about.
+                      const Tag = canPick && !held ? "label" : "div";
+                      return (
+                        <li key={i} className="text-sm text-ink">
+                          <Tag
+                            className={`flex gap-2 ${
+                              canPick && !held ? "cursor-pointer" : ""
+                            }`}
+                          >
+                            {canPick ? (
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                disabled={held || applying}
+                                onChange={() =>
+                                  setSkipped((prev) => toggle(prev, group, i))
+                                }
+                                aria-label={a.summary}
+                                title={
+                                  held
+                                    ? "The rest of this group goes inside this one, so it stays"
+                                    : undefined
+                                }
+                                className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-[#0f5f57]"
+                              />
+                            ) : (
+                              <span
+                                aria-hidden="true"
+                                className={
+                                  group.destructive ? "text-rose" : "text-teal"
+                                }
+                              >
+                                •
+                              </span>
+                            )}
+                            <span
+                              className={on ? "" : "text-ink-soft line-through"}
+                            >
+                              {a.summary}
+                              {a.caution && (
+                                /* Something the change could not do, said before it
                                is approved rather than in the receipt afterwards:
                                an animal the family has no record of is left off,
                                and the trip still goes through. */
-                            <span className="mt-0.5 block text-xs text-ink-soft">
-                              {a.caution}
+                                <span className="mt-0.5 block text-xs text-ink-soft">
+                                  {a.caution}
+                                </span>
+                              )}
                             </span>
-                          )}
-                        </span>
-                      </li>
-                    ))}
+                          </Tag>
+                        </li>
+                      );
+                    })}
                   </ul>
                   {waitingOn && (
                     <p className="mt-2 text-xs text-ink-soft">
@@ -972,7 +1034,7 @@ export default function ChatPanel({
                     <button
                       type="button"
                       onClick={() => apply(group)}
-                      disabled={applying || blocked}
+                      disabled={applying || blocked || noneLeft}
                       className={`btn px-4 py-1.5 text-sm ${
                         group.destructive
                           ? "bg-rose text-white hover:bg-[#8c364e]"
@@ -983,7 +1045,7 @@ export default function ChatPanel({
                         ? "Saving…"
                         : group.destructive
                           ? "Yes, delete"
-                          : "Apply"}
+                          : applyLabel(group, skipped)}
                     </button>
                     <button
                       type="button"
@@ -993,6 +1055,11 @@ export default function ChatPanel({
                     >
                       Discard
                     </button>
+                    {noneLeft && (
+                      <p className="self-center text-xs text-ink-soft">
+                        Nothing is ticked.
+                      </p>
+                    )}
                   </div>
                 </div>
               );

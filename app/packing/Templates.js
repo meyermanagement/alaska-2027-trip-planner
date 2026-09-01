@@ -10,7 +10,7 @@ import TripsUsing from "@/components/TripsUsing";
 import FirstTemplate from "@/components/FirstTemplate";
 import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
-import { blankRequest } from "@/lib/packing/newTemplate";
+import { blankRequest, proposeRequest } from "@/lib/packing/newTemplate";
 
 const SHARED = "Shared";
 
@@ -271,6 +271,28 @@ export default function Templates({
   // the button writes the brief into her box with the two things only they know
   // left blank, and does NOT send it -- a prompt that sent itself half-written
   // would produce a list built on the instructions alone.
+  // Asking Aly what this particular list is missing. It sends: the brief is
+  // complete on its own, because the list, what it is for and what is already on
+  // it are all things the screen knows and the user would only be retyping.
+  // Each suggestion arrives as its own change with its own tick, so a proposal
+  // of twenty can be taken eighteen of.
+  function proposeItems() {
+    window.dispatchEvent(
+      new CustomEvent(ASK_ALY_EVENT, {
+        detail: {
+          seed: proposeRequest({
+            name: template.name,
+            description: template.description,
+            isBase: template.is_base,
+            count: mine.length,
+          }),
+          autoSend: true,
+          focus: TEMPLATES_FOCUS,
+        },
+      }),
+    );
+  }
+
   function newTemplate() {
     window.dispatchEvent(
       new CustomEvent(ASK_ALY_EVENT, {
@@ -401,6 +423,21 @@ export default function Templates({
               : "This add-on is empty. Put the gear here that only suits one kind of trip \u2014 cold-weather layers, snorkeling kit \u2014 and keep the base list to what travels everywhere."}
           </p>
         )}
+        <div className="no-print mt-3">
+          <button
+            type="button"
+            onClick={proposeItems}
+            className="btn btn-primary px-4 py-1.5 text-sm"
+          >
+            Propose items automatically
+          </button>
+          <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+            Aly reads what is on this list already and suggests what is missing.
+            Each suggestion comes with a tick of its own, so you can take some
+            and leave the rest.
+          </p>
+        </div>
+
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={() => setWho("all")}
