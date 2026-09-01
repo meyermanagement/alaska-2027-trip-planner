@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 import { oneOrShared } from "@/lib/people";
+import { matchesQuery } from "@/lib/packing/find";
 import {
   strandedGroups,
   strandedWords,
@@ -43,6 +44,14 @@ export default function Packing({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
+  // Finding a line on a list of a hundred and eleven. Spelling is forgiven --
+  // see lib/packing/find -- because the question you arrive with is usually
+  // half-remembered, and a search that only answers to the exact wording is a
+  // search you have to already know the answer to use.
+  const [find, setFind] = useState("");
+  // One heading at a time, for the other way of looking: not "where is the
+  // thing" but "what is under Toiletries".
+  const [onlyCategory, setOnlyCategory] = useState("all");
   const [hidePacked, setHidePacked] = useState(false);
   // Shut, until somebody wants it. The strip explains where the list came from
   // and what changing a template does -- worth reading once, and then it is a
@@ -240,6 +249,13 @@ export default function Packing({
       return false;
     if (hidePacked && i.is_packed) return false;
     if (onlyLast && !i.last_minute) return false;
+    if (onlyCategory !== "all" && (i.category || "General") !== onlyCategory)
+      return false;
+    // The heading and the person are searched along with the name, so "toilet"
+    // finds the bag as well as the heading it sits under, and "veda" gathers
+    // her things without touching the pills.
+    if (!matchesQuery(find, i.item, i.category, i.assignee, i.notes))
+      return false;
     return true;
   });
 
@@ -1508,6 +1524,52 @@ export default function Packing({
         </div>
       </div>
 
+      {/* Two ways of looking, above the pills that were already here. The box
+          answers "is this already on the list", which on a hundred and eleven
+          lines is the question the list is worst at; the heading picker answers
+          "what is under Toiletries", which used to mean scrolling past
+          everything that was not. Both only appear once the list is long enough
+          for either to be worth a row of screen -- a search box over eight
+          items is furniture. */}
+      {items.length >= 12 && (
+        <div className="no-print mb-3 grid gap-2 sm:grid-cols-[1fr_13rem] sm:items-center">
+          <div className="relative min-w-0">
+            <input
+              type="text"
+              className="field pr-16"
+              placeholder="Search this list"
+              aria-label="Search this packing list"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+            />
+            {find && (
+              <button
+                type="button"
+                onClick={() => setFind("")}
+                className="absolute inset-y-0 right-2 my-auto h-6 rounded-md px-2 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-soft hover:bg-sand hover:text-ink"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {categories.length > 1 && (
+            <select
+              className="field"
+              aria-label="Show one heading only"
+              value={onlyCategory}
+              onChange={(e) => setOnlyCategory(e.target.value)}
+            >
+              <option value="all">All headings</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       <div className="no-print mb-4 flex flex-wrap items-center gap-2">
         {/* Filtering by person is a choice with one answer when the list is
             already one person's: a secondary traveler is shown only the lines
@@ -1578,6 +1640,33 @@ export default function Packing({
             row says the same thing in the place you are already reading, and the
             Last minute pill above gathers them when gathering them is what you
             actually want. */}
+        {/* A search that finds nothing has to say so. Without this the list
+            simply empties, which reads as though the trip lost its packing
+            list rather than as though the word was wrong -- and there is
+            nowhere obvious to press to get back. */}
+        {!grouped.length && (find || onlyCategory !== "all") && (
+          <div className="card px-4 py-6 text-center">
+            <p className="text-sm font-semibold text-ink">
+              {find
+                ? `Nothing on this list looks like “${find}”.`
+                : `Nothing under ${onlyCategory}.`}
+            </p>
+            <p className="mt-1 text-[0.8rem] text-ink-soft">
+              {items.length} {items.length === 1 ? "item" : "items"} on the
+              list, hidden by what is set above.
+            </p>
+            <button
+              type="button"
+              className="btn btn-ghost mt-3 px-3 py-1.5 text-xs"
+              onClick={() => {
+                setFind("");
+                setOnlyCategory("all");
+              }}
+            >
+              Show everything again
+            </button>
+          </div>
+        )}
         {grouped.map(([category, rows]) => (
           <div key={category} className="card overflow-hidden">
             <div className="flex items-center gap-x-3 border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
@@ -1609,7 +1698,11 @@ export default function Packing({
             <ul>{rows.map((i) => itemRow(i))}</ul>
           </div>
         ))}
-        {grouped.length === 0 && (
+        {/* The older empty state, which means "everything here is packed".
+            It steps aside when the list is empty because of a search: the card
+            above already says why, and two cards saying different things about
+            the same emptiness is worse than either. */}
+        {grouped.length === 0 && !find && onlyCategory === "all" && (
           <p className="card p-6 text-center text-sm text-ink-soft">
             Nothing left in this view. Nice work.
           </p>
@@ -1618,7 +1711,7 @@ export default function Packing({
         {/* The one add that no category card can offer, because the card does
             not exist yet. Quiet and last, so it is available without being the
             first thing on a list you came to tick things off on. */}
-        {!readOnly && (
+        {!readOnly && !find && onlyCategory === "all" && (
           <div className="no-print card overflow-hidden border-dashed">
             {adding === NEW_CATEGORY ? (
               addForm(NEW_CATEGORY)

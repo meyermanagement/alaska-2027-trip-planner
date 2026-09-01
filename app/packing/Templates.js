@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
+import { matchesQuery } from "@/lib/packing/find";
 import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
 import PropagatePanel from "@/components/PropagatePanel";
 import TripsUsing from "@/components/TripsUsing";
@@ -54,6 +55,12 @@ export default function Templates({
   const base = templates.find((t) => t.is_base) || templates[0] || null;
   const [templateId, setTemplateId] = useState(base?.id || null);
   const [who, setWho] = useState("all");
+  // The same two ways of looking the trip's own list now has. A base template
+  // of seventy-four lines has exactly the trip list's problem: the fastest way
+  // to find out whether the sunscreen is already on it was to read the whole
+  // thing. Spelling is forgiven -- see lib/packing/find.
+  const [find, setFind] = useState("");
+  const [onlyCategory, setOnlyCategory] = useState("all");
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState(EMPTY_DRAFT);
   const [adding, setAdding] = useState(null);
@@ -102,8 +109,15 @@ export default function Templates({
   // alphabetically, so the family reads the way it does everywhere else.
   const sections = useMemo(() => {
     const shown = who === "all" ? people : [who];
-    return shown.map((person) => {
-      const rows = mine.filter((i) => (i.assignee || SHARED) === person);
+    const looking = Boolean(find) || onlyCategory !== "all";
+    const built = shown.map((person) => {
+      const rows = mine.filter(
+        (i) =>
+          (i.assignee || SHARED) === person &&
+          (onlyCategory === "all" ||
+            (i.category || "General") === onlyCategory) &&
+          matchesQuery(find, i.item, i.category, i.assignee),
+      );
       const byCategory = new Map();
       rows.forEach((i) => {
         const key = i.category || "General";
@@ -112,6 +126,7 @@ export default function Templates({
       });
       return {
         person,
+        looking,
         count: rows.length,
         stray: !known.includes(person) && person !== SHARED,
         groups: Array.from(byCategory.entries()).sort((a, b) =>
@@ -119,7 +134,8 @@ export default function Templates({
         ),
       };
     });
-  }, [mine, people, who, known]);
+    return looking ? built.filter((section) => section.count > 0) : built;
+  }, [mine, people, who, known, find, onlyCategory]);
 
   const nextSort = () =>
     mine.reduce((max, i) => Math.max(max, i.sort_order || 0), 0) + 1;
@@ -536,6 +552,48 @@ export default function Templates({
           </p>
         </div>
 
+        {/* Search and one heading at a time, the same pair the trip's own
+            packing list carries, and offered on the same terms: only once the
+            list is long enough that reading it is the slow way to answer. */}
+        {mine.length >= 12 && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_13rem] sm:items-center">
+            <div className="relative min-w-0">
+              <input
+                type="text"
+                className="field pr-16"
+                placeholder="Search this template"
+                aria-label="Search this packing template"
+                value={find}
+                onChange={(e) => setFind(e.target.value)}
+              />
+              {find && (
+                <button
+                  type="button"
+                  onClick={() => setFind("")}
+                  className="absolute inset-y-0 right-2 my-auto h-6 rounded-md px-2 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-soft hover:bg-sand hover:text-ink"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {categories.length > 1 && (
+              <select
+                className="field"
+                aria-label="Show one heading only"
+                value={onlyCategory}
+                onChange={(e) => setOnlyCategory(e.target.value)}
+              >
+                <option value="all">All headings</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={() => setWho("all")}
@@ -576,6 +634,29 @@ export default function Templates({
       </datalist>
 
       <div className="space-y-4">
+        {!sections.length && (find || onlyCategory !== "all") && (
+          <div className="card px-4 py-6 text-center">
+            <p className="text-sm font-semibold text-ink">
+              {find
+                ? `Nothing on this template looks like “${find}”.`
+                : `Nothing under ${onlyCategory}.`}
+            </p>
+            <p className="mt-1 text-[0.8rem] text-ink-soft">
+              {mine.length} {mine.length === 1 ? "item" : "items"} on the list,
+              hidden by what is set above.
+            </p>
+            <button
+              type="button"
+              className="btn btn-ghost mt-3 px-3 py-1.5 text-xs"
+              onClick={() => {
+                setFind("");
+                setOnlyCategory("all");
+              }}
+            >
+              Show everything again
+            </button>
+          </div>
+        )}
         {sections.map((section) => (
           <div key={section.person} className="card overflow-hidden">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
