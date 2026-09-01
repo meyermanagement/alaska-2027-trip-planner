@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { lookSummary, runLook } from "@/lib/tips/run";
 import { Spinner } from "./LinkPending";
+import { BinocularsIcon } from "./Icons";
 import { mayWrite } from "@/lib/travelers/allowed";
 import { SECONDARY } from "@/lib/travelers/access";
 
@@ -127,17 +128,25 @@ export default function LookForTips({
         type="button"
         onClick={look}
         disabled={busy}
-        className="btn btn-primary no-print w-full px-3 py-1.5 text-xs disabled:opacity-70"
+        className="btn btn-primary btn-sm no-print w-full disabled:opacity-70"
       >
+        {/* A pair of binoculars, which is the one shape that says what this
+            press does. A magnifying glass would have been the reflex and the
+            wrong pick: the app already uses one for search, and this is not a
+            search of anything the family has -- it goes and looks ahead at a
+            trip nobody has asked a question about yet. The spinner takes the
+            icon's place while it runs, so the button does not change width
+            mid-look. */}
         {busy ? (
-          <span className="flex items-center justify-center gap-1.5">
+          <>
             <Spinner className="h-3.5 w-3.5" />
             Looking…
-          </span>
-        ) : hasTips ? (
-          "Look again"
+          </>
         ) : (
-          "Look for tips"
+          <>
+            <BinocularsIcon />
+            {hasTips ? "Look again" : "Look for tips"}
+          </>
         )}
       </button>
 

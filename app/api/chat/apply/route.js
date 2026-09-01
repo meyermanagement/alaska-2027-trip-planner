@@ -2,6 +2,7 @@ import { syncPackingForPet } from "@/lib/pets/packing";
 import { isComing } from "@/lib/pets/pets";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { generateTripCover } from "@/lib/covers/generate";
 import {
   validateAction,
   pendingTripNames,
@@ -22,9 +23,10 @@ import { tripPath, tripRef, freeTripSlug } from "@/lib/trips/route";
 import { BASIC_IDS } from "@/lib/trips/basics";
 
 export const runtime = "nodejs";
-// Writing eighty rows one at a time can outlast the default budget, and a
-// timeout here reads to the family as a network error.
-export const maxDuration = 60;
+// Writing eighty rows one at a time can outlast the default budget, and so can
+// drawing a trip's cover, which is a single approved change that waits on an
+// image model for most of a minute.
+export const maxDuration = 120;
 
 // Where the result of each change is actually visible. A confirmation that does
 // not say "and here it is" leaves the family to go and find it, which is the
@@ -471,6 +473,23 @@ export async function POST(request) {
                 outcome.totals.trips === 1 ? "" : "s"
               }`
             : " — nothing to change, the upcoming trips already match";
+      } else if (tool === "draw_trip_cover") {
+        // The one approved change in this app that spends most of a minute
+        // before it has anything to save. It runs here, inline, rather than
+        // being handed to a queue, because the family is watching the panel and
+        // a card that says "saved" while nothing has been drawn yet would be a
+        // lie -- and because there is no queue.
+        //
+        // Permission was settled before this point: the action carries a trip id
+        // the model was shown, and everything the model is shown came through
+        // this family's own row-level security. The generator then writes with
+        // the service role, which it must, because putting a file in Storage is
+        // not something a browser session may do here.
+        const outcome = await generateTripCover(id, {
+          extra: String(patch?.note || ""),
+        });
+        dbError = outcome.ok ? null : { message: outcome.error };
+        if (outcome.ok) extra = " — it is on the trip's card now";
       } else if (tool === "set_trip_templates") {
         // The list replaces what was there, so this is a delete and an insert
         // rather than an add: taking the Disney list off a trip is how somebody

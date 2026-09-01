@@ -91,7 +91,7 @@ time {
    it rather than under it. A little more room on a laptop, where the menu
    floats clear of the edge. */
 .app-shell {
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(5.9rem + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 640px) {
@@ -312,7 +312,11 @@ button.card:hover {
   height: 2.75rem;
   border-radius: 0.8rem;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--color-white) 0%, var(--color-sand) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--color-white) 0%,
+    var(--color-sand) 100%
+  );
   box-shadow:
     inset 0 1px 0 var(--color-white),
     0 1px 2px rgba(36, 31, 24, 0.05);
@@ -398,9 +402,14 @@ input[type="month"]::-webkit-date-and-time-value {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  border-radius: 0.6rem;
-  padding: 0.55rem 0.95rem;
+  gap: 0.42rem;
+  /* Fully round, like the chips, the dock and the tab switcher. The Field
+     Journal direction sets every interactive thing on the page as a pill and
+     keeps the square corners for the paper it sits on -- cards, tiles and
+     fields -- so a button never reads as a panel and a panel never reads as
+     something to press. */
+  border-radius: 999px;
+  padding: 0.55rem 1.05rem;
   font-weight: 600;
   font-size: 0.875rem;
   letter-spacing: -0.003em;
@@ -410,6 +419,25 @@ input[type="month"]::-webkit-date-and-time-value {
     background 0.15s ease,
     border-color 0.15s ease;
   cursor: pointer;
+}
+
+/* One icon size for every button, set here rather than per button, so a pencil
+   beside "Edit trip" and a pair of binoculars beside "Look for tips" are the
+   same weight and the same height as the words. */
+.btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+}
+
+.btn-sm svg {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .btn:active {
@@ -647,4 +675,219 @@ input[type="month"]::-webkit-date-and-time-value {
   height: 2.25rem;
   border-radius: 0.65rem;
   font-size: 1.15rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * A picture behind a trip.
+ *
+ * The Field Journal direction does not put a photograph on a card; it
+ * prints one, the way a field notebook glued in a plate: desaturated to a
+ * warm two-tone, at half strength, over a contour drawing of the coast,
+ * with the trip's name set in paper-white across the bottom.
+ *
+ * Three layers stacked inside .trip-media, in this order:
+ *
+ *   1. the contour SVG, which is real coastline and carries the card on
+ *      its own when there is no picture yet
+ *   2. the illustration Aly drew, blended as luminosity so it takes its
+ *      color from the layer below rather than bringing its own
+ *   3. a scrim, dark at the bottom, so white type over the picture is
+ *      readable whatever the picture turned out to be
+ *
+ * The mask on the image is what stops the whole thing reading as a
+ * rectangle pasted into a card: the picture is fully present at the top
+ * right and fades out towards the bottom left, so the coast underneath
+ * shows through and the plate has no edge.
+ * ------------------------------------------------------------------ */
+
+:root {
+  --on-photo: #fffdf8;
+  --photo-filter: grayscale(1) sepia(0.42) contrast(1.06) brightness(1.02);
+  --photo-opacity: 0.5;
+  --scrim: linear-gradient(
+    180deg,
+    rgba(36, 31, 24, 0.06) 0%,
+    rgba(36, 31, 24, 0.2) 48%,
+    rgba(36, 31, 24, 0.52) 100%
+  );
+  --map-water: #241d12;
+  --map-land: #4c3f2b;
+  --map-line: rgba(244, 231, 203, 0.26);
+  --map-opacity: 0.9;
+  --header-tint: rgba(255, 253, 248, 0.74);
+}
+
+.trip-media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* The plate is dark before anything is drawn on it. Every word on a plate is
+     set in --on-photo, so a plate that stayed paper-colored until its map or its
+     picture arrived would be white text on cream for that moment -- and would
+     stay that way for good on a trip whose place has not been located yet. */
+  background: var(--map-water);
+}
+
+.trip-contour-holder {
+  position: absolute;
+  inset: 0;
+}
+
+.trip-media .trip-contour,
+.trip-media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: var(--map-opacity);
+}
+
+.trip-media img {
+  opacity: var(--photo-opacity);
+  mix-blend-mode: luminosity;
+  filter: var(--photo-filter);
+  -webkit-mask-image: radial-gradient(
+    130% 118% at 78% -6%,
+    #000 0%,
+    #000 26%,
+    rgba(0, 0, 0, 0.45) 52%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(
+    130% 118% at 78% -6%,
+    #000 0%,
+    #000 26%,
+    rgba(0, 0, 0, 0.45) 52%,
+    transparent 78%
+  );
+}
+
+.trip-media .trip-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+}
+
+/* A card with nothing behind it yet keeps the paper it always had, so a trip
+   with no point and no picture is plain rather than broken. */
+.trip-plate {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Everything written over the picture, and the one rule that makes it legible:
+   paper-white, and a shadow soft enough not to read as a shadow. */
+.on-photo {
+  color: var(--on-photo);
+  text-shadow: 0 1px 12px rgba(24, 20, 14, 0.45);
+}
+
+.on-photo .chip {
+  background: rgba(255, 255, 255, 0.17);
+  border-color: rgba(255, 255, 255, 0.34);
+  color: var(--on-photo);
+  backdrop-filter: blur(4px);
+  text-shadow: none;
+}
+
+.on-photo .chip-accent {
+  background: var(--color-teal);
+  border-color: var(--color-teal);
+  color: var(--on-photo);
+}
+
+.on-photo .btn-ghost {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--on-photo);
+  backdrop-filter: blur(6px);
+  text-shadow: none;
+}
+
+.on-photo .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.on-photo .btn-primary {
+  text-shadow: none;
+}
+
+/* The emoji badge is a paper tile, which is wrong over a picture: it reads as a
+   sticker. Over the plate it becomes a glass disc instead. */
+.on-photo .emoji-badge {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.34);
+  box-shadow: none;
+  backdrop-filter: blur(4px);
+}
+
+/* ------------------------------------------------------------------ *
+ * The tabs inside one trip.
+ *
+ * A rule under the bar, the selected tab tinted and squared off at the
+ * bottom into that rule with a two-pixel accent sitting on it. What this
+ * replaces was a white pill floating on deeper sand, which read as a
+ * button that happened to be lit rather than as a page you are on.
+ * ------------------------------------------------------------------ */
+
+.tabbar {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0.15rem;
+}
+
+.tabbar::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  padding: 0.55rem 0.8rem;
+  border-radius: 7px 7px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .tab {
+    padding: 0.55rem 1rem;
+  }
+}
+
+.tab:hover {
+  color: var(--color-ink);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--color-teal);
+  background: var(--color-teal-soft);
+}
+
+.tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-teal);
 }

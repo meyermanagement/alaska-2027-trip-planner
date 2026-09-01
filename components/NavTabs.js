@@ -168,14 +168,21 @@ export default function NavTabs({ attention = 0, level = null }) {
     <nav
       aria-label="Main menu"
       aria-hidden={keyboardOpen ? "true" : undefined}
-      className={`no-print fixed inset-x-0 bottom-0 z-30 lg:w-max border-t border-[var(--line)] bg-sand/95 backdrop-blur-md transition-transform duration-200 lg:bottom-5 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:border-0 lg:bg-transparent lg:backdrop-blur-none ${
+      /* The bar no longer reaches the edges of the phone. It was a full-width
+         strip welded to the bottom of the screen with a hairline on top -- a
+         browser chrome shape, not a shape belonging to this app -- while the
+         same menu on a desktop was a floating rounded panel. Now it is the one
+         thing at both sizes: a panel with its own border and its own shadow,
+         standing clear of the edges, wide on a phone and only as wide as its
+         contents on a desktop. */
+      className={`no-print fixed inset-x-0 bottom-0 z-30 px-2.5 pt-2 transition-transform duration-200 lg:right-auto lg:bottom-5 lg:left-1/2 lg:w-max lg:-translate-x-1/2 lg:px-0 ${
         // Out of reach as well as out of sight, so a tap meant for the field
         // underneath cannot land on a menu item on the way down.
         keyboardOpen ? "translate-y-full pointer-events-none" : ""
       }`}
-      style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
+      style={{ paddingBottom: "max(0.6rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-0.5 pt-1.5 min-[375px]:px-2 lg:w-auto lg:max-w-none lg:items-center lg:gap-1 lg:rounded-full lg:border lg:border-[var(--line)] lg:bg-white/90 lg:p-1.5 lg:pt-1.5 lg:shadow-[0_6px_24px_rgba(20,32,30,0.14)] lg:backdrop-blur-md">
+      <div className="mx-auto flex max-w-lg items-stretch justify-between rounded-[12px] border border-[var(--line)] bg-white/92 px-0.5 py-1 shadow-[0_6px_24px_rgba(20,32,30,0.14)] backdrop-blur-md min-[375px]:px-1.5 lg:w-auto lg:max-w-none lg:items-center lg:gap-1 lg:rounded-full lg:p-1.5">
         {tabs.map((tab) => {
           // The way back out of a trip, rather than a name for where you are.
           const isWayOut = tab.href === "/trips" && insideTrip;
@@ -189,9 +196,9 @@ export default function NavTabs({ attention = 0, level = null }) {
               aria-current={active ? "page" : undefined}
               title={isWayOut ? "Back to all your trips" : undefined}
               aria-label={isWayOut ? "Back to all your trips" : undefined}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-0 py-1.5 text-[0.5rem] min-[375px]:px-0.5 min-[375px]:text-[0.55rem] font-semibold uppercase tracking-normal transition lg:flex-none lg:flex-row lg:gap-1.5 lg:rounded-full lg:px-3.5 lg:py-1.5 lg:text-[0.72rem] lg:tracking-[0.07em] ${
+              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-full px-0 py-1.5 text-[0.5rem] min-[375px]:px-0.5 min-[375px]:text-[0.55rem] font-semibold uppercase tracking-normal transition lg:flex-none lg:flex-row lg:gap-1.5 lg:rounded-full lg:px-3.5 lg:py-1.5 lg:text-[0.72rem] lg:tracking-[0.07em] ${
                 active
-                  ? "bg-teal/10 text-teal lg:bg-teal lg:text-white lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
+                  ? "bg-teal text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
                   : isWayOut
                     ? "text-teal lg:border lg:border-teal/35 lg:bg-teal/5 lg:px-3 lg:text-teal lg:hover:border-teal lg:hover:bg-teal/10"
                     : "text-ink-soft lg:hover:bg-sand lg:hover:text-teal"

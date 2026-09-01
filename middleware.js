@@ -101,7 +101,12 @@ export async function middleware(request) {
 }
 
 export const config = {
+  // data/ holds the bundled Natural Earth coastlines the trip backdrops draw
+  // from. It is a file in public/, so it is already public in every sense, but
+  // without naming it here the middleware answered the browser's fetch for it
+  // with the login page -- and a redirect to HTML parsed as JSON is how every
+  // card on every screen quietly lost its map.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|data/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { sortItinerary } from "@/lib/day/order";
 import { daysUntil, formatRange, isDraftTrip, isPastTrip } from "@/lib/format";
 import PromoteDraft from "./PromoteDraft";
+import TripBackdrop from "./TripBackdrop";
+import { PencilIcon } from "./Icons";
 import TripOverview from "./TripOverview";
 import TripForm from "./TripForm";
 import Itinerary from "./Itinerary";
@@ -423,129 +425,138 @@ export default function TripView({
              description, the roster and the counting tiles moved to the
              Overview tab, because a header that is read once should not take a
              third of the screen on the four tabs where it is not being read. */
-          <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                <span className="emoji-badge" aria-hidden="true">
-                  {info.cover_emoji}
-                </span>
-                <h1 className="font-display text-2xl font-semibold leading-tight">
-                  {info.name}
-                </h1>
-                {countdown !== null && countdown >= 0 && (
-                  <span className="chip bg-teal-soft text-teal">
-                    {countdown} days away
+          /* What is worth carrying between tabs, and nothing else: what this
+             trip is called, when it is, where it is, and how far away. The
+             description, the roster and the counting tiles moved to the
+             Overview tab, because a header that is read once should not take a
+             third of the screen on the four tabs where it is not being read.
+
+             Set on the trip's own plate now -- the illustration and the coast
+             behind it, the same picture the card on the trip list carries -- so
+             opening a trip lands you somewhere rather than on a white strip. */
+          <div className="trip-plate on-photo min-h-[216px] justify-end sm:min-h-[228px]">
+            <TripBackdrop trip={info} shape="head" />
+            <div className="relative flex flex-col gap-3.5 p-5 pt-10 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <span className="emoji-badge" aria-hidden="true">
+                    {info.cover_emoji}
                   </span>
-                )}
+                  <h1 className="font-display text-2xl leading-tight font-semibold sm:text-[1.7rem]">
+                    {info.name}
+                  </h1>
+                  {countdown !== null && countdown >= 0 && (
+                    <span className="chip chip-accent">
+                      {countdown} days away
+                    </span>
+                  )}
+                </div>
+                {/* Dates and place on one line where there is room, and on two
+                    where there is not. The separator dot belongs to the place, so
+                    a wrap can never leave a dot stranded at the start of a line
+                    the way an inline "· {destination}" did at 320px. */}
+                <p className="mt-1.5 text-sm">
+                  <span className="font-semibold">
+                    {formatRange(info.start_date, info.end_date)}
+                  </span>
+                  {info.destination && (
+                    <span className="block sm:inline">
+                      <span className="hidden sm:inline"> · </span>
+                      {info.destination}
+                    </span>
+                  )}
+                </p>
               </div>
-              {/* Dates and place on one line where there is room, and on two
-                  where there is not. The separator dot belongs to the place, so
-                  a wrap can never leave a dot stranded at the start of a line
-                  the way an inline "· {destination}" did at 320px. */}
-              <p className="mt-1 text-sm text-ink-soft">
-                <span className="font-semibold">
-                  {formatRange(info.start_date, info.end_date)}
-                </span>
-                {info.destination && (
-                  <span className="block sm:inline">
-                    <span className="hidden sm:inline"> · </span>
-                    {info.destination}
-                  </span>
+              {/* The right hand column, and both things it holds. Edit trip was
+                  here on its own, leaving a blank strip below it as tall as the
+                  dates and the place put together -- so the look goes under it,
+                  which is also the only spot on the page that is on every tab.
+
+                  A look takes most of a minute. Asked for on the Tips tab, as it
+                  used to be, the wait happened on the tab least likely to be the
+                  one that changed: one press walks the trip, its packing list and
+                  the next few bookings. Started from here it runs while the
+                  itinerary is read or the packing list ticked off.
+
+                  Side by side over the picture on a wide screen, stacked full
+                  width on a phone. Both carry an icon, which is what tells them
+                  apart at a glance now that they sit together rather than in a
+                  column. */}
+              <div className="no-print flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="btn btn-ghost btn-sm no-print"
+                  >
+                    <PencilIcon />
+                    Edit trip
+                  </button>
                 )}
-              </p>
-            </div>
-            {/* The right hand column, and both things it holds. Edit trip was
-                here on its own, leaving a blank strip below it as tall as the
-                dates and the place put together -- so the look goes under it,
-                which is also the only spot on the page that is on every tab.
-
-                A look takes most of a minute. Asked for on the Tips tab, as it
-                used to be, the wait happened on the tab least likely to be the
-                one that changed: one press walks the trip, its packing list and
-                the next few bookings. Started from here it runs while the
-                itinerary is read or the packing list ticked off.
-
-                On a phone the column drops below the title and both buttons go
-                full width, which is a better tap target than a 120px stack
-                squeezing the trip's name into four lines. */}
-            <div className="no-print flex shrink-0 flex-col items-stretch gap-2 sm:w-44">
-              {!readOnly && (
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="btn btn-ghost no-print w-full px-3 py-1.5 text-xs"
-                >
-                  Edit trip
-                </button>
-              )}
-              <LookForTips
-                tripId={trip.id}
-                chain={lookAt}
-                scope="trip"
-                hasTips={tips.length > 0}
-                onLooked={setLanded}
-                onGo={setTab}
-                readOnly={readOnly}
-              />
+                <LookForTips
+                  tripId={trip.id}
+                  chain={lookAt}
+                  scope="trip"
+                  hasTips={tips.length > 0}
+                  onLooked={setLanded}
+                  onGo={setTab}
+                  readOnly={readOnly}
+                />
+              </div>
             </div>
           </div>
         )}
-
-        {/* Six tabs do not fit on a narrow phone, so the bar scrolls sideways.
-            It always did, but with four it only just overflowed and the cut fell
-            in the gap between two tabs, which read as an edge. Past that the cut
-            lands mid-word, which reads as broken. The mask fades the last few
-            pixels so the bar looks like it continues rather than like it failed,
-            and tightening the padding below 640px buys back enough room.
-
-            Louder than it was. The tabs are now the main thing on this card
-            rather than a footnote under a block of trip details, so they are set
-            on the deeper sand, at a readable size, and the selected one is a
-            white tab with a teal rule under it -- a shape that says "this one"
-            from across the room instead of a slightly different grey. */}
-        <div className="relative min-w-0">
-          <nav
-            ref={tabBarRef}
-            className="no-print flex min-w-0 gap-1 overflow-x-auto border-t border-[var(--line)] bg-sand-deep/40 px-2 py-1.5 [scrollbar-width:none] sm:px-3 [&::-webkit-scrollbar]:hidden"
-          >
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                data-tab={t.id}
-                aria-current={tab === t.id ? "page" : undefined}
-                onClick={() => setTab(t.id)}
-                className={`rounded-lg border-b-2 px-3 py-2.5 text-[0.95rem] font-semibold whitespace-nowrap transition sm:px-5 ${
-                  tab === t.id
-                    ? "border-teal bg-white text-teal shadow-sm"
-                    : "border-transparent text-ink-soft hover:bg-white/50 hover:text-ink"
-                }`}
-              >
-                {t.label}
-                {/* The same red count the menu bar puts on Reminders, for the
-                    same reason: a tab worth opening should say so from the
-                    outside. Tips are the one thing on a trip that arrive
-                    without anybody asking -- a look files them while you are
-                    reading something else -- so the tab is the only place that
-                    can mention them. */}
-                {t.id === "tips" && tipCount > 0 && (
-                  <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] font-bold leading-[1.15rem] text-white">
-                    {tipCount}
-                    <span className="sr-only"> tips to read</span>
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-          {/* Pointer-events off: a gradient that eats taps on the last tab would
-              be a worse fault than the one it is fixing. */}
-          {moreTabs ? (
-            <span
-              aria-hidden="true"
-              className="no-print pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-sand to-transparent"
-            />
-          ) : null}
-        </div>
       </section>
+
+      {/* Six tabs do not fit on a narrow phone, so the bar scrolls sideways. The
+          mask fades the last few pixels so the bar looks like it continues
+          rather than like it failed.
+
+          Out of the card and onto the page. It was a strip of deeper sand
+          inside the header card with the selected tab drawn as a white pill,
+          which read as a row of buttons of which one happened to be lit. The
+          shape a tab wants is the other one: a rule under the whole bar, the
+          selected tab tinted and squared into that rule with a short accent bar
+          sitting on it, so the tab and the panel below it are visibly one
+          surface and the rest are behind it. */}
+      <div className="relative mt-4 min-w-0">
+        <nav ref={tabBarRef} className="tabbar no-print">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              data-tab={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              aria-current={tab === t.id ? "page" : undefined}
+              onClick={() => setTab(t.id)}
+              className="tab"
+            >
+              {t.label}
+              {/* The same red count the menu bar puts on Reminders, for the
+                  same reason: a tab worth opening should say so from the
+                  outside. Tips are the one thing on a trip that arrive
+                  without anybody asking -- a look files them while you are
+                  reading something else -- so the tab is the only place that
+                  can mention them. */}
+              {t.id === "tips" && tipCount > 0 && (
+                <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] leading-[1.15rem] font-bold text-white">
+                  {tipCount}
+                  <span className="sr-only"> tips to read</span>
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+        {/* Pointer-events off: a gradient that eats taps on the last tab would
+            be a worse fault than the one it is fixing. */}
+        {moreTabs ? (
+          <span
+            aria-hidden="true"
+            className="no-print pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-sand to-transparent"
+          />
+        ) : null}
+      </div>
 
       <div className="mt-6">
         {/* The Tips tab holds the advice about the trip as a whole, and now only

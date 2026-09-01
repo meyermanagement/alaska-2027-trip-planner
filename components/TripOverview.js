@@ -1,6 +1,7 @@
 "use client";
 
 import TripRoster from "./TripRoster";
+import DrawCover from "./DrawCover";
 
 /**
  * What a trip is, as opposed to what is happening on it.
@@ -46,6 +47,25 @@ export default function TripOverview({
           </div>
         ))}
       </dl>
+
+      {/* The picture behind this trip, and the one control that changes it.
+          On this tab rather than in the header, because the header is where the
+          picture is *seen* and putting a third button over it would crowd the
+          two that are already there -- and because asking for a cover is a thing
+          done once, not a thing done on the way past. */}
+      {!readOnly && (
+        <section className="card flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="section-label">The picture on this trip</h2>
+            <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+              {trip.cover_image_url
+                ? "Drawn for this trip from where and when it is. Ask for another if it is not right — or tell Aly what to change about it."
+                : "There is no picture on this trip yet. The app will draw one from where and when the trip is: no photograph, no stock library, just a flat illustration of the place."}
+            </p>
+          </div>
+          <DrawCover trip={trip} className="shrink-0 sm:w-48" />
+        </section>
+      )}
 
       {trip.summary && (
         <section className="card p-5">

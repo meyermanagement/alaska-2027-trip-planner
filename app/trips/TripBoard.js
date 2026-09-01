@@ -6,6 +6,7 @@ import { PendingSpark, PendingVeil } from "@/components/LinkPending";
 import { formatRange, daysUntil, tripDayNumber } from "@/lib/format";
 import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
+import TripBackdrop from "@/components/TripBackdrop";
 import RemoveTrip from "@/components/RemoveTrip";
 import { tripPath } from "@/lib/trips/route";
 
@@ -57,56 +58,59 @@ function CurrentCard({ trip, today }) {
   return (
     <section
       aria-label={`${trip.name}, happening now`}
-      className="rounded-2xl border border-teal/35 bg-teal-soft p-5 shadow-[0_14px_34px_-26px_rgba(15,95,87,0.55)]"
+      className="trip-plate card on-photo min-h-[228px] justify-end border-teal/35 shadow-[0_14px_34px_-26px_rgba(27,90,76,0.55)]"
     >
-      <div className="flex flex-wrap items-center gap-2.5">
-        <span className="emoji-badge" aria-hidden="true">
-          {trip.cover_emoji}
-        </span>
-        <span className="chip bg-teal text-white">Happening now</span>
-        {where && (
-          <span className="text-xs font-bold uppercase tracking-[0.09em] text-teal">
-            Day {where.day} of {where.of}
+      <TripBackdrop trip={trip} shape="head" />
+      <div className="relative p-5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="emoji-badge" aria-hidden="true">
+            {trip.cover_emoji}
           </span>
-        )}
-      </div>
-      <h3 className="font-display mt-3 text-2xl font-semibold text-ink">
-        {trip.name}
-      </h3>
-      <p className="mt-0.5 text-sm font-semibold text-teal">
-        {formatRange(trip.start_date, trip.end_date)}
-        {trip.destination ? ` · ${trip.destination}` : ""}
-      </p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
-          href={tripPath(trip, "itinerary")}
-          className="btn btn-primary relative"
-        >
-          <PendingVeil />
-          Open today’s plan
-        </Link>
-        <Link
-          href={tripPath(trip, "packing")}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-        >
-          Packing {trip.packed}/{trip.packing}
-          <PendingSpark />
-        </Link>
-        {trip.tasks > trip.tasksDone && (
+          <span className="chip chip-accent">Happening now</span>
+          {where && (
+            <span className="text-xs font-bold uppercase tracking-[0.09em]">
+              Day {where.day} of {where.of}
+            </span>
+          )}
+        </div>
+        <h3 className="font-display mt-3 text-2xl font-semibold">
+          {trip.name}
+        </h3>
+        <p className="mt-0.5 text-sm font-semibold">
+          {formatRange(trip.start_date, trip.end_date)}
+          {trip.destination ? ` · ${trip.destination}` : ""}
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <Link
-            href={tripPath(trip, "tasks")}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+            href={tripPath(trip, "itinerary")}
+            className="btn btn-primary relative"
           >
-            {trip.tasks - trip.tasksDone} still to do
+            <PendingVeil />
+            Open today’s plan
+          </Link>
+          <Link
+            href={tripPath(trip, "packing")}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold underline decoration-white/40 underline-offset-2 hover:decoration-white"
+          >
+            Packing {trip.packed}/{trip.packing}
             <PendingSpark />
           </Link>
-        )}
+          {trip.tasks > trip.tasksDone && (
+            <Link
+              href={tripPath(trip, "tasks")}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold underline decoration-white/40 underline-offset-2 hover:decoration-white"
+            >
+              {trip.tasks - trip.tasksDone} still to do
+              <PendingSpark />
+            </Link>
+          )}
+        </div>
+        <p className="mt-3 text-xs font-semibold opacity-90">
+          {trip.going.length
+            ? `Going: ${trip.going.join(", ")}`
+            : "Nobody added yet"}
+        </p>
       </div>
-      <p className="mt-3 text-xs font-semibold text-ink-soft">
-        {trip.going.length
-          ? `Going: ${trip.going.join(", ")}`
-          : "Nobody added yet"}
-      </p>
     </section>
   );
 }
@@ -117,48 +121,52 @@ function UpcomingCard({ trip, canRemove = false }) {
     <div className="flex flex-col">
       <Link
         href={tripPath(trip)}
-        className="card group relative flex flex-col p-5 transition hover:border-teal/40 hover:shadow-md"
+        className="trip-plate card on-photo group min-h-[268px] justify-end transition hover:border-teal/40 hover:shadow-md sm:min-h-[306px]"
       >
+        <TripBackdrop trip={trip} />
         <PendingVeil />
-        <div className="flex items-start justify-between gap-3">
-          <span className="emoji-badge" aria-hidden="true">
-            {trip.cover_emoji}
-          </span>
-          {countdown !== null && countdown >= 0 && (
-            <span className="chip bg-teal-soft text-teal">
-              {countdown} days away
+        {/* Everything the card says sits in the bottom of the picture rather than
+            on paper above it. Which is the whole point of the plate: the name of
+            the trip is read against the place it is about. */}
+        <div className="relative grid gap-2 p-4 pt-8 sm:p-[17px] sm:pt-10">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[1.2rem] leading-none" aria-hidden="true">
+              {trip.cover_emoji}
             </span>
-          )}
-        </div>
-        <h3 className="font-display mt-3 text-xl font-semibold group-hover:text-teal">
-          {trip.name}
-        </h3>
-        <p className="mt-0.5 text-sm font-medium text-ink-soft">
-          {formatRange(trip.start_date, trip.end_date)}
-        </p>
-        {trip.destination && (
-          <p className="mt-2 text-sm text-ink-soft">{trip.destination}</p>
-        )}
-        {trip.summary && (
-          <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-soft">
-            {trip.summary}
-          </p>
-        )}
-        <div className="mt-4 border-t border-[var(--line)] pt-3 text-xs font-semibold text-ink-soft">
-          <div className="flex flex-wrap gap-2">
-            <span>
-              Packing {trip.packed}/{trip.packing}
-            </span>
-            <span aria-hidden>·</span>
-            <span>
-              Tasks {trip.tasksDone}/{trip.tasks}
-            </span>
+            <h3 className="font-display text-xl font-semibold sm:text-[1.32rem]">
+              {trip.name}
+            </h3>
           </div>
-          <p className="mt-1.5 font-normal">
-            {trip.going.length
-              ? `Going: ${trip.going.join(", ")}`
-              : "Nobody added yet"}
+          <p className="text-[0.82rem] font-medium opacity-95">
+            {formatRange(trip.start_date, trip.end_date)}
+            {trip.destination && (
+              <>
+                <span className="px-1.5 opacity-55" aria-hidden="true">
+                  ·
+                </span>
+                {trip.destination}
+              </>
+            )}
           </p>
+          {/* Three or four chips, and no paragraph. The summary, the tiles and
+              the roster live on the trip's own Overview tab; a card is for
+              recognizing a trip and knowing how close it is. */}
+          <div className="flex flex-wrap gap-1.5">
+            {countdown !== null && countdown >= 0 && (
+              <span className="chip chip-accent">{countdown} days away</span>
+            )}
+            {trip.going.length > 0 && (
+              <span className="chip">{trip.going.join(", ")}</span>
+            )}
+            {trip.packing > 0 && (
+              <span className="chip">
+                {trip.packed}/{trip.packing} packed
+              </span>
+            )}
+            {trip.tasks > trip.tasksDone && (
+              <span className="chip">{trip.tasks - trip.tasksDone} to do</span>
+            )}
+          </div>
         </div>
       </Link>
       {/* Outside the card, not inside it. The whole card is one link, and a
@@ -283,42 +291,38 @@ function PastCard({ trip }) {
   return (
     <Link
       href={tripPath(trip)}
-      className="group relative flex flex-col rounded-xl border border-[var(--line)] bg-white/55 p-4 transition hover:-translate-y-px hover:border-teal/30 hover:bg-white hover:shadow-[0_10px_26px_-20px_rgba(20,32,30,0.3)]"
+      className="trip-plate card on-photo group min-h-[168px] justify-end transition hover:-translate-y-px hover:border-teal/30 hover:shadow-[0_10px_26px_-20px_rgba(36,31,24,0.4)]"
     >
+      <TripBackdrop trip={trip} />
       <PendingVeil />
-      <div className="flex items-center gap-2.5">
-        <span className="emoji-badge emoji-badge-sm" aria-hidden="true">
-          {trip.cover_emoji}
-        </span>
-        <div className="min-w-0">
-          <h3 className="font-display truncate text-base font-semibold group-hover:text-teal">
+      <div className="relative grid gap-1.5 p-3.5 pt-7">
+        <div className="flex items-center gap-2">
+          <span className="text-base leading-none" aria-hidden="true">
+            {trip.cover_emoji}
+          </span>
+          <h3 className="font-display truncate text-[0.98rem] font-semibold">
             {trip.name}
           </h3>
-          <p className="text-xs font-medium text-ink-soft">
-            {formatRange(trip.start_date, trip.end_date)}
-          </p>
         </div>
-      </div>
-      {trip.destination && (
-        <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-ink-soft">
-          {trip.destination}
-        </p>
-      )}
-      <div className="mt-3 border-t border-[var(--line)] pt-2.5 text-[0.7rem] font-semibold text-ink-soft">
-        <div className="flex flex-wrap gap-2">
-          <span>
-            {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
-          </span>
-          {trip.packing > 0 && (
+        <p className="text-[0.74rem] font-medium opacity-95">
+          {formatRange(trip.start_date, trip.end_date)}
+          {trip.destination && (
             <>
-              <span aria-hidden>·</span>
-              <span>{trip.packing} things packed</span>
+              <span className="px-1.5 opacity-55" aria-hidden="true">
+                ·
+              </span>
+              {trip.destination}
             </>
           )}
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          <span className="chip">
+            {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
+          </span>
+          {trip.going.length > 0 && (
+            <span className="chip">{trip.going.join(", ")}</span>
+          )}
         </div>
-        {trip.going.length > 0 && (
-          <p className="mt-1 font-normal">Went: {trip.going.join(", ")}</p>
-        )}
       </div>
     </Link>
   );
