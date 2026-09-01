@@ -163,8 +163,8 @@ export async function POST(request) {
         error: error?.timedOut
           ? `${error.message} ${
               scope === "offers"
-                ? "Checking today's welcome offers means reading the issuers' own pages, which can run past what one request is allowed. Press Look for tips again."
-                : "Press Look for tips again — anything already found is saved."
+                ? "Checking today's welcome offers means reading the issuers' own pages, which can run past what one request is allowed. Press Check for pro tips again."
+                : "Press Check for pro tips again — anything already found is saved."
             }`
           : error?.message || "The assistant could not be reached.",
         step: scope,

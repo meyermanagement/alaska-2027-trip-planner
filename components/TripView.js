@@ -79,7 +79,7 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
         <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink-soft">
           {everLooked
             ? "Nothing on the Itinerary or Packing tabs at the moment. A look covers your next few bookings and your packing list as well as the trip itself, so anything worth saying about those will land there."
-            : "A look covers your next few bookings and your packing list too — press Look for tips at the top of this trip. Whatever it finds about those lands on the Itinerary and Packing tabs, and this will say how much went where."}
+            : "A look covers your next few bookings and your packing list too — press Check for pro tips at the top of this trip. Whatever it finds about those lands on the Itinerary and Packing tabs, and this will say how much went where."}
         </p>
       )}
     </section>
@@ -575,7 +575,7 @@ export default function TripView({
             scope="trip"
             everLooked={everLooked}
             heading="Pro tips for this trip"
-            emptyFresh="Nothing here yet. Look for tips, at the top of this trip, and anything genuinely useful about these particular plans will show up here."
+            emptyFresh="Nothing here yet. Check for pro tips, at the top of this trip, and anything genuinely useful about these particular plans will show up here."
             readOnly={readOnly}
           />
         )}

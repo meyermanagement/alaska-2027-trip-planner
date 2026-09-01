@@ -32,8 +32,9 @@ export default function LookForTips({
   // itinerary cards.
   chain = null,
   scope = "trip",
-  // Whether anything has been found already, which is the difference between
-  // "Look for tips" and "Look again".
+  // Whether anything has been found already, which only adds a word to the
+  // label. It used to swap it for "Look again", which said nothing about what
+  // was being looked for to anybody arriving at the trip cold.
   hasTips = false,
   // Handed the breakdown when a look finishes, so the page can say where the
   // tips went.
@@ -145,7 +146,7 @@ export default function LookForTips({
         ) : (
           <>
             <BinocularsIcon />
-            {hasTips ? "Look again" : "Look for tips"}
+            {hasTips ? "Check for pro tips again" : "Check for pro tips"}
           </>
         )}
       </button>

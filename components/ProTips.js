@@ -68,7 +68,7 @@ export default function ProTips({
   // sorted against this rather than being filed under "later".
   relatedDate = null,
   // A secondary traveler does not see advice at all. Every button on a tip --
-  // Look for tips, Remind me, Clear -- writes, and the database refuses all three
+  // Check for pro tips, Remind me, Clear -- writes, and the database refuses all three
   // without raising an error, so they would look like they worked. But a tip with
   // its buttons taken off is worse than no tip: it is a list of things somebody
   // else has to do, shown to the one person in the household who cannot do any of
@@ -328,9 +328,9 @@ export default function ProTips({
                 Looking…
               </span>
             ) : shown.length ? (
-              "Look again"
+              "Check for pro tips again"
             ) : (
-              "Look for tips"
+              "Check for pro tips"
             )}
           </button>
         ) : null}

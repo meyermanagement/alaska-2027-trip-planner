@@ -393,7 +393,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           error: error?.timedOut
-            ? `${error.message} Checking the destination is the long one — it reads the whole itinerary and every rewards level and works out the booking windows. Press Look for tips again; the rest of the trip does not have to wait for it.`
+            ? `${error.message} Checking the destination is the long one — it reads the whole itinerary and every rewards level and works out the booking windows. Press Check for pro tips again; the rest of the trip does not have to wait for it.`
             : error?.message || "Could not look that up.",
           step: "facts",
         },
@@ -608,7 +608,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         error: error?.timedOut
-          ? `${error.message} This look asks the model to read the whole ${scope === "packing" ? "packing list" : "trip"} and go and check what it finds, and it has now run past a full request twice. Press Look for tips again — anything already found is saved.`
+          ? `${error.message} This look asks the model to read the whole ${scope === "packing" ? "packing list" : "trip"} and go and check what it finds, and it has now run past a full request twice. Press Check for pro tips again — anything already found is saved.`
           : error?.message || "The assistant could not be reached.",
         step: scope,
         housed,

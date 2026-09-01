@@ -770,13 +770,18 @@ input[type="month"]::-webkit-date-and-time-value {
   background: var(--scrim);
 }
 
-/* A card with nothing behind it yet keeps the paper it always had, so a trip
-   with no point and no picture is plain rather than broken. */
+/* The dark ground lives on the plate itself, not only on the backdrop inside it.
+   Every word on a plate is set in --on-photo, so anything that stopped the
+   backdrop from rendering -- a trip with no point, a failed fetch, a future
+   refactor -- would leave paper-white type on cream paper and an unreadable
+   header. The ground is the plate's own property; the map and the picture are
+   what get drawn on it. */
 .trip-plate {
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  background: var(--map-water);
 }
 
 /* Everything written over the picture, and the one rule that makes it legible:
