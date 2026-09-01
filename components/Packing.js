@@ -10,14 +10,7 @@ import {
   strandedWords,
   tidyStranded,
 } from "@/lib/packing/roster";
-import {
-  LAST_MINUTE_HEADING,
-  LAST_MINUTE_LABEL,
-  looksLastMinute,
-  nearSaid,
-  packingPhase,
-  splitLastMinute,
-} from "@/lib/packing/lastMinute";
+import { LAST_MINUTE_LABEL, looksLastMinute } from "@/lib/packing/lastMinute";
 import ProTips from "./ProTips";
 
 // readOnly is a secondary traveler: they see only their own lines (the database
@@ -38,8 +31,6 @@ export default function Packing({
   templatesChosen = false,
   tips = [],
   today,
-  start = null,
-  end = null,
   everLooked = false,
   pets = [],
   readOnly = false,
@@ -47,10 +38,9 @@ export default function Packing({
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
   const [hidePacked, setHidePacked] = useState(false);
-  // Narrowing to the things that cannot be packed ahead. Its own filter rather
-  // than only a section, because the section keeps itself out of the way until
-  // the trip is close and the question "what is left for the morning" is worth
-  // asking in July as well.
+  // Narrowing to the things that cannot be packed ahead. The rows stay in their
+  // categories wearing a chip, so this is how you gather them: on the morning you
+  // leave, and equally in July when the question is "what will still be out".
   const [onlyLast, setOnlyLast] = useState(false);
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -224,29 +214,16 @@ export default function Packing({
     return true;
   });
 
-  // How close the trip is, which is the only thing that decides whether the
-  // pinned block appears. Worked out on the shared home clock rather than the
-  // device's, so a phone in another time zone gets the same answer as the server.
-  const phase = useMemo(
-    () => packingPhase({ start, end, today }),
-    [start, end, today],
-  );
   const flagged = useMemo(() => items.some((i) => i.last_minute), [items]);
-  const { held } = useMemo(() => splitLastMinute(visible), [visible]);
-  // Pulled out, not copied: the same row in two places on one screen means two
-  // ticks for one thing, and whichever one you press the other looks unpacked.
-  // When the filter is already showing only these, the block would be the list.
-  const showHeld = phase.near && held.length > 0 && !onlyLast;
 
   const grouped = useMemo(() => {
     const map = new Map();
-    const source = showHeld ? visible.filter((i) => !i.last_minute) : visible;
-    source.forEach((i) => {
+    visible.forEach((i) => {
       if (!map.has(i.category)) map.set(i.category, []);
       map.get(i.category).push(i);
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [visible, showHeld]);
+  }, [visible]);
 
   async function toggle(item) {
     await supabase
@@ -630,7 +607,7 @@ export default function Packing({
    * remove button, and the only way to be sure of that is for there to be one
    * of them.
    */
-  function itemRow(item, { inHeld = false } = {}) {
+  function itemRow(item) {
     return editingId === item.id ? (
       <li
         key={item.id}
@@ -832,7 +809,7 @@ export default function Packing({
             <span className={`chip ${assigneeColor(item.assignee)}`}>
               {item.assignee}
             </span>
-            {item.last_minute && !inHeld && (
+            {item.last_minute && (
               <span
                 className="chip border border-amber/40 bg-amber/10 text-amber"
                 title="Cannot be packed ahead"
@@ -1239,30 +1216,16 @@ export default function Packing({
       )}
 
       <div className="space-y-4">
-        {/* The block that only exists when it is useful.
+        {/* One list, in its categories, with the things that cannot go in a bag
+            early wearing a Last minute chip where they sit.
  
-            A packing list is mostly things you can put in a bag a week early, and
-            a handful you physically cannot: the medications somebody is still
-            taking, the toothbrush, the charger in the wall. Those rows sit
-            unticked for the whole run-up, which is how a list stuck at eighty per
-            cent teaches the family to read unfinished as finished.
- 
-            Marked items are named in place all year. This block is the louder
-            version, and it waits until the trip is three days out, because before
-            that it is just a second copy of the list. It stays up for the duration
-            of the trip too -- you pack the toothbrush to come home, and the
-            morning you check out is exactly when you would leave it. */}
-        {showHeld && (
-          <div className="card overflow-hidden border-amber/40">
-            <div className="border-b border-amber/30 bg-amber/10 px-4 py-2.5">
-              <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink">
-                {LAST_MINUTE_HEADING}
-              </h3>
-              <p className="mt-0.5 text-xs text-ink-soft">{nearSaid(phase)}</p>
-            </div>
-            <ul>{held.map((i) => itemRow(i, { inHeld: true }))}</ul>
-          </div>
-        )}
+            There used to be a second card pinned above this one, gathering those
+            rows together once the trip was three days out. It was a copy of part
+            of the list living beside the list, which is one more place to look and
+            one more place for a tick to seem not to have happened. The chip on the
+            row says the same thing in the place you are already reading, and the
+            Last minute pill above gathers them when gathering them is what you
+            actually want. */}
         {grouped.map(([category, rows]) => (
           <div key={category} className="card overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
@@ -1276,9 +1239,7 @@ export default function Packing({
             <ul>{rows.map((i) => itemRow(i))}</ul>
           </div>
         ))}
-        {/* Not said when the block above is holding rows: the categories being
-            empty is then the point, not a problem. */}
-        {grouped.length === 0 && !showHeld && (
+        {grouped.length === 0 && (
           <p className="card p-6 text-center text-sm text-ink-soft">
             Nothing left in this view. Nice work.
           </p>

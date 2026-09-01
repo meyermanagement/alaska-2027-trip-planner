@@ -563,8 +563,6 @@ export default function TripView({
             tripId={trip.id}
             tips={tips.filter((tip) => tip.scope === "packing")}
             today={today}
-            start={trip.start_date}
-            end={trip.end_date}
             everLooked={everLooked}
             travelers={travelers}
             going={goingNames}
