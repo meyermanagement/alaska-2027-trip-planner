@@ -137,10 +137,26 @@ export default function Templates({
     return true;
   }
 
-  function startAdd(person) {
-    setAdding(person);
+  /**
+   * Which Add button is open. A person's, or one category inside that person's
+   * list -- the two have to be told apart, because a list can hold a category
+   * called the same thing as a person and pressing Add on Veda's Toiletries
+   * should not open the form under Veda's heading as well.
+   */
+  const addKey = (person, category) =>
+    category ? `${person}\u0000${category}` : person;
+
+  function startAdd(person, category = null) {
+    setAdding(addKey(person, category));
     setEditingId(null);
-    setAddDraft({ ...EMPTY_DRAFT, assignee: person });
+    setAddDraft({
+      ...EMPTY_DRAFT,
+      assignee: person,
+      // Pressing Add on the Toiletries heading has already answered the
+      // category more plainly than typing it would, so the question is not
+      // asked again.
+      category: category || "",
+    });
   }
 
   async function submitAdd(e) {
@@ -157,8 +173,15 @@ export default function Templates({
         sort_order: nextSort(),
       }),
     );
-    // Left open on purpose: adding to a packing template is usually adding several.
-    if (ok) setAddDraft({ ...EMPTY_DRAFT, assignee: addDraft.assignee });
+    // Left open on purpose: adding to a packing template is usually adding
+    // several. The category is kept as well as the person, because a form opened
+    // on the Toiletries heading is still on Toiletries for the next line.
+    if (ok)
+      setAddDraft({
+        ...EMPTY_DRAFT,
+        assignee: addDraft.assignee,
+        category: addDraft.category,
+      });
   }
 
   function startEdit(row) {
@@ -301,6 +324,81 @@ export default function Templates({
           focus: TEMPLATES_FOCUS,
         },
       }),
+    );
+  }
+
+  /**
+   * The form for a new template line, opened on a person or on one of their
+   * categories. One function rather than one per place, so both agree about
+   * every question it asks.
+   */
+  function addForm(person, category) {
+    return (
+      <form
+        onSubmit={submitAdd}
+        className={`no-print grid grid-cols-2 gap-2 border-b border-[var(--line)] bg-teal/5 px-4 py-3 ${
+          category
+            ? "sm:grid-cols-[2fr_5rem_auto_auto_auto]"
+            : "sm:grid-cols-[2fr_1fr_5rem_auto_auto]"
+        }`}
+      >
+        <input
+          className="field col-span-2 sm:col-span-1"
+          placeholder={
+            category
+              ? `Something else for ${category}`
+              : `What ${person} always takes`
+          }
+          value={addDraft.item}
+          onChange={(e) => setAddDraft({ ...addDraft, item: e.target.value })}
+          autoFocus
+          required
+        />
+        {/* Only asked when the answer is not already known. */}
+        {!category && (
+          <input
+            className="field"
+            placeholder="Category"
+            list="template-categories"
+            value={addDraft.category}
+            onChange={(e) =>
+              setAddDraft({ ...addDraft, category: e.target.value })
+            }
+          />
+        )}
+        <input
+          className="field"
+          placeholder="Qty"
+          value={addDraft.quantity}
+          onChange={(e) =>
+            setAddDraft({ ...addDraft, quantity: e.target.value })
+          }
+        />
+        {/* Set here as well as on a trip, because this is where the answer is
+            worth keeping: mark the toothbrush once and every trip built from
+            this template knows it. */}
+        <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
+          <input
+            type="checkbox"
+            className="h-4 w-4 shrink-0 accent-teal"
+            checked={!!addDraft.lastMinute}
+            onChange={(e) =>
+              setAddDraft({ ...addDraft, lastMinute: e.target.checked })
+            }
+          />
+          {LAST_MINUTE_LABEL}
+        </label>
+        <button className="btn btn-primary" disabled={busy}>
+          {busy ? "Saving…" : "Add"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setAdding(null)}
+        >
+          Done
+        </button>
+      </form>
     );
   }
 
@@ -500,64 +598,7 @@ export default function Templates({
               </button>
             </div>
 
-            {adding === section.person && (
-              <form
-                onSubmit={submitAdd}
-                className="no-print grid grid-cols-2 gap-2 border-b border-[var(--line)] bg-teal/5 px-4 py-3 sm:grid-cols-[2fr_1fr_5rem_auto_auto]"
-              >
-                <input
-                  className="field col-span-2 sm:col-span-1"
-                  placeholder={`What ${section.person} always takes`}
-                  value={addDraft.item}
-                  onChange={(e) =>
-                    setAddDraft({ ...addDraft, item: e.target.value })
-                  }
-                  autoFocus
-                  required
-                />
-                <input
-                  className="field"
-                  placeholder="Category"
-                  list="template-categories"
-                  value={addDraft.category}
-                  onChange={(e) =>
-                    setAddDraft({ ...addDraft, category: e.target.value })
-                  }
-                />
-                <input
-                  className="field"
-                  placeholder="Qty"
-                  value={addDraft.quantity}
-                  onChange={(e) =>
-                    setAddDraft({ ...addDraft, quantity: e.target.value })
-                  }
-                />
-                {/* Set here as well as on a trip, because this is where the
-                    answer is worth keeping: mark the toothbrush once and every
-                    trip built from this template knows it. */}
-                <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 shrink-0 accent-teal"
-                    checked={!!addDraft.lastMinute}
-                    onChange={(e) =>
-                      setAddDraft({ ...addDraft, lastMinute: e.target.checked })
-                    }
-                  />
-                  {LAST_MINUTE_LABEL}
-                </label>
-                <button className="btn btn-primary" disabled={busy}>
-                  {busy ? "Saving…" : "Add"}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setAdding(null)}
-                >
-                  Done
-                </button>
-              </form>
-            )}
+            {adding === section.person && addForm(section.person, null)}
 
             {section.count === 0 ? (
               <div className="px-4 py-4 text-sm text-ink-soft">
@@ -584,9 +625,32 @@ export default function Templates({
             ) : (
               section.groups.map(([category, rows]) => (
                 <div key={category}>
-                  <h3 className="bg-white px-4 pb-1 pt-3 text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
-                    {category}
-                  </h3>
+                  <div className="flex items-center gap-x-3 bg-white px-4 pb-1 pt-3">
+                    <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                      {category}
+                    </h3>
+                    {/* The same small word that edits a row, on the heading of
+                        the group it adds to, opening the form directly
+                        underneath where the new line will appear. */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        adding === addKey(section.person, category)
+                          ? setAdding(null)
+                          : startAdd(section.person, category)
+                      }
+                      aria-expanded={
+                        adding === addKey(section.person, category)
+                      }
+                      className="no-print ml-auto text-xs font-bold uppercase tracking-wide text-teal"
+                    >
+                      {adding === addKey(section.person, category)
+                        ? "Close"
+                        : "+ Add"}
+                    </button>
+                  </div>
+                  {adding === addKey(section.person, category) &&
+                    addForm(section.person, category)}
                   <ul>
                     {rows.map((row) =>
                       editingId === row.id ? (

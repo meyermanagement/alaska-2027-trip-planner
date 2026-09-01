@@ -204,6 +204,79 @@ export default function PetTemplates({
               )}
             </div>
 
+            {/* Directly under the header that opened it, where the new line is
+                going to appear, rather than at the far end of the list. */}
+            {addingFor === pet.id && (
+              <form
+                onSubmit={(e) => submitAdd(e, { pet, template, items: mine })}
+                className="flex flex-wrap items-end gap-2 border-b border-[var(--line)] bg-teal/5 px-4 py-3"
+              >
+                <label className="flex-1 basis-48 text-xs font-semibold text-ink-soft">
+                  Item
+                  <input
+                    autoFocus
+                    className="input mt-1"
+                    placeholder={`Something ${pet.name} needs`}
+                    value={addDraft.item}
+                    onChange={(e) =>
+                      setAddDraft({ ...addDraft, item: e.target.value })
+                    }
+                  />
+                </label>
+                <label className="basis-32 text-xs font-semibold text-ink-soft">
+                  Category
+                  <input
+                    className="input mt-1"
+                    value={addDraft.category}
+                    onChange={(e) =>
+                      setAddDraft({ ...addDraft, category: e.target.value })
+                    }
+                  />
+                </label>
+                <label className="basis-32 text-xs font-semibold text-ink-soft">
+                  Who packs it
+                  <select
+                    className="input mt-1"
+                    value={addDraft.assignee}
+                    onChange={(e) =>
+                      setAddDraft({ ...addDraft, assignee: e.target.value })
+                    }
+                  >
+                    {owners.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="basis-24 text-xs font-semibold text-ink-soft">
+                  How many
+                  <input
+                    className="input mt-1"
+                    placeholder="1"
+                    value={addDraft.quantity}
+                    onChange={(e) =>
+                      setAddDraft({ ...addDraft, quantity: e.target.value })
+                    }
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy || !addDraft.item.trim()}
+                  className="btn btn-primary"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddingFor(null)}
+                  className="btn btn-ghost"
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+
             {template && (
               <div className="px-4 pt-3">
                 <TripsUsing
@@ -346,79 +419,6 @@ export default function PetTemplates({
                     ),
                   )}
                 </ul>
-
-                {addingFor === pet.id && (
-                  <form
-                    onSubmit={(e) =>
-                      submitAdd(e, { pet, template, items: mine })
-                    }
-                    className="flex flex-wrap items-end gap-2 border-t border-[var(--line)] bg-sand/40 px-4 py-3"
-                  >
-                    <label className="flex-1 basis-48 text-xs font-semibold text-ink-soft">
-                      Item
-                      <input
-                        autoFocus
-                        className="input mt-1"
-                        placeholder={`Something ${pet.name} needs`}
-                        value={addDraft.item}
-                        onChange={(e) =>
-                          setAddDraft({ ...addDraft, item: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="basis-32 text-xs font-semibold text-ink-soft">
-                      Category
-                      <input
-                        className="input mt-1"
-                        value={addDraft.category}
-                        onChange={(e) =>
-                          setAddDraft({ ...addDraft, category: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="basis-32 text-xs font-semibold text-ink-soft">
-                      Who packs it
-                      <select
-                        className="input mt-1"
-                        value={addDraft.assignee}
-                        onChange={(e) =>
-                          setAddDraft({ ...addDraft, assignee: e.target.value })
-                        }
-                      >
-                        {owners.map((o) => (
-                          <option key={o} value={o}>
-                            {o}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="basis-24 text-xs font-semibold text-ink-soft">
-                      How many
-                      <input
-                        className="input mt-1"
-                        placeholder="1"
-                        value={addDraft.quantity}
-                        onChange={(e) =>
-                          setAddDraft({ ...addDraft, quantity: e.target.value })
-                        }
-                      />
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={busy || !addDraft.item.trim()}
-                      className="btn btn-primary"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAddingFor(null)}
-                      className="btn btn-ghost"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                )}
               </>
             )}
           </div>

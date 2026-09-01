@@ -13,6 +13,12 @@ import {
 import { LAST_MINUTE_LABEL, looksLastMinute } from "@/lib/packing/lastMinute";
 import ProTips from "./ProTips";
 
+/**
+ * The one "category" that is not a category: adding a line under a heading the
+ * list does not have yet. Every other add is a button on the card it belongs to.
+ */
+const NEW_CATEGORY = "\u0000new";
+
 // readOnly is a secondary traveler: they see only their own lines (the database
 // makes sure of that) and the tick is the one thing they may move. Everything
 // that adds, edits, removes or tidies comes off the screen, because a forbidden
@@ -42,6 +48,14 @@ export default function Packing({
   // categories wearing a chip, so this is how you gather them: on the morning you
   // leave, and equally in July when the question is "what will still be out".
   const [onlyLast, setOnlyLast] = useState(false);
+  // Which category's Add button was pressed, if any. A trip's list is a stack of
+  // category cards, and the form for a new line now opens inside the one it is
+  // going into rather than standing permanently above all of them: the category
+  // is already answered by where you pressed, and the form is not in the way on
+  // every visit to a list you came to tick things off on. NEW_CATEGORY is the
+  // one case that cannot be answered by a button on a card, because the card
+  // does not exist yet.
+  const [adding, setAdding] = useState(null);
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
@@ -476,6 +490,26 @@ export default function Packing({
   );
   const petFor = (item) => (item?.pet_id ? petById.get(item.pet_id) : null);
 
+  /**
+   * Open the form on one category, or on nothing in particular.
+   *
+   * Everything the last press left behind is cleared, because a note saying
+   * "Added, and kept on Meyer Family Base" is about the item you just wrote and
+   * not about the one you are about to write, and a template pill left pressed
+   * would quietly keep the next line too.
+   */
+  function startAdd(category) {
+    setAdding(category);
+    setEditingId(null);
+    setNewItem("");
+    setNewCategory(category === NEW_CATEGORY ? "" : category);
+    setNewPetId("");
+    setNewTemplates(new Set());
+    setNewLastMinute(false);
+    setNewLastMinuteSet(false);
+    setNewNote("");
+  }
+
   async function add(e) {
     e.preventDefault();
     const name = newItem.trim();
@@ -549,6 +583,8 @@ export default function Packing({
       }
     }
 
+    // Left open on purpose, on the same category: remembering one forgotten
+    // thing is how you remember the next two.
     setNewItem("");
     setNewPetId("");
     setNewTemplates(new Set());
@@ -744,6 +780,7 @@ export default function Packing({
                   const on = keptOnTemplate(t.id);
                   const busy =
                     toTemplate?.state === "saving" && toTemplate?.id === t.id;
+
                   return (
                     <button
                       key={t.id}
@@ -884,6 +921,193 @@ export default function Packing({
       edit the packing templates
     </Link>
   );
+
+  /**
+   * The form for a new line, opened on one category.
+   *
+   * One function rather than one per place, because the trip's list and the
+   * "somewhere new" card have to agree about every question it asks -- who packs
+   * it, which animal it is for, whether it can be packed ahead, and which
+   * standing lists should keep it -- and the only way to be sure of that is for
+   * there to be one of them.
+   */
+  function addForm(category) {
+    return (
+      <form
+        onSubmit={add}
+        className="no-print space-y-3 border-b border-[var(--line)] bg-teal/5 px-4 py-3"
+      >
+        <div
+          className={`grid gap-2 ${
+            category === NEW_CATEGORY
+              ? pets.length
+                ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
+                : "sm:grid-cols-[2fr_1fr_auto_auto]"
+              : pets.length
+                ? "sm:grid-cols-[2fr_auto_auto_auto]"
+                : "sm:grid-cols-[2fr_auto_auto]"
+          }`}
+        >
+          <input
+            className="field"
+            placeholder={
+              category === NEW_CATEGORY
+                ? "What is it?"
+                : `Something else for ${category}`
+            }
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            autoFocus
+            required
+          />
+          {/* Only asked when the answer is not already known. Pressing Add on
+    the Toiletries card has said "Toiletries" more plainly than typing
+    it would. */}
+          {category === NEW_CATEGORY && (
+            <>
+              <input
+                className="field"
+                placeholder="New category"
+                list="packing-categories"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                required
+              />
+              <datalist id="packing-categories">
+                {categories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </>
+          )}
+          <select
+            className="field"
+            value={newAssignee}
+            onChange={(e) => setNewAssignee(e.target.value)}
+          >
+            {people.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          {pets.length > 0 && (
+            <select
+              className="field"
+              value={newPetId}
+              onChange={(e) => setNewPetId(e.target.value)}
+              aria-label="Which pet is this for"
+              title="Is this item for one of the animals?"
+            >
+              <option value="">Not for a pet</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  For {pet.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="flex gap-2">
+            <button className="btn btn-primary">Add</button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setAdding(null)}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+
+        {/* The two questions that used to require adding the item, finding it
+              again, and opening its edit form.
+
+              Both are about the same thing from different directions: whether an
+              item can wait in a bag, and whether it should be waiting on every
+              trip. The moment you remember a thing the family forgot is the
+              moment you know both answers, and it is the only moment you will
+              reliably know them. */}
+        <label className="flex items-start gap-2 text-xs font-semibold text-ink-soft">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
+            checked={newIsLastMinute}
+            onChange={(e) => {
+              setNewLastMinute(e.target.checked);
+              setNewLastMinuteSet(true);
+            }}
+          />
+          <span>
+            Cannot be packed ahead
+            <span className="ml-1 font-normal text-ink-faint">
+              {"\u2014"} stays out until the morning you leave
+              {guessedLastMinute && !newLastMinuteSet
+                ? ", ticked from what you typed"
+                : ""}
+            </span>
+          </span>
+        </label>
+
+        {templates.length > 0 && (
+          <div className="border-t border-sand pt-3">
+            <p
+              className="text-xs font-semibold text-ink-soft"
+              id="packing-new-keep-label"
+            >
+              Also keep for future trips
+            </p>
+            <div
+              className="mt-1.5 flex flex-wrap gap-1.5"
+              role="group"
+              aria-labelledby="packing-new-keep-label"
+            >
+              {templates.map((t) => {
+                const on = newTemplates.has(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setNewTemplates((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(t.id)) next.delete(t.id);
+                        else next.add(t.id);
+                        return next;
+                      })
+                    }
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      on
+                        ? "border-teal bg-teal text-white"
+                        : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
+                    }`}
+                  >
+                    {/* The mark carries the state as well as the color,
+          because a filled pill and an empty one are the same
+          pill to anyone who does not see color. */}
+                    <span aria-hidden="true">{on ? "\u2713" : "+"}</span>
+                    {t.name}
+                    {t.is_base ? " (base)" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {newNote && (
+          <p
+            className={`text-xs ${
+              newNote.includes("did not") ? "text-rose" : "text-ink-soft"
+            }`}
+            role="status"
+          >
+            {newNote}
+          </p>
+        )}
+      </form>
+    );
+  }
 
   return (
     <section>
@@ -1086,152 +1310,6 @@ export default function Packing({
         </label>
       </div>
 
-      {!readOnly && (
-        <form onSubmit={add} className="card no-print mb-5 space-y-3 p-4">
-          <div
-            className={`grid gap-2 ${
-              pets.length
-                ? "sm:grid-cols-[2fr_1fr_auto_auto_auto]"
-                : "sm:grid-cols-[2fr_1fr_auto_auto]"
-            }`}
-          >
-            <input
-              className="field"
-              placeholder="Add an item"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-            />
-            <input
-              className="field"
-              placeholder="Category"
-              list="packing-categories"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-            />
-            <datalist id="packing-categories">
-              {categories.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-            <select
-              className="field"
-              value={newAssignee}
-              onChange={(e) => setNewAssignee(e.target.value)}
-            >
-              {people.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-            {pets.length > 0 && (
-              <select
-                className="field"
-                value={newPetId}
-                onChange={(e) => setNewPetId(e.target.value)}
-                aria-label="Which pet is this for"
-                title="Is this item for one of the animals?"
-              >
-                <option value="">Not for a pet</option>
-                {pets.map((pet) => (
-                  <option key={pet.id} value={pet.id}>
-                    For {pet.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            <button className="btn btn-primary">Add</button>
-          </div>
-
-          {/* The two questions that used to require adding the item, finding it
-              again, and opening its edit form.
-
-              Both are about the same thing from different directions: whether an
-              item can wait in a bag, and whether it should be waiting on every
-              trip. The moment you remember a thing the family forgot is the
-              moment you know both answers, and it is the only moment you will
-              reliably know them. */}
-          <label className="flex items-start gap-2 text-xs font-semibold text-ink-soft">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
-              checked={newIsLastMinute}
-              onChange={(e) => {
-                setNewLastMinute(e.target.checked);
-                setNewLastMinuteSet(true);
-              }}
-            />
-            <span>
-              Cannot be packed ahead
-              <span className="ml-1 font-normal text-ink-faint">
-                {"\u2014"} stays out until the morning you leave
-                {guessedLastMinute && !newLastMinuteSet
-                  ? ", ticked from what you typed"
-                  : ""}
-              </span>
-            </span>
-          </label>
-
-          {templates.length > 0 && (
-            <div className="border-t border-sand pt-3">
-              <p
-                className="text-xs font-semibold text-ink-soft"
-                id="packing-new-keep-label"
-              >
-                Also keep for future trips
-              </p>
-              <div
-                className="mt-1.5 flex flex-wrap gap-1.5"
-                role="group"
-                aria-labelledby="packing-new-keep-label"
-              >
-                {templates.map((t) => {
-                  const on = newTemplates.has(t.id);
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        setNewTemplates((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(t.id)) next.delete(t.id);
-                          else next.add(t.id);
-                          return next;
-                        })
-                      }
-                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                        on
-                          ? "border-teal bg-teal text-white"
-                          : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
-                      }`}
-                    >
-                      {/* The mark carries the state as well as the color,
-                          because a filled pill and an empty one are the same
-                          pill to anyone who does not see color. */}
-                      <span aria-hidden="true">{on ? "\u2713" : "+"}</span>
-                      {t.name}
-                      {t.is_base ? " (base)" : ""}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {newNote && (
-            <p
-              className={`text-xs ${
-                newNote.includes("did not") ? "text-rose" : "text-ink-soft"
-              }`}
-              role="status"
-            >
-              {newNote}
-            </p>
-          )}
-        </form>
-      )}
-
       <div className="space-y-4">
         {/* One list, in its categories, with the things that cannot go in a bag
             early wearing a Last minute chip where they sit.
@@ -1245,14 +1323,31 @@ export default function Packing({
             actually want. */}
         {grouped.map(([category, rows]) => (
           <div key={category} className="card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
+            <div className="flex items-center gap-x-3 border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
               <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
                 {category}
               </h3>
-              <span className="text-xs font-semibold text-ink-soft">
+              <span className="ml-auto text-xs font-semibold text-ink-soft">
                 {rows.filter((r) => r.is_packed).length}/{rows.length}
               </span>
+              {/* The same shape as Edit on a row, and the same shape as Add on
+                  the packing templates: a small word on the header of the thing
+                  it changes. Pressing it opens the form directly underneath,
+                  where the new line is going to appear. */}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    adding === category ? setAdding(null) : startAdd(category)
+                  }
+                  aria-expanded={adding === category}
+                  className="no-print text-xs font-bold uppercase tracking-wide text-teal"
+                >
+                  {adding === category ? "Close" : "+ Add"}
+                </button>
+              )}
             </div>
+            {adding === category && addForm(category)}
             <ul>{rows.map((i) => itemRow(i))}</ul>
           </div>
         ))}
@@ -1260,6 +1355,25 @@ export default function Packing({
           <p className="card p-6 text-center text-sm text-ink-soft">
             Nothing left in this view. Nice work.
           </p>
+        )}
+
+        {/* The one add that no category card can offer, because the card does
+            not exist yet. Quiet and last, so it is available without being the
+            first thing on a list you came to tick things off on. */}
+        {!readOnly && (
+          <div className="no-print card overflow-hidden border-dashed">
+            {adding === NEW_CATEGORY ? (
+              addForm(NEW_CATEGORY)
+            ) : (
+              <button
+                type="button"
+                onClick={() => startAdd(NEW_CATEGORY)}
+                className="w-full px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-teal"
+              >
+                + Add under a new heading
+              </button>
+            )}
+          </div>
         )}
       </div>
     </section>
