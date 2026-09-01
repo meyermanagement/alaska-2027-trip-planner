@@ -44,6 +44,12 @@ export default function Packing({
   const supabase = useMemo(() => createClient(), []);
   const [who, setWho] = useState("all");
   const [hidePacked, setHidePacked] = useState(false);
+  // Shut, until somebody wants it. The strip explains where the list came from
+  // and what changing a template does -- worth reading once, and then it is a
+  // paragraph and a half of settled fact sitting above the list you actually
+  // came to tick off. Which add-ons are on is the part still worth seeing at a
+  // glance, so that stays on the closed row.
+  const [builtOpen, setBuiltOpen] = useState(false);
   // Narrowing to the things that cannot be packed ahead. The rows stay in their
   // categories wearing a chip, so this is how you gather them: on the morning you
   // leave, and equally in July when the question is "what will still be out".
@@ -908,6 +914,14 @@ export default function Packing({
     (t) => t && !t.is_base && !t.pet_id,
   );
 
+  // What is on, said in words, for the shut strip. The base list is always in
+  // and is named as such, so a trip with no add-ons still reads as built from
+  // something rather than from nothing.
+  const onNames = [
+    "the base list",
+    ...addOnTemplates.filter((t) => addOns.has(t.id)).map((t) => t.name),
+  ].join(", ");
+
   const packed = items.filter((i) => i.is_packed).length;
   const pct = items.length ? Math.round((packed / items.length) * 100) : 0;
 
@@ -1144,51 +1158,90 @@ export default function Packing({
           and a shorter one. The heading is gone because "Built from" beside the
           chips is the heading. */}
       {addOnTemplates.length > 0 ? (
-        <div className="no-print mb-3 rounded-[0.875rem] border border-[var(--line)] bg-sand/40 px-3.5 py-3">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
+        <div className="no-print mb-3 rounded-[0.875rem] border border-[var(--line)] bg-sand/40 px-3.5 py-2.5">
+          {/* Closed, this is one line: what the list was built from, named, and
+              a word to open it. Open, it is what it always was -- the add-ons to
+              tap, and the two or three sentences about which trips a change
+              reaches. */}
+          <button
+            type="button"
+            onClick={() => setBuiltOpen((v) => !v)}
+            aria-expanded={builtOpen}
+            aria-controls="built-from-detail"
+            className="flex w-full items-center gap-x-2.5 gap-y-1 text-left"
+          >
+            <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
               Built from
             </span>
-            {addOnTemplates.map((t) => {
-              const on = addOns.has(t.id);
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => toggleAddOn(t)}
-                  disabled={readOnly || Boolean(savingAddOn)}
-                  aria-pressed={on}
-                  className={`chip border text-left ${
-                    on
-                      ? "border-teal/40 bg-teal/10 font-semibold text-teal"
-                      : "border-[var(--line)] bg-white text-ink-soft"
-                  } ${readOnly ? "cursor-default" : ""} ${
-                    savingAddOn === t.id ? "opacity-60" : ""
-                  }`}
-                >
-                  {on ? "✓ " : ""}
-                  {t.name}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-            Every trip starts from the base list; add-ons stack on top. Changes
-            here stay on this trip — {templatesLink} to change what future trips
-            start with.
-          </p>
-          {!everChosen && (
-            <p className="mt-1.5 text-xs text-ink-soft">
-              Nobody has said which apply, so this is a guess from the lines the
-              trip already carries. Tap the ones that do — or tap one on and off
-              again to record that none of them do.
+            {!builtOpen && (
+              <span className="min-w-0 flex-1 truncate text-xs text-ink-soft">
+                {onNames || "the base list"}
+              </span>
+            )}
+            <span className="ml-auto shrink-0 text-xs font-bold uppercase tracking-wide text-teal">
+              {builtOpen ? "Hide" : readOnly ? "Show" : "Change"}
+            </span>
+          </button>
+          {/* A word about what is on, when the strip is shut and something
+              needs saying anyway: a guess nobody has confirmed, or the note
+              from the tap that just saved. */}
+          {!builtOpen && !everChosen && (
+            <p className="mt-1 text-xs text-ink-soft">
+              A guess, from the lines the trip already carries.
             </p>
           )}
-          {addOnNote && (
-            <p className="mt-1.5 text-xs font-semibold text-ink-soft">
+          {!builtOpen && addOnNote && (
+            <p className="mt-1 text-xs font-semibold text-ink-soft">
               {addOnNote}
             </p>
           )}
+          <div
+            id="built-from-detail"
+            hidden={!builtOpen}
+            className="mt-2.5 border-t border-[var(--line)] pt-2.5"
+          >
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+              {addOnTemplates.map((t) => {
+                const on = addOns.has(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => toggleAddOn(t)}
+                    disabled={readOnly || Boolean(savingAddOn)}
+                    aria-pressed={on}
+                    className={`chip border text-left ${
+                      on
+                        ? "border-teal/40 bg-teal/10 font-semibold text-teal"
+                        : "border-[var(--line)] bg-white text-ink-soft"
+                    } ${readOnly ? "cursor-default" : ""} ${
+                      savingAddOn === t.id ? "opacity-60" : ""
+                    }`}
+                  >
+                    {on ? "✓ " : ""}
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+              Every trip starts from the base list; add-ons stack on top.
+              Changes here stay on this trip — {templatesLink} to change what
+              future trips start with.
+            </p>
+            {!everChosen && (
+              <p className="mt-1.5 text-xs text-ink-soft">
+                Nobody has said which apply, so this is a guess from the lines
+                the trip already carries. Tap the ones that do — or tap one on
+                and off again to record that none of them do.
+              </p>
+            )}
+            {addOnNote && (
+              <p className="mt-1.5 text-xs font-semibold text-ink-soft">
+                {addOnNote}
+              </p>
+            )}
+          </div>
         </div>
       ) : (
         // No add-ons exist to choose between, so there is nothing to lay out and
@@ -1327,9 +1380,10 @@ export default function Packing({
               <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
                 {category}
               </h3>
-              <span className="ml-auto text-xs font-semibold text-ink-soft">
-                {rows.filter((r) => r.is_packed).length}/{rows.length}
-              </span>
+              {/* No packed-of-total count here any more. The bar at the top of
+                  the tab already counts the whole list, and every row carries
+                  its own tick, so a per-category tally was a third place saying
+                  what two other places said -- and the one nobody packs by. */}
               {/* The same shape as Edit on a row, and the same shape as Add on
                   the packing templates: a small word on the header of the thing
                   it changes. Pressing it opens the form directly underneath,
@@ -1341,7 +1395,7 @@ export default function Packing({
                     adding === category ? setAdding(null) : startAdd(category)
                   }
                   aria-expanded={adding === category}
-                  className="no-print text-xs font-bold uppercase tracking-wide text-teal"
+                  className="no-print ml-auto text-xs font-bold uppercase tracking-wide text-teal"
                 >
                   {adding === category ? "Close" : "+ Add"}
                 </button>
