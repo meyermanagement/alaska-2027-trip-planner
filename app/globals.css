@@ -51,7 +51,10 @@
 
 html,
 body {
-  background: var(--color-sand);
+  /* Only ever seen where the shell is not: behind an overscroll bounce, and in
+     the browser's own chrome. Matches the ground's base so the page does not
+     appear to end. */
+  background: #f2ead9;
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -88,14 +91,47 @@ time {
 }
 
 /* Quiet warm wash, lighter at the top, so the page has a horizon. */
+/* The page ground. Five layers, none of them a file and none of them animated:
+   a paper tooth, a 32px weave, light falling from the top right, a breath of
+   spruce in the bottom-left corner, and the cream deepening down the page. Each
+   is at about a third of the strength it would carry alone, which is what keeps
+   this a background rather than a pattern -- no single one of them announces
+   itself, and none of them competes with a card.
+
+   The tooth is a tiled SVG whose noise is written to alpha over black, so it
+   darkens the cream and never desaturates it. Composited normally, it needs no
+   blend mode and so no extra layer for the compositor to keep. An earlier pass
+   used mix-blend-mode and turned the paper gray.
+
+   The two gradients are fixed to the viewport so a long packing list scrolls
+   over the light rather than dragging it down the document; the tooth and the
+   weave scroll with the page, which is what makes them read as paper rather
+   than as glass. */
 .app-shell {
-  background-image: linear-gradient(
-    180deg,
-    #f8f2e4 0%,
-    var(--color-sand) 30%,
-    var(--color-sand) 100%
-  );
-  background-attachment: fixed;
+  background-color: #f2ead9;
+  background-image:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.09 0.05 0.02 0 -0.05'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(rgba(36, 31, 24, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 31, 24, 0.032) 1px, transparent 1px),
+    radial-gradient(
+      110% 74% at 84% -10%,
+      rgba(253, 250, 240, 0.92) 0%,
+      rgba(253, 250, 240, 0) 58%
+    ),
+    radial-gradient(
+      100% 62% at 0% 106%,
+      rgba(27, 90, 76, 0.1) 0%,
+      rgba(27, 90, 76, 0) 62%
+    ),
+    linear-gradient(180deg, #f7f0e2 0%, #ebe2cd 100%);
+  background-size:
+    200px 200px,
+    32px 32px,
+    32px 32px,
+    auto,
+    auto,
+    auto;
+  background-attachment: scroll, scroll, scroll, fixed, fixed, fixed;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -672,6 +708,7 @@ input[type="month"]::-webkit-date-and-time-value {
   .no-print {
     display: none !important;
   }
+  /* Paper does not need a picture of paper printed on it. */
   .app-shell {
     background: var(--color-white);
   }
