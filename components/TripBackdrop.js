@@ -18,11 +18,34 @@
 // the page has painted, shared between every card on the screen, and cached by
 // the browser after that. A card renders immediately without it and gains the
 // coast a moment later; nothing waits on the map.
+//
+// Both layers are drawn once and then left alone, and that is a performance
+// requirement rather than tidiness. The contour is four feMorphology dilates over
+// a coastline path of a few thousand segments; inline in the document that filter
+// chain is re-run by the compositor on any repaint that touches this stacking
+// context -- which on a trip screen is every tab press, because the tab panel
+// below shares it. Handed to the browser as an image instead, the filters run
+// once at decode and every repaint after that is a bitmap blit. An SVG loaded
+// through <img> cannot read the page's custom properties, so the three map colors
+// are passed in as literals. The finished drawings are also kept in a module-level
+// map, so remounting a card -- or coming back to a trip -- redraws nothing.
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { contourSvg } from "@/lib/covers/contour";
 
 let landPromise = null;
+
+// Read off :root once. These are the same three values the stylesheet holds; a
+// drawing that has to be readable inside an <img> cannot ask for them by name.
+const MAP = {
+  water: "#241d12",
+  land: "#4c3f2b",
+  line: "rgba(244, 231, 203, 0.26)",
+};
+
+// key -> data: URI. A trip's drawing depends only on its point and the frame it
+// is drawn in, so it is worth keeping for as long as the tab is open.
+const drawn = new Map();
 
 function land() {
   if (!landPromise) {
@@ -54,43 +77,54 @@ function land() {
  * @param {object} trip     needs lat, lon, cover_image_url, cover_image_alt
  * @param {string} shape    "card" | "head" -- only the frame proportions differ
  */
-export default function TripBackdrop({ trip, shape = "card" }) {
-  const [svg, setSvg] = useState("");
+function TripBackdrop({ trip, shape = "card" }) {
+  const [contour, setContour] = useState("");
   const lat = Number(trip?.lat);
   const lon = Number(trip?.lon);
   const hasPoint = Number.isFinite(lat) && Number.isFinite(lon);
 
   useEffect(() => {
     if (!hasPoint) return;
+    const key = `${shape}-${lat.toFixed(4)}-${lon.toFixed(4)}`;
+    const had = drawn.get(key);
+    if (had) {
+      setContour(had);
+      return;
+    }
     let alive = true;
     const w = shape === "head" ? 1040 : 620;
     const h = shape === "head" ? 300 : 400;
     land().then((data) => {
       if (!alive || !data) return;
-      setSvg(
-        contourSvg({ lat, lon }, w, h, data, { key: `${shape}-${trip.id}` }),
-      );
+      const svg = contourSvg({ lat, lon }, w, h, data, {
+        key,
+        colors: MAP,
+      });
+      if (!svg) return;
+      // encodeURIComponent rather than base64: the string is a few tens of
+      // kilobytes of path data and skipping the base64 pass keeps it smaller and
+      // avoids btoa choking on anything non-Latin-1.
+      const uri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      drawn.set(key, uri);
+      if (alive) setContour(uri);
     });
     return () => {
       alive = false;
     };
-  }, [hasPoint, lat, lon, shape, trip?.id]);
+  }, [hasPoint, lat, lon, shape]);
 
   const url = trip?.cover_image_url || null;
 
   return (
     <div className="trip-media" aria-hidden={url ? undefined : "true"}>
-      {svg ? (
-        <div
-          className="trip-contour-holder"
-          // The SVG is built by this app from bundled coordinates -- there is no
-          // path from anything a person types to what is inserted here.
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
+      {contour ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="trip-contour" src={contour} alt="" decoding="async" />
       ) : null}
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          className="trip-photo"
           src={url}
           alt={trip.cover_image_alt || ""}
           loading="lazy"
@@ -101,3 +135,18 @@ export default function TripBackdrop({ trip, shape = "card" }) {
     </div>
   );
 }
+
+// A trip's backdrop does not change when the tab below it does, and re-rendering
+// it is the expensive half of a tab press.
+export default memo(TripBackdrop, (a, b) => {
+  const x = a.trip || {};
+  const y = b.trip || {};
+  return (
+    a.shape === b.shape &&
+    x.id === y.id &&
+    x.lat === y.lat &&
+    x.lon === y.lon &&
+    x.cover_image_url === y.cover_image_url &&
+    x.cover_image_alt === y.cover_image_alt
+  );
+});

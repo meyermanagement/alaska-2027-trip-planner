@@ -737,6 +737,8 @@ input[type="month"]::-webkit-date-and-time-value {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  isolation: isolate;
+  contain: paint;
   pointer-events: none;
   /* The plate is dark before anything is drawn on it. Every word on a plate is
      set in --on-photo, so a plate that stayed paper-colored until its map or its
@@ -745,13 +747,15 @@ input[type="month"]::-webkit-date-and-time-value {
   background: var(--map-water);
 }
 
-.trip-contour-holder {
-  position: absolute;
-  inset: 0;
-}
+/* The plate is its own compositing layer, and blending stops at its edge.
+   Without isolation the luminosity blend below reaches out to whatever is
+   painted behind the plate, so the browser has to re-blend it whenever anything
+   in the same stacking context changes -- which on a trip screen is every tab
+   press. contain: paint tells it nothing inside can spill out, so the finished
+   plate can be kept as a bitmap and moved rather than drawn again. */
 
 .trip-media .trip-contour,
-.trip-media img {
+.trip-media .trip-photo {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -760,7 +764,9 @@ input[type="month"]::-webkit-date-and-time-value {
   opacity: var(--map-opacity);
 }
 
-.trip-media img {
+/* Only the photograph. The contour is also an <img> now, and it must not be
+   dimmed, sepia-toned, masked or blended -- it is the map. */
+.trip-media .trip-photo {
   opacity: var(--photo-opacity);
   mix-blend-mode: luminosity;
   filter: var(--photo-filter);
