@@ -1,16 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #14201e;
-  --color-ink-soft: #54625e;
-  --color-ink-faint: #6f7b77;
-  --color-sand: #f7f5f0;
-  --color-sand-deep: #e7e1d5;
-  --color-teal: #0f5f57;
-  --color-teal-soft: #e7f0ed;
-  --color-glacier: #245f92;
-  --color-amber: #96601a;
-  --color-rose: #943952;
+  /* Field Journal: cream paper, brown-black ink, one deep spruce accent.
+     Warm off-white stands in for pure white so cards sit on the paper rather
+     than punching a hole in it — every bg-white in the app reads this. */
+  --color-white: #fffdf8;
+  --color-ink: #241f18;
+  --color-ink-soft: #6e6555;
+  --color-ink-faint: #79705e;
+  --color-sand: #f6f1e6;
+  --color-sand-deep: #f0e9d9;
+  --color-teal: #1b5a4c;
+  --color-teal-soft: #dce9e2;
+  --color-glacier: #1f5675;
+  --color-amber: #8f5416;
+  --color-rose: #96334c;
   --font-display: var(--font-display-face), "Iowan Old Style", Georgia, serif;
   --font-sans:
     var(--font-sans-face), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
@@ -21,13 +25,13 @@
   color-scheme: light;
 
   /* One hairline and one shadow, used everywhere, so surfaces agree. */
-  --line: rgba(20, 32, 30, 0.1);
-  --line-strong: rgba(20, 32, 30, 0.16);
+  --line: rgba(36, 31, 24, 0.1);
+  --line-strong: rgba(36, 31, 24, 0.16);
   --shadow-card:
-    0 1px 2px rgba(20, 32, 30, 0.04), 0 10px 26px -20px rgba(20, 32, 30, 0.24);
+    0 1px 2px rgba(36, 31, 24, 0.04), 0 10px 26px -20px rgba(36, 31, 24, 0.24);
   --shadow-card-lift:
-    0 1px 2px rgba(20, 32, 30, 0.05), 0 16px 34px -20px rgba(20, 32, 30, 0.3);
-  --shadow-inset: inset 0 1px 2px rgba(20, 32, 30, 0.04);
+    0 1px 2px rgba(36, 31, 24, 0.05), 0 16px 34px -20px rgba(36, 31, 24, 0.3);
+  --shadow-inset: inset 0 1px 2px rgba(36, 31, 24, 0.04);
 }
 
 html,
@@ -63,7 +67,7 @@ time {
 }
 
 :focus-visible {
-  outline: 2px solid rgba(15, 95, 87, 0.55);
+  outline: 2px solid rgba(27, 90, 76, 0.55);
   outline-offset: 2px;
   border-radius: 0.35rem;
 }
@@ -72,7 +76,7 @@ time {
 .app-shell {
   background-image: linear-gradient(
     180deg,
-    #fbf9f6 0%,
+    #fffdf8 0%,
     var(--color-sand) 30%,
     var(--color-sand) 100%
   );
@@ -104,12 +108,12 @@ time {
 /* Loading placeholders: a slow warm sweep rather than a throb, so a page that
    is filling in reads as patient instead of anxious. */
 .sk {
-  background-color: rgba(20, 32, 30, 0.07);
+  background-color: rgba(36, 31, 24, 0.07);
   background-image: linear-gradient(
     90deg,
-    rgba(20, 32, 30, 0) 0%,
-    rgba(20, 32, 30, 0.055) 45%,
-    rgba(20, 32, 30, 0) 90%
+    rgba(36, 31, 24, 0) 0%,
+    rgba(36, 31, 24, 0.055) 45%,
+    rgba(36, 31, 24, 0) 90%
   );
   background-repeat: no-repeat;
   background-size: 60% 100%;
@@ -255,7 +259,7 @@ time {
 }
 
 .card {
-  background: #fff;
+  background: var(--color-white);
   border: 1px solid var(--line);
   border-radius: 0.875rem;
   box-shadow: var(--shadow-card);
@@ -272,7 +276,7 @@ button.card {
 
 a.card:hover,
 button.card:hover {
-  border-color: rgba(15, 95, 87, 0.32);
+  border-color: rgba(27, 90, 76, 0.32);
   box-shadow: var(--shadow-card-lift);
   transform: translateY(-1px);
 }
@@ -308,10 +312,10 @@ button.card:hover {
   height: 2.75rem;
   border-radius: 0.8rem;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, #fff 0%, var(--color-sand) 100%);
+  background: linear-gradient(180deg, var(--color-white) 0%, var(--color-sand) 100%);
   box-shadow:
-    inset 0 1px 0 #fff,
-    0 1px 2px rgba(20, 32, 30, 0.05);
+    inset 0 1px 0 var(--color-white),
+    0 1px 2px rgba(36, 31, 24, 0.05);
   font-size: 1.4rem;
   line-height: 1;
 }
@@ -340,7 +344,7 @@ select {
   width: 100%;
   border-radius: 0.6rem;
   border: 1px solid var(--line-strong);
-  background: #fff;
+  background: var(--color-white);
   padding: 0.6rem 0.75rem;
   box-shadow: var(--shadow-inset);
   outline: none;
@@ -386,7 +390,7 @@ input[type="month"]::-webkit-date-and-time-value {
 
 .field:focus {
   border-color: var(--color-teal);
-  box-shadow: 0 0 0 3px rgba(15, 95, 87, 0.13);
+  box-shadow: 0 0 0 3px rgba(27, 90, 76, 0.13);
   outline: none;
 }
 
@@ -413,27 +417,27 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #167066 0%, var(--color-teal) 100%);
-  color: #fff;
+  background: linear-gradient(180deg, #23705e 0%, var(--color-teal) 100%);
+  color: var(--color-white);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 1px 2px rgba(20, 32, 30, 0.16);
+    inset 0 1px 0 rgba(255, 253, 248, 0.14),
+    0 1px 2px rgba(36, 31, 24, 0.16);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(180deg, #12655c 0%, #0c4e47 100%);
+  background: linear-gradient(180deg, #1e6252 0%, #164a3e 100%);
 }
 
 .btn-ghost {
-  background: #fff;
+  background: var(--color-white);
   border: 1px solid var(--line-strong);
   color: var(--color-ink);
-  box-shadow: 0 1px 1px rgba(20, 32, 30, 0.03);
+  box-shadow: 0 1px 1px rgba(36, 31, 24, 0.03);
 }
 
 .btn-ghost:hover {
   background: var(--color-sand);
-  border-color: rgba(15, 95, 87, 0.32);
+  border-color: rgba(27, 90, 76, 0.32);
 }
 
 .btn:disabled {
@@ -455,7 +459,7 @@ input[type="month"]::-webkit-date-and-time-value {
   padding: 0.65rem 0.3rem 0.55rem;
   border-radius: 0.85rem;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 253, 248, 0.7);
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
@@ -479,7 +483,7 @@ input[type="month"]::-webkit-date-and-time-value {
   );
   border-color: var(--color-teal);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 253, 248, 0.18),
     0 2px 8px -2px color-mix(in srgb, var(--color-teal) 45%, transparent);
   transform: none;
 }
@@ -502,10 +506,10 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 .day-tile-on .day-tile-top,
 .day-tile-on .day-tile-foot {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 253, 248, 0.72);
 }
 .day-tile-on .day-tile-num {
-  color: #fff;
+  color: var(--color-white);
 }
 .day-tile-wide {
   width: 5.25rem;
@@ -519,7 +523,7 @@ input[type="month"]::-webkit-date-and-time-value {
   padding-block: 0.35rem;
 }
 .day-tile-on .day-tile-loose {
-  color: #fff;
+  color: var(--color-white);
 }
 .day-tile-dots {
   display: flex;
@@ -534,7 +538,7 @@ input[type="month"]::-webkit-date-and-time-value {
   background: color-mix(in srgb, var(--color-teal) 55%, transparent);
 }
 .day-tile-on .day-tile-dot {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 253, 248, 0.8);
 }
 .day-tile-empty {
   width: 0.55rem;
@@ -551,7 +555,7 @@ input[type="month"]::-webkit-date-and-time-value {
   background: var(--color-amber);
 }
 .day-tile-on .day-tile-today {
-  background: #fff;
+  background: var(--color-white);
 }
 .day-arrow {
   flex: 0 0 auto;
@@ -559,7 +563,7 @@ input[type="month"]::-webkit-date-and-time-value {
   height: 2.5rem;
   border-radius: 0.6rem;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 253, 248, 0.7);
   color: var(--color-ink-soft);
   font-size: 1.15rem;
   line-height: 1;
@@ -625,15 +629,15 @@ input[type="month"]::-webkit-date-and-time-value {
     display: none !important;
   }
   .app-shell {
-    background: #fff;
+    background: var(--color-white);
   }
   .card {
     box-shadow: none;
-    border-color: #d9d4c9;
+    border-color: #c9bca1;
     break-inside: avoid;
   }
   .emoji-badge {
-    background: #fff;
+    background: var(--color-white);
     box-shadow: none;
   }
 }

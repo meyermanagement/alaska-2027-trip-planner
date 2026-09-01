@@ -987,7 +987,7 @@ export default function ChatPanel({
                                     ? "The rest of this group goes inside this one, so it stays"
                                     : undefined
                                 }
-                                className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-[#0f5f57]"
+                                className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-teal"
                               />
                             ) : (
                               <span
