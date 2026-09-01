@@ -68,7 +68,7 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
                 key={place.tab || place.label}
                 type="button"
                 onClick={() => place.tab && onGo(place.tab)}
-                className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+                className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
               >
                 {`Read ${place.label.replace(/^the /, "")}`}
               </button>

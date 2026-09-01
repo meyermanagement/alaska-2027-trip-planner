@@ -7,6 +7,7 @@ import { compareTips, tipWhen } from "@/lib/tips/tip";
 import { lookSummary, runLook } from "@/lib/tips/run";
 import { formatFullDay } from "@/lib/format";
 import { Spinner } from "./LinkPending";
+import { BinocularsIcon } from "./Icons";
 import { mayWrite } from "@/lib/travelers/allowed";
 import { SECONDARY } from "@/lib/travelers/access";
 
@@ -320,17 +321,25 @@ export default function ProTips({
             type="button"
             onClick={look}
             disabled={busy}
-            className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] disabled:opacity-50"
+            className="btn btn-primary btn-sm disabled:opacity-70"
           >
+            {/* The same button as the one on a trip screen, down to the
+                binoculars: it is the same press, and the Wallet had it drawn as
+                a small uppercase ghost, which read as a caption rather than the
+                one thing on the page worth waiting for. The spinner takes the
+                icon's place so the button keeps its width mid-look. */}
             {busy ? (
-              <span className="flex items-center gap-1.5">
+              <>
                 <Spinner className="h-3.5 w-3.5" />
                 Looking…
-              </span>
-            ) : shown.length ? (
-              "Check for pro tips again"
+              </>
             ) : (
-              "Check for pro tips"
+              <>
+                <BinocularsIcon />
+                {shown.length
+                  ? "Check for pro tips again"
+                  : "Check for pro tips"}
+              </>
             )}
           </button>
         ) : null}
@@ -390,7 +399,7 @@ export default function ProTips({
                   key={place.tab}
                   type="button"
                   onClick={() => onGo(place.tab)}
-                  className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+                  className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
                 >
                   {`Open ${place.label.replace(/^the /, "")}`}
                 </button>
@@ -472,7 +481,7 @@ function TipCard({ tip, today, onResolve, onTask }) {
             <button
               type="button"
               onClick={() => onTask(tip)}
-              className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
             >
               Remind me
             </button>
@@ -481,7 +490,7 @@ function TipCard({ tip, today, onResolve, onTask }) {
             <button
               type="button"
               onClick={() => onResolve(tip, "cleared")}
-              className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
             >
               Clear
             </button>

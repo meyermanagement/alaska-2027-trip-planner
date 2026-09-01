@@ -216,7 +216,7 @@ export default function LookForTips({
               key={place.tab}
               type="button"
               onClick={() => onGo(place.tab)}
-              className="btn-ghost px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn btn-ghost px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
             >
               {`Open ${place.label.replace(/^the /, "")}`}
             </button>

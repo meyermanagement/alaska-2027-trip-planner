@@ -51,7 +51,7 @@ export default function WarningTask({ tripId }) {
         type="button"
         onClick={go}
         disabled={busy || Boolean(said)}
-        className="btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] disabled:opacity-50"
+        className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] disabled:opacity-50"
       >
         {busy ? "Adding…" : "Remind me"}
       </button>

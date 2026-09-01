@@ -74,10 +74,10 @@ export default function CalendarLink() {
         In your calendar
       </h2>
       <p className="mt-2 text-[0.88rem] leading-relaxed text-ink-soft">
-        Every dated task, every booking with a date, and a band across each trip,
-        as a calendar you subscribe to once. Google Calendar, Apple Calendar and
-        Outlook all re-read it on their own, so a time that changes here changes
-        there.
+        Every dated task, every booking with a date, and a band across each
+        trip, as a calendar you subscribe to once. Google Calendar, Apple
+        Calendar and Outlook all re-read it on their own, so a time that changes
+        here changes there.
       </p>
 
       {url ? (
@@ -95,7 +95,7 @@ export default function CalendarLink() {
             </button>
             <a
               href={url}
-              className="btn-ghost px-4 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn btn-ghost px-4 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em]"
             >
               Download once
             </a>
@@ -111,9 +111,9 @@ export default function CalendarLink() {
           <p className="mt-3 text-[0.78rem] leading-relaxed text-ink-faint">
             Anyone with this address can read the calendar, so treat it like a
             key rather than a link. In Google Calendar it goes under Other
-            calendars, From URL; on an iPhone it is Calendar, Add account, Other,
-            Add subscribed calendar. Starting a new address switches every
-            existing subscription off.
+            calendars, From URL; on an iPhone it is Calendar, Add account,
+            Other, Add subscribed calendar. Starting a new address switches
+            every existing subscription off.
           </p>
         </>
       ) : (

@@ -125,7 +125,7 @@ export default function ClearedTips() {
                 <button
                   type="button"
                   onClick={() => restore(tip)}
-                  className="btn-ghost mt-3 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
+                  className="btn btn-ghost mt-3 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
                 >
                   Bring it back
                 </button>
