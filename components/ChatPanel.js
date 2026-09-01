@@ -14,7 +14,11 @@ import {
   tickKey,
   toggle,
 } from "@/lib/agent/picking";
-import PlaceCards, { addRequest, moreRequest } from "./PlaceCards";
+import PlaceCards, {
+  addRequest,
+  findMoreRequest,
+  moreRequest,
+} from "./PlaceCards";
 import WhereIAm, { readStored } from "./WhereIAm";
 import { runLook } from "@/lib/tips/run";
 import { foundLine } from "@/lib/tips/ask";
@@ -249,6 +253,18 @@ export default function ChatPanel({
         : null,
     [buildingTrip, savedActions, pending],
   );
+  // Every place shown so far, and which message holds the newest set. Both are
+  // read off the thread rather than kept in state, so a conversation read back
+  // from the database behaves the same as one that happened on this screen.
+  const shownPlaces = useMemo(
+    () => messages.flatMap((m) => (Array.isArray(m.places) ? m.places : [])),
+    [messages],
+  );
+  const lastPlaces = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1)
+      if (messages[i]?.places?.length) return i;
+    return -1;
+  }, [messages]);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   // The request in flight, so the Stop offered after five seconds does something
@@ -921,6 +937,15 @@ export default function ChatPanel({
                 here={m.here || here}
                 onAdd={(place) => send(addRequest(place))}
                 onMore={(place) => send(moreRequest(place))}
+                /* Only under the newest shortlist, and the question it asks
+                   names every place shown in the whole conversation -- ask for
+                   more twice and the second helping has to avoid the first
+                   helping too, or the third set is the first set again. */
+                onFindMore={
+                  i === lastPlaces && !busy && !pending
+                    ? () => send(findMoreRequest(shownPlaces))
+                    : undefined
+                }
               />
               {/* Only under the last answer, and never while she is mid-sentence
                   on the next one. */}

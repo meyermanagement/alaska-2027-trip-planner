@@ -11,6 +11,7 @@
 import {
   KIND_LABELS,
   addRequest,
+  findMoreRequest,
   groupPlaces,
   moreRequest,
 } from "@/lib/places/cards";
@@ -118,6 +119,17 @@ function Card({ place, onAdd, onMore, busy, here }) {
           <p className="mt-2 text-xs leading-relaxed text-ink">{place.why}</p>
         ) : null}
 
+        {/* Only on a second helping, and set apart from the reasons rather than
+            appended to them: it is the answer to a different question, and a
+            drawback tucked onto the end of a sentence of praise gets skimmed
+            over by exactly the person it was written for. */}
+        {place.tradeoff ? (
+          <p className="mt-2 rounded-lg bg-sand/80 px-2.5 py-2 text-xs leading-relaxed text-ink-soft">
+            <span className="font-semibold text-ink">The trade-off: </span>
+            {place.tradeoff}
+          </p>
+        ) : null}
+
         {/* Only ever a program the family is actually in: the shortlist is checked
             against their own rows before it reaches this component, and a perk
             whose program is not theirs has already been removed. */}
@@ -210,6 +222,7 @@ export default function PlaceCards({
   places,
   onAdd,
   onMore = null,
+  onFindMore = null,
   busy = false,
   here = null,
 }) {
@@ -252,8 +265,23 @@ export default function PlaceCards({
           </ul>
         </section>
       ))}
+
+      {/* Under the whole shortlist rather than on a card, because it is a
+          question about the shortlist: was that everything? Offered only on the
+          newest set, so pressing it cannot ask for more of a list four
+          exchanges back. */}
+      {onFindMore ? (
+        <button
+          type="button"
+          onClick={onFindMore}
+          disabled={busy}
+          className="mt-3 rounded-lg border border-sand-deep px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-60"
+        >
+          Find more
+        </button>
+      ) : null}
     </div>
   );
 }
 
-export { addRequest, moreRequest };
+export { addRequest, findMoreRequest, moreRequest };
