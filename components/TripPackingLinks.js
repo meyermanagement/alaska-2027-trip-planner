@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { tripPath } from "@/lib/trips/route";
 
-// A shortcut, not a section.
+// The way out of this screen to the list somebody actually ticks.
 //
-// This screen is about the templates. But the list somebody actually ticks is
-// the one on the trip they are leaving for, and the only route to it was the
-// trips board, then the trip, then its Packing tab. So the upcoming trips sit
-// above the heading as one quiet line of links -- the way a breadcrumb sits
-// above a page rather than the way a panel sits in it.
+// This page is the templates -- the lists a new trip starts from. The list
+// somebody wants the night before leaving is the one on the trip itself, and the
+// only route to it used to be the trips board, then the trip, then its Packing
+// tab. Three screens to reach the thing this screen is about.
 //
-// It was built once as cards with progress bars and it was wrong: it read as the
-// subject of the screen and pushed the templates below the fold. Everything that
-// belonged to the trip rather than to getting there -- dates, how far away it is,
-// how much is packed -- lives on the trip, which is one tap away. What is left
-// is the name and a count, because the count is what tells you the list exists.
+// It has been built twice and both were wrong in opposite directions. As cards
+// with progress bars it read as the subject of the page and pushed the templates
+// below the fold. As a bare line of underlined names it was so quiet it looked
+// like a mistake. So it asks a question instead: a small box, a sentence naming
+// exactly what somebody who took a wrong turn is looking for, and the trips
+// under it as chips big enough for a thumb. Soonest first, since that is the
+// order of how likely each one is to be the answer.
+//
+// The line count stays and nothing else does. Dates, how far away the trip is
+// and how much is packed all belong to the trip, which is now one tap away; the
+// count is only here because it is what says whether the list exists yet.
 
 /**
  * @param {object[]} trips  [{ id, name, public_id, slug, total }], soonest first
@@ -23,26 +28,31 @@ export default function TripPackingLinks({ trips = [] }) {
 
   return (
     <nav
-      className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[0.78rem] text-ink-soft"
+      className="mb-6 rounded-2xl border border-[var(--line)] bg-sand/40 px-4 py-3.5"
       aria-label="Packing lists on upcoming trips"
     >
-      <span className="text-ink-soft/80">Packing lists:</span>
-      {/* Separated by space rather than by interpuncts. A dot between links
-          strands itself at the end of a line as soon as the row wraps, which on a
-          narrow phone it does three times. The underline already says where one
-          link ends and the next begins. */}
-      {trips.map((trip) => (
-        <Link
-          key={trip.id}
-          href={tripPath(trip, "packing")}
-          className="py-0.5 underline decoration-[var(--line)] decoration-1 underline-offset-2 transition hover:text-teal hover:decoration-teal"
-        >
-          {trip.name}
-          {trip.total ? (
-            <span className="opacity-70"> ({trip.total})</span>
-          ) : null}
-        </Link>
-      ))}
+      <p className="text-sm text-ink-soft">
+        Looking for a trip&rsquo;s packing list?
+      </p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        {trips.map((trip) => (
+          <Link
+            key={trip.id}
+            href={tripPath(trip, "packing")}
+            /* Its own pill rather than .chip: a chip is uppercase and 0.675rem,
+               which is a label for a fact, not something a thumb aims at with a
+               trip's name in it. Nothing forces the name onto one line either:
+               a household with a long trip name on a 320px phone should get a
+               two-line pill rather than one that runs off the side of the box. */
+            className="rounded-full border border-[var(--line)] bg-white/80 max-w-full px-3 py-1.5 text-[0.82rem] font-medium transition hover:border-teal/40 hover:text-teal"
+          >
+            {trip.name}
+            {trip.total ? (
+              <span className="pl-1.5 opacity-55">{trip.total}</span>
+            ) : null}
+          </Link>
+        ))}
+      </div>
     </nav>
   );
 }
