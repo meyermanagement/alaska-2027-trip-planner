@@ -28,10 +28,16 @@ export default function TripPackingLinks({ trips = [] }) {
 
   return (
     <nav
-      className="mb-6 rounded-2xl border border-[var(--line)] bg-sand/40 px-4 py-3.5"
+      /* Teal rather than sand. On the sand ground of this page a sand box is
+         nearly the page itself, and the one thing on the templates screen that
+         is not a template read as part of the furniture. The teal is the
+         colour the app already uses for the way onward -- links, the primary
+         button, the pro tips due soon -- so this reads as a door rather than
+         as a warning. */
+      className="mb-6 rounded-2xl border border-teal/30 bg-teal-soft/70 px-4 py-3.5"
       aria-label="Packing lists on upcoming trips"
     >
-      <p className="text-sm text-ink-soft">
+      <p className="text-sm font-semibold text-teal">
         Looking for a trip&rsquo;s packing list?
       </p>
       <div className="mt-2.5 flex flex-wrap gap-2">
@@ -44,7 +50,7 @@ export default function TripPackingLinks({ trips = [] }) {
                trip's name in it. Nothing forces the name onto one line either:
                a household with a long trip name on a 320px phone should get a
                two-line pill rather than one that runs off the side of the box. */
-            className="rounded-full border border-[var(--line)] bg-white/80 max-w-full px-3 py-1.5 text-[0.82rem] font-medium transition hover:border-teal/40 hover:text-teal"
+            className="rounded-full border border-teal/25 bg-white max-w-full px-3 py-1.5 text-[0.82rem] font-medium transition hover:border-teal hover:text-teal"
           >
             {trip.name}
             {trip.total ? (
