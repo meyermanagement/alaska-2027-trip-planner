@@ -241,6 +241,8 @@ export async function POST(request) {
     petNames,
     level: access?.level,
     travelerName: access?.travelerName,
+    // The roster, so her opening line names whoever actually uses this account.
+    people: ctx.travelerNames,
   });
   // Not all 28 of them: the ones this screen and these words could plausibly
   // need. See lib/agent/toolset.js for why fewer is more accurate as well as
