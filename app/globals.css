@@ -1072,6 +1072,59 @@ input[type="month"]::-webkit-date-and-time-value {
   backdrop-filter: blur(4px);
 }
 
+/* Anything muted, dropped onto a plate.
+ *
+ * Mark reported the look button's progress line -- "Looking... 4 of 5 checks
+ * done - 29s" -- as unreadable on a trip card, and it was. That line is set at
+ * ink-soft, a brown picked for cream paper, and on a trip header it lands on a
+ * plate where every other word is paper-white over a darkened picture. The
+ * paper color is inherited by the plate, so a component that says nothing about
+ * color reads correctly; the moment one names a paper token it goes dark and
+ * disappears.
+ *
+ * The fix belongs to the plate, not to the line: the same component also
+ * appears on real paper in the Wallet, where ink-soft is exactly right. So
+ * inside a plate a muted brown becomes a quieter paper white, a rose warning
+ * becomes a pale rose that still reads as a warning, and anything moved onto a
+ * plate in future is legible without having to remember this.
+ * ------------------------------------------------------------------ */
+
+.on-photo .text-ink,
+.on-photo .text-ink-soft,
+.on-photo .text-ink-faint {
+  color: rgba(255, 253, 248, 0.88);
+}
+
+/* The accent colors keep their meaning and lose their weight. Rose still says
+   something went wrong and amber still says be careful, at values that hold up
+   against a dark plate instead of sinking into it. */
+.on-photo .text-rose {
+  color: #ffc7d0;
+}
+
+.on-photo .text-amber {
+  color: #f8cd91;
+}
+
+/* Teal and glacier are the app's two "this is a system word" colors -- the
+   spinner beside the progress line is one of them -- and both are too deep to
+   sit on a plate. On paper white they read as the plate's own voice. */
+.on-photo .text-teal,
+.on-photo .text-glacier {
+  color: rgba(255, 253, 248, 0.92);
+}
+
+/* The look's progress bar. A cream track with a deep teal fill is a paper
+   object: on a plate the track becomes glass and the fill the paper white it
+   is measured in. */
+.on-photo .bg-sand-deep {
+  background-color: rgba(255, 253, 248, 0.26);
+}
+
+.on-photo .bg-teal {
+  background-color: rgba(255, 253, 248, 0.9);
+}
+
 /* ------------------------------------------------------------------ *
  * The tabs inside one trip.
  *
