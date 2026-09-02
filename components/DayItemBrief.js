@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTime } from "@/lib/format";
+import { durationSaid, formatTime } from "@/lib/format";
 import { leaveBy, running } from "@/lib/day/departure";
 import { travelSaid } from "@/lib/travel/route";
 import { hourSaid, windGlyph } from "@/lib/weather/forecast";
@@ -85,7 +85,7 @@ export default function DayItemBrief({
           </span>
           <span className="text-ink-faint">
             {" \u2014 "}
-            {plan.travelMinutes} min
+            {durationSaid(plan.travelMinutes)}
             {plan.travelSource === "traffic"
               ? " in current traffic"
               : " travel"}
@@ -98,10 +98,10 @@ export default function DayItemBrief({
                 long. */}
             {plan.bufferMinutes > 0
               ? plan.bufferSource === "researched"
-                ? `, plus ${plan.bufferMinutes} min early`
+                ? `, plus ${durationSaid(plan.bufferMinutes)} early`
                 : plan.bufferWhy
-                  ? `, plus ${plan.bufferMinutes} min for ${plan.bufferWhy}`
-                  : `, plus ${plan.bufferMinutes} min early`
+                  ? `, plus ${durationSaid(plan.bufferMinutes)} for ${plan.bufferWhy}`
+                  : `, plus ${durationSaid(plan.bufferMinutes)} early`
               : ""}
           </span>
         </Line>
@@ -150,7 +150,8 @@ export default function DayItemBrief({
           about the venue rather than a departure the app cannot compute. */}
       {!plan.complete && insight?.arrive_minutes > 0 && insight?.arrive_why && (
         <Line label="Get there early:">
-          {insight.arrive_minutes} min before &mdash; {insight.arrive_why}
+          {durationSaid(insight.arrive_minutes)} before &mdash;{" "}
+          {insight.arrive_why}
         </Line>
       )}
 

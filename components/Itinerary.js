@@ -1280,6 +1280,7 @@ export default function Itinerary({
                   tripId={tripId}
                   date={date}
                   isToday={date === today}
+                  today={today}
                   next={plan.next}
                   nowHM={nowHM}
                   weather={dayData?.date === date ? dayData.weather : null}

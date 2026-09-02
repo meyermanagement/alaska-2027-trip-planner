@@ -8,7 +8,7 @@ import { readStored } from "./WhereIAm";
 import { minutesUntil, untilSaid } from "@/lib/day/phase";
 import WaysThere from "./WaysThere";
 import { distanceSaid } from "@/lib/travel/route";
-import { formatTime } from "@/lib/format";
+import { addDays, formatShortDay, formatTime } from "@/lib/format";
 
 /**
  * The band above a day, when the family is living that day.
@@ -20,6 +20,25 @@ import { formatTime } from "@/lib/format";
  */
 
 const TODAY_FOCUS = "today";
+
+/**
+ * Which day this band is about, in the words a person would use.
+ *
+ * It used to read "Today" or, for any other day, "This day" -- which is not a
+ * day, it is the absence of one. The band only ever appears on the day being
+ * lived and the one after it, so the day it was not naming was always tomorrow,
+ * and the evening before a six o'clock start is exactly when you want to be told
+ * so. Yesterday and a plain date are here because a label whose only other
+ * branch is a placeholder is how "This day" happened in the first place.
+ */
+function dayEyebrow(date, today, isToday) {
+  if (isToday) return "Today";
+  if (date && today) {
+    if (date === addDays(today, 1)) return "Tomorrow";
+    if (date === addDays(today, -1)) return "Yesterday";
+  }
+  return date ? formatShortDay(date) : "";
+}
 
 /**
  * The forecast, in one line, with the numbers first because that is what is read.
@@ -82,6 +101,7 @@ export default function DayBrief({
   tripId,
   date,
   isToday,
+  today = null,
   next,
   nowHM,
   weather,
@@ -130,6 +150,17 @@ export default function DayBrief({
 
   // "in 40 min" while that is a useful thing to say, and a clock time once the gap
   // is long enough that counting minutes stops meaning anything.
+  // The day in words, used in the eyebrow and again in the questions below it,
+  // because the chat drawer is handed the sentence and not the date -- so if the
+  // question does not say "tomorrow", nothing downstream knows it was about
+  // tomorrow.
+  const whenSaid = dayEyebrow(date, today, isToday);
+  const dayWord = ["Today", "Tomorrow", "Yesterday"].includes(whenSaid)
+    ? whenSaid.toLowerCase()
+    : whenSaid
+      ? `on ${whenSaid}`
+      : "this day";
+
   const until =
     isToday && next
       ? untilSaid(
@@ -142,7 +173,7 @@ export default function DayBrief({
     <section className="no-print mb-3 rounded-2xl border border-teal/25 bg-teal/[0.04] px-4 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-teal">
-          {isToday ? "Today" : "This day"}
+          {whenSaid}
         </p>
         {/* Two ends of a travel day, stacked so the arrow reads down the way the
             day runs. On the days that stay put -- most of them -- weatherEnd is
@@ -210,8 +241,12 @@ export default function DayBrief({
             ref={box}
             value={asking}
             onChange={(e) => setAsking(e.target.value)}
-            placeholder={TODAY_PLACEHOLDER}
-            aria-label="Ask Aly about today"
+            placeholder={
+              isToday
+                ? TODAY_PLACEHOLDER
+                : `Ask about ${dayWord} — the weather, what time to leave, or somewhere to eat…`
+            }
+            aria-label={`Ask Aly about ${dayWord}`}
             className="min-w-0 flex-1 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm placeholder:text-ink-faint focus:border-teal focus:outline-none"
           />
           <button
@@ -229,8 +264,10 @@ export default function DayBrief({
       <div className="mt-2 flex flex-wrap gap-1.5">
         {[
           here ? "Somewhere to eat near me" : "Somewhere to eat near here",
-          "How do we get to the next thing?",
-          "What should we wear today?",
+          isToday
+            ? "How do we get to the next thing?"
+            : `How do we get to the first thing ${dayWord}?`,
+          `What should we wear ${dayWord}?`,
         ].map((q) => (
           <button
             key={q}
