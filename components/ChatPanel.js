@@ -26,6 +26,7 @@ import WhereIAm, { readStored } from "./WhereIAm";
 import { runLook } from "@/lib/tips/run";
 import { foundLine } from "@/lib/tips/ask";
 import TripArtifact from "./TripArtifact";
+import { tripPath, tripRef } from "@/lib/trips/route";
 import { buildArtifact } from "@/lib/trips/artifact";
 import { receiptTone, receiptLabel } from "@/lib/agent/receipt";
 import Thinking from "./Thinking";
@@ -209,6 +210,7 @@ export default function ChatPanel({
   // separately from `trip` because a conversation opened from the list can be
   // about a trip nobody is standing on.
   conversationTripId = null,
+  conversationTripRef = null,
   // Whose conversation this is, when it is not the reader's own. Conversations
   // are shared between the parents now, so a thread can be somebody else's
   // and the header should say so before anybody types into it.
@@ -751,13 +753,23 @@ export default function ChatPanel({
   // arriving anywhere.
   const aboutTripId = conversationTripId || trip?.id || null;
   const aboutTripName = conversationTripName || trip?.name || null;
+  // A trip is reachable at slug-key, never at its uuid -- /trips/<uuid> is a
+  // Not Found page, which is exactly what this link used to be. The ref comes
+  // from whichever side knows it: the conversation row when one was picked from
+  // the list, the trip on the page otherwise. No ref, no link.
+  const aboutTripHref =
+    conversationTripId && conversationTripRef
+      ? `/trips/${conversationTripRef}`
+      : trip?.id && aboutTripId === trip.id && tripRef(trip)
+        ? tripPath(trip)
+        : null;
   const headingIsTrip = Boolean(
     conversationId && sameThing(conversationTitle, aboutTripName),
   );
   const tripDoor =
-    aboutTripId && aboutTripName ? (
+    aboutTripHref && aboutTripName ? (
       <Link
-        href={`/trips/${aboutTripId}`}
+        href={aboutTripHref}
         onClick={() => onClose?.()}
         title={`Open ${aboutTripName}`}
         className="max-w-full truncate rounded underline decoration-[var(--line-strong)] decoration-1 underline-offset-2 transition hover:text-teal hover:decoration-teal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"

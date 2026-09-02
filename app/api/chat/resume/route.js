@@ -1,3 +1,4 @@
+import { tripRef } from "@/lib/trips/route";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { FRESH_EACH_TIME, latestConversation } from "@/lib/agent/thread";
@@ -45,13 +46,15 @@ export async function GET(request) {
   // trip that is not theirs reads as no trip, which resumes their general thread
   // rather than telling them the trip exists.
   let ownTripId = null;
+  let ownTripRef = null;
   if (tripId) {
     const { data } = await supabase
       .from("trips")
-      .select("id")
+      .select("id, slug, public_id")
       .eq("id", tripId)
       .maybeSingle();
     ownTripId = data?.id || null;
+    ownTripRef = tripRef(data) || null;
   }
 
   const { conversation, error } = await latestConversation(supabase, {
@@ -68,6 +71,8 @@ export async function GET(request) {
           id: conversation.id,
           title: conversation.title || null,
           tripId: conversation.trip_id || null,
+          // The address, not the id: /trips/<uuid> is a Not Found page.
+          tripRef: ownTripRef,
           focus: conversation.focus || null,
           visibility: conversation.visibility || "family",
           mine: true,

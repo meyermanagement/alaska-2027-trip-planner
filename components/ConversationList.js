@@ -364,6 +364,7 @@ function SearchResults({ query, results, searching, onPick, me = null }) {
                   id: r.conversationId,
                   title: r.title,
                   tripId: r.tripId,
+                  tripRef: r.tripRef,
                   tripName: r.tripName,
                   ownerName:
                     me && r.ownerId && r.ownerId !== me ? r.ownerName : null,

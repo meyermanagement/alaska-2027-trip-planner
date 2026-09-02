@@ -1,5 +1,6 @@
 "use client";
 
+import { tripRef } from "@/lib/trips/route";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import ConversationList from "./ConversationList";
@@ -79,6 +80,7 @@ export default function AskAlyDrawer({
           id: null,
           title: null,
           tripId: trip?.id || null,
+          tripRef: tripRef(trip) || null,
           tripName: trip?.name,
         });
         return;
@@ -110,6 +112,7 @@ export default function AskAlyDrawer({
         // fortnight of planning filed under "where is currently Lisbon".
         title: (trip?.name && found?.id ? trip.name : found?.title) || null,
         tripId: trip?.id || found?.tripId || null,
+        tripRef: tripRef(trip) || found?.tripRef || null,
         tripName: trip?.name,
       });
       setResuming(false);
@@ -258,6 +261,7 @@ export default function AskAlyDrawer({
             conversationTitle={current.title}
             conversationTripName={current.tripName}
             conversationTripId={current.tripId}
+            conversationTripRef={current.tripRef}
             conversationOwnerName={current.ownerName}
             onConversationStarted={(id) =>
               setCurrent((c) => (c && !c.id ? { ...c, id } : c))
@@ -272,6 +276,7 @@ export default function AskAlyDrawer({
                 id: null,
                 title: null,
                 tripId: trip?.id || null,
+                tripRef: tripRef(trip) || null,
                 tripName: trip?.name,
               })
             }
@@ -283,6 +288,7 @@ export default function AskAlyDrawer({
                 // else; the list works out which.
                 ownerName: conversation.ownerName || null,
                 tripId: conversation.tripId || null,
+                tripRef: conversation.tripRef || null,
                 tripName: conversation.tripName,
               })
             }
