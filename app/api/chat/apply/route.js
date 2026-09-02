@@ -6,6 +6,7 @@ import { generateTripCover } from "@/lib/covers/generate";
 import {
   validateAction,
   pendingTripNames,
+  pendingTripStatuses,
   pendingTemplateNames,
   FAMILY_TABLES,
   EDIT_TOOLS,
@@ -218,7 +219,7 @@ export async function POST(request) {
     supabase.from("predeparture_tasks").select("id, title, trip_id"),
     supabase.from("trip_notes").select("id, title, body, trip_id"),
     supabase.from("travelers").select("id, name").order("sort_order"),
-    supabase.from("trips").select("id, name, slug, public_id"),
+    supabase.from("trips").select("id, name, slug, public_id, status"),
     supabase.from("travel_preferences").select("id, body"),
     supabase.from("packing_templates").select("id, name, is_base"),
     supabase.from("packing_template_items").select("id, item, template_id"),
@@ -251,6 +252,9 @@ export async function POST(request) {
       ]),
     ),
     trips: new Map((trips.data || []).map((r) => [r.id, r.name])),
+    // What each trip is right now, so the same rules that shape a proposal
+    // still hold when the card comes back to be applied.
+    tripStatus: new Map((trips.data || []).map((r) => [r.id, r.status])),
     // Not part of validation: carried alongside it so the receipt can build a
     // link without a second read of the table.
   };
@@ -333,6 +337,9 @@ export async function POST(request) {
   // Names of trips this batch is about to create, so their contents validate
   // against a trip that does not have an id yet.
   const pendingTrips = pendingTripNames(ordered);
+  // And what each of them is being created as, so a card left over from an
+  // earlier reply cannot pack a draft on its way through here either.
+  const pendingStatuses = pendingTripStatuses(ordered);
   // Same for the packing templates this batch starts: create_template is ranked
   // first above, so by the time an item is written its list exists -- but the
   // revalidation happens before that, and has to accept the name meanwhile.
@@ -349,6 +356,7 @@ export async function POST(request) {
         focusTripId: tripId,
         pendingTrips,
         pendingTemplates,
+        pendingTripStatuses: pendingStatuses,
       },
     );
 

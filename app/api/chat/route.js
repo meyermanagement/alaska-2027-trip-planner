@@ -12,6 +12,7 @@ import {
 import {
   validateAction,
   pendingTripNames,
+  pendingTripStatuses,
   pendingTemplateNames,
 } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
@@ -627,23 +628,34 @@ export async function POST(request) {
 
   const proposed = [];
   const problems = [];
+  // Refusals the family has to hear even when the rest of the reply worked.
+  // An ordinary problem only surfaces when there is nothing else to say, which
+  // is right for "I could not tell which trip you meant" and wrong for a rule:
+  // if Aly has just written "and I will start the packing list" and the app
+  // will not, the sentence and the screen have to agree.
+  const tells = [];
   // A trip being created in this same turn has no id yet, so the itinerary and
   // packing rows that came with it are filed against its name instead.
   const pendingTrips = pendingTripNames(changeCalls);
+  const pendingStatuses = pendingTripStatuses(changeCalls);
   const pendingTemplates = pendingTemplateNames(changeCalls);
   for (const call of changeCalls) {
-    const { action, error } = validateAction(call, {
+    const { action, error, tell } = validateAction(call, {
       travelerNames: ctx.travelerNames,
       travelerIds: ctx.travelerIds,
       known: ctx.known,
       focusTripId: ctx.focusTripId,
       pendingTrips,
       pendingTemplates,
+      pendingTripStatuses: pendingStatuses,
       newTripDraft: focus === NEW_TRIP_FOCUS,
       loggedTrip: focus === LOG_TRIP_FOCUS,
     });
     if (action) proposed.push(action);
-    else if (error) problems.push(error);
+    else if (error) {
+      problems.push(error);
+      if (tell) tells.push(error);
+    }
   }
 
   // Asked for ideas, and asked to save nothing: whatever she proposed goes no
@@ -733,6 +745,13 @@ export async function POST(request) {
     reply = problems.length
       ? Array.from(new Set(problems)).join(" ")
       : "Something went wrong at my end and I lost that one. Ask me again.";
+  }
+
+  if (tells.length) {
+    const unsaid = Array.from(new Set(tells)).filter(
+      (t) => !(reply || "").includes(t),
+    );
+    if (unsaid.length) reply = [reply, ...unsaid].filter(Boolean).join("\n\n");
   }
 
   // What Aly proposed matters as much as what she said, so the transcript keeps
