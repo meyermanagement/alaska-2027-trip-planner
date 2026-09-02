@@ -83,7 +83,8 @@ export default function Templates({
     [items, templateId],
   );
 
-  const known = travelers.length ? travelers : ["Mark", "Steph", "Veda"];
+  // Nobody, rather than this family's three, until the roster says otherwise.
+  const known = travelers.length ? travelers : [];
   // Everyone who could own an item: the family, Shared, and any leftover name
   // still attached to something in this list.
   const people = useMemo(() => {

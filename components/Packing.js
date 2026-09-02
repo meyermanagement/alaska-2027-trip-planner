@@ -149,9 +149,11 @@ export default function Packing({
     lastMinute: false,
   });
 
-  const people = travelers.length
-    ? travelers
-    : ["Mark", "Steph", "Veda", "Shared"];
+  // Only ever seen before the roster has loaded, or on an account with nobody on
+  // it yet. It used to fall back to this family's own three names, which is fine
+  // for this family and wrong for anybody else's -- a stranger's first packing
+  // item would have offered to assign itself to Steph.
+  const people = travelers.length ? travelers : ["Shared"];
 
   /**
    * The filter pills follow the roster, not the family.

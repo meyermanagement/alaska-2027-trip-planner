@@ -57,9 +57,8 @@ export default function Tasks({
     due_date: "",
   });
 
-  const people = travelers.length
-    ? travelers
-    : ["Mark", "Steph", "Veda", "Shared"];
+  // See the same fallback in Packing: names belong to the account, not the code.
+  const people = travelers.length ? travelers : ["Shared"];
 
   // A finished task has no urgency left, so it neither jumps the queue nor keeps
   // its badge — it just sits where it was.
