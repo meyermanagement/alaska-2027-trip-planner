@@ -280,7 +280,15 @@ export default function DraftView({
                     onClick={() =>
                       ask(
                         answered
-                          ? `On this trip, ${basic.label.toLowerCase()} is currently "${value}". I want to change it.`
+                          ? // Asked as a question, not as an instruction. "I want
+                            // to change it" told Aly a decision had been made and
+                            // left her nothing to do but ask what to change it
+                            // to -- a wasted turn, on the screen where the family
+                            // is least likely to know the answer yet. Wondering
+                            // out loud gets the options and a recommendation back
+                            // in the first reply, and changing it is still one
+                            // sentence away.
+                            `On this trip, ${basic.label.toLowerCase()} is currently "${value}". I am thinking of changing it — what are my options, and which would you recommend?`
                           : basic.ask,
                       )
                     }
