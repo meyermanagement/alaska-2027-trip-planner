@@ -199,6 +199,117 @@ export default function Preferences({
     fold(next);
   }
 
+  /**
+   * Where the reader was, so closing an editor does not move the page under them.
+   *
+   * Opening a preference replaces a two-line card with a form about three hundred
+   * pixels tall, and closing it takes those three hundred pixels back out.
+   * Everything below the row moves, the page gets shorter, and if the reader was
+   * far enough down the browser clamps the scroll as well -- so pressing Save or
+   * Cancel could leave somebody looking at a different part of the list than the
+   * one they had just been editing. Deleting is worse: the row they were reading
+   * from is gone, and there is nothing left to look for.
+   *
+   * So the row's distance from the top of the window is measured before the
+   * change, and the page is nudged by whatever it moved by afterwards. Measured
+   * rather than remembered, because it does not matter what caused the shift --
+   * the collapse, a clamp, a phone keyboard closing, or the refresh coming back
+   * with different content above the list.
+   */
+  const hold = useRef(null);
+
+  const rowEl = (key) =>
+    typeof document === "undefined"
+      ? null
+      : document.querySelector(`[data-pref-row="${CSS.escape(String(key))}"]`);
+
+  // The add form sits above the list, so closing it moves every row. The first
+  // row stands in for the reader's place.
+  const firstRowKey = () =>
+    typeof document === "undefined"
+      ? null
+      : document
+          .querySelector("[data-pref-row]")
+          ?.getAttribute("data-pref-row");
+
+  /**
+   * Remember where a row is sitting.
+   *
+   * `gone` is for delete, where the row itself will not be there to measure
+   * against: its neighbour is used instead, which moves by the same amount.
+   */
+  function holdRow(key, { gone = false } = {}) {
+    if (!key) {
+      hold.current = null;
+      return;
+    }
+    const el = rowEl(key);
+    if (!el) {
+      hold.current = null;
+      return;
+    }
+    let target = el;
+    if (gone) {
+      const near = el.previousElementSibling || el.nextElementSibling;
+      target = near?.getAttribute?.("data-pref-row") ? near : null;
+    }
+    hold.current = target
+      ? {
+          key: target.getAttribute("data-pref-row"),
+          top: target.getBoundingClientRect().top,
+          focus: !gone && target === el,
+        }
+      : null;
+  }
+
+  // Applied after the list has been redrawn, so the correction is against where
+  // things actually ended up rather than where we expected them to.
+  useEffect(() => {
+    const held = hold.current;
+    if (!held) return;
+    hold.current = null;
+
+    const bring = () => {
+      const el = rowEl(held.key);
+      if (!el) return;
+      const box = el.getBoundingClientRect();
+      const off = box.top < 8 || box.bottom > window.innerHeight - 8;
+      // Off the screen wins over holding the place. On a phone the form is
+      // taller than the window, so Save and Cancel are only reachable by
+      // scrolling down past the row -- and by the time the button is pressed,
+      // the thing being edited is above the top of the screen. Keeping it at
+      // that offset would faithfully preserve a view of the wrong part of the
+      // list, which is the complaint. So the row is brought back instead, and
+      // the measured offset is only used when the row is still on screen.
+      if (off || held.top === null) {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+      const moved = box.top - held.top;
+      if (Math.abs(moved) > 1)
+        window.scrollBy({ top: moved, behavior: "instant" });
+    };
+
+    bring();
+    // Twice, because on a phone the keyboard goes down a beat after the form
+    // does: the window grows back, the page moves again, and the first
+    // correction was against a viewport that no longer exists. The second pass
+    // is abandoned if the reader has started scrolling for themselves -- their
+    // scroll wins over ours.
+    const settled = window.scrollY;
+    const again = window.setTimeout(() => {
+      if (Math.abs(window.scrollY - settled) < 2) bring();
+    }, 420);
+
+    // Focus follows the row too. Somebody who was typing in the form has just
+    // had it taken away from them, and without this the next Tab starts at the
+    // top of the document -- and a screen reader is told nothing at all.
+    if (held.focus)
+      rowEl(held.key)?.querySelector("button")?.focus({ preventScroll: true });
+
+    return () => window.clearTimeout(again);
+  }, [editing, adding, prefs]);
+
   // Every heading currently on screen, so "Collapse all" means all of these and
   // not a remembered fold for a topic that no longer exists.
   const allShut = groups.length > 0 && groups.every((g) => shut.has(g.key));
@@ -250,6 +361,9 @@ export default function Preferences({
   }
 
   async function save(id, values) {
+    // Measured now, while the form is still on screen and the row is still where
+    // the reader last saw it.
+    holdRow(id || firstRowKey());
     setBusy(true);
     if (id) {
       const { data } = await supabase
@@ -265,7 +379,13 @@ export default function Preferences({
         .insert({ ...values, family_id: familyId })
         .select("*")
         .maybeSingle();
-      if (data) setPrefs((list) => [...list, data]);
+      if (data) {
+        setPrefs((list) => [...list, data]);
+        // A new preference is filed by topic, which can be most of a page away
+        // from the Add button. Holding the reader's place would hide the thing
+        // they just wrote, so this one asks to be shown instead.
+        hold.current = { key: data.id, top: null, focus: true };
+      }
     }
     setBusy(false);
     setAdding(false);
@@ -318,6 +438,7 @@ export default function Preferences({
   }
 
   async function remove(pref) {
+    holdRow(pref.id, { gone: true });
     setBusy(true);
     setPrefs((list) => list.filter((p) => p.id !== pref.id));
     await supabase.from("travel_preferences").delete().eq("id", pref.id);
@@ -421,7 +542,10 @@ export default function Preferences({
             travelers={travelers}
             preferences={prefs}
             busy={busy}
-            onCancel={() => setAdding(false)}
+            onCancel={() => {
+              holdRow(firstRowKey());
+              setAdding(false);
+            }}
             onSave={(values) => save(null, values)}
           />
         </div>
@@ -700,6 +824,7 @@ export default function Preferences({
                   editing === pref.id ? (
                     <li
                       key={pref.id}
+                      data-pref-row={pref.id}
                       className="rounded-xl border border-[var(--line)] bg-sand/40 p-3"
                     >
                       <PreferenceForm
@@ -707,13 +832,16 @@ export default function Preferences({
                         travelers={travelers}
                         preferences={prefs}
                         busy={busy}
-                        onCancel={() => setEditing(null)}
+                        onCancel={() => {
+                          holdRow(pref.id);
+                          setEditing(null);
+                        }}
                         onDelete={() => remove(pref)}
                         onSave={(values) => save(pref.id, values)}
                       />
                     </li>
                   ) : (
-                    <li key={pref.id}>
+                    <li key={pref.id} data-pref-row={pref.id}>
                       <button
                         type="button"
                         className="group w-full rounded-xl border border-[var(--line)] bg-white p-3 text-left hover:border-teal/40"
