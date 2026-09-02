@@ -244,7 +244,11 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                   }
                   className="w-full rounded-[0.875rem] px-3.5 py-3 text-left transition hover:bg-sand/60"
                 >
-                  <p className="truncate pr-8 text-sm font-semibold text-ink">
+                  <p
+                    className={`truncate text-sm font-semibold text-ink ${
+                      mineHere(c, me) ? "pr-28" : "pr-10"
+                    }`}
+                  >
                     {c.title}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-ink-soft">
@@ -270,7 +274,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                         c.visibility === "private" ? "family" : "private",
                       )
                     }
-                    className="absolute right-9 top-1.5 rounded-full px-2 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ink-soft transition hover:bg-sand disabled:opacity-50"
+                    className="absolute right-11 top-1 flex h-9 items-center rounded-full px-3 text-[0.68rem] font-semibold uppercase tracking-wide text-ink-soft transition hover:bg-sand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:opacity-50"
                   >
                     {c.visibility === "private" ? "Just you" : "Shared"}
                   </button>
@@ -282,7 +286,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                       setConfirmId((was) => (was === c.id ? null : c.id))
                     }
                     aria-label={`Delete the conversation ${c.title}`}
-                    className="absolute right-1.5 top-1.5 rounded-full p-1.5 text-ink-soft transition hover:bg-rose/10 hover:text-rose"
+                    className="absolute right-1.5 top-1 flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition hover:bg-rose/10 hover:text-rose focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose"
                   >
                     <svg
                       viewBox="0 0 20 20"
@@ -451,7 +455,8 @@ function meta(c, me) {
   const bits = [];
   const mine = !c.ownerId || !me || c.ownerId === me;
   if (!mine && c.ownerName) bits.push(`${c.ownerName} asked`);
-  if (mine && c.visibility === "private") bits.push("Just you");
+  // Not "Just you" here as well: the toggle beside the title already says it,
+  // and saying it twice in one card read like a warning.
   if (c.tripName) bits.push(c.tripName);
   if (c.updatedAt) bits.push(when(c.updatedAt));
   bits.push(`${c.messageCount} message${c.messageCount === 1 ? "" : "s"}`);
