@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import { groupActions } from "@/lib/agent/groups";
@@ -204,6 +205,10 @@ export default function ChatPanel({
   conversationId = null,
   conversationTitle = null,
   conversationTripName = null,
+  // The trip that conversation is about, when it is about one. Carried
+  // separately from `trip` because a conversation opened from the list can be
+  // about a trip nobody is standing on.
+  conversationTripId = null,
   onConversationStarted,
   fill = false,
 }) {
@@ -731,6 +736,54 @@ export default function ChatPanel({
     setSkipped((prev) => forgetGroup(prev, { key }));
   }
 
+  // The trip a conversation is about, and the way back to it.
+  //
+  // The header has named the trip all along and it was only ever a label, which
+  // is a strange thing to read halfway through planning Alaska: the name of the
+  // thing you are discussing, sitting there, not pressable. The link is the
+  // same on either line -- the heading when the heading is the trip's own name,
+  // the line underneath when it is not -- and it closes the drawer on the way
+  // out, because leaving a panel open over the trip it just opened is not
+  // arriving anywhere.
+  const aboutTripId = conversationTripId || trip?.id || null;
+  const aboutTripName = conversationTripName || trip?.name || null;
+  const headingIsTrip = Boolean(
+    conversationId && sameThing(conversationTitle, aboutTripName),
+  );
+  const tripDoor =
+    aboutTripId && aboutTripName ? (
+      <Link
+        href={`/trips/${aboutTripId}`}
+        onClick={() => onClose?.()}
+        title={`Open ${aboutTripName}`}
+        className="max-w-full truncate rounded underline decoration-[var(--line-strong)] decoration-1 underline-offset-2 transition hover:text-teal hover:decoration-teal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+      >
+        {aboutTripName}
+      </Link>
+    ) : null;
+  // The line under the heading. A name with no trip behind it -- a conversation
+  // about a trip since deleted -- is still printed, just not pressable.
+  const tripBit = tripDoor || aboutTripName;
+  const subtitle = conversationId ? (
+    // The trip is the heading on a resumed trip thread, so saying it again
+    // underneath would only push the section out of view.
+    headingIsTrip ? (
+      "Carrying on"
+    ) : (
+      tripBit || "All trips"
+    )
+  ) : focus === "log_trip" ? (
+    "A trip you have taken"
+  ) : focus === "new_trip" ? (
+    "A new trip"
+  ) : focus === "rewards" ? (
+    "Points, miles and cards"
+  ) : tripBit ? (
+    <>New conversation · {tripBit}</>
+  ) : (
+    "New conversation"
+  );
+
   return (
     <section
       className={
@@ -766,27 +819,14 @@ export default function ChatPanel({
           <AlyeskaMark className="h-7 w-7 shrink-0 text-teal" />
           <div className="min-w-0">
             <h2 className="truncate font-display text-base font-semibold leading-none">
-              {conversationTitle || "Ask Aly"}
+              {/* When the heading IS the trip's name -- which it is on every
+                  resumed trip thread -- the heading is the door. */}
+              {tripDoor && headingIsTrip
+                ? tripDoor
+                : conversationTitle || "Ask Aly"}
             </h2>
             <p className="mt-1 truncate text-xs text-ink-soft">
-              {conversationId
-                ? // The trip is the heading on a resumed trip thread, so saying
-                  // it again underneath would only push the section out of view.
-                  sameThing(
-                    conversationTitle,
-                    conversationTripName || trip?.name,
-                  )
-                  ? "Carrying on"
-                  : conversationTripName || (trip ? trip.name : "All trips")
-                : focus === "log_trip"
-                  ? "A trip you have taken"
-                  : focus === "new_trip"
-                    ? "A new trip"
-                    : focus === "rewards"
-                      ? "Points, miles and cards"
-                      : conversationTripName || trip?.name
-                        ? `New conversation · ${conversationTripName || trip.name}`
-                        : "New conversation"}
+              {subtitle}
               {trip && SECTION_LABELS[focus]
                 ? ` · ${SECTION_LABELS[focus]}`
                 : ""}

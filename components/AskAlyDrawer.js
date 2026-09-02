@@ -75,7 +75,12 @@ export default function AskAlyDrawer({
       const wanted = opening?.focus || focus || null;
       setOpen(true);
       if (wanted === "new_trip" || wanted === "log_trip") {
-        setCurrent({ id: null, title: null, tripName: trip?.name });
+        setCurrent({
+          id: null,
+          title: null,
+          tripId: trip?.id || null,
+          tripName: trip?.name,
+        });
         return;
       }
       // Home: the list, as it was. `current` null is what draws it.
@@ -104,6 +109,7 @@ export default function AskAlyDrawer({
         // that this one runs for the length of the trip -- nobody wants a
         // fortnight of planning filed under "where is currently Lisbon".
         title: (trip?.name && found?.id ? trip.name : found?.title) || null,
+        tripId: trip?.id || found?.tripId || null,
         tripName: trip?.name,
       });
       setResuming(false);
@@ -251,6 +257,7 @@ export default function AskAlyDrawer({
             conversationId={current.id}
             conversationTitle={current.title}
             conversationTripName={current.tripName}
+            conversationTripId={current.tripId}
             onConversationStarted={(id) =>
               setCurrent((c) => (c && !c.id ? { ...c, id } : c))
             }
@@ -260,12 +267,18 @@ export default function AskAlyDrawer({
           <ConversationList
             onClose={close}
             onNew={() =>
-              setCurrent({ id: null, title: null, tripName: trip?.name })
+              setCurrent({
+                id: null,
+                title: null,
+                tripId: trip?.id || null,
+                tripName: trip?.name,
+              })
             }
             onPick={(conversation) =>
               setCurrent({
                 id: conversation.id,
                 title: conversation.title,
+                tripId: conversation.tripId || null,
                 tripName: conversation.tripName,
               })
             }

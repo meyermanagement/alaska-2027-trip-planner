@@ -250,7 +250,9 @@ function Card({ place, onAdd, onMore, busy, here }) {
               className="btn btn-ghost btn-sm"
             >
               {PLATFORM_LABELS[place.via]
-                ? `View on ${PLATFORM_LABELS[place.via]}`
+                ? place.listing
+                  ? `View on ${PLATFORM_LABELS[place.via]}`
+                  : `Search ${PLATFORM_LABELS[place.via]}`
                 : "Website"}
             </a>
           ) : null}

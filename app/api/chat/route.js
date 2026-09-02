@@ -27,7 +27,13 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { mergePlaces, splitPlaceCalls } from "@/lib/places/cards";
-import { ratingFloors, withRatingFloor } from "@/lib/places/rated";
+import {
+  applyFloors,
+  floorDropLine,
+  ratingFloors,
+  rentalFallback,
+  withRatingFloor,
+} from "@/lib/places/rated";
 import { withPrograms } from "@/lib/places/stay";
 import {
   needsCards,
@@ -623,16 +629,31 @@ export async function POST(request) {
   // The floors are checked here and not by the model, because the model does
   // not know the ratings: it picks the names, Google answers with the number,
   // and only then can anybody tell whether a card clears the 4.5 the family
-  // asked for. Nothing is dropped -- the card says it missed.
-  const places = withRatingFloor(
-    withDistance(
-      await enrich(withPrograms(shortlistAll, ctx.rewards), {
-        bias: bias(here),
-      }),
-      here,
+  // asked for.
+  //
+  // And they are enforced, not annotated. Printing "below the 4.5 you asked
+  // for" on a 4.3 hotel was the first go at this and Mark was right to come
+  // back about it: the hotel was still on his screen, in a shortlist he had
+  // asked to be above a number. So a card under the floor comes out, and the
+  // reply says which ones went and what Google gave them -- a name that
+  // disappears silently is a filter nobody can argue with.
+  const floors = ratingFloors(ctx.preferences || []);
+  const { places, dropped: belowFloor } = applyFloors(
+    withRatingFloor(
+      withDistance(
+        await enrich(withPrograms(shortlistAll, ctx.rewards), {
+          bias: bias(here),
+        }),
+        here,
+      ),
+      floors,
     ),
-    ratingFloors(ctx.preferences || []),
+    floors,
   );
+  const floorNote = floorDropLine(belowFloor, {
+    kept: places,
+    fallback: rentalFallback(ctx.preferences || []),
+  });
 
   const proposed = [];
   const problems = [];
@@ -764,7 +785,12 @@ export async function POST(request) {
 
   // What Aly proposed matters as much as what she said, so the transcript keeps
   // the proposal alongside the reply.
-  const spoken = reply || (places.length ? placesLine(places) : "");
+  // The floor's own sentence rides with the answer rather than replacing it:
+  // Aly has written about the places she found, and this says what happened to
+  // the ones the family's number ruled out.
+  const spoken = [reply || (places.length ? placesLine(places) : ""), floorNote]
+    .filter(Boolean)
+    .join("\n\n");
   const record = actions.length
     ? [spoken, `(Proposed: ${actions.map((a) => a.summary).join("; ")})`]
         .filter(Boolean)
