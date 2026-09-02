@@ -51,10 +51,7 @@
 
 html,
 body {
-  /* Only ever seen where the shell is not: behind an overscroll bounce, and in
-     the browser's own chrome. Matches the ground's base so the page does not
-     appear to end. */
-  background: #f2ead9;
+  /* The five ground layers are further down, in their own body rule. */
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -107,7 +104,7 @@ time {
    over the light rather than dragging it down the document; the tooth and the
    weave scroll with the page, which is what makes them read as paper rather
    than as glass. */
-.app-shell {
+body {
   background-color: #f2ead9;
   background-image:
     url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.09 0.05 0.02 0 -0.05'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E"),
@@ -132,6 +129,15 @@ time {
     auto,
     auto;
   background-attachment: scroll, scroll, scroll, fixed, fixed, fixed;
+  min-height: 100dvh;
+}
+
+/* The ground goes on body rather than on the shell, so that it is the page's own
+   background and gets handed to the canvas: whatever the shell's height works
+   out to, and however far an overscroll bounce pulls, there is no strip at the
+   bottom where a flatter cream showed through. The shell keeps the layout and
+   carries no background of its own. */
+.app-shell {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -709,6 +715,7 @@ input[type="month"]::-webkit-date-and-time-value {
     display: none !important;
   }
   /* Paper does not need a picture of paper printed on it. */
+  body,
   .app-shell {
     background: var(--color-white);
   }

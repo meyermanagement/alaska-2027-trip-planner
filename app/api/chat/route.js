@@ -100,6 +100,26 @@ const EXTRA_TURN_MS = 34000;
 // Below this there is no point starting: a call that gets cut off mid-sentence
 // costs the same as one that was never made and produces less.
 const MIN_TURN_MS = 12000;
+// How long the model may deliberate before it starts answering.
+//
+// Left unset, Gemini decides for itself, and on the questions this app asks it
+// decides to spend a long time: measured on the real packing list, thinking
+// freely took 28 seconds and searched nothing, while "low" took 18 and ran four
+// searches. Every other model call in this app -- the tips, the wallet, the day
+// insight, the preference reader -- already asks for "low" for exactly that
+// reason. The chat route was the one that never did, which is why a proposal
+// could take most of a minute to appear while the change itself saved instantly.
+//
+// The follow-up turns get the same, and deserve it more: rewording a proposal
+// she has already made is not a problem that rewards deliberation.
+const THINKING = "low";
+// A turn that is only putting words to something already decided -- the sentence
+// above a proposal, the sentence above a shortlist, the cards under an answer.
+// There is no search to wait on and nothing to work out, so a ceiling of 34
+// seconds bought nothing except a longer wait on the rare turn that hangs. What
+// the family sees when this one is cut off is the card without the sentence,
+// which is the same thing they saw before these turns existed.
+const REWORD_TURN_MS = 20000;
 
 export async function POST(request) {
   // Where the request's own allowance starts. Read by every model turn below.
@@ -145,24 +165,25 @@ export async function POST(request) {
     );
   }
 
-  // Whether this person may ask Aly to change things, or only to answer.
-  const access = await resolveAccess(supabase, user);
-
-  const { data: profileRow } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
-  const userName = profileRow?.display_name;
-
-  // Aly always sees the whole app. A trip id only says which trip is open, so
+  // Everything that only needs the signed-in user, asked for at once.
+  //
+  // These four used to be four separate awaits, and the round trips added up in
+  // front of the model rather than behind it: whoever is asking, their display
+  // name, the whole app, and the list of other conversations are all knowable
+  // the moment we know who is asking, and none of them needs any of the others.
+  // A slow context makes a fast model look like a slow one, and this was the
+  // cheapest part of that to fix.
+  //
+  // Whether this person may ask Aly to change things, or only to answer; and
+  // Aly always sees the whole app -- a trip id only says which trip is open, so
   // it becomes the default target for anything the user does not pin elsewhere.
-  const snapshot = await loadEverything(
-    supabase,
-    userName,
-    tripId || null,
-    said,
-  );
+  const [access, snapshot, conversationList] = await Promise.all([
+    resolveAccess(supabase, user),
+    loadEverything(supabase, user.id, tripId || null, said),
+    // Best effort, and asked for here rather than after the conversation is
+    // opened because it does not depend on which conversation this is.
+    listConversations(supabase, 20).catch(() => ({ conversations: [] })),
+  ]);
   if (tripId && !snapshot.focusTripId) {
     return NextResponse.json({ error: "Trip not found." }, { status: 404 });
   }
@@ -187,32 +208,25 @@ export async function POST(request) {
     );
   }
 
-  const { messages: past } = await loadThread(
-    supabase,
-    conversationId,
-    CONTEXT_MESSAGES,
-  );
-
+  // This conversation, and the lines in the others that this question touches.
   // Conversations are separate, but not sealed off from each other: Aly is told
   // what the others were about, and the words of this question are used to pull
-  // the closest lines out of them. Best effort — a failure here only costs her
-  // the cross-reference, so it must never cost the answer.
-  let extras = {};
-  try {
-    const [{ conversations }, { hits }] = await Promise.all([
-      listConversations(supabase, 20),
-      recallOtherConversations(supabase, {
-        message: said,
-        exclude: conversationId,
-      }),
-    ]);
-    extras = {
-      others: (conversations || []).filter((c) => c.id !== conversationId),
-      recall: hits || [],
-    };
-  } catch {
-    extras = {};
-  }
+  // the closest lines out of them. Both need the conversation id and neither
+  // needs the other, so they go together. Best effort on the recall — a failure
+  // there only costs her the cross-reference, so it must never cost the answer.
+  const [{ messages: past }, recalled] = await Promise.all([
+    loadThread(supabase, conversationId, CONTEXT_MESSAGES),
+    recallOtherConversations(supabase, {
+      message: said,
+      exclude: conversationId,
+    }).catch(() => ({ hits: [] })),
+  ]);
+  const extras = {
+    others: (conversationList?.conversations || []).filter(
+      (c) => c.id !== conversationId,
+    ),
+    recall: recalled?.hits || [],
+  };
 
   // Where they are standing, if they chose to say. Nothing infers it: the button
   // and the typed override are the only two ways it arrives.
@@ -260,16 +274,21 @@ export async function POST(request) {
     retry &&
     lastSaid?.role === "user" &&
     String(lastSaid.body || lastSaid.text || "").trim() === said;
-  if (!alreadyAsked) {
-    await appendMessage(supabase, {
-      userId: user.id,
-      conversationId,
-      tripId: threadTripId,
-      role: "user",
-      body: said,
-      askId,
-    });
-  }
+  //
+  // Started here and awaited below, so the write travels alongside the model's
+  // first turn instead of in front of it. It still has to land before the reply
+  // goes back -- the transcript has to be in the order it was said -- but there
+  // is no reason for the family to wait out a round trip twice.
+  const questionWritten = alreadyAsked
+    ? Promise.resolve(null)
+    : appendMessage(supabase, {
+        userId: user.id,
+        conversationId,
+        tripId: threadTripId,
+        role: "user",
+        body: said,
+        askId,
+      }).catch(() => null);
 
   let result;
   let failed = null;
@@ -297,6 +316,7 @@ export async function POST(request) {
       messages,
       tools,
       grounded: lookUp,
+      thinking: THINKING,
       deadline: firstBy,
     });
   } catch (first) {
@@ -313,6 +333,7 @@ export async function POST(request) {
           messages,
           tools,
           grounded: false,
+          thinking: THINKING,
           deadline: rescueBy,
         });
         failed = null;
@@ -325,6 +346,8 @@ export async function POST(request) {
   if (failed) {
     const err = failed;
     const status = err instanceof ModelError ? err.status : 502;
+    // The question has to be on the record even when the answer never came.
+    await questionWritten;
     // Why it failed, kept where it can be looked up tomorrow.
     await recordRefusals(supabase, {
       userId: user.id,
@@ -394,6 +417,7 @@ export async function POST(request) {
         // Drawn from the same allowance as everything else. When the first turn
         // has already spent it, her notes go unread rather than the whole
         // request being cut off with nothing written down.
+        thinking: THINKING,
         deadline: extraBy,
       });
       // Only take the second answer if there is one: a reply that came back empty
@@ -440,9 +464,15 @@ export async function POST(request) {
     // spoken while saying nothing a person could weigh.
     needsReasons(result.text, changeCalls) &&
     asksSomething(said) &&
-    clock(EXTRA_TURN_MS)
+    clock(REWORD_TURN_MS)
   ) {
-    const wordsBy = clock(EXTRA_TURN_MS);
+    // Searching again is only worth waiting for if the first turn never got to
+    // look. Where it did, its sources are already on this answer and the second
+    // turn would spend ten seconds fetching the same pages to say the same
+    // thing -- which is most of why a proposal used to take most of a minute to
+    // come back with a sentence on top of it.
+    const lookAgain = lookUp && !result.searched;
+    const wordsBy = clock(lookAgain ? EXTRA_TURN_MS : REWORD_TURN_MS);
     try {
       const words = await generate({
         system: [
@@ -463,7 +493,8 @@ export async function POST(request) {
             ANSWERING_TOOLS.has(tool.name) &&
             !(shortlist.length && tool.name === "show_places"),
         ),
-        grounded: lookUp,
+        grounded: lookAgain,
+        thinking: THINKING,
         deadline: wordsBy,
         // Not the model that just answered wordlessly. Asking the same one the
         // same thing again is how this retry quietly did nothing: a model that
@@ -497,8 +528,8 @@ export async function POST(request) {
   // names. One more turn for the words alone, with show_places taken away so a
   // third listing is not available to her, and with every change tool still
   // withheld for the same reason as above.
-  if (needsWords(result.text, shortlistAll) && clock(EXTRA_TURN_MS)) {
-    const betterBy = clock(EXTRA_TURN_MS);
+  if (needsWords(result.text, shortlistAll) && clock(REWORD_TURN_MS)) {
+    const betterBy = clock(REWORD_TURN_MS);
     try {
       const better = await generate({
         system: [system, writeTheWords(said, shortlistAll)].join("\n\n"),
@@ -509,6 +540,7 @@ export async function POST(request) {
         // screen. Taking the search away is what makes it affordable at the end
         // of a request that has already spent most of its allowance.
         grounded: false,
+        thinking: THINKING,
         deadline: betterBy,
         // Not the model that just read the names out. This retry existed before
         // and kept failing: the same model, the same question, the same
@@ -548,9 +580,9 @@ export async function POST(request) {
     // recommendation -- it names the place, the day and the time -- and cards for
     // somewhere they have already asked to add are noise sitting under a receipt.
     !changeCalls.length &&
-    clock(EXTRA_TURN_MS)
+    clock(REWORD_TURN_MS)
   ) {
-    const cardsBy = clock(EXTRA_TURN_MS);
+    const cardsBy = clock(REWORD_TURN_MS);
     try {
       const carded = await generate({
         system: [system, showThePlaces(said, result.text)].join("\n\n"),
@@ -559,6 +591,7 @@ export async function POST(request) {
         // The places are already named in the answer above. This turn is putting
         // them on cards, not researching them again.
         grounded: false,
+        thinking: THINKING,
         deadline: cardsBy,
       });
       const { places: named } = splitPlaceCalls(carded?.calls || []);
@@ -709,6 +742,9 @@ export async function POST(request) {
         .join("\n\n")
     : spoken;
   if (record) {
+    // The question first, always: a transcript that reads answer-then-question
+    // is worse than a slow one.
+    await questionWritten;
     await appendMessage(supabase, {
       userId: user.id,
       conversationId,
@@ -754,8 +790,9 @@ export async function POST(request) {
 }
 
 // Everything the family has, in one snapshot. RLS keeps it to their own rows.
-async function loadEverything(supabase, userName, focusTripId, said = "") {
+async function loadEverything(supabase, userId, focusTripId, said = "") {
   const [
+    profile,
     trips,
     itinerary,
     packing,
@@ -773,6 +810,13 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     insights,
     tripTemplates,
   ] = await Promise.all([
+    // Who is asking. One more query in a batch of seventeen costs nothing; on
+    // its own, in front of them, it cost a whole round trip.
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", userId)
+      .maybeSingle(),
     supabase.from("trips").select("*").order("start_date", { ascending: true }),
     supabase
       .from("itinerary_items")
@@ -880,7 +924,7 @@ async function loadEverything(supabase, userName, focusTripId, said = "") {
     tripPets: tripPets.data || [],
     insights: insights.data || [],
     message: said,
-    userName,
+    userName: profile?.data?.display_name,
   });
 }
 
