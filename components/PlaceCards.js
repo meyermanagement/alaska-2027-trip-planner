@@ -10,6 +10,7 @@
 
 import {
   KIND_LABELS,
+  PLATFORM_LABELS,
   addRequest,
   alternativesRequest,
   asksForPlaces,
@@ -18,7 +19,12 @@ import {
   moreRequest,
 } from "@/lib/places/cards";
 import { directionsLink } from "@/lib/places/here";
-import { missingNightly, nightlyLine } from "@/lib/places/stay";
+import { belowFloorLine } from "@/lib/places/rated";
+import {
+  missingNightly,
+  missingNightlyLine,
+  nightlyLine,
+} from "@/lib/places/stay";
 
 // A bare number in brackets is ambiguous - it could be a price or a distance -
 // so the count says what it counts. Grouped with commas, because 3140 reviews
@@ -72,6 +78,15 @@ function Card({ place, onAdd, onMore, busy, here }) {
           <span className="chip shrink-0 bg-sand text-ink-soft">{label}</span>
         </div>
 
+        {/* Where it is booked, when that is not the place itself. Its own line
+            above the area, because it changes what the whole card means: no
+            front desk, no program, and a different set of fees. */}
+        {PLATFORM_LABELS[place.via] ? (
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-glacier">
+            On {PLATFORM_LABELS[place.via]}
+          </p>
+        ) : null}
+
         {/* Area, price and rating read as one line: the three things you weigh a
             place by, so they belong together rather than stacked. */}
         <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs text-ink-soft">
@@ -111,7 +126,17 @@ function Card({ place, onAdd, onMore, busy, here }) {
           </p>
         ) : missingNightly(place) ? (
           <p className="mt-1.5 text-xs text-ink-faint">
-            No nightly average for these dates yet
+            {missingNightlyLine(place)}
+          </p>
+        ) : null}
+
+        {/* The rating floor they saved, checked against the number Google
+            actually returned. Said on the card rather than used to hide the
+            place: a family who set a floor still get to decide, and a silent
+            filter is how a preference becomes something they cannot correct. */}
+        {belowFloorLine(place) ? (
+          <p className="mt-1.5 text-xs font-medium text-rose">
+            {belowFloorLine(place)}
           </p>
         ) : null}
 
@@ -224,7 +249,9 @@ function Card({ place, onAdd, onMore, busy, here }) {
               rel="noreferrer"
               className="btn btn-ghost btn-sm"
             >
-              Website
+              {PLATFORM_LABELS[place.via]
+                ? `View on ${PLATFORM_LABELS[place.via]}`
+                : "Website"}
             </a>
           ) : null}
         </div>

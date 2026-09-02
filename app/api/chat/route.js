@@ -27,6 +27,7 @@ import {
 } from "@/lib/agent/ideas";
 import { recordRefusals } from "@/lib/agent/refusals";
 import { mergePlaces, splitPlaceCalls } from "@/lib/places/cards";
+import { ratingFloors, withRatingFloor } from "@/lib/places/rated";
 import { withPrograms } from "@/lib/places/stay";
 import {
   needsCards,
@@ -619,11 +620,18 @@ export async function POST(request) {
   // that turns out not to exist is worse than none, because it was a reason to
   // book. So every program named is checked against the family's own rows here,
   // once, after the shortlist has finished being assembled.
-  const places = withDistance(
-    await enrich(withPrograms(shortlistAll, ctx.rewards), {
-      bias: bias(here),
-    }),
-    here,
+  // The floors are checked here and not by the model, because the model does
+  // not know the ratings: it picks the names, Google answers with the number,
+  // and only then can anybody tell whether a card clears the 4.5 the family
+  // asked for. Nothing is dropped -- the card says it missed.
+  const places = withRatingFloor(
+    withDistance(
+      await enrich(withPrograms(shortlistAll, ctx.rewards), {
+        bias: bias(here),
+      }),
+      here,
+    ),
+    ratingFloors(ctx.preferences || []),
   );
 
   const proposed = [];
