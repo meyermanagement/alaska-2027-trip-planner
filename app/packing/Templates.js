@@ -867,20 +867,33 @@ export default function Templates({
                               {LAST_MINUTE_LABEL}
                             </span>
                           )}
-                          <div className="no-print flex shrink-0 items-center gap-2">
+                          {/* The same 36px squares as the trip's packing list
+                              -- a template row is a packing item too, and the
+                              cross here was the same 12px glyph. */}
+                          <div className="no-print flex shrink-0 items-center gap-0.5">
                             <button
                               onClick={() => startEdit(row)}
-                              className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                              className="flex h-9 items-center rounded-full px-2 text-xs font-bold uppercase tracking-wide text-teal transition hover:bg-teal-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                               aria-label={`Edit ${row.item}`}
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => remove(row)}
-                              className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-soft/60 transition hover:bg-rose/10 hover:text-rose focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                               aria-label={`Remove ${row.item}`}
                             >
-                              ✕
+                              <svg
+                                viewBox="0 0 20 20"
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" />
+                              </svg>
                             </button>
                           </div>
                         </li>

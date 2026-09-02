@@ -1096,7 +1096,7 @@ export default function Packing({
     ) : (
       <li
         key={item.id}
-        className="group flex items-start gap-3 border-b border-sand/80 px-4 py-2.5 last:border-0"
+        className="group flex items-start gap-3 border-b border-sand/80 px-4 py-2 pr-2.5 last:border-0"
       >
         <input
           type="checkbox"
@@ -1147,11 +1147,17 @@ export default function Packing({
             <p className="mt-0.5 text-xs text-ink-faint">{keptLine(item)}</p>
           )}
         </div>
-        <div className="no-print flex shrink-0 items-center gap-2">
+        {/* Both of these were bare words with no padding: the cross was a
+            12px glyph in a 12px box, which is a fine mouse target and a
+            terrible thumb one. They are 36px squares now -- the icon still
+            looks the same size, but the thing you press is three times
+            wider -- with negative margin so the row does not get taller or
+            wider to accommodate them. */}
+        <div className="no-print flex shrink-0 items-center gap-0.5">
           {!readOnly && (
             <button
               onClick={() => startEdit(item)}
-              className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+              className="flex h-9 items-center rounded-full px-2 text-xs font-bold uppercase tracking-wide text-teal transition hover:bg-teal-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
               aria-label={`Edit ${item.item}`}
             >
               Edit
@@ -1160,10 +1166,20 @@ export default function Packing({
           {!readOnly && (
             <button
               onClick={() => remove(item)}
-              className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-soft/60 transition hover:bg-rose/10 hover:text-rose focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
               aria-label={`Remove ${item.item}`}
             >
-              ✕
+              <svg
+                viewBox="0 0 20 20"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" />
+              </svg>
             </button>
           )}
         </div>
@@ -1598,9 +1614,9 @@ export default function Packing({
                     : askTemplate.on.length > 1
                       ? "Change the templates too"
                       : `Change ${listedAs(
-                        askTemplate.on,
-                        askTemplate.before.assignee,
-                      )} too`}
+                          askTemplate.on,
+                          askTemplate.before.assignee,
+                        )} too`}
                 </button>
                 <button
                   type="button"
