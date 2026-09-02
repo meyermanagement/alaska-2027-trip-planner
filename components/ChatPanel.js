@@ -16,6 +16,7 @@ import {
 } from "@/lib/agent/picking";
 import PlaceCards, {
   addRequest,
+  alternativesRequest,
   asksForPlaces,
   findMoreRequest,
   moreRequest,
@@ -960,6 +961,16 @@ export default function ChatPanel({
                 onFindMore={
                   i === lastPlaces && !busy && !pending
                     ? () => send(findMoreRequest(shownPlaces, m.places))
+                    : undefined
+                }
+                /* Offered beside it, on the same list, and for the same
+                   reason: the app filters every shortlist through the
+                   preferences, and a filter nobody can see is a decision
+                   nobody made. This asks what the place is known for instead,
+                   and makes each answer say which preference it cuts against. */
+                onAlternatives={
+                  i === lastPlaces && !busy && !pending
+                    ? () => send(alternativesRequest(shownPlaces, m.places))
                     : undefined
                 }
               />

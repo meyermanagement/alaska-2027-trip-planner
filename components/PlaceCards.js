@@ -11,6 +11,7 @@
 import {
   KIND_LABELS,
   addRequest,
+  alternativesRequest,
   asksForPlaces,
   findMoreRequest,
   groupPlaces,
@@ -129,6 +130,21 @@ function Card({ place, onAdd, onMore, busy, here }) {
           </p>
         ) : null}
 
+        {/* Only on the set that was chosen without asking whether it suited
+            them. It is the whole reason that set is worth showing: the list is
+            what they would have been shown by somebody who had never met them,
+            and this line is what their own preferences would have said about
+            it. Same box as the trade-off, because it is the same kind of
+            second thought, and the two never appear together. */}
+        {place.misfit ? (
+          <p className="mt-2 rounded-xl bg-sand/80 px-2.5 py-2 text-xs leading-relaxed text-ink-soft">
+            <span className="font-semibold text-ink">
+              How it sits with your preferences:{" "}
+            </span>
+            {place.misfit}
+          </p>
+        ) : null}
+
         {/* Only ever a program the family is actually in: the shortlist is checked
             against their own rows before it reaches this component, and a perk
             whose program is not theirs has already been removed. */}
@@ -222,6 +238,7 @@ export default function PlaceCards({
   onAdd,
   onMore = null,
   onFindMore = null,
+  onAlternatives = null,
   busy = false,
   here = null,
 }) {
@@ -269,33 +286,65 @@ export default function PlaceCards({
           question about the shortlist: was that everything? Offered only on the
           newest set, so pressing it cannot ask for more of a list four
           exchanges back. */}
-      {onFindMore ? (
-        <button
-          type="button"
-          onClick={onFindMore}
-          disabled={busy}
-          className="btn btn-primary mt-3.5 w-full sm:w-auto"
-        >
-          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <circle
-              cx="9"
-              cy="9"
-              r="6"
-              stroke="currentColor"
-              strokeWidth="1.8"
-            />
-            <path
-              d="M13.5 13.5 17.5 17.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
-          Find more like these
-        </button>
+      {onFindMore || onAlternatives ? (
+        <div className="mt-3.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {onFindMore ? (
+            <button
+              type="button"
+              onClick={onFindMore}
+              disabled={busy}
+              className="btn btn-primary w-full sm:w-auto"
+            >
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <circle
+                  cx="9"
+                  cy="9"
+                  r="6"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                />
+                <path
+                  d="M13.5 13.5 17.5 17.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Find more like these
+            </button>
+          ) : null}
+          {/* The other question people have about a shortlist, and the one the
+              app was quietly answering for them: never mind what suits us,
+              what is actually the best here? A star, because that is what it
+              asks for -- what the place is known for rather than what we are. */}
+          {onAlternatives ? (
+            <button
+              type="button"
+              onClick={onAlternatives}
+              disabled={busy}
+              className="btn btn-ghost w-full sm:w-auto"
+            >
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path
+                  d="M10 2.9l2.1 4.26 4.7.69-3.4 3.31.8 4.68L10 13.63l-4.2 2.21.8-4.68-3.4-3.31 4.7-.69L10 2.9z"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Highly rated anyway
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
 }
 
-export { addRequest, asksForPlaces, findMoreRequest, moreRequest };
+export {
+  addRequest,
+  alternativesRequest,
+  asksForPlaces,
+  findMoreRequest,
+  moreRequest,
+};
