@@ -13,7 +13,7 @@ import {
   PLATFORM_LABELS,
   addRequest,
   alternativesRequest,
-  asksForPlaces,
+  offersMorePlaces,
   findMoreRequest,
   groupPlaces,
   moreRequest,
@@ -373,7 +373,7 @@ export default function PlaceCards({
 export {
   addRequest,
   alternativesRequest,
-  asksForPlaces,
+  offersMorePlaces,
   findMoreRequest,
   moreRequest,
 };

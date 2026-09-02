@@ -18,7 +18,7 @@ import {
 import PlaceCards, {
   addRequest,
   alternativesRequest,
-  asksForPlaces,
+  offersMorePlaces,
   findMoreRequest,
   moreRequest,
 } from "./PlaceCards";
@@ -288,7 +288,7 @@ export default function ChatPanel({
           break;
         }
       }
-      return asksForPlaces(asked) ? i : -1;
+      return offersMorePlaces(asked) ? i : -1;
     }
     return -1;
   }, [messages]);
