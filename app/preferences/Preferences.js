@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 import {
   SHARED_LABEL,
+  isShared,
+  ownedBy,
+  ownerIds,
+  whoseNames,
   goingIds,
   prefsForTrip,
   setAsideSentence,
@@ -111,8 +115,8 @@ export default function Preferences({
   // whether the trip in question carries it at all, then what it is about.
   const shown = useMemo(() => {
     let list = prefs;
-    if (whose === SHARED_LABEL) list = list.filter((p) => !p.traveler_id);
-    else if (whose) list = list.filter((p) => p.traveler_id === whose);
+    if (whose === SHARED_LABEL) list = list.filter((p) => isShared(p));
+    else if (whose) list = list.filter((p) => ownedBy(p, whose));
     if (going) list = prefsForTrip(list, going);
     if (topicKey === NO_TOPIC_KEY)
       list = list.filter((p) => topicsOf(p).length === 0);
@@ -140,8 +144,8 @@ export default function Preferences({
   // against what the other two filters have already left.
   const beforeTopic = useMemo(() => {
     let list = prefs;
-    if (whose === SHARED_LABEL) list = list.filter((p) => !p.traveler_id);
-    else if (whose) list = list.filter((p) => p.traveler_id === whose);
+    if (whose === SHARED_LABEL) list = list.filter((p) => isShared(p));
+    else if (whose) list = list.filter((p) => ownedBy(p, whose));
     if (going) list = prefsForTrip(list, going);
     return list;
   }, [prefs, whose, going]);
@@ -853,17 +857,20 @@ export default function Preferences({
                         <p className="text-sm leading-relaxed whitespace-pre-line">
                           {pref.body}
                         </p>
-                        {(pref.traveler_id || also.length > 0) && (
+                        {(!isShared(pref) || also.length > 0) && (
                           <span className="mt-1.5 flex flex-wrap items-center gap-2">
-                            {pref.traveler_id && (
+                            {/* One chip per owner rather than one chip reading
+                                "Mark & Steph": the colour is what makes a name
+                                findable down a long list, and a pair sharing
+                                one chip can only have one colour. */}
+                            {whoseNames(pref, travelers).map((name) => (
                               <span
-                                className={`chip ${assigneeColor(
-                                  whoseName(pref, travelers),
-                                )}`}
+                                key={name}
+                                className={`chip ${assigneeColor(name)}`}
                               >
-                                {whoseName(pref, travelers)}
+                                {name}
                               </span>
-                            )}
+                            ))}
                             {also.length > 0 && (
                               <span className="text-xs text-ink-faint">
                                 Also under {also.join(" and ")}
@@ -1090,7 +1097,9 @@ function SuggestionCard({
   const [topics, setTopics] = useState(() =>
     topicsOf({ topics: idea.topics, topic: idea.topic }),
   );
-  const [travelerId, setTravelerId] = useState(idea.travelerId || "");
+  const [travelerIds, setTravelerIds] = useState(() =>
+    idea.travelerId ? [idea.travelerId] : [],
+  );
   const box = useRef(null);
 
   // The box grows to fit the sentence. Measured at 320px, where a fixed height
@@ -1128,23 +1137,11 @@ function SuggestionCard({
           selected={topics}
           onChange={setTopics}
         />
-        <div>
-          <span className="block section-label">Whose</span>
-          <div className="mt-1 flex flex-wrap gap-2">
-            <Chip on={!travelerId} onClick={() => setTravelerId("")}>
-              {SHARED_LABEL}
-            </Chip>
-            {travelers.map((t) => (
-              <Chip
-                key={t.id}
-                on={travelerId === t.id}
-                onClick={() => setTravelerId(t.id)}
-              >
-                {t.name}
-              </Chip>
-            ))}
-          </div>
-        </div>
+        <WhosePicker
+          travelers={travelers}
+          ids={travelerIds}
+          onChange={setTravelerIds}
+        />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -1155,7 +1152,7 @@ function SuggestionCard({
             onSave({
               body: body.trim(),
               ...topicPatch(topics),
-              traveler_id: travelerId || null,
+              ...whosePatch(travelerIds),
             })
           }
         >
@@ -1174,6 +1171,58 @@ function SuggestionCard({
   );
 }
 
+/**
+ * Whose a preference is: nobody, one person, or several.
+ *
+ * Shared is not a person and cannot be combined with one -- it means the family,
+ * and "the family plus Steph" is just the family. So pressing Shared clears the
+ * names, and pressing a name clears Shared. Every other combination is allowed,
+ * which is the whole point: "Mark and Steph, not Veda" had nowhere to go before
+ * this and was being saved as Shared, where it applied to trips Veda was on.
+ */
+function WhosePicker({ travelers, ids, onChange }) {
+  const chosen = Array.isArray(ids) ? ids : [];
+  const toggle = (id) =>
+    onChange(
+      chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id],
+    );
+  return (
+    <div>
+      <span className="block section-label">Whose</span>
+      <div className="mt-1 flex flex-wrap gap-2">
+        <Chip on={chosen.length === 0} onClick={() => onChange([])}>
+          {SHARED_LABEL}
+        </Chip>
+        {travelers.map((t) => (
+          <Chip
+            key={t.id}
+            on={chosen.includes(t.id)}
+            onClick={() => toggle(t.id)}
+          >
+            {t.name}
+          </Chip>
+        ))}
+      </div>
+      <p className="mt-1 text-xs text-ink-soft">
+        Tap as many people as it belongs to, or {SHARED_LABEL} for something
+        true of the whole family. A preference with names on it is only used on
+        trips one of those people is actually on.
+      </p>
+    </div>
+  );
+}
+
+/** What a form sends to save whose it is. */
+function whosePatch(ids) {
+  const list = Array.isArray(ids) ? ids.filter(Boolean) : [];
+  return {
+    traveler_ids: list,
+    // Kept in step for anything still reading the single owner. Two owners is
+    // not one person's, so it goes back to null there rather than picking one.
+    traveler_id: list.length === 1 ? list[0] : null,
+  };
+}
+
 function PreferenceForm({
   pref,
   travelers,
@@ -1185,7 +1234,7 @@ function PreferenceForm({
 }) {
   const [body, setBody] = useState(pref?.body || "");
   const [topics, setTopics] = useState(() => topicsOf(pref));
-  const [travelerId, setTravelerId] = useState(pref?.traveler_id || "");
+  const [travelerIds, setTravelerIds] = useState(() => ownerIds(pref));
 
   function submit(event) {
     event.preventDefault();
@@ -1193,7 +1242,7 @@ function PreferenceForm({
     onSave({
       body: body.trim(),
       ...topicPatch(topics),
-      traveler_id: travelerId || null,
+      ...whosePatch(travelerIds),
     });
   }
 
@@ -1217,30 +1266,11 @@ function PreferenceForm({
         onChange={setTopics}
       />
 
-      <div>
-        <div>
-          <span className="block section-label">Whose</span>
-          <div className="mt-1 flex flex-wrap gap-2">
-            <Chip on={!travelerId} onClick={() => setTravelerId("")}>
-              {SHARED_LABEL}
-            </Chip>
-            {travelers.map((t) => (
-              <Chip
-                key={t.id}
-                on={travelerId === t.id}
-                onClick={() => setTravelerId(t.id)}
-              >
-                {t.name}
-              </Chip>
-            ))}
-          </div>
-          <p className="mt-1 text-xs text-ink-soft">
-            One person, or {SHARED_LABEL} for something true of the family. A
-            person&apos;s own preference is only used on the trips they are
-            actually on.
-          </p>
-        </div>
-      </div>
+      <WhosePicker
+        travelers={travelers}
+        ids={travelerIds}
+        onChange={setTravelerIds}
+      />
 
       <div className="flex gap-2">
         <button type="submit" className="btn btn-primary" disabled={busy}>

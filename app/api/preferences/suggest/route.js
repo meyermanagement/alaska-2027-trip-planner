@@ -84,7 +84,7 @@ export async function POST(request) {
       .order("sort_order", { ascending: true }),
     supabase
       .from("travel_preferences")
-      .select("id, topic, topics, body, traveler_id")
+      .select("id, topic, topics, body, traveler_id, traveler_ids")
       .eq("family_id", familyId),
     supabase
       .from("trips")
