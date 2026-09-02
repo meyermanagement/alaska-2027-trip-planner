@@ -636,7 +636,7 @@ export default function Packing({
       setToTemplate({
         state: "done",
         id: chosen.id,
-        message: `Off ${chosen.name}. New trips will not start with it.`,
+        message: `Off ${chosen.name}. Trips you build from that template will not start with it.`,
       });
       onChange();
       return;
@@ -696,7 +696,7 @@ export default function Packing({
         : {
             state: "done",
             id: chosen.id,
-            message: `Kept on ${chosen.name}. New trips will start with it.`,
+            message: `Kept on ${chosen.name}. Trips you build from that template will start with it.`,
           },
     );
     onChange();
@@ -815,7 +815,7 @@ export default function Packing({
       failed.length
         ? `Added to this trip. It did not save to ${failed.join(" or ")}.`
         : kept.length
-          ? `Added, and kept on ${kept.join(" and ")}. New trips will start with it; trips that already exist are left alone.`
+          ? `Added, and kept on ${kept.join(" and ")}. Trips you build from ${kept.length > 1 ? "those templates" : "that template"} will start with it; trips you have already made do not change.`
           : "",
     );
     onChange();
@@ -1027,11 +1027,11 @@ export default function Packing({
                 }`}
               >
                 {toTemplate?.message ||
-                  `Saves your edits, then keeps ${
+                  `Tapping a template saves your changes and keeps ${
                     editDraft.assignee === "Shared"
-                      ? "this"
-                      : `${editDraft.assignee}\u2019s`
-                  } item on the lists you pick. Press a pill again to take it off. Trips that already exist are left alone.`}
+                      ? "this item"
+                      : `${editDraft.assignee}\u2019s copy`
+                  } on it, so trips you build from that template start with it. Tap it again to take it off. Trips you have already made do not change.`}
               </p>
             </div>
           )}
@@ -1516,9 +1516,9 @@ export default function Packing({
                       .join(" and ")}.`}
               </p>
               <p className="mt-1 text-[0.8rem] leading-snug text-ink-soft">
-                Change it there too, so trips you make from now on start with
-                this version? Trips that already exist are left alone either
-                way.
+                Change it on the template too, so trips you build from it start
+                with this version? Either way, trips you have already made do
+                not change.
               </p>
               {askTemplate.message && (
                 <p className="mt-1.5 text-[0.8rem] font-semibold text-rose">
