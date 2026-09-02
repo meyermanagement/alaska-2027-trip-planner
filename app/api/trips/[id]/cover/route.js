@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { generateTripCover } from "@/lib/covers/generate";
 
 export const runtime = "nodejs";
@@ -50,11 +51,47 @@ export async function POST(request, { params }) {
   }
 
   let extra = "";
+  let auto = false;
   try {
     const body = await request.json();
     extra = String(body?.extra || "").slice(0, 300);
+    auto = body?.auto === true;
   } catch {
     extra = "";
+  }
+
+  // An automatic press is not the same as a person pressing the button, and the
+  // difference is who is allowed to decide. A person may ask for a picture
+  // whenever they like; a screen may only cash in a note that a promotion left
+  // on the row -- see lib/covers/queue.js. Every screen showing the trip sees
+  // that note at once, so the note has to be claimed rather than read: the
+  // update below is conditional on the row still saying "queued", which makes
+  // the claim a single atomic statement. Whoever loses gets no row back, says
+  // so, and spends nothing.
+  if (auto) {
+    if (trip.cover_image_status !== "queued") {
+      return NextResponse.json({
+        status: trip.cover_image_status || "none",
+        claimed: false,
+      });
+    }
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json(
+        { status: "failed", error: "This server cannot draw covers." },
+        { status: 500 },
+      );
+    }
+    const { data: claimed } = await admin
+      .from("trips")
+      .update({ cover_image_status: "drawing" })
+      .eq("id", id)
+      .eq("cover_image_status", "queued")
+      .select("id")
+      .maybeSingle();
+    if (!claimed) {
+      return NextResponse.json({ status: "drawing", claimed: false });
+    }
   }
 
   const result = await generateTripCover(id, { extra });

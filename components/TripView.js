@@ -20,6 +20,8 @@ import LookForTips from "./LookForTips";
 import { lookSummary } from "@/lib/tips/run";
 import { onTipResolved } from "@/lib/tips/cleared";
 import { isComing } from "@/lib/pets/pets";
+import CoverQueue from "./CoverQueue";
+import { coverQueuePatch } from "@/lib/covers/queue";
 import { SECONDARY } from "@/lib/travelers/access";
 
 /**
@@ -337,9 +339,12 @@ export default function TripView({
   }, [supabase, trip.id, refetch]);
 
   async function saveTrip(values) {
+    // The status field on this form is the second of the three ways a trip can
+    // stop being a draft, so it asks for a picture the same way the first one
+    // does -- one extra column on the write already happening.
     const { data, error } = await supabase
       .from("trips")
-      .update(values)
+      .update({ ...values, ...(coverQueuePatch(info, values) || {}) })
       .eq("id", trip.id)
       .select("*")
       .maybeSingle();
@@ -403,6 +408,9 @@ export default function TripView({
           <PromoteDraft trip={info} onDone={() => refetch("trips")} />
         </div>
       )}
+      {/* Headless. If this trip was promoted and its picture was never asked
+          for, this is what asks. */}
+      <CoverQueue trips={[info]} />
       <section className="card overflow-hidden">
         {editing ? (
           <div className="p-5">

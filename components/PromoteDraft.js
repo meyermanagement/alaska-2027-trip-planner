@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
+import { coverQueuePatch } from "@/lib/covers/queue";
 
 /**
  * Moves a finished draft into Upcoming trips.
@@ -19,6 +20,12 @@ import { ASK_ALY_EVENT } from "./AskAlyTrigger";
  * and then made once, in the same breath as the move, while the family is already
  * thinking about the trip becoming real. It is an offer and not an action: it
  * seeds the question to Aly rather than writing eighty items unasked.
+ *
+ * And it is the moment the trip's picture becomes worth drawing, which happens
+ * without being offered -- a cover is what the card is mostly made of once the
+ * trip is on the trips board, and there is nothing to decide about wanting one.
+ * The move itself does not wait for it: it writes a note on the row and the
+ * screen picks it up. See lib/covers/queue.js.
  */
 
 export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
@@ -45,9 +52,10 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
 
     setBusy(true);
     const supabase = createClient();
+    const patch = { status: "planning" };
     const { error } = await supabase
       .from("trips")
-      .update({ status: "planning" })
+      .update({ ...patch, ...(coverQueuePatch(trip, patch) || {}) })
       .eq("id", trip.id);
     setBusy(false);
 

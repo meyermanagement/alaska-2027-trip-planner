@@ -16,6 +16,7 @@ import { appendMessage, ensureConversation } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
 import { draftPackingWords, packingWaitsForDraft } from "@/lib/packing/draft";
+import { coverQueuePatch } from "@/lib/covers/queue";
 import { tidyStranded } from "@/lib/packing/roster";
 import { applyPropagation } from "@/lib/packing/propagateRun";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
@@ -1012,15 +1013,23 @@ async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
     const touched = BASIC_IDS.filter(
       (b) => b !== "where" && b !== "when" && row[b] !== undefined,
     );
+    // The status is read in the same breath, and only when it is being changed,
+    // because Aly moving a draft into Upcoming is the third of the three ways a
+    // trip stops being a draft -- and it is the one where nobody is necessarily
+    // looking at the trip afterwards. See lib/covers/queue.js.
+    const columns = [...touched];
+    if (row.status !== undefined)
+      columns.push("status", "cover_image_url", "cover_image_status");
     let before = null;
-    if (touched.length) {
+    if (columns.length) {
       const { data } = await supabase
         .from("trips")
-        .select(touched.join(", "))
+        .select(columns.join(", "))
         .eq("id", id)
         .maybeSingle();
       before = data || null;
     }
+    Object.assign(row, coverQueuePatch(before, row) || {});
 
     const { error } = await supabase.from("trips").update(row).eq("id", id);
     if (error) return { error };

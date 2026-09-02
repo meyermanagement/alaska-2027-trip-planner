@@ -8,6 +8,7 @@ import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
 import TripBackdrop from "@/components/TripBackdrop";
 import RemoveTrip from "@/components/RemoveTrip";
+import CoverQueue from "@/components/CoverQueue";
 import { tripPath } from "@/lib/trips/route";
 
 // Three kinds of trip, three shapes of card. Upcoming trips are the reason the
@@ -354,6 +355,10 @@ export default function TripBoard({
 
   return (
     <>
+      {/* Headless. A trip promoted from this very page, or from Aly while
+          nobody was on the trip screen, gets its picture asked for here --
+          one at a time, soonest trip first. */}
+      <CoverQueue trips={[...current, ...upcoming]} />
       {current.length > 0 && (
         <div className="mb-7 space-y-4">
           {current.map((trip) => (
