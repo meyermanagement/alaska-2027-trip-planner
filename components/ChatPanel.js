@@ -952,13 +952,14 @@ export default function ChatPanel({
                 here={m.here || here}
                 onAdd={(place) => send(addRequest(place))}
                 onMore={(place) => send(moreRequest(place))}
-                /* Only under the newest shortlist, and the question it asks
-                   names every place shown in the whole conversation -- ask for
-                   more twice and the second helping has to avoid the first
-                   helping too, or the third set is the first set again. */
+                /* Only under the newest shortlist, and asking for more of what
+                   this list is -- not of whatever else the conversation has
+                   shown. Everything on screen is passed as well, but only so
+                   that pressing the button twice cannot hand back the first
+                   helping; the kind being asked for comes from these cards. */
                 onFindMore={
                   i === lastPlaces && !busy && !pending
-                    ? () => send(findMoreRequest(shownPlaces))
+                    ? () => send(findMoreRequest(shownPlaces, m.places))
                     : undefined
                 }
               />
