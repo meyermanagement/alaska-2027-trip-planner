@@ -30,8 +30,9 @@
 // are passed in as literals. The finished drawings are also kept in a module-level
 // map, so remounting a card -- or coming back to a trip -- redraws nothing.
 
-import { memo, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { contourSvg } from "@/lib/covers/contour";
+import { coverTint } from "@/lib/covers/tint";
 
 let landPromise = null;
 
@@ -79,6 +80,23 @@ function land() {
  */
 function TripBackdrop({ trip, shape = "card" }) {
   const [contour, setContour] = useState("");
+  // Neither layer is shown until it has decoded, and each fades in on its own.
+  // A picture that appears the instant its bytes land snaps into place over a
+  // plate the family was already reading; half a second of cross-fade over a
+  // ground of the right color reads as the plate finishing rather than as the
+  // card changing its mind.
+  const [shown, setShown] = useState({});
+  const arrived = useCallback((which) => {
+    setShown((was) => (was[which] ? was : { ...was, [which]: true }));
+  }, []);
+  // A cached image can already be complete before React attaches onLoad, in
+  // which case the event never fires and the layer would stay invisible.
+  const watch = useCallback(
+    (which) => (el) => {
+      if (el?.complete) arrived(which);
+    },
+    [arrived],
+  );
   const lat = Number(trip?.lat);
   const lon = Number(trip?.lon);
   const hasPoint = Number.isFinite(lat) && Number.isFinite(lon);
@@ -116,19 +134,33 @@ function TripBackdrop({ trip, shape = "card" }) {
   const url = trip?.cover_image_url || null;
 
   return (
-    <div className="trip-media" aria-hidden={url ? undefined : "true"}>
+    <div
+      className="trip-media"
+      aria-hidden={url ? undefined : "true"}
+      // Painted on the server, in the first frame, before anything is fetched.
+      style={{ backgroundImage: coverTint(trip) }}
+    >
       {contour ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="trip-contour" src={contour} alt="" decoding="async" />
+        <img
+          ref={watch("contour")}
+          className={`trip-contour${shown.contour ? " is-in" : ""}`}
+          src={contour}
+          alt=""
+          decoding="async"
+          onLoad={() => arrived("contour")}
+        />
       ) : null}
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          className="trip-photo"
+          ref={watch("photo")}
+          className={`trip-photo${shown.photo ? " is-in" : ""}`}
           src={url}
           alt={trip.cover_image_alt || ""}
           loading="lazy"
           decoding="async"
+          onLoad={() => arrived("photo")}
         />
       ) : null}
       <div className="trip-scrim" />

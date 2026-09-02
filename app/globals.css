@@ -132,6 +132,155 @@ body {
   min-height: 100dvh;
 }
 
+/* ------------------------------------------------------------------
+ * The first open
+ *
+ * One held mark over the whole page while the app builds underneath, then a
+ * lift. The veil carries the same five ground layers as body, so what it hides
+ * is the app and not the paper -- the lift reveals a page, it does not reveal a
+ * background.
+ *
+ * Hidden by an attribute on <html> rather than by unmounting, because the markup
+ * has to be in the first frame of HTML and React cannot remove something before
+ * it has hydrated. components/BootVeil.js sets the attribute.
+ *
+ * The fail-safe animation is the important line here. If the bundle never runs,
+ * nothing sets the attribute, and a veil with no way down would hide the entire
+ * app -- so the stylesheet lifts it after five seconds on its own.
+ * ------------------------------------------------------------------ */
+
+#boot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background-color: #f2ead9;
+  background-image:
+    radial-gradient(
+      110% 74% at 84% -10%,
+      rgba(253, 250, 240, 0.92) 0%,
+      rgba(253, 250, 240, 0) 58%
+    ),
+    radial-gradient(
+      100% 62% at 0% 106%,
+      rgba(27, 90, 76, 0.1) 0%,
+      rgba(27, 90, 76, 0) 62%
+    ),
+    linear-gradient(180deg, #f7f0e2 0%, #ebe2cd 100%);
+  transition:
+    opacity 0.42s ease,
+    transform 0.42s ease,
+    visibility 0s linear 0.42s;
+  animation: boot-failsafe 0s linear 5s forwards;
+}
+
+html[data-booted] #boot-veil {
+  opacity: 0;
+  transform: translateY(-8px);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@keyframes boot-failsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+.boot-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--color-teal);
+}
+
+.boot-mark svg {
+  width: 3.25rem;
+  height: 3.25rem;
+}
+
+.boot-ghost {
+  opacity: 0.13;
+}
+
+.boot-word {
+  /* Fades up rather than appearing with the mark, which also spares anybody the
+     half-second of Georgia standing in for Fraunces on a cold cache. */
+  opacity: 0;
+  animation: boot-word 0.45s ease 0.34s forwards;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-ink);
+}
+
+/* The compass draws itself: the ring and the needle outline are stroked in, and
+   the filled half of the needle arrives once the outline is nearly closed. */
+.boot-mark circle,
+.boot-mark .boot-stroke {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: boot-draw 1.15s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.boot-mark .boot-fill {
+  opacity: 0;
+  animation: boot-fill 0.5s ease 0.75s forwards;
+}
+
+@keyframes boot-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes boot-word {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes boot-fill {
+  to {
+    opacity: 0.3;
+  }
+}
+
+/* Anybody who has asked for less movement gets the mark whole and still, and a
+   fade with no lift. The hold itself stays -- it is not decoration. */
+@media (prefers-reduced-motion: reduce) {
+  #boot-veil {
+    transition:
+      opacity 0.2s ease,
+      visibility 0s linear 0.2s;
+  }
+
+  html[data-booted] #boot-veil {
+    transform: none;
+  }
+
+  .boot-mark circle,
+  .boot-mark .boot-stroke {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .boot-mark .boot-fill {
+    opacity: 0.3;
+    animation: none;
+  }
+
+  .boot-word {
+    opacity: 1;
+    animation: none;
+  }
+}
+
 /* The ground goes on body rather than on the shell, so that it is the page's own
    background and gets handed to the canvas: whatever the shell's height works
    out to, and however far an overscroll bounce pulls, there is no strip at the
@@ -711,7 +860,8 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 
 @media print {
-  .no-print {
+  .no-print,
+  #boot-veil {
     display: none !important;
   }
   /* Paper does not need a picture of paper printed on it. */
@@ -787,8 +937,11 @@ input[type="month"]::-webkit-date-and-time-value {
   /* The plate is dark before anything is drawn on it. Every word on a plate is
      set in --on-photo, so a plate that stayed paper-colored until its map or its
      picture arrived would be white text on cream for that moment -- and would
-     stay that way for good on a trip whose place has not been located yet. */
-  background: var(--map-water);
+     stay that way for good on a trip whose place has not been located yet.
+     The color is the trip's own, set inline from lib/covers/tint.js; this is the
+     floor under it, for a plate rendered without one. */
+  background-color: var(--map-water);
+  background-size: cover;
 }
 
 /* The plate is its own compositing layer, and blending stops at its edge.
@@ -805,13 +958,26 @@ input[type="month"]::-webkit-date-and-time-value {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Both layers start invisible and cross-fade in over the trip's own ground
+     once they have decoded. The ground is painted server-side, so a plate is
+     never blank and never grey -- the picture arriving is a fade, not a swap.
+     TripBackdrop adds .is-in; a layer whose image fails to load simply stays
+     down, and the ground carries the card. */
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.trip-media .trip-contour.is-in {
   opacity: var(--map-opacity);
 }
 
 /* Only the photograph. The contour is also an <img> now, and it must not be
    dimmed, sepia-toned, masked or blended -- it is the map. */
-.trip-media .trip-photo {
+.trip-media .trip-photo.is-in {
   opacity: var(--photo-opacity);
+}
+
+.trip-media .trip-photo {
   mix-blend-mode: luminosity;
   filter: var(--photo-filter);
   -webkit-mask-image: radial-gradient(
@@ -828,6 +994,15 @@ input[type="month"]::-webkit-date-and-time-value {
     rgba(0, 0, 0, 0.45) 52%,
     transparent 78%
   );
+}
+
+/* A cross-fade is movement too. Anybody who has asked for less gets the layer
+   the moment it is ready. */
+@media (prefers-reduced-motion: reduce) {
+  .trip-media .trip-contour,
+  .trip-media .trip-photo {
+    transition: none;
+  }
 }
 
 .trip-media .trip-scrim {
