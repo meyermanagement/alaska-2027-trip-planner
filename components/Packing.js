@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CategoryPicker from "./CategoryPicker";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +20,22 @@ import ProTips from "./ProTips";
  * list does not have yet. Every other add is a button on the card it belongs to.
  */
 const NEW_CATEGORY = "\u0000new";
+
+/**
+ * One name, compared the way people mean it: trimmed and without regard to
+ * case. "Shared", "shared" and " Shared" are one person on a list, and matching
+ * them strictly is how an item that plainly is on a template gets treated as
+ * though it were not.
+ */
+function keyPerson(v) {
+  return String(v || "Shared")
+    .trim()
+    .toLowerCase();
+}
+
+function samePerson(a, b) {
+  return keyPerson(a) === keyPerson(b);
+}
 
 // readOnly is a secondary traveler: they see only their own lines (the database
 // makes sure of that) and the tick is the one thing they may move. Everything
@@ -137,6 +153,11 @@ export default function Packing({
   // problem -- what changed, on which lists, and what came of answering -- so
   // the card can be drawn away from the row, which by then has closed.
   const [askTemplate, setAskTemplate] = useState(null);
+  // Where that question is drawn, so it can be brought to the reader. It sits
+  // above the list, and the row being edited is routinely sixty items down: on
+  // a phone the card appeared nearly two thousand pixels above the fold, which
+  // is indistinguishable from the app never asking at all.
+  const askRef = useRef(null);
   const [tidying, setTidying] = useState(false);
   const [tidyNote, setTidyNote] = useState("");
   const [editDraft, setEditDraft] = useState({
@@ -220,6 +241,20 @@ export default function Packing({
         .toLowerCase(),
     ) || [];
 
+  /**
+   * The lists a question is about, named -- with the person spelled out on any
+   * line the template keeps under somebody else, because "change Family base
+   * too" means something different when the line there belongs to Shared and
+   * the one you just edited belongs to Veda.
+   */
+  function listedAs(on, person) {
+    return on
+      .map((t) =>
+        samePerson(t.assignee, person) ? t.name : `${t.name} (${t.assignee})`,
+      )
+      .join(" and ");
+  }
+
   /** One short line naming the templates an item is already kept on. */
   function keptLine(item) {
     const on = keptFor(item.item);
@@ -227,7 +262,9 @@ export default function Packing({
     const said = on
       .slice(0, 2)
       .map((t) =>
-        t.assignee === item.assignee ? t.name : `${t.name} (${t.assignee})`,
+        samePerson(t.assignee, item.assignee)
+          ? t.name
+          : `${t.name} (${t.assignee})`,
       );
     const rest = on.length - said.length;
     return `Kept on ${said.join(", ")}${rest > 0 ? ` and ${rest} more` : ""}`;
@@ -236,7 +273,7 @@ export default function Packing({
   /** Is the thing being edited already on this template, for this person? */
   const keptOnTemplate = (templateId) =>
     keptFor(editDraft.item).some(
-      (k) => k.id === templateId && k.assignee === editDraft.assignee,
+      (k) => k.id === templateId && samePerson(k.assignee, editDraft.assignee),
     );
 
   const categories = useMemo(() => {
@@ -419,9 +456,15 @@ export default function Packing({
    */
   function askAboutTemplates(before, after) {
     if (!before || readOnly) return;
-    const on = keptFor(before.item).filter(
-      (k) => k.assignee === before.assignee,
-    );
+    // The same line, under the same person, is the clearest case. Where the
+    // template keeps it under somebody else -- the base list carries it as
+    // Shared, this trip gave it to Veda -- it is still the same forgotten
+    // jacket, and the change being made to it is still likely true next time.
+    // So those count too, and the card says whose line it would change rather
+    // than pretending the question is simpler than it is.
+    const all = keptFor(before.item);
+    const mine = all.filter((k) => samePerson(k.assignee, before.assignee));
+    const on = mine.length ? mine : all;
     if (!on.length) return;
     const changed = [
       "item",
@@ -433,6 +476,18 @@ export default function Packing({
     if (!changed.length) return;
     setAskTemplate({ before, after, on, state: "asking", message: "" });
   }
+
+  // Asked, and then actually put in front of somebody. Only on the way in --
+  // once the question is on screen, answering it must not move the page again.
+  useEffect(() => {
+    if (!askTemplate || askTemplate.state !== "asking") return;
+    const el = askRef.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    const off = box.top < 8 || box.bottom > window.innerHeight - 8;
+    if (off) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askTemplate?.state, askTemplate?.after?.item]);
 
   /**
    * Say yes: write the same change onto every template that holds the item.
@@ -460,13 +515,16 @@ export default function Packing({
       }));
       return;
     }
-    const wanted = (rows || []).filter(
-      (row) =>
-        String(row.item || "")
-          .trim()
-          .toLowerCase() === before.item.trim().toLowerCase() &&
-        (row.assignee || "Shared") === before.assignee,
-    );
+    // Exactly the lines the question named: this list, this person. Anything
+    // else on the same template under a different person was never offered and
+    // must not be swept up with it.
+    const pairs = new Set(on.map((t) => `${t.id}::${keyPerson(t.assignee)}`));
+    const isWanted = (row) =>
+      String(row.item || "")
+        .trim()
+        .toLowerCase() === before.item.trim().toLowerCase() &&
+      pairs.has(`${row.template_id}::${keyPerson(row.assignee)}`);
+    const wanted = (rows || []).filter(isWanted);
     if (!wanted.length) {
       setAskTemplate((a) => ({
         ...a,
@@ -499,11 +557,7 @@ export default function Packing({
     const touched = new Set(wanted.map((row) => row.template_id));
     setTemplateItems((current) =>
       current.map((row) =>
-        touched.has(row.template_id) &&
-        String(row.item || "")
-          .trim()
-          .toLowerCase() === before.item.trim().toLowerCase() &&
-        (row.assignee || "Shared") === before.assignee
+        touched.has(row.template_id) && isWanted(row)
           ? { ...row, item: after.item, assignee: after.assignee }
           : row,
       ),
@@ -511,7 +565,7 @@ export default function Packing({
     setAskTemplate({
       ...askTemplate,
       state: "done",
-      message: `Changed on ${on.map((t) => t.name).join(" and ")}. Trips that already exist keep the version they have.`,
+      message: `Changed on ${listedAs(on, before.assignee)}. Trips that already exist keep the version they have.`,
     });
   }
 
@@ -1494,7 +1548,10 @@ export default function Packing({
           ask, and a question that appears where you are no longer looking is a
           question nobody answers. */}
       {askTemplate && (
-        <div className="no-print mb-4 rounded-2xl border border-amber/45 bg-amber/10 px-4 py-3">
+        <div
+          ref={askRef}
+          className="no-print mb-4 rounded-2xl border border-amber/45 bg-amber/10 px-4 py-3"
+        >
           {askTemplate.state === "done" ? (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-ink">{askTemplate.message}</p>
@@ -1510,12 +1567,14 @@ export default function Packing({
             <>
               <p className="text-sm font-semibold text-ink">
                 {askTemplate.before.item === askTemplate.after.item
-                  ? `You changed “${askTemplate.after.item}”, which is kept on ${askTemplate.on
-                      .map((t) => t.name)
-                      .join(" and ")}.`
-                  : `You renamed “${askTemplate.before.item}” to “${askTemplate.after.item}”. The old name is kept on ${askTemplate.on
-                      .map((t) => t.name)
-                      .join(" and ")}.`}
+                  ? `You changed “${askTemplate.after.item}”, which is kept on ${listedAs(
+                      askTemplate.on,
+                      askTemplate.before.assignee,
+                    )}.`
+                  : `You renamed “${askTemplate.before.item}” to “${askTemplate.after.item}”. The old name is kept on ${listedAs(
+                      askTemplate.on,
+                      askTemplate.before.assignee,
+                    )}.`}
               </p>
               <p className="mt-1 text-[0.8rem] leading-snug text-ink-soft">
                 Change it on the template too, so trips you build from it start
@@ -1538,7 +1597,10 @@ export default function Packing({
                     ? "Changing…"
                     : askTemplate.on.length > 1
                       ? "Change the templates too"
-                      : `Change ${askTemplate.on[0].name} too`}
+                      : `Change ${listedAs(
+                        askTemplate.on,
+                        askTemplate.before.assignee,
+                      )} too`}
                 </button>
                 <button
                   type="button"
