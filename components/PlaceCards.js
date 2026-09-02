@@ -345,7 +345,13 @@ export default function PlaceCards({
           {/* The other question people have about a shortlist, and the one the
               app was quietly answering for them: never mind what suits us,
               what is actually the best here? A star, because that is what it
-              asks for -- what the place is known for rather than what we are. */}
+              asks for -- what the place is known for rather than what we are.
+
+              The label says what pressing it does rather than what it returns.
+              "Highly rated anyway" needed the whole paragraph above to make
+              sense of the "anyway": rated highly despite what? By whom? It read
+              as a second opinion on the same list. What it actually does is
+              take the family's own filters off, so that is what it now says. */}
           {onAlternatives ? (
             <button
               type="button"
@@ -361,7 +367,7 @@ export default function PlaceCards({
                   strokeLinejoin="round"
                 />
               </svg>
-              Highly rated anyway
+              Best-rated, ignoring our preferences
             </button>
           ) : null}
         </div>
