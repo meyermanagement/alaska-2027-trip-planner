@@ -25,8 +25,37 @@ export default function ConversationList({ onPick, onNew, onClose }) {
   // worked out, and the transcript goes with it, so one stray tap on a phone
   // should not be enough.
   const [confirmId, setConfirmId] = useState(null);
+  // Conversations start shared with the other parents, so the list has to say
+  // whose each one is -- and only offer to delete, or to unshare, the ones that
+  // belong to the person reading it.
+  const [me, setMe] = useState(null);
+  const [sharing, setSharing] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const searchBox = useRef(null);
+
+  // Pulling one back to yourself, or letting the other parents have it again.
+  const share = async (id, visibility) => {
+    setSharing(id);
+    setError("");
+    try {
+      const res = await fetch("/api/chat/conversations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, visibility }),
+      });
+      if (!res.ok) {
+        setError("Could not change who can see that.");
+        return;
+      }
+      setConversations((list) =>
+        list.map((c) => (c.id === id ? { ...c, visibility } : c)),
+      );
+    } catch {
+      setError("Could not change who can see that.");
+    } finally {
+      setSharing(null);
+    }
+  };
 
   const remove = async (id) => {
     setDeletingId(id);
@@ -64,6 +93,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
         setConversations(
           Array.isArray(data?.conversations) ? data.conversations : [],
         );
+        setMe(data?.me || null);
       })
       .catch(() => {
         if (alive) setError("Could not load your conversations.");
@@ -187,6 +217,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
             results={results}
             searching={searching}
             onPick={onPick}
+            me={me}
           />
         ) : loading ? (
           <p className="text-sm text-ink-soft">Looking these up…</p>
@@ -205,14 +236,19 @@ export default function ConversationList({ onPick, onNew, onClose }) {
               >
                 <button
                   type="button"
-                  onClick={() => onPick(c)}
+                  onClick={() =>
+                    onPick({
+                      ...c,
+                      ownerName: mineHere(c, me) ? null : c.ownerName,
+                    })
+                  }
                   className="w-full rounded-[0.875rem] px-3.5 py-3 text-left transition hover:bg-sand/60"
                 >
                   <p className="truncate pr-8 text-sm font-semibold text-ink">
                     {c.title}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-ink-soft">
-                    {meta(c)}
+                    {meta(c, me)}
                   </p>
                   {c.preview && (
                     <p className="mt-1.5 line-clamp-2 text-xs text-ink-soft">
@@ -220,28 +256,47 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                     </p>
                   )}
                 </button>
-                {/* A sibling of the row rather than a child of it, because a
-                    button cannot live inside another button. */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setConfirmId((was) => (was === c.id ? null : c.id))
-                  }
-                  aria-label={`Delete the conversation ${c.title}`}
-                  className="absolute right-1.5 top-1.5 rounded-full p-1.5 text-ink-soft transition hover:bg-rose/10 hover:text-rose"
-                >
-                  <svg
-                    viewBox="0 0 20 20"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    aria-hidden="true"
+                {/* Siblings of the row rather than children of it, because a
+                    button cannot live inside another button. Both are the
+                    owner's alone: somebody reading a shared conversation can
+                    neither delete it nor decide who else sees it. */}
+                {mineHere(c, me) && (
+                  <button
+                    type="button"
+                    disabled={sharing === c.id}
+                    onClick={() =>
+                      share(
+                        c.id,
+                        c.visibility === "private" ? "family" : "private",
+                      )
+                    }
+                    className="absolute right-9 top-1.5 rounded-full px-2 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ink-soft transition hover:bg-sand disabled:opacity-50"
                   >
-                    <path d="M4 6.5h12M8 6.5V4.75h4V6.5M6.5 6.5 7 16h6l.5-9.5M9 9.5v4M11 9.5v4" />
-                  </svg>
-                </button>
+                    {c.visibility === "private" ? "Just you" : "Shared"}
+                  </button>
+                )}
+                {mineHere(c, me) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfirmId((was) => (was === c.id ? null : c.id))
+                    }
+                    aria-label={`Delete the conversation ${c.title}`}
+                    className="absolute right-1.5 top-1.5 rounded-full p-1.5 text-ink-soft transition hover:bg-rose/10 hover:text-rose"
+                  >
+                    <svg
+                      viewBox="0 0 20 20"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M4 6.5h12M8 6.5V4.75h4V6.5M6.5 6.5 7 16h6l.5-9.5M9 9.5v4M11 9.5v4" />
+                    </svg>
+                  </button>
+                )}
                 {confirmId === c.id && (
                   <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-3.5 py-2">
                     <p className="text-xs text-ink-soft">
@@ -275,7 +330,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
   );
 }
 
-function SearchResults({ query, results, searching, onPick }) {
+function SearchResults({ query, results, searching, onPick, me = null }) {
   if (results === null) {
     return <p className="text-sm text-ink-soft">Searching…</p>;
   }
@@ -306,6 +361,8 @@ function SearchResults({ query, results, searching, onPick }) {
                   title: r.title,
                   tripId: r.tripId,
                   tripName: r.tripName,
+                  ownerName:
+                    me && r.ownerId && r.ownerId !== me ? r.ownerName : null,
                 })
               }
               className="card w-full px-3.5 py-3 text-left transition hover:border-teal/50 hover:bg-sand/60"
@@ -313,6 +370,11 @@ function SearchResults({ query, results, searching, onPick }) {
               <p className="truncate text-sm font-semibold text-ink">
                 {r.title}
               </p>
+              {r.ownerName && me && r.ownerId && r.ownerId !== me && (
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  {r.ownerName} asked
+                </p>
+              )}
               {r.tripName && (
                 <p className="mt-0.5 text-xs text-ink-soft">{r.tripName}</p>
               )}
@@ -381,8 +443,15 @@ export function splitMarks(text) {
   return parts.length ? parts : [{ text: source, hit: false }];
 }
 
-function meta(c) {
+function mineHere(c, me) {
+  return !c.ownerId || !me || c.ownerId === me;
+}
+
+function meta(c, me) {
   const bits = [];
+  const mine = !c.ownerId || !me || c.ownerId === me;
+  if (!mine && c.ownerName) bits.push(`${c.ownerName} asked`);
+  if (mine && c.visibility === "private") bits.push("Just you");
   if (c.tripName) bits.push(c.tripName);
   if (c.updatedAt) bits.push(when(c.updatedAt));
   bits.push(`${c.messageCount} message${c.messageCount === 1 ? "" : "s"}`);

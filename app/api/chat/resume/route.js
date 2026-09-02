@@ -14,11 +14,10 @@ export const maxDuration = 60;
 // short threads that each began with Aly knowing nothing about the last, and
 // "Change with Aly" on Tuesday could not see what was agreed on Monday.
 //
-// Private per person, and enforced rather than promised: RLS on
-// chat_conversations restricts every row to auth.uid(), so this cannot hand back
-// somebody else's thread about a trip they share. Two people on the same trip
-// keep two conversations. There is nothing in the response either way that says
-// whether anyone else has one.
+// Your own thread, even now that the parents can read each other's: this hands
+// back the last conversation YOU were having about this trip, never somebody
+// else's. Their conversations are on the list, with their name on them, and
+// opening one is a choice rather than something Ask Aly does to you.
 export async function GET(request) {
   const supabase = await createClient();
   const {
@@ -57,6 +56,7 @@ export async function GET(request) {
 
   const { conversation, error } = await latestConversation(supabase, {
     tripId: ownTripId,
+    ownerId: user.id,
   });
   // A lookup that fails is not worth an error on the screen: the panel opens on
   // a new conversation, which is what it did before any of this.
@@ -69,6 +69,8 @@ export async function GET(request) {
           title: conversation.title || null,
           tripId: conversation.trip_id || null,
           focus: conversation.focus || null,
+          visibility: conversation.visibility || "family",
+          mine: true,
         }
       : null,
   });

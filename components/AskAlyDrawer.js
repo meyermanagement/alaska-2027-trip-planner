@@ -258,6 +258,7 @@ export default function AskAlyDrawer({
             conversationTitle={current.title}
             conversationTripName={current.tripName}
             conversationTripId={current.tripId}
+            conversationOwnerName={current.ownerName}
             onConversationStarted={(id) =>
               setCurrent((c) => (c && !c.id ? { ...c, id } : c))
             }
@@ -278,6 +279,9 @@ export default function AskAlyDrawer({
               setCurrent({
                 id: conversation.id,
                 title: conversation.title,
+                // Only ever set when the conversation belongs to somebody
+                // else; the list works out which.
+                ownerName: conversation.ownerName || null,
                 tripId: conversation.tripId || null,
                 tripName: conversation.tripName,
               })

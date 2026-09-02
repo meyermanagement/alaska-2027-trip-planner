@@ -209,6 +209,10 @@ export default function ChatPanel({
   // separately from `trip` because a conversation opened from the list can be
   // about a trip nobody is standing on.
   conversationTripId = null,
+  // Whose conversation this is, when it is not the reader's own. Conversations
+  // are shared between the parents now, so a thread can be somebody else's
+  // and the header should say so before anybody types into it.
+  conversationOwnerName = null,
   onConversationStarted,
   fill = false,
 }) {
@@ -764,6 +768,7 @@ export default function ChatPanel({
   // The line under the heading. A name with no trip behind it -- a conversation
   // about a trip since deleted -- is still printed, just not pressable.
   const tripBit = tripDoor || aboutTripName;
+  const whose = conversationOwnerName ? `${conversationOwnerName} asked` : null;
   const subtitle = conversationId ? (
     // The trip is the heading on a resumed trip thread, so saying it again
     // underneath would only push the section out of view.
@@ -826,6 +831,7 @@ export default function ChatPanel({
                 : conversationTitle || "Ask Aly"}
             </h2>
             <p className="mt-1 truncate text-xs text-ink-soft">
+              {whose ? `${whose} · ` : ""}
               {subtitle}
               {trip && SECTION_LABELS[focus]
                 ? ` · ${SECTION_LABELS[focus]}`
