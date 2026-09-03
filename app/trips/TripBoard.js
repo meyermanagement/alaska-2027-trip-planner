@@ -3,7 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
-import { formatRange, daysUntil, tripDayNumber } from "@/lib/format";
+import {
+  countdownSaid,
+  formatRange,
+  daysUntil,
+  tripDayNumber,
+} from "@/lib/format";
 import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
 import TripBackdrop from "@/components/TripBackdrop";
@@ -154,7 +159,9 @@ function UpcomingCard({ trip, canRemove = false }) {
               recognizing a trip and knowing how close it is. */}
           <div className="flex flex-wrap gap-1.5">
             {countdown !== null && countdown >= 0 && (
-              <span className="chip chip-accent">{countdown} days away</span>
+              <span className="chip chip-accent">
+                {countdownSaid(countdown)}
+              </span>
             )}
             {trip.going.length > 0 && (
               <span className="chip">{trip.going.join(", ")}</span>

@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { sortItinerary } from "@/lib/day/order";
-import { daysUntil, formatRange, isDraftTrip, isPastTrip } from "@/lib/format";
+import {
+  countdownSaid,
+  daysUntil,
+  formatRange,
+  isDraftTrip,
+  isPastTrip,
+} from "@/lib/format";
 import PromoteDraft from "./PromoteDraft";
 import TripBackdrop from "./TripBackdrop";
 import { PencilIcon } from "./Icons";
@@ -455,7 +461,7 @@ export default function TripView({
                   </h1>
                   {countdown !== null && countdown >= 0 && (
                     <span className="chip chip-accent">
-                      {countdown} days away
+                      {countdownSaid(countdown)}
                     </span>
                   )}
                 </div>
