@@ -465,6 +465,32 @@ html[data-booted] #boot-veil {
   }
 }
 
+/* Anything that floats above the page: the suggestion list under a location box
+   and the two short panels that stand in for it while it is thinking or has
+   something to explain.
+
+   A card is cream on sand, and this floats over cards, so a card's own border and
+   shadow leave it looking painted onto whatever is behind it. It gets the darker
+   line, a lift big enough to read as height rather than texture, and a hairline of
+   ink over the top of that -- which is what actually separates it when the panel
+   lands on a cream card rather than on the sand. */
+.popover {
+  background: var(--color-white);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-ink) 8%, transparent),
+    0 14px 34px -12px color-mix(in oklab, var(--color-ink) 55%, transparent),
+    0 3px 8px -3px color-mix(in oklab, var(--color-ink) 28%, transparent);
+}
+
+/* One row from the next. Four hotel names with near-identical addresses under them
+   read as a paragraph without this, and the eye has to count lines to work out
+   where one suggestion ends. */
+.popover-list > li + li {
+  border-top: 1px solid var(--line);
+}
+
 .card {
   background: var(--color-white);
   border: 1px solid var(--line);

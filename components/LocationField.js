@@ -22,11 +22,29 @@ import {
   useState,
 } from "react";
 import { queryFromTitle } from "@/lib/places/intent";
+import { withHome } from "@/lib/places/home";
 
 // Long enough that a phrase gets typed before anything is asked for, short
 // enough that the list is there when the thumb stops.
 const DEBOUNCE_MS = 300;
 const MIN_CHARS = 2;
+
+// The household's address, fetched once for the page rather than once per box or
+// once per keystroke. Every location field on a screen shares this promise, and it
+// is resolved by the time anybody clicks into one, which is what lets Home be
+// there the instant the list opens instead of after a round trip.
+let homeAsked = null;
+
+function askForHome() {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  if (!homeAsked) {
+    homeAsked = fetch("/api/places/home")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => json?.home || null)
+      .catch(() => null);
+  }
+  return homeAsked;
+}
 
 export default function LocationField({
   value,
@@ -47,6 +65,8 @@ export default function LocationField({
   // almost always; when it is not, it is the difference between a small fix on
   // the server and half an hour of retyping an address that was always right.
   const [trouble, setTrouble] = useState("");
+  // The household's address, as a row that needs no search behind it.
+  const [home, setHome] = useState(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [busy, setBusy] = useState(false);
@@ -63,10 +83,8 @@ export default function LocationField({
   const term = typed.length >= MIN_CHARS ? typed : "";
 
   const look = useCallback(
-    async (q, { blank = false } = {}) => {
-      // Nothing typed is still worth asking about when Home is on offer: it is
-      // the one suggestion that does not need a search behind it.
-      if ((!q || q.length < MIN_CHARS) && !offerHome) {
+    async (q) => {
+      if (!q || q.length < MIN_CHARS) {
         setPlaces([]);
         setBusy(false);
         return;
@@ -74,12 +92,7 @@ export default function LocationField({
       askedFor.current = q;
       setBusy(true);
       try {
-        const params = new URLSearchParams({ q: q || "" });
-        if (offerHome) params.set("home", "1");
-        // The box is empty and this search is a guess made from the title. Home is
-        // wanted at the top of that list too -- more so, in fact, since nothing
-        // has been typed to disagree with it.
-        if (blank) params.set("blank", "1");
+        const params = new URLSearchParams({ q });
         if (destination) params.set("near", destination);
         if (category) params.set("category", category);
         const res = await fetch(`/api/places?${params.toString()}`);
@@ -95,7 +108,7 @@ export default function LocationField({
         if (askedFor.current === q) setBusy(false);
       }
     },
-    [destination, category, offerHome],
+    [destination, category],
   );
 
   // Typing. One request per pause, not one per keystroke.
@@ -103,18 +116,32 @@ export default function LocationField({
     if (!open) return undefined;
     if (!term) {
       setTrouble("");
-      // Typed back down to nothing. On a field that offers Home, that is the
-      // empty box again and Home belongs in it; anywhere else the list closes.
-      if (!offerHome || fromTitle) {
-        setPlaces([]);
-        return undefined;
+      setPlaces([]);
+      // Typed back down to nothing. The list does not close, because on a field
+      // that offers Home there is still Home in it, and on one that does not the
+      // empty list closes it anyway.
+      if (fromTitle) {
+        const again = setTimeout(() => look(fromTitle), DEBOUNCE_MS);
+        return () => clearTimeout(again);
       }
-      const clear = setTimeout(() => look("", { blank: true }), DEBOUNCE_MS);
-      return () => clearTimeout(clear);
+      return undefined;
     }
     const timer = setTimeout(() => look(term), DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [term, open, look, offerHome, fromTitle]);
+  }, [term, open, look, fromTitle]);
+
+  // Asked for on mount, not on focus: by the time the box is clicked the answer is
+  // already here and Home draws with the list rather than a moment after it.
+  useEffect(() => {
+    if (!offerHome) return undefined;
+    let stop = false;
+    askForHome().then((found) => {
+      if (!stop) setHome(found);
+    });
+    return () => {
+      stop = true;
+    };
+  }, [offerHome]);
 
   // Clicking away puts the list away, and leaves whatever was typed alone.
   useEffect(() => {
@@ -141,33 +168,31 @@ export default function LocationField({
   const onFocus = () => {
     setOpen(true);
     // An empty box, on an item that already says where it is going: offer that
-    // straight away rather than waiting to be told twice. Either way the request
-    // carries the Home flag, so the house sits at the top of whatever comes back
-    // -- most trips leave from it, and it should be one tap rather than an
-    // address typed out for the third time this month.
-    if (!typed) look(fromTitle || "", { blank: true });
+    // straight away rather than waiting to be told twice. Home is already in the
+    // list by now either way, drawn from memory.
+    if (!typed && fromTitle) look(fromTitle);
   };
 
   const onKeyDown = (event) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      if (!places.length) return;
+      if (!shown.length) return;
       event.preventDefault();
       setOpen(true);
       const step = event.key === "ArrowDown" ? 1 : -1;
       setActive((i) => {
         const next = i + step;
-        if (next < 0) return places.length - 1;
-        if (next >= places.length) return 0;
+        if (next < 0) return shown.length - 1;
+        if (next >= shown.length) return 0;
         return next;
       });
       return;
     }
     if (event.key === "Enter") {
-      if (open && active >= 0 && places[active]) {
+      if (open && active >= 0 && shown[active]) {
         // Only swallow the key when it is actually choosing something, so Enter
         // still saves the form the rest of the time.
         event.preventDefault();
-        choose(places[active]);
+        choose(shown[active]);
         return;
       }
       // Outside a form there is nothing for Enter to submit, so a caller that
@@ -194,7 +219,13 @@ export default function LocationField({
     if (event.key === "Tab") setOpen(false);
   };
 
-  const showing = open && places.length > 0;
+  // Home first, from memory, and never twice. Composed here rather than on the
+  // server so it is in the list the moment the box is focused.
+  const shown = useMemo(
+    () => (offerHome ? withHome(places, home, typed) : places),
+    [offerHome, places, home, typed],
+  );
+  const showing = open && shown.length > 0;
 
   return (
     <div ref={box} className="relative">
@@ -224,9 +255,9 @@ export default function LocationField({
         <ul
           id={listId}
           role="listbox"
-          className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-sand-deep bg-white py-1 shadow-lg"
+          className="popover popover-list absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto"
         >
-          {places.map((place, i) => (
+          {shown.map((place, i) => (
             <li
               key={`${place.value}-${i}`}
               id={`${listId}-${i}`}
@@ -264,14 +295,14 @@ export default function LocationField({
       )}
       {open && !busy && trouble && (
         <p
-          className={`${showing ? "relative" : "absolute left-0 right-0 z-30"} mt-1 rounded-xl border border-sand-deep bg-white px-3 py-2 text-xs text-ink-faint shadow-lg`}
+          className={`popover ${showing ? "relative" : "absolute left-0 right-0 z-30"} mt-1 px-3 py-2 text-xs text-ink-faint`}
           role="status"
         >
           {trouble}
         </p>
       )}
-      {open && busy && !places.length && (
-        <p className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-sand-deep bg-white px-3 py-2 text-xs text-ink-faint shadow-lg">
+      {open && busy && !shown.length && (
+        <p className="popover absolute left-0 right-0 z-30 mt-1 px-3 py-2 text-xs text-ink-faint">
           Looking…
         </p>
       )}
