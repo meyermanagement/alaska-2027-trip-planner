@@ -46,7 +46,12 @@ export default function Tasks({
   const [newDue, setNewDue] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
   const [newPriority, setNewPriority] = useState("normal");
-  const [hideDone, setHideDone] = useState(false);
+  // On by default. A pre-departure list is a list of what is still to do: the
+  // completed rows are a record, and on a trip that has been planned for months
+  // they are most of the page, so the ten things that still need doing open
+  // below a wall of struck-through ones. Ticking a task now makes it leave the
+  // list, which is the right feeling and reversible in one click.
+  const [hideDone, setHideDone] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({
     title: "",
@@ -475,7 +480,23 @@ export default function Tasks({
         ))}
         {grouped.length === 0 && (
           <p className="card p-6 text-center text-sm text-ink-soft">
-            All clear — no open tasks.
+            {items.length === 0
+              ? "Nothing on the list yet."
+              : hideDone
+                ? // Everything is done and hidden, so the page would otherwise be
+                  // blank under a header saying 8 of 8 complete. Say where the
+                  // rows went, and offer the way back to them.
+                  "All clear — everything on this list is done."
+                : "All clear — no open tasks."}
+            {items.length > 0 && hideDone && done > 0 && (
+              <button
+                type="button"
+                className="ml-2 font-semibold text-teal underline"
+                onClick={() => setHideDone(false)}
+              >
+                Show the {done} completed
+              </button>
+            )}
           </p>
         )}
       </div>

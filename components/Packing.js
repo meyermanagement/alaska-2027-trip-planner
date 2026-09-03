@@ -79,10 +79,22 @@ export default function Packing({
   // came to tick off. Which add-ons are on is the part still worth seeing at a
   // glance, so that stays on the closed row.
   const [builtOpen, setBuiltOpen] = useState(false);
-  // Narrowing to the things that cannot be packed ahead. The rows stay in their
-  // categories wearing a chip, so this is how you gather them: on the morning you
-  // leave, and equally in July when the question is "what will still be out".
-  const [onlyLast, setOnlyLast] = useState(false);
+  // Narrowing to the things that CAN go in a bag today.
+  //
+  // This pill used to be the other way round -- it gathered the Last minute rows,
+  // and that turned out to be a filter nobody needed. The marked rows are the ones
+  // that stay unticked by design, so on any evening before the last one, "show me
+  // the last minute things" and "show me what is not packed" return almost the
+  // same list, and Hide packed already answers that. Nothing is gained by asking
+  // twice.
+  //
+  // Turned around it answers the question the run-up actually has. Packing a
+  // suitcase two weeks out, the useful list is everything except the toothbrush,
+  // the medication and the charger -- and with Hide packed ticked alongside, what
+  // is left on screen is exactly the work that can be finished tonight. The rows
+  // still keep the flag and still wear the chip where they sit, so the marked ones
+  // have not gone anywhere; they are simply no longer what the filter is for.
+  const [onlyAhead, setOnlyAhead] = useState(false);
   // Which category's Add button was pressed, if any. A trip's list is a stack of
   // category cards, and the form for a new line now opens inside the one it is
   // going into rather than standing permanently above all of them: the category
@@ -299,7 +311,7 @@ export default function Packing({
     )
       return false;
     if (hidePacked && i.is_packed) return false;
-    if (onlyLast && !i.last_minute) return false;
+    if (onlyAhead && i.last_minute) return false;
     if (onlyCategory !== "all" && (i.category || "General") !== onlyCategory)
       return false;
     // The heading and the person are searched along with the name, so "toilet"
@@ -310,7 +322,15 @@ export default function Packing({
     return true;
   });
 
-  const flagged = useMemo(() => items.some((i) => i.last_minute), [items]);
+  // Offered only when the filter would change what is on screen: a list with
+  // nothing marked would hide nothing, and a list where everything is marked would
+  // hide everything. Either way it is a pill that either does nothing or empties
+  // the page, which is the same reason there is no pill here for somebody who is
+  // not on this trip.
+  const canSplitAhead = useMemo(
+    () => items.some((i) => i.last_minute) && items.some((i) => !i.last_minute),
+    [items],
+  );
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -1724,20 +1744,24 @@ export default function Packing({
             ))}
           </>
         )}
-        {/* Only offered when the list actually has some. A pill that filters to
-            nothing is a dead end, the same reason there is no pill here for
-            somebody who is not on this trip. */}
-        {flagged && (
+        {canSplitAhead && (
           <button
-            onClick={() => setOnlyLast((on) => !on)}
-            aria-pressed={onlyLast}
+            onClick={() => setOnlyAhead((on) => !on)}
+            aria-pressed={onlyAhead}
+            // Pressed in pale teal rather than solid. Not amber, because amber is
+            // what the rows this pill hides are wearing and it would say the
+            // opposite of what pressing it does -- and not the solid teal the
+            // people wear either: on a phone this wraps onto the line under
+            // Everyone, and two solid teal chips one above the other read as two
+            // people chosen rather than a person and a toggle.
+            title={`Hide the ${LAST_MINUTE_LABEL.toLowerCase()} things, which cannot go in a bag yet`}
             className={`chip border ${
-              onlyLast
-                ? "border-amber bg-amber text-white"
+              onlyAhead
+                ? "border-teal bg-teal-soft text-teal"
                 : "border-[var(--line)] bg-white text-ink-soft"
             }`}
           >
-            {LAST_MINUTE_LABEL}
+            Can pack ahead
           </button>
         )}
         <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-ink-soft">
@@ -1760,18 +1784,20 @@ export default function Packing({
             of the list living beside the list, which is one more place to look and
             one more place for a tick to seem not to have happened. The chip on the
             row says the same thing in the place you are already reading, and the
-            Last minute pill above gathers them when gathering them is what you
-            actually want. */}
+            Can pack ahead pill above puts them out of the way on the evenings
+            when they are not the work. */}
         {/* A search that finds nothing has to say so. Without this the list
             simply empties, which reads as though the trip lost its packing
             list rather than as though the word was wrong -- and there is
             nowhere obvious to press to get back. */}
-        {!grouped.length && (find || onlyCategory !== "all") && (
+        {!grouped.length && (find || onlyCategory !== "all" || onlyAhead) && (
           <div className="card px-4 py-6 text-center">
             <p className="text-sm font-semibold text-ink">
               {find
                 ? `Nothing on this list looks like “${find}”.`
-                : `Nothing under ${onlyCategory}.`}
+                : onlyCategory !== "all"
+                  ? `Nothing under ${onlyCategory}.`
+                  : "Nothing here can be packed ahead."}
             </p>
             <p className="mt-1 text-[0.8rem] text-ink-soft">
               {items.length} {items.length === 1 ? "item" : "items"} on the
@@ -1783,6 +1809,7 @@ export default function Packing({
               onClick={() => {
                 setFind("");
                 setOnlyCategory("all");
+                setOnlyAhead(false);
               }}
             >
               Show everything again

@@ -43,7 +43,6 @@ import {
 } from "@/lib/places/rollcall";
 import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
-  ANSWERING_TOOLS,
   answerAsWell,
   asksAdvice,
   asksSomething,
@@ -494,14 +493,22 @@ export async function POST(request) {
           answerAsWell(said, gistOf(changeCalls), { advice: wantsAdvice }),
         ].join("\n\n"),
         messages,
-        // A shortlist already on screen means the shortlist tool comes away.
-        // Asked the same trip twice, a model does not repeat itself exactly --
-        // it offers "Quinta da Regaleira" and then "Quinta da Regaleira Guided
-        // Tour" -- and the family gets the same place on two cards.
+        // Only show_places, and only when there is no shortlist yet. Asked the
+        // same trip twice, a model does not repeat itself exactly -- it offers
+        // "Quinta da Regaleira" and then "Quinta da Regaleira Guided Tour" --
+        // and the family gets the same place on two cards.
+        //
+        // offer_followups used to be in reach here as well, and that is what put
+        // "That is what I would do -- it is on the card above. I did not manage to
+        // write out why this time" on the screen. A model asked for words, given
+        // any tool at all, can answer by calling it and writing nothing; a call
+        // with no words is a legitimate answer everywhere else in the app, so the
+        // ladder hands that turn back as a success instead of moving on, and the
+        // empty text falls straight through to the line above. So this turn is
+        // given nothing it can hide behind. Where the filter leaves nothing at
+        // all, silence is silence and the ladder walks to the next model itself.
         tools: tools.filter(
-          (tool) =>
-            ANSWERING_TOOLS.has(tool.name) &&
-            !(shortlist.length && tool.name === "show_places"),
+          (tool) => tool.name === "show_places" && !shortlist.length,
         ),
         grounded: lookAgain,
         thinking: THINKING,
@@ -513,9 +520,7 @@ export async function POST(request) {
       });
       if (words?.text || (words?.calls || []).length) {
         const { places: more } = splitPlaceCalls(words.calls);
-        const { followups: nextQuestions } = splitFollowupCalls(words.calls);
         shortlistAll = mergePlaces(shortlist, more);
-        if (nextQuestions.length) followups = nextQuestions;
         result = {
           ...result,
           text: words.text || result.text,
