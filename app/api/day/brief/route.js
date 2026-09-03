@@ -4,7 +4,7 @@ import { sortItinerary } from "@/lib/day/order";
 import { researchDay } from "@/lib/day/insight";
 import { fingerprint, isStale } from "@/lib/day/mark";
 import { daySaid, dayOf, fetchForecast } from "@/lib/weather/forecast";
-import { anchorPoint, locateItems } from "@/lib/day/locate";
+import { anchorPoint, houseOf, locateItems } from "@/lib/day/locate";
 
 export const runtime = "nodejs";
 // Grounded research runs long. The tips refresh already sits at 120 for the same
@@ -43,7 +43,9 @@ export async function POST(request) {
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, family_id, name, destination, start_date, end_date")
+    .select(
+      "id, family_id, name, destination, start_date, end_date, families (home_address, home_lat, home_lon)",
+    )
     .eq("id", tripId)
     .maybeSingle();
   if (!trip) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -96,6 +98,7 @@ export async function POST(request) {
   try {
     const points = await locateItems(supabase, items, {
       destination: trip.destination || "",
+      home: houseOf(trip),
       max: 4,
     });
     const anchor = anchorPoint(items, points);

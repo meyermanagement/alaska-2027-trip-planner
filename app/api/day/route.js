@@ -109,13 +109,21 @@ export async function GET(request) {
   // Where the household leaves from. Only read when nobody has said where they
   // are, because a saved address is a fact about the family and a shared position
   // is a fact about this minute, and the minute wins.
+  // Read whether or not somebody has shared a position, because the address does
+  // two jobs: it is where the day is measured from when nobody has said where they
+  // are, and it is the answer whenever an itinerary item names the house.
+  const { data: household } = await supabase
+    .from("families")
+    .select("home_address, home_lat, home_lon")
+    .eq("id", trip.family_id)
+    .maybeSingle();
+  const house = {
+    address: household?.home_address || "",
+    lat: household?.home_lat,
+    lon: household?.home_lon,
+  };
   let home = null;
   if (!here) {
-    const { data: household } = await supabase
-      .from("families")
-      .select("home_address, home_lat, home_lon")
-      .eq("id", trip.family_id)
-      .maybeSingle();
     home = normalizeHere({
       lat: household?.home_lat,
       lon: household?.home_lon,
@@ -175,6 +183,7 @@ export async function GET(request) {
   try {
     points = await locateItems(supabase, items, {
       destination: trip.destination || "",
+      home: house,
     });
   } catch {
     points = new Map();
@@ -225,7 +234,7 @@ export async function GET(request) {
   // afternoons, and the band used to print only the first one -- the weather they
   // are leaving, unlabelled, on the day they most need the other. Both ends are
   // reported when they differ, each named in the family's own words.
-  const ends = dayEnds(items, sky);
+  const ends = dayEnds(items, sky, { home: house.address });
   const endWeather = ends
     ? dayOf(forecasts[ends.endIndex] || null, date)
     : null;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sortItinerary } from "@/lib/day/order";
 import { makeCache } from "@/lib/places/photon";
-import { locateItems, anchorPoint } from "@/lib/day/locate";
+import { locateItems, anchorPoint, houseOf } from "@/lib/day/locate";
 import { dayOf, daySaid, fetchForecasts } from "@/lib/weather/forecast";
 
 export const runtime = "nodejs";
@@ -53,7 +53,7 @@ export async function GET(request) {
   // than an empty forecast, so a wrong id does not read as fine weather.
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, destination")
+    .select("id, destination, families (home_address, home_lat, home_lon)")
     .eq("id", tripId)
     .maybeSingle();
   if (!trip)
@@ -76,6 +76,7 @@ export async function GET(request) {
   try {
     points = await locateItems(supabase, items, {
       destination: trip.destination || "",
+      home: houseOf(trip),
     });
   } catch {
     points = new Map();
