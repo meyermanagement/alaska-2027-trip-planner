@@ -8,6 +8,7 @@ import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
 import People from "./People";
 import Pets from "./Pets";
+import SkinPicker from "./SkinPicker";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 
@@ -48,7 +49,7 @@ export default async function PeoplePage() {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, skin")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -146,6 +147,9 @@ export default async function PeoplePage() {
           trips={trips || []}
           tripPets={tripPets || []}
         />
+        {/* Last on the page, because it is the only thing here that is about the
+            person reading it rather than about the family. */}
+        <SkinPicker skin={profile?.skin} />
       </main>
       <AskAlyGeneral />
       <FooterBar displayName={profile?.display_name} />

@@ -32,7 +32,7 @@ export default function AskAlyTrigger({ href }) {
   const label = "Ask Aly";
 
   const styles =
-    "inline-flex items-center gap-1.5 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0c4e47] active:translate-y-px";
+    "inline-flex items-center gap-1.5 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-on-accent shadow-sm transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px";
 
   if (href) {
     return (

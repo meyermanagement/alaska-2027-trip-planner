@@ -1,5 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import {
+  DEFAULT_SKIN,
+  SKIN_COOKIE,
+  SKIN_COOKIE_MAX_AGE,
+  skinOr,
+} from "@/lib/skins";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 
@@ -85,6 +91,31 @@ export async function middleware(request) {
       .maybeSingle();
     response.cookies.set(LEVEL_COOKIE, mine?.access_level || "primary", {
       maxAge: LEVEL_COOKIE_MAX_AGE,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
+
+  // The chosen skin, put where the document can read it before it paints.
+  //
+  // The skin lives on the profile, but the thing that needs it is a script in the
+  // head of the very first HTML -- and a page cannot ask the database anything
+  // before it renders. So it is cached in a readable cookie the same way the
+  // access level above is: asked for once and then believed for a year, because
+  // the only thing that changes it is the person themselves, and the route that
+  // writes it rewrites this cookie in the same response.
+  //
+  // It is a preference and nothing else. Nothing is granted or refused on the
+  // strength of it, which is why it is allowed to be readable and why a stale
+  // one costs a page in the wrong colors and nothing more.
+  if (user && !isPublic && !request.cookies.get(SKIN_COOKIE)) {
+    const { data: mine } = await supabase
+      .from("profiles")
+      .select("skin")
+      .eq("id", user.id)
+      .maybeSingle();
+    response.cookies.set(SKIN_COOKIE, skinOr(mine?.skin) || DEFAULT_SKIN, {
+      maxAge: SKIN_COOKIE_MAX_AGE,
       sameSite: "lax",
       path: "/",
     });

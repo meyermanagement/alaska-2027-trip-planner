@@ -128,6 +128,30 @@ const THINKING = "low";
 // which is the same thing they saw before these turns existed.
 const REWORD_TURN_MS = 20000;
 
+// The last thing said when there is nothing to say. Named because two places
+// need it: the sentence itself, and the flag that tells the screen this is the
+// one reply worth offering a second go on.
+const LOST_IT =
+  "Something went wrong at my end and I lost that one. Ask me again.";
+
+/**
+ * Did this turn come back with nothing anybody can use?
+ *
+ * Words are an answer. A proposed change is an answer. A shortlist of places is
+ * an answer. Asking to go and research is an answer. Offering follow-up
+ * questions is not: it is what she says next to, and a turn whose entire output
+ * is "here are three things you could ask me" has not answered the thing that
+ * was asked.
+ */
+function answeredNothing(turn) {
+  if (String(turn?.text || "").trim()) return false;
+  const { calls: rest, places } = splitPlaceCalls(turn?.calls || []);
+  if (places.length) return false;
+  const { calls: noFollowups } = splitFollowupCalls(rest);
+  const { calls: changes, asked: tip } = splitTipCalls(noFollowups);
+  return !tip && !changes.length;
+}
+
 export async function POST(request) {
   // Where the request's own allowance starts. Read by every model turn below.
   const startedAt = Date.now();
@@ -441,6 +465,52 @@ export async function POST(request) {
       ...result,
       calls: splitRecallCalls(result.calls).calls,
     };
+  }
+
+  // One more go when the first turn came back with nothing anybody can use.
+  //
+  // This is the hole that produced "Something went wrong at my end and I lost
+  // that one." Both of the retries further down are guarded on there being
+  // something to improve -- a proposal to explain, or a shortlist to write over
+  // -- so a turn that came back with no words, no change, no places and no
+  // research request fell past both of them and out the bottom, where the only
+  // thing left to say is that it broke. A model that answers a question about a
+  // trip in two and a half seconds with a single follow-up call and no prose has
+  // not refused anything; it has just not answered, and the cheapest fix is to
+  // ask again.
+  //
+  // Asked of a different model, for the same reason the retries below are: the
+  // same model given the same question at the same temperature mostly produces
+  // the same nothing.
+  if (
+    answeredNothing(result) &&
+    clock(lookUp ? EXTRA_TURN_MS : REWORD_TURN_MS)
+  ) {
+    const againBy = clock(lookUp ? EXTRA_TURN_MS : REWORD_TURN_MS);
+    try {
+      const again = await generate({
+        system,
+        messages,
+        tools,
+        grounded: lookUp,
+        thinking: THINKING,
+        deadline: againBy,
+        avoid: result.model ? [result.model] : [],
+      });
+      // Only if it is actually an answer this time. Two empty turns leave the
+      // first one standing, which changes nothing but costs nothing either.
+      if (!answeredNothing(again)) {
+        result = {
+          ...again,
+          // The first turn's refusals are still worth recording even though its
+          // words are being thrown away: they are why this second turn happened.
+          refusals: (result.refusals || []).concat(again.refusals || []),
+        };
+      }
+    } catch {
+      // Nothing to keep and nothing to lose. The sentence below still stands,
+      // and now the screen offers a way to put the question again.
+    }
   }
 
   // A shortlist of places is an answer, not a change, so it is taken out before
@@ -782,9 +852,7 @@ export async function POST(request) {
   // to tell a considered call from a failure.
   if (!reply && actions.length && asksSomething(said)) reply = wordlessLine();
   if (!reply && actions.length === 0 && places.length === 0) {
-    reply = problems.length
-      ? Array.from(new Set(problems)).join(" ")
-      : "Something went wrong at my end and I lost that one. Ask me again.";
+    reply = problems.length ? Array.from(new Set(problems)).join(" ") : LOST_IT;
   }
 
   if (tells.length) {
@@ -846,6 +914,15 @@ export async function POST(request) {
     reply: spoken,
     actions,
     problems,
+    // Whether the screen should offer to put the question again.
+    //
+    // Set only on the one reply that asks to be asked again. Every other answer
+    // here is an answer -- a refusal, a proposal, a shortlist, a complaint about
+    // what was asked -- and offering a retry on those invites the family to ask
+    // twice for something that already happened. Without this the sentence
+    // "Ask me again" arrived with no way to, because the request succeeded and
+    // the panel only offers a retry when it fails.
+    retryable: reply === LOST_IT,
     conversationId,
     sources: result.sources || [],
     places,

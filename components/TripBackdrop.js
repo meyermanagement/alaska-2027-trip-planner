@@ -31,18 +31,45 @@
 // map, so remounting a card -- or coming back to a trip -- redraws nothing.
 
 import { memo, useCallback, useEffect, useState } from "react";
+import { useSkin } from "@/components/SkinWatch";
 import { contourSvg } from "@/lib/covers/contour";
 import { coverTint } from "@/lib/covers/tint";
 
 let landPromise = null;
 
-// Read off :root once. These are the same three values the stylesheet holds; a
-// drawing that has to be readable inside an <img> cannot ask for them by name.
-const MAP = {
+// A drawing that has to survive inside an <img> cannot ask for a custom property
+// by name -- the data URI is its own document, with no :root to read -- so the
+// three map colors have to be resolved to literals before the SVG is written.
+// They are read off the live page rather than written out here, which is what
+// lets a skin change the coast: Midnight Aurora draws it on near-black water,
+// Daybreak Aurora on pale ice.
+//
+// Falls back to the Field Journal values, so a drawing asked for before the
+// stylesheet has applied is the app's own brown rather than transparent.
+const MAP_FALLBACK = {
   water: "#241d12",
   land: "#4c3f2b",
   line: "rgba(244, 231, 203, 0.26)",
 };
+
+function mapColors() {
+  if (typeof window === "undefined") return MAP_FALLBACK;
+  const style = getComputedStyle(document.documentElement);
+  const pick = (name, spare) => style.getPropertyValue(name).trim() || spare;
+  return {
+    water: pick("--map-water", MAP_FALLBACK.water),
+    land: pick("--map-land", MAP_FALLBACK.land),
+    line: pick("--map-line", MAP_FALLBACK.line),
+  };
+}
+
+// Which skin a drawing was made for. Part of the cache key below, because the
+// same trip at the same size is a different picture in a different skin -- and
+// without this, changing skin left every coast already drawn on the old water.
+function skinNow() {
+  if (typeof document === "undefined") return "journal";
+  return document.documentElement.dataset.skin || "journal";
+}
 
 // key -> data: URI. A trip's drawing depends only on its point and the frame it
 // is drawn in, so it is worth keeping for as long as the tab is open.
@@ -100,10 +127,13 @@ function TripBackdrop({ trip, shape = "card" }) {
   const lat = Number(trip?.lat);
   const lon = Number(trip?.lon);
   const hasPoint = Number.isFinite(lat) && Number.isFinite(lon);
+  // Read at render rather than inside the effect, so that it is a dependency and
+  // a skin change redraws the coast instead of leaving the old one in place.
+  const skin = useSkin();
 
   useEffect(() => {
     if (!hasPoint) return;
-    const key = `${shape}-${lat.toFixed(4)}-${lon.toFixed(4)}`;
+    const key = `${skin}-${shape}-${lat.toFixed(4)}-${lon.toFixed(4)}`;
     const had = drawn.get(key);
     if (had) {
       setContour(had);
@@ -116,7 +146,7 @@ function TripBackdrop({ trip, shape = "card" }) {
       if (!alive || !data) return;
       const svg = contourSvg({ lat, lon }, w, h, data, {
         key,
-        colors: MAP,
+        colors: mapColors(),
       });
       if (!svg) return;
       // encodeURIComponent rather than base64: the string is a few tens of
@@ -129,7 +159,7 @@ function TripBackdrop({ trip, shape = "card" }) {
     return () => {
       alive = false;
     };
-  }, [hasPoint, lat, lon, shape]);
+  }, [hasPoint, lat, lon, shape, skin]);
 
   const url = trip?.cover_image_url || null;
 

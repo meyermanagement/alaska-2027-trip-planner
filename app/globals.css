@@ -15,6 +15,15 @@
   --color-glacier: #1f5675;
   --color-amber: #8f5416;
   --color-rose: #96334c;
+  /* What a word set on a filled accent is printed in. On cream paper that is
+     the same paper white as everything else, which is why the app got this far
+     writing text-white on bg-teal -- but a skin whose accent is a bright mint
+     needs near-black there instead, and a white it cannot use is worse than no
+     token at all. Named for the job rather than the color. */
+  --color-on-accent: #fdfaf0;
+  /* The one hue outside the palette: a cruise line. It had been written as two
+     literal hexes in lib/format.js, which no skin could reach. */
+  --color-plum: #59386a;
   /* One radius family, so a day tile, a place card and a trip header card all
      turn the same corner. rounded-xl IS the card radius: it is what most of the
      app already reached for, so overriding the scale here fixes every surface
@@ -47,6 +56,16 @@
   --radius-card: 0.875rem;
   --radius-panel: 1.125rem;
   --radius-control: 0.7rem;
+
+  /* The focus ring and the two hover hairlines, which had been the accent
+     written out as a literal rgba and so survived every skin unchanged. */
+  --ring: color-mix(in srgb, var(--color-teal) 55%, transparent);
+  --ring-soft: color-mix(in srgb, var(--color-teal) 13%, transparent);
+  --line-hover: color-mix(in srgb, var(--color-teal) 32%, transparent);
+
+  /* A loading row: warm blank paper, and a sweep a shade darker than it. */
+  --sk-base: #e4d9c2;
+  --sk-sheen: color-mix(in srgb, var(--color-ink) 5.5%, transparent);
 }
 
 html,
@@ -82,7 +101,7 @@ time {
 }
 
 :focus-visible {
-  outline: 2px solid rgba(27, 90, 76, 0.55);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: 0.35rem;
 }
@@ -315,12 +334,12 @@ html[data-booted] #boot-veil {
    is filling in reads as patient instead of anxious. */
 .sk {
   /* Warm, so a loading row looks like blank paper rather than gray glass. */
-  background-color: #e4d9c2;
+  background-color: var(--sk-base);
   background-image: linear-gradient(
     90deg,
-    rgba(36, 31, 24, 0) 0%,
-    rgba(36, 31, 24, 0.055) 45%,
-    rgba(36, 31, 24, 0) 90%
+    transparent 0%,
+    var(--sk-sheen) 45%,
+    transparent 90%
   );
   background-repeat: no-repeat;
   background-size: 60% 100%;
@@ -509,7 +528,7 @@ button.card {
 
 a.card:hover,
 button.card:hover {
-  border-color: rgba(27, 90, 76, 0.32);
+  border-color: var(--line-hover);
   box-shadow: var(--shadow-card-lift);
   transform: translateY(-1px);
 }
@@ -552,7 +571,7 @@ button.card:hover {
   );
   box-shadow:
     inset 0 1px 0 var(--color-white),
-    0 1px 2px rgba(36, 31, 24, 0.05);
+    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent);
   font-size: 1.4rem;
   line-height: 1;
 }
@@ -627,7 +646,7 @@ input[type="month"]::-webkit-date-and-time-value {
 
 .field:focus {
   border-color: var(--color-teal);
-  box-shadow: 0 0 0 3px rgba(27, 90, 76, 0.13);
+  box-shadow: 0 0 0 3px var(--ring-soft);
   outline: none;
 }
 
@@ -678,27 +697,37 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #23705e 0%, var(--color-teal) 100%);
-  color: var(--color-white);
+  /* Lifted and dropped off the accent rather than written out, so a skin that
+     changes the accent gets a button in it and not a spruce one. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-teal) 88%, var(--color-on-accent)) 0%,
+    var(--color-teal) 100%
+  );
+  color: var(--color-on-accent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 253, 248, 0.14),
-    0 1px 2px rgba(36, 31, 24, 0.16);
+    inset 0 1px 0 color-mix(in srgb, var(--color-on-accent) 14%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-ink) 16%, transparent);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(180deg, #1e6252 0%, #164a3e 100%);
+  background: linear-gradient(
+    180deg,
+    var(--color-teal) 0%,
+    color-mix(in srgb, var(--color-teal) 82%, var(--color-ink)) 100%
+  );
 }
 
 .btn-ghost {
   background: var(--color-white);
   border: 1px solid var(--line-strong);
   color: var(--color-ink);
-  box-shadow: 0 1px 1px rgba(36, 31, 24, 0.03);
+  box-shadow: var(--shadow-card);
 }
 
 .btn-ghost:hover {
   background: var(--color-sand);
-  border-color: rgba(27, 90, 76, 0.32);
+  border-color: var(--line-hover);
 }
 
 .btn:disabled {
@@ -720,7 +749,7 @@ input[type="month"]::-webkit-date-and-time-value {
   padding: 0.65rem 0.3rem 0.55rem;
   border-radius: var(--radius-card);
   border: 1px solid var(--line);
-  background: rgba(255, 253, 248, 0.7);
+  background: color-mix(in srgb, var(--color-white) 70%, transparent);
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
@@ -744,7 +773,7 @@ input[type="month"]::-webkit-date-and-time-value {
   );
   border-color: var(--color-teal);
   box-shadow:
-    inset 0 1px 0 rgba(255, 253, 248, 0.18),
+    inset 0 1px 0 color-mix(in srgb, var(--color-on-accent) 18%, transparent),
     0 2px 8px -2px color-mix(in srgb, var(--color-teal) 45%, transparent);
   transform: none;
 }
@@ -767,10 +796,10 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 .day-tile-on .day-tile-top,
 .day-tile-on .day-tile-foot {
-  color: rgba(255, 253, 248, 0.72);
+  color: color-mix(in srgb, var(--color-on-accent) 72%, transparent);
 }
 .day-tile-on .day-tile-num {
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .day-tile-wide {
   width: 5.25rem;
@@ -784,7 +813,7 @@ input[type="month"]::-webkit-date-and-time-value {
   padding-block: 0.35rem;
 }
 .day-tile-on .day-tile-loose {
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .day-tile-dots {
   display: flex;
@@ -799,7 +828,7 @@ input[type="month"]::-webkit-date-and-time-value {
   background: color-mix(in srgb, var(--color-teal) 55%, transparent);
 }
 .day-tile-on .day-tile-dot {
-  background: rgba(255, 253, 248, 0.8);
+  background: color-mix(in srgb, var(--color-on-accent) 80%, transparent);
 }
 .day-tile-empty {
   width: 0.55rem;
@@ -816,7 +845,7 @@ input[type="month"]::-webkit-date-and-time-value {
   background: var(--color-amber);
 }
 .day-tile-on .day-tile-today {
-  background: var(--color-white);
+  background: var(--color-on-accent);
 }
 .day-arrow {
   flex: 0 0 auto;
@@ -824,7 +853,7 @@ input[type="month"]::-webkit-date-and-time-value {
   height: 2.5rem;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(255, 253, 248, 0.7);
+  background: color-mix(in srgb, var(--color-white) 70%, transparent);
   color: var(--color-ink-soft);
   font-size: 1.15rem;
   line-height: 1;
@@ -951,6 +980,24 @@ input[type="month"]::-webkit-date-and-time-value {
   --map-line: rgba(244, 231, 203, 0.26);
   --map-opacity: 0.9;
   --header-tint: rgba(255, 253, 248, 0.74);
+
+  /* Glass, and the hairline round it. Mixed off --on-photo rather than written
+     out, so a plate whose words are dark gets dark glass without another rule. */
+  --on-photo-glass: color-mix(in srgb, var(--on-photo) 17%, transparent);
+  --on-photo-glass-lift: color-mix(in srgb, var(--on-photo) 26%, transparent);
+  --on-photo-line: color-mix(in srgb, var(--on-photo) 34%, transparent);
+  --on-photo-line-lift: color-mix(in srgb, var(--on-photo) 60%, transparent);
+  /* What a word loses on a plate: ink-soft and ink-faint both become the plate's
+     own voice, a shade quieter than a heading. */
+  --on-photo-muted: color-mix(in srgb, var(--on-photo) 88%, transparent);
+  --on-photo-system: color-mix(in srgb, var(--on-photo) 92%, transparent);
+  --on-photo-track: color-mix(in srgb, var(--on-photo) 26%, transparent);
+  --on-photo-fill: color-mix(in srgb, var(--on-photo) 90%, transparent);
+  /* Rose still says something went wrong and amber still says be careful, at a
+     value that holds against this plate instead of sinking into it. */
+  --on-photo-rose: #ffc7d0;
+  --on-photo-amber: #f8cd91;
+  --on-photo-shadow: 0 1px 12px rgba(24, 20, 14, 0.45);
 }
 
 .trip-media {
@@ -1055,12 +1102,12 @@ input[type="month"]::-webkit-date-and-time-value {
    paper-white, and a shadow soft enough not to read as a shadow. */
 .on-photo {
   color: var(--on-photo);
-  text-shadow: 0 1px 12px rgba(24, 20, 14, 0.45);
+  text-shadow: var(--on-photo-shadow);
 }
 
 .on-photo .chip {
-  background: rgba(255, 255, 255, 0.17);
-  border-color: rgba(255, 255, 255, 0.34);
+  background: var(--on-photo-glass);
+  border-color: var(--on-photo-line);
   color: var(--on-photo);
   backdrop-filter: blur(4px);
   text-shadow: none;
@@ -1069,20 +1116,23 @@ input[type="month"]::-webkit-date-and-time-value {
 .on-photo .chip-accent {
   background: var(--color-teal);
   border-color: var(--color-teal);
-  color: var(--on-photo);
+  /* A filled accent, even here: on a light plate the words on it are still
+     whatever the accent can carry, which is not what the rest of the plate
+     is set in. */
+  color: var(--color-on-accent);
 }
 
 .on-photo .btn-ghost {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--on-photo-glass);
+  border-color: var(--on-photo-line);
   color: var(--on-photo);
   backdrop-filter: blur(6px);
   text-shadow: none;
 }
 
 .on-photo .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.26);
-  border-color: rgba(255, 255, 255, 0.6);
+  background: var(--on-photo-glass-lift);
+  border-color: var(--on-photo-line-lift);
 }
 
 .on-photo .btn-primary {
@@ -1092,8 +1142,8 @@ input[type="month"]::-webkit-date-and-time-value {
 /* The emoji badge is a paper tile, which is wrong over a picture: it reads as a
    sticker. Over the plate it becomes a glass disc instead. */
 .on-photo .emoji-badge {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.34);
+  background: var(--on-photo-glass);
+  border-color: var(--on-photo-line);
   box-shadow: none;
   backdrop-filter: blur(4px);
 }
@@ -1118,18 +1168,18 @@ input[type="month"]::-webkit-date-and-time-value {
 .on-photo .text-ink,
 .on-photo .text-ink-soft,
 .on-photo .text-ink-faint {
-  color: rgba(255, 253, 248, 0.88);
+  color: var(--on-photo-muted);
 }
 
 /* The accent colors keep their meaning and lose their weight. Rose still says
    something went wrong and amber still says be careful, at values that hold up
    against a dark plate instead of sinking into it. */
 .on-photo .text-rose {
-  color: #ffc7d0;
+  color: var(--on-photo-rose);
 }
 
 .on-photo .text-amber {
-  color: #f8cd91;
+  color: var(--on-photo-amber);
 }
 
 /* Teal and glacier are the app's two "this is a system word" colors -- the
@@ -1137,18 +1187,18 @@ input[type="month"]::-webkit-date-and-time-value {
    sit on a plate. On paper white they read as the plate's own voice. */
 .on-photo .text-teal,
 .on-photo .text-glacier {
-  color: rgba(255, 253, 248, 0.92);
+  color: var(--on-photo-system);
 }
 
 /* The look's progress bar. A cream track with a deep teal fill is a paper
    object: on a plate the track becomes glass and the fill the paper white it
    is measured in. */
 .on-photo .bg-sand-deep {
-  background-color: rgba(255, 253, 248, 0.26);
+  background-color: var(--on-photo-track);
 }
 
 .on-photo .bg-teal {
-  background-color: rgba(255, 253, 248, 0.9);
+  background-color: var(--on-photo-fill);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1215,4 +1265,269 @@ input[type="month"]::-webkit-date-and-time-value {
   bottom: -1px;
   height: 2px;
   background: var(--color-teal);
+}
+
+/* ==================================================================
+ * Skins
+ *
+ * A skin is a block of values and nothing else. Every color, hairline,
+ * shadow, photograph treatment and map color above reads a custom
+ * property, so a skin changes the whole app without one component
+ * knowing skins exist -- lib/skins.js holds the list, an inline script
+ * in app/layout.js puts the chosen one on <html> before the first
+ * paint, and profiles.skin remembers it.
+ *
+ * Two rules the blocks below keep to:
+ *
+ *   Panels are opaque. The gallery drew these two directions with
+ *   translucent glass, which is lovely on a mockup where a panel sits
+ *   on the ground exactly once. This app nests a card in a card in a
+ *   panel in a plate, and translucency compounds -- three 6% panels
+ *   stacked read as one 17% panel, so the same component would be a
+ *   different color depending on where it was mounted. The glass
+ *   effect survives on the trip plate, where it genuinely is one
+ *   layer over a picture.
+ *
+ *   The typefaces do not change. The gallery paired these with
+ *   Cabinet Grotesk and Satoshi; loading two more families up front
+ *   to have them ready for a skin nobody may pick costs every person
+ *   on a phone bytes on every page. Fraunces and Geist carry all
+ *   three skins, and a per-skin pair can be earned later by loading
+ *   it on demand.
+ * ================================================================== */
+
+/* ------------------------------------------------------------------
+ * Midnight Aurora
+ *
+ * Night as the point rather than the alternative. The accent inverts
+ * here -- a bright mint on near-black -- which is the whole reason
+ * --color-on-accent had to exist: paper white on #3fdfbe is illegible,
+ * and every "text-white on bg-teal" in the app used to mean exactly
+ * that.
+ * ------------------------------------------------------------------ */
+
+html[data-skin="aurora"] {
+  color-scheme: dark;
+
+  --color-white: #121a22;
+  --color-ink: #e9eff3;
+  --color-ink-soft: #93a5b3;
+  --color-ink-faint: #5f6e7b;
+  --color-sand: #1a232d;
+  --color-sand-deep: #24303c;
+  --color-teal: #3fdfbe;
+  --color-teal-soft: #123029;
+  --color-glacier: #7fb6e6;
+  --color-amber: #efb35d;
+  --color-rose: #f27a9c;
+  --color-on-accent: #04211d;
+  --color-plum: #c8a6ff;
+
+  --line: rgba(233, 239, 243, 0.13);
+  --line-strong: rgba(233, 239, 243, 0.24);
+  --shadow-card: inset 0 1px 0 rgba(233, 239, 243, 0.05);
+  --shadow-card-lift:
+    inset 0 1px 0 rgba(233, 239, 243, 0.07),
+    0 20px 48px -28px rgba(0, 0, 0, 0.95);
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+
+  --sk-base: #1a232d;
+  --sk-sheen: rgba(233, 239, 243, 0.07);
+
+  /* The plate. A photograph is already dark here, so it needs less taking
+     down and the map underneath can come up to full strength. */
+  --on-photo: #e9eff3;
+  --photo-filter: saturate(0.9) contrast(1.1) brightness(0.72);
+  --photo-opacity: 0.52;
+  --scrim: linear-gradient(
+    180deg,
+    rgba(8, 12, 18, 0.2) 0%,
+    rgba(8, 12, 18, 0.38) 48%,
+    rgba(8, 12, 18, 0.66) 100%
+  );
+  --map-water: #0a1620;
+  --map-land: #162834;
+  --map-line: rgba(120, 200, 220, 0.2);
+  --map-opacity: 1;
+  --header-tint: rgba(8, 12, 18, 0.5);
+  --on-photo-rose: #f8a3bb;
+  --on-photo-amber: #f3c485;
+  --on-photo-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* The ground: the aurora itself, as two washes of light rather than a
+   picture -- teal low on the left, violet high on the right -- over
+   near-black, with the 32px weave kept so the page still has a grain.
+   The paper tooth is gone: a night page is glass, not paper. */
+html[data-skin="aurora"] body {
+  background-color: #080c12;
+  background-image:
+    linear-gradient(rgba(233, 239, 243, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(233, 239, 243, 0.022) 1px, transparent 1px),
+    radial-gradient(
+      120% 80% at 88% -14%,
+      rgba(124, 92, 255, 0.18) 0%,
+      rgba(124, 92, 255, 0) 62%
+    ),
+    radial-gradient(
+      110% 70% at -6% 104%,
+      rgba(46, 211, 183, 0.22) 0%,
+      rgba(46, 211, 183, 0) 64%
+    ),
+    linear-gradient(180deg, #0a0f16 0%, #060a0f 100%);
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto,
+    auto,
+    auto;
+  background-attachment: scroll, scroll, fixed, fixed, fixed;
+}
+
+html[data-skin="aurora"] #boot-veil {
+  background-color: #080c12;
+  background-image:
+    radial-gradient(
+      120% 80% at 88% -14%,
+      rgba(124, 92, 255, 0.18) 0%,
+      rgba(124, 92, 255, 0) 62%
+    ),
+    radial-gradient(
+      110% 70% at -6% 104%,
+      rgba(46, 211, 183, 0.22) 0%,
+      rgba(46, 211, 183, 0) 64%
+    ),
+    linear-gradient(180deg, #0a0f16 0%, #060a0f 100%);
+}
+
+/* ------------------------------------------------------------------
+ * Daybreak Aurora
+ *
+ * The same light, seen in the morning: the wash survives as a cool
+ * dawn haze over pale ice paper, and the accent goes deep so it holds
+ * against white. The interesting part is the plate -- the water is
+ * pale, so --on-photo goes dark, and every "glass" value on a plate
+ * inverts with it because they are all mixed off that one token.
+ * ------------------------------------------------------------------ */
+
+html[data-skin="daybreak"] {
+  color-scheme: light;
+
+  --color-white: #fbfdfd;
+  --color-ink: #10262b;
+  --color-ink-soft: #4e6670;
+  --color-ink-faint: #80959c;
+  --color-sand: #e7f0f1;
+  --color-sand-deep: #d7e5e7;
+  --color-teal: #0a7a6b;
+  --color-teal-soft: #d8ebe7;
+  --color-glacier: #175b78;
+  --color-amber: #a5601a;
+  --color-rose: #ae3a6b;
+  --color-on-accent: #ffffff;
+  --color-plum: #4b2bc4;
+
+  --line: rgba(16, 60, 68, 0.14);
+  --line-strong: rgba(16, 60, 68, 0.26);
+  --shadow-card: 0 1px 1px rgba(16, 50, 58, 0.04);
+  --shadow-card-lift:
+    0 1px 2px rgba(16, 50, 58, 0.05), 0 12px 26px -20px rgba(16, 50, 58, 0.45);
+  --shadow-inset: inset 0 1px 2px rgba(16, 50, 58, 0.05);
+
+  --sk-base: #dfeaec;
+  --sk-sheen: rgba(16, 50, 58, 0.055);
+
+  /* Dark words on a pale plate. Every glass and hairline value on the
+     plate is mixed off this, so they all invert with it. */
+  --on-photo: #0d2b31;
+  --photo-filter: saturate(1.06) contrast(1.04) brightness(1.02);
+  --photo-opacity: 0.34;
+  --scrim: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.34) 44%,
+    rgba(255, 255, 255, 0.86) 100%
+  );
+  --map-water: #dceaed;
+  --map-land: #bfd8d9;
+  --map-line: rgba(14, 64, 74, 0.3);
+  --map-opacity: 1;
+  --header-tint: rgba(255, 255, 255, 0.55);
+  --on-photo-rose: #8e2452;
+  --on-photo-amber: #7d4410;
+  --on-photo-shadow: 0 1px 10px rgba(255, 255, 255, 0.6);
+}
+
+/* A photograph on a pale plate should sit under the words rather than
+   be drained by them, so it keeps its color instead of blending. */
+html[data-skin="daybreak"] .trip-media .trip-photo {
+  mix-blend-mode: normal;
+}
+
+html[data-skin="daybreak"] body {
+  background-color: #eff5f5;
+  background-image:
+    linear-gradient(rgba(16, 60, 68, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 60, 68, 0.028) 1px, transparent 1px),
+    radial-gradient(
+      120% 80% at 88% -14%,
+      rgba(124, 92, 255, 0.1) 0%,
+      rgba(124, 92, 255, 0) 62%
+    ),
+    radial-gradient(
+      110% 70% at -6% 104%,
+      rgba(47, 191, 168, 0.16) 0%,
+      rgba(47, 191, 168, 0) 64%
+    ),
+    linear-gradient(180deg, #f4f9f9 0%, #e6eff0 100%);
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto,
+    auto,
+    auto;
+  background-attachment: scroll, scroll, fixed, fixed, fixed;
+}
+
+html[data-skin="daybreak"] #boot-veil {
+  background-color: #eff5f5;
+  background-image:
+    radial-gradient(
+      120% 80% at 88% -14%,
+      rgba(124, 92, 255, 0.1) 0%,
+      rgba(124, 92, 255, 0) 62%
+    ),
+    radial-gradient(
+      110% 70% at -6% 104%,
+      rgba(47, 191, 168, 0.16) 0%,
+      rgba(47, 191, 168, 0) 64%
+    ),
+    linear-gradient(180deg, #f4f9f9 0%, #e6eff0 100%);
+}
+
+/* Print is paper whatever the screen was wearing, and Midnight Aurora's ink is
+   very nearly white -- a packing list printed in it would come out blank. So a
+   dark skin hands its tokens back to the paper ones for the printer, which is
+   cheaper and more honest than asking every rule above to know about print. */
+@media print {
+  html[data-skin="aurora"] {
+    color-scheme: light;
+    --color-white: #fff;
+    --color-ink: #241f18;
+    --color-ink-soft: #4a4335;
+    --color-ink-faint: #5c5344;
+    --color-sand: #f4f1ea;
+    --color-sand-deep: #e9e5db;
+    --color-teal: #1b5a4c;
+    --color-teal-soft: #e6efe9;
+    --color-glacier: #1f5675;
+    --color-amber: #8f5416;
+    --color-rose: #96334c;
+    --color-on-accent: #fff;
+    --color-plum: #59386a;
+    --line: #d8d2c4;
+    --line-strong: #bdb5a3;
+    --on-photo: #241f18;
+    --on-photo-shadow: none;
+  }
 }

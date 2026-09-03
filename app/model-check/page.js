@@ -234,7 +234,7 @@ export default function ModelCheckPage() {
       <button
         onClick={run}
         disabled={state === "running"}
-        className="mt-5 rounded-lg bg-teal px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="mt-5 rounded-lg bg-teal px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-60"
       >
         {state === "running" ? "Asking Google…" : "Run the check"}
       </button>

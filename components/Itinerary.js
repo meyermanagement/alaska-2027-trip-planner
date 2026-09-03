@@ -1063,7 +1063,7 @@ export default function Itinerary({
               onClick={() => setFilter(f.id)}
               className={`rounded-full px-3 py-1.5 transition ${
                 filter === f.id
-                  ? "bg-teal text-white"
+                  ? "bg-teal text-on-accent"
                   : "text-ink-soft hover:text-ink"
               }`}
             >

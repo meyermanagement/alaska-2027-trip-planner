@@ -36,7 +36,7 @@ export default function PassportWarning({ warnings = [], compact = true }) {
   return (
     <section
       aria-label="Passport warning"
-      className="no-print border-b border-rose/40 bg-rose text-white"
+      className="no-print border-b border-rose/40 bg-rose text-on-accent"
     >
       <div className="mx-auto max-w-5xl px-5 py-3">
         <ul className="space-y-1.5">

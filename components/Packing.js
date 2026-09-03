@@ -1080,7 +1080,7 @@ export default function Packing({
                       onClick={() => toggleTemplate(t)}
                       className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                         on
-                          ? "border-teal bg-teal text-white"
+                          ? "border-teal bg-teal text-on-accent"
                           : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
                       }`}
                     >
@@ -1380,7 +1380,7 @@ export default function Packing({
                     }
                     className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                       on
-                        ? "border-teal bg-teal text-white"
+                        ? "border-teal bg-teal text-on-accent"
                         : "border-dashed border-[var(--line)] bg-white text-ink-soft hover:border-teal/50 hover:text-teal"
                     }`}
                   >
@@ -1723,7 +1723,7 @@ export default function Packing({
               onClick={() => setWho("all")}
               className={`chip border ${
                 who === "all"
-                  ? "border-teal bg-teal text-white"
+                  ? "border-teal bg-teal text-on-accent"
                   : "border-[var(--line)] bg-white text-ink-soft"
               }`}
             >
@@ -1735,7 +1735,7 @@ export default function Packing({
                 onClick={() => setWho(p)}
                 className={`chip border ${
                   who === p
-                    ? "border-teal bg-teal text-white"
+                    ? "border-teal bg-teal text-on-accent"
                     : "border-[var(--line)] bg-white text-ink-soft"
                 }`}
               >

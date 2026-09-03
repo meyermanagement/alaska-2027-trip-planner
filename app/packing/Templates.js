@@ -600,7 +600,7 @@ export default function Templates({
             onClick={() => setWho("all")}
             className={`chip border ${
               who === "all"
-                ? "border-teal bg-teal text-white"
+                ? "border-teal bg-teal text-on-accent"
                 : "border-[var(--line)] bg-white text-ink-soft"
             }`}
           >
@@ -612,7 +612,7 @@ export default function Templates({
               onClick={() => setWho(p)}
               className={`chip border ${
                 who === p
-                  ? "border-teal bg-teal text-white"
+                  ? "border-teal bg-teal text-on-accent"
                   : "border-[var(--line)] bg-white text-ink-soft"
               }`}
             >

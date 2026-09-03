@@ -390,14 +390,14 @@ export default function TripBoard({
               onClick={() => setView(t.id)}
               className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                 on
-                  ? "bg-teal text-white shadow-sm"
+                  ? "bg-teal text-on-accent shadow-sm"
                   : "text-ink-soft hover:text-ink"
               }`}
             >
               {t.label}
               <span
                 className={`ml-1.5 text-xs font-semibold ${
-                  on ? "text-white/70" : "text-ink-soft/60"
+                  on ? "text-on-accent/70" : "text-ink-soft/60"
                 }`}
               >
                 {t.count}

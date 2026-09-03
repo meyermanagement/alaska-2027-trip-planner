@@ -102,7 +102,7 @@ export default function RemoveTrip({ trip, onGone, afterHref = null }) {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="btn bg-rose text-xs font-semibold text-white shadow-sm hover:bg-rose/90"
+          className="btn bg-rose text-xs font-semibold text-on-accent shadow-sm hover:bg-rose/90"
           // Live only once the name is there. The disabled look is the honest
           // one here: a button that deletes a trip should not be pressable
           // while the family is still reading what it takes with it.

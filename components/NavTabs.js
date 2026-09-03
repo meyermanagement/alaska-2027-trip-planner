@@ -198,7 +198,7 @@ export default function NavTabs({ attention = 0, level = null }) {
               aria-label={isWayOut ? "Back to all your trips" : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-full px-0 py-1.5 text-[0.5rem] min-[375px]:px-0.5 min-[375px]:text-[0.55rem] font-semibold uppercase tracking-normal transition lg:flex-none lg:flex-row lg:gap-1.5 lg:rounded-full lg:px-3.5 lg:py-1.5 lg:text-[0.72rem] lg:tracking-[0.07em] ${
                 active
-                  ? "bg-teal text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
+                  ? "bg-teal text-on-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
                   : isWayOut
                     ? "text-teal lg:border lg:border-teal/35 lg:bg-teal/5 lg:px-3 lg:text-teal lg:hover:border-teal lg:hover:bg-teal/10"
                     : "text-ink-soft lg:hover:bg-sand lg:hover:text-teal"
@@ -209,7 +209,7 @@ export default function NavTabs({ attention = 0, level = null }) {
                   <Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" />
                 </PendingSwap>
                 {count > 0 && (
-                  <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-white lg:hidden">
+                  <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-on-accent lg:hidden">
                     {count}
                     <span className="sr-only"> needing attention</span>
                   </span>
@@ -236,7 +236,7 @@ export default function NavTabs({ attention = 0, level = null }) {
                 {!isWayOut && tab.sub && (
                   <span
                     className={`text-[0.6rem] font-medium normal-case tracking-[0.02em] ${
-                      active ? "text-white/75" : "text-ink-soft/75"
+                      active ? "text-on-accent/75" : "text-ink-soft/75"
                     }`}
                   >
                     {tab.sub}
@@ -246,7 +246,7 @@ export default function NavTabs({ attention = 0, level = null }) {
               {count > 0 && (
                 <span
                   className={`hidden rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 lg:ml-0.5 lg:inline ${
-                    active ? "bg-white/20 text-white" : "bg-rose/15 text-rose"
+                    active ? "bg-on-accent/20 text-on-accent" : "bg-rose/15 text-rose"
                   }`}
                 >
                   {count}

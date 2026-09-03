@@ -518,6 +518,16 @@ export default function ChatPanel({
       if (data.problems?.length && !data.reply) {
         setError(data.problems.join(" "));
       }
+      // She got back to us and had nothing. The route says so rather than the
+      // panel guessing from the words, and it is the only successful reply that
+      // offers a second go: the sentence it comes with asks to be asked again,
+      // and until now there was no way to do that without scrolling back up,
+      // finding what you typed and typing it out a second time.
+      //
+      // Not red. Nothing failed that the family did, nothing was half-saved, and
+      // the ordinary Ask again button under the thread is the right weight for
+      // it.
+      if (data.retryable) setRetryAsk(clean);
       // She asked to go and look. The reply above already said she was going to,
       // so this is the part that actually happens: the same loop the button
       // drives, with the panel standing in for the button's progress line.
@@ -971,7 +981,7 @@ export default function ChatPanel({
             <div
               className={`${m.places?.length ? "w-full" : "max-w-[85%]"} rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "bg-teal text-white"
+                  ? "bg-teal text-on-accent"
                   : m.kind === "receipt"
                     ? RECEIPT_TONE[m.tone || "saved"] || RECEIPT_TONE.saved
                     : "bg-sand text-ink"
@@ -1187,7 +1197,7 @@ export default function ChatPanel({
                       disabled={applying || blocked || noneLeft}
                       className={`btn px-4 py-1.5 text-sm ${
                         group.destructive
-                          ? "bg-rose text-white hover:bg-[#8c364e]"
+                          ? "bg-rose text-on-accent hover:bg-[color-mix(in_srgb,var(--color-rose)_86%,var(--color-ink))]"
                           : "btn-primary"
                       }`}
                     >

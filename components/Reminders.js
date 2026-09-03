@@ -221,7 +221,7 @@ export default function Reminders({
                         </span>
                         <Link
                           href={tripPath(row.trip, "tasks")}
-                          className="chip inline-flex items-center gap-1.5 bg-teal-soft text-teal transition hover:bg-teal hover:text-white"
+                          className="chip inline-flex items-center gap-1.5 bg-teal-soft text-teal transition hover:bg-teal hover:text-on-accent"
                         >
                           {row.trip.name}
                           <PendingSpark className="h-3 w-3" />
@@ -397,7 +397,7 @@ function FilterRow({ legend, options, value, onChange }) {
             onClick={() => onChange(option.id)}
             className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] transition ${
               active
-                ? "border-teal/80 bg-teal text-white"
+                ? "border-teal/80 bg-teal text-on-accent"
                 : "border-[var(--line)] bg-white/70 text-ink-soft hover:border-teal/30 hover:text-teal"
             }`}
           >

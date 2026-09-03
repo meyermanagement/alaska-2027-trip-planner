@@ -357,7 +357,7 @@ function FilterChip({ active, onClick, children }) {
       onClick={onClick}
       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
         active
-          ? "border-teal bg-teal text-white"
+          ? "border-teal bg-teal text-on-accent"
           : "border-[var(--line)] bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
       }`}
     >

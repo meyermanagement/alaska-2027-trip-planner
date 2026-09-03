@@ -458,7 +458,7 @@ export default function People({
                                   aria-hidden="true"
                                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${
                                     on
-                                      ? "border-teal bg-teal text-white"
+                                      ? "border-teal bg-teal text-on-accent"
                                       : "border-[var(--line)] bg-white text-transparent"
                                   }`}
                                 >
@@ -910,7 +910,7 @@ export function LevelPicker({ person, isMe, busy, note, onLevel }) {
                   }
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                     on
-                      ? "border-teal bg-teal text-white"
+                      ? "border-teal bg-teal text-on-accent"
                       : "border-teal/50 bg-white text-teal hover:bg-teal-soft/60"
                   } ${busy ? "opacity-60" : ""}`}
                 >

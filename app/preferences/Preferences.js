@@ -900,7 +900,7 @@ function Chip({ on, onClick, children }) {
       aria-pressed={on}
       className={`chip border ${
         on
-          ? "border-teal bg-teal text-white"
+          ? "border-teal bg-teal text-on-accent"
           : "border-[var(--line)] bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
       }`}
     >

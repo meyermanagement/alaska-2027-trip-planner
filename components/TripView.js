@@ -580,7 +580,7 @@ export default function TripView({
                   reading something else -- so the tab is the only place that
                   can mention them. */}
               {t.id === "tips" && tipCount > 0 && (
-                <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] leading-[1.15rem] font-bold text-white">
+                <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] leading-[1.15rem] font-bold text-on-accent">
                   {tipCount}
                   <span className="sr-only"> tips to read</span>
                 </span>

@@ -26,7 +26,7 @@ export default function MembershipChips({
         const active = activeIds.includes(item.id);
         const box = `flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
           active
-            ? "border-teal bg-teal text-white"
+            ? "border-teal bg-teal text-on-accent"
             : "border-dashed border-[var(--line)] bg-white text-ink-soft"
         }`;
         const dot = item.color && (

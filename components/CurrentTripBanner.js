@@ -36,11 +36,11 @@ export default function CurrentTripBanner({ trip, today }) {
   const where = tripDayNumber(trip, today);
 
   return (
-    <div className="no-print border-b border-teal/30 bg-teal text-white">
+    <div className="no-print border-b border-teal/30 bg-teal text-on-accent">
       <Link
         href={tripPath(trip, "itinerary")}
         aria-label={`${trip.name} is happening now — open today's plan`}
-        className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-2 transition hover:bg-white/10"
+        className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-2 transition hover:bg-on-accent/10"
       >
         <span aria-hidden="true" className="shrink-0 text-base leading-none">
           {trip.cover_emoji || "🧭"}
@@ -48,7 +48,7 @@ export default function CurrentTripBanner({ trip, today }) {
         {/* The day count comes before the trip name and never truncates: on a
             narrow screen the useful half of this band is which day it is. */}
         {where && (
-          <span className="shrink-0 whitespace-nowrap text-[0.7rem] font-bold uppercase tracking-[0.09em] text-white/80">
+          <span className="shrink-0 whitespace-nowrap text-[0.7rem] font-bold uppercase tracking-[0.09em] text-on-accent/80">
             Day {where.day} of {where.of}
           </span>
         )}
@@ -57,12 +57,12 @@ export default function CurrentTripBanner({ trip, today }) {
         </span>
         {/* Spelled out where there is room, and a chevron where there is not —
             but never nothing, because a band that is a link has to look like one. */}
-        <span className="hidden shrink-0 whitespace-nowrap text-[0.8rem] font-semibold text-white/90 sm:inline">
+        <span className="hidden shrink-0 whitespace-nowrap text-[0.8rem] font-semibold text-on-accent/90 sm:inline">
           Today’s plan →
         </span>
         <span
           aria-hidden="true"
-          className="shrink-0 text-[0.9rem] font-semibold text-white/90 sm:hidden"
+          className="shrink-0 text-[0.9rem] font-semibold text-on-accent/90 sm:hidden"
         >
           →
         </span>

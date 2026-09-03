@@ -134,7 +134,7 @@ export default function TripBuilderStart() {
                   aria-hidden="true"
                   className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
                     on
-                      ? "bg-teal text-white"
+                      ? "bg-teal text-on-accent"
                       : "border border-sand-deep bg-sand text-transparent"
                   }`}
                 >
