@@ -17,7 +17,11 @@ import {
   searchUrl,
 } from "@/lib/places/photon";
 import { normalizeHere } from "@/lib/places/here";
-import { findAddress, looksLikeAddress } from "@/lib/places/street";
+import {
+  addressTrouble,
+  looksLikeAddress,
+  lookUpAddress,
+} from "@/lib/places/street";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -54,11 +58,20 @@ export async function GET(request) {
   // as well as "where are we standing". Everything else keeps the old order.
   let found = null;
   let exact = false;
+  // Why the number could not be placed, when one was typed. Carried back so the
+  // screen can say "the key is not set up" instead of the family concluding they
+  // typed their own address wrong.
+  let trouble = "";
   if (looksLikeAddress(q)) {
-    const hit = await findAddress(q);
+    const { hit, why, detail } = await lookUpAddress(q);
     if (hit) {
       found = { lat: hit.lat, lon: hit.lon, name: hit.address };
       exact = hit.exact;
+    } else {
+      trouble = addressTrouble(why, detail);
+      if (why && why !== "none") {
+        console.warn("address lookup", { why, detail });
+      }
     }
   }
   try {
@@ -95,9 +108,10 @@ export async function GET(request) {
     );
   }
 
-  points.set(key, { here, exact });
+  // A refusal is not worth remembering for half a day.
+  if (!trouble || exact) points.set(key, { here, exact });
   // Whether the point is a door or the middle of the road it is on. The caller
   // decides what to do with that; the difference is a couple of hundred feet,
   // which does not matter for "we are in Skagway" and does for a driveway.
-  return NextResponse.json({ here, exact });
+  return NextResponse.json({ here, exact, ...(trouble ? { trouble } : {}) });
 }

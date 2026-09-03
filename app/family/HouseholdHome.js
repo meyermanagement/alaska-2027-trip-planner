@@ -55,6 +55,9 @@ export default function HouseholdHome({
   // same point a second time -- and the answer to "12 Windsor Court" typed free
   // and "12 Windsor Court" chosen from a list are not always the same answer.
   const [picked, setPicked] = useState(null);
+  // What the lookup said about why it could not place a house number. Shown as a
+  // note rather than an error, because the address still saved.
+  const [note, setNote] = useState("");
 
   async function locate(text) {
     // The same signed-in geocoder the "say where you are" box uses. A failure
@@ -65,6 +68,7 @@ export default function HouseholdHome({
       const res = await fetch(`/api/here?q=${encodeURIComponent(text)}`);
       if (!res.ok) return null;
       const json = await res.json();
+      setNote(typeof json?.trouble === "string" ? json.trouble : "");
       const here = json?.here;
       return Number.isFinite(here?.lat) && Number.isFinite(here?.lon)
         ? {
@@ -83,6 +87,7 @@ export default function HouseholdHome({
     const next = draft.trim().replace(/\s+/g, " ");
     setBusy(true);
     setError("");
+    setNote("");
 
     if (!next) {
       const { error: dbError } = await supabase
@@ -256,6 +261,7 @@ export default function HouseholdHome({
         feet out, which is nothing on the drive to an airport.
       </p>
       {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+      {note ? <p className="mt-2 text-sm text-ink-faint">{note}</p> : null}
     </div>
   );
 }

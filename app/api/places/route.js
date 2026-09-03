@@ -12,9 +12,10 @@ import {
   withoutOutliers,
 } from "@/lib/places/photon";
 import {
+  addressTrouble,
   asSuggestion,
-  findAddress,
   looksLikeAddress,
+  lookUpAddress,
 } from "@/lib/places/street";
 
 export const runtime = "nodejs";
@@ -96,10 +97,11 @@ export async function GET(request) {
   // is only asked when the query opens with a number, because that is the only
   // shape of question OpenStreetMap is reliably missing the answer to, and it
   // is the one where the missing part is the whole point.
-  const [json, exact] = await Promise.all([
+  const wantsAddress = looksLikeAddress(q);
+  const [json, lookup] = await Promise.all([
     fetchJson(searchUrl({ q, lat: bias?.lat ?? null, lon: bias?.lon ?? null })),
-    looksLikeAddress(q)
-      ? findAddress(q, {
+    wantsAddress
+      ? lookUpAddress(q, {
           bias: bias
             ? {
                 circle: {
@@ -109,8 +111,9 @@ export async function GET(request) {
               }
             : null,
         })
-      : null,
+      : { hit: null, why: "", detail: "" },
   ]);
+  const exact = lookup.hit;
   if (!json && !exact) {
     // The geocoder is down or slow. The box stays typeable, which is what it was
     // before this feature existed, so this is a quiet nothing rather than an error.
@@ -130,6 +133,17 @@ export async function GET(request) {
   const places = (
     found ? [found, ...ranked.filter((p) => p.value !== found.value)] : ranked
   ).slice(0, 6);
-  results.set(key, places);
-  return NextResponse.json({ places });
+  // Why there is no house number in the list, when one was asked for. Said out
+  // loud rather than swallowed, because from the outside a missing key, a key
+  // without the right API switched on, and an address Google has never heard of
+  // all look identical -- an empty result -- and they need different fixes.
+  const trouble =
+    wantsAddress && !exact ? addressTrouble(lookup.why, lookup.detail) : "";
+  if (trouble) {
+    console.warn("address lookup", { why: lookup.why, detail: lookup.detail });
+  }
+  // Only the answer is cached. A refusal or a timeout should be retried on the
+  // next keystroke, not remembered for ten minutes.
+  if (!trouble || lookup.why === "none") results.set(key, places);
+  return NextResponse.json({ places, ...(trouble ? { trouble } : {}) });
 }

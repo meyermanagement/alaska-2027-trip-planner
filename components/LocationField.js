@@ -42,6 +42,10 @@ export default function LocationField({
   onEscape = null,
 }) {
   const [places, setPlaces] = useState([]);
+  // A sentence explaining why a typed house number produced only streets. Empty
+  // almost always; when it is not, it is the difference between a small fix on
+  // the server and half an hour of retyping an address that was always right.
+  const [trouble, setTrouble] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [busy, setBusy] = useState(false);
@@ -75,6 +79,7 @@ export default function LocationField({
         // A reply for something the user has since typed past is not an answer.
         if (askedFor.current !== q) return;
         setPlaces(Array.isArray(json?.places) ? json.places : []);
+        setTrouble(typeof json?.trouble === "string" ? json.trouble : "");
         setActive(-1);
       } catch {
         if (askedFor.current === q) setPlaces([]);
@@ -90,6 +95,7 @@ export default function LocationField({
     if (!open) return undefined;
     if (!term) {
       setPlaces([]);
+      setTrouble("");
       return undefined;
     }
     const timer = setTimeout(() => look(term), DEBOUNCE_MS);
@@ -238,6 +244,14 @@ export default function LocationField({
             </li>
           ))}
         </ul>
+      )}
+      {open && !busy && trouble && (
+        <p
+          className={`${showing ? "relative" : "absolute left-0 right-0 z-30"} mt-1 rounded-xl border border-sand-deep bg-white px-3 py-2 text-xs text-ink-faint shadow-lg`}
+          role="status"
+        >
+          {trouble}
+        </p>
       )}
       {open && busy && !places.length && (
         <p className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-sand-deep bg-white px-3 py-2 text-xs text-ink-faint shadow-lg">
