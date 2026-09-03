@@ -1396,6 +1396,19 @@ export default function Itinerary({
                   // spending a screenful on a thing nobody has to do anything
                   // about. See the note in lib/day/phase.js.
                   const shut = phase === "past" && !reopened.has(item.id);
+                  // A place worth an opinion carries its opinion on the folded
+                  // line. Read through reviewTarget for the same reason the card
+                  // does: a hotel typed in as four separate nights holds its
+                  // rating on one of them, and a line reading "not rated" above
+                  // a card showing four stars would be the app contradicting
+                  // itself. Flights and transfers are not places, so they get
+                  // nothing here rather than an empty row of stars.
+                  const rateable = canReviewNow(item, { today, nowHM });
+                  const rated = rateable
+                    ? reviewTarget(item, items) || item
+                    : null;
+                  const stars = rated?.rating || 0;
+                  const noted = Boolean(String(rated?.review || "").trim());
 
                   return (
                     <div key={item.id}>
@@ -1422,6 +1435,30 @@ export default function Itinerary({
                               Cancelled
                             </span>
                           )}
+                          {rateable &&
+                            (stars > 0 ? (
+                              <span
+                                className="tabular shrink-0 text-[0.78rem] leading-none"
+                                aria-label={`Rated ${stars} out of 5`}
+                              >
+                                <span className="text-amber" aria-hidden="true">
+                                  {"★".repeat(stars)}
+                                </span>
+                                <span
+                                  className="text-sand-deep"
+                                  aria-hidden="true"
+                                >
+                                  {"★".repeat(5 - stars)}
+                                </span>
+                                {noted && (
+                                  <span className="ml-1 text-ink-faint">✎</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="shrink-0 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-teal/80">
+                                {noted ? "Noted" : "Rate it"}
+                              </span>
+                            ))}
                           <span
                             aria-hidden="true"
                             className="shrink-0 text-[0.72rem] text-ink-faint"
@@ -1462,9 +1499,10 @@ export default function Itinerary({
                                   type="button"
                                   onClick={() => reopen(item.id)}
                                   aria-expanded="true"
-                                  className="chip no-print border-[var(--line)] text-ink-faint hover:border-teal/40 hover:text-teal"
+                                  aria-label={`${PHASE_LABEL[phase]} — fold this back to one line`}
+                                  className="chip no-print border-teal/30 bg-teal/5 text-teal hover:border-teal hover:bg-teal/10"
                                 >
-                                  {PHASE_LABEL[phase]} · fold up
+                                  ▴ Fold up
                                 </button>
                               ) : (
                                 PHASE_LABEL[phase] && (
