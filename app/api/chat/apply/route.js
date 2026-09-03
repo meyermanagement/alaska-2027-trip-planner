@@ -12,7 +12,11 @@ import {
   EDIT_TOOLS,
   REVIEW_TOOLS,
 } from "@/lib/agent/tools";
-import { appendMessage, ensureConversation } from "@/lib/agent/thread";
+import {
+  adoptConversationTrip,
+  appendMessage,
+  ensureConversation,
+} from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
 import { draftPackingWords, packingWaitsForDraft } from "@/lib/packing/draft";
@@ -760,8 +764,11 @@ export async function POST(request) {
   // chat_messages.trip_id cascades on delete, so the insert is rejected by the
   // foreign key and the confirmation vanishes without a word — which is why
   // deleting a trip appeared to do nothing at all before failing.
+  // A trip created in this batch is what the conversation turned out to be
+  // about, so the receipt goes on it rather than on nothing.
   const receiptTripId =
-    tripId && deletedTripIds.includes(tripId) ? null : tripId;
+    (tripId && deletedTripIds.includes(tripId) ? null : tripId) ||
+    createdTripId;
   const { id: conversationId } = await ensureConversation(supabase, user.id, {
     conversationId:
       typeof payload?.conversationId === "string"
@@ -769,6 +776,15 @@ export async function POST(request) {
         : null,
     tripId: receiptTripId,
   });
+  // And the thread itself follows the trip it built -- see
+  // adoptConversationTrip. Best effort: a receipt that lands is worth more than
+  // a tidy row, and the next question can still find the trip from the panel.
+  if (createdTripId) {
+    await adoptConversationTrip(supabase, {
+      conversationId,
+      tripId: createdTripId,
+    }).catch(() => ({ adopted: false }));
+  }
   await appendMessage(supabase, {
     userId: user.id,
     conversationId,
