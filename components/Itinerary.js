@@ -291,6 +291,44 @@ function ItemFields({ draft, setDraft, destination = "" }) {
  * The note stays closed until asked for. Every finished item growing a textarea
  * would turn the last day of a trip into a wall of empty boxes.
  */
+/**
+ * The one control that folds a finished item down to a line and opens it again.
+ *
+ * A chip reading "Fold up" sat among the status chips, which put a verb in a row
+ * of nouns and made the way back look like another label for what the item is.
+ * A chevron on the left edge is the same shape in both states -- pointing at the
+ * line when it is shut, pointing down at the card when it is open -- so it reads
+ * as one hinge rather than two different buttons.
+ *
+ * Drawn rather than typed. The glyphs that look like chevrons are Geometric
+ * Shapes characters, and their weight and vertical centring vary by platform
+ * enough that the same row looks off-centre on one phone and fine on another.
+ */
+function FoldChevron({ open }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="grid size-5 shrink-0 place-items-center text-ink-faint"
+    >
+      <svg
+        viewBox="0 0 16 16"
+        fill="none"
+        className={`size-3.5 transition-transform duration-150 ${
+          open ? "rotate-90" : ""
+        }`}
+      >
+        <path
+          d="M6 3.5 10.5 8 6 12.5"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
 function ReviewRow({ item, target, busy, onSave }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(target.review || "");
@@ -1419,6 +1457,7 @@ export default function Itinerary({
                           aria-expanded="false"
                           className="no-print flex w-full items-center gap-2 rounded-[0.875rem] border border-[var(--line)] bg-sand/40 px-3 py-2 text-left text-sm text-ink-soft hover:border-teal/40 hover:text-ink"
                         >
+                          <FoldChevron open={false} />
                           <span aria-hidden="true" className="opacity-60">
                             {CATEGORY_ICONS[item.category]}
                           </span>
@@ -1459,12 +1498,6 @@ export default function Itinerary({
                                 {noted ? "Noted" : "Rate it"}
                               </span>
                             ))}
-                          <span
-                            aria-hidden="true"
-                            className="shrink-0 text-[0.72rem] text-ink-faint"
-                          >
-                            ▸
-                          </span>
                         </button>
                       )}
                       <article
@@ -1474,6 +1507,17 @@ export default function Itinerary({
                         aria-current={phase === "next" ? "true" : undefined}
                       >
                         <div className="flex items-start gap-3">
+                          {phase === "past" && (
+                            <button
+                              type="button"
+                              onClick={() => reopen(item.id)}
+                              aria-expanded="true"
+                              aria-label="Fold this back to one line"
+                              className="no-print -my-1 -ml-1 grid size-7 shrink-0 place-items-center rounded-lg hover:bg-sand/60"
+                            >
+                              <FoldChevron open />
+                            </button>
+                          )}
                           <span className="text-xl leading-none">
                             {CATEGORY_ICONS[item.category]}
                           </span>
@@ -1490,32 +1534,16 @@ export default function Itinerary({
                               <span className={`chip ${status.cls}`}>
                                 {status.label}
                               </span>
-                              {/* The same chip that says the thing is behind you
-                                is the way back to one line, because that is
-                                where the eye already is when you decide you are
-                                finished reading it. */}
-                              {phase === "past" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => reopen(item.id)}
-                                  aria-expanded="true"
-                                  aria-label={`${PHASE_LABEL[phase]} — fold this back to one line`}
-                                  className="chip no-print border-teal/30 bg-teal/5 text-teal hover:border-teal hover:bg-teal/10"
+                              {PHASE_LABEL[phase] && (
+                                <span
+                                  className={`chip ${
+                                    phase === "next"
+                                      ? "border-teal/40 bg-teal/10 text-teal"
+                                      : "border-[var(--line)] text-ink-faint"
+                                  }`}
                                 >
-                                  ▴ Fold up
-                                </button>
-                              ) : (
-                                PHASE_LABEL[phase] && (
-                                  <span
-                                    className={`chip ${
-                                      phase === "next"
-                                        ? "border-teal/40 bg-teal/10 text-teal"
-                                        : "border-[var(--line)] text-ink-faint"
-                                    }`}
-                                  >
-                                    {PHASE_LABEL[phase]}
-                                  </span>
-                                )
+                                  {PHASE_LABEL[phase]}
+                                </span>
                               )}
                             </div>
                             {nights && (
