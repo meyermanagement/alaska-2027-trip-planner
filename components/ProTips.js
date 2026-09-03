@@ -299,7 +299,7 @@ export default function ProTips({
   return (
     <section
       aria-label={heading}
-      className={compact ? "mb-3" : "card mb-5 p-5"}
+      className={compact ? "mt-3 mb-3" : "card mb-5 p-5"}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-[0.7rem] font-bold uppercase tracking-[0.09em] text-ink-soft">

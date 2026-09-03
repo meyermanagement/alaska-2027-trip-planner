@@ -210,11 +210,24 @@ export default function TripView({
 
   // Reminders links straight at a trip's task list, so honour ?tab= on arrival.
   // It is read after mount rather than during render so the server and the
-  // browser always draw the same first frame.
+  // browser always draw the same first frame -- which is also why the day-before
+  // rule below lives here instead of in the initial state: the day depends on
+  // whose clock is asked, and the server's is not the family's.
   useEffect(() => {
     const wanted = new URLSearchParams(window.location.search).get("tab");
-    if (wanted && TABS.some((t) => t.id === wanted)) setTab(wanted);
-  }, []);
+    if (wanted && TABS.some((t) => t.id === wanted)) {
+      setTab(wanted);
+      return;
+    }
+    // The night before, the question about a trip stops being what it is and
+    // becomes what still isn't in the bag. Only the day before: on the morning
+    // itself the itinerary is what matters, and two days out the overview still
+    // is. A link that named a tab has already won above, and a draft has no
+    // departure to count down to.
+    if (!isDraftTrip(trip) && daysUntil(trip?.start_date) === 1) {
+      setTab("packing");
+    }
+  }, [trip]);
   const [itinerary, setItinerary] = useState(initialItinerary);
   const [packing, setPacking] = useState(initialPacking);
   const [tasks, setTasks] = useState(initialTasks);
