@@ -1,7 +1,7 @@
 import { Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import BootVeil from "@/components/BootVeil";
-import { DEFAULT_SKIN, SKINS, SKIN_COOKIE } from "@/lib/skins";
+import { DEFAULT_SKIN, SKINS, SKIN_COOKIE, skinById } from "@/lib/skins";
 
 // One editorial serif for names and headings, one quiet sans for everything
 // else. Loaded properly rather than falling back to whatever the device has.
@@ -26,7 +26,9 @@ export const metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1b5a4c",
+  // The first frame's bar, before the script below has read the cookie. It is
+  // the default skin's, because that is what the page is wearing until it has.
+  themeColor: skinById(DEFAULT_SKIN).bar,
 };
 
 // The skin, put on <html> before the browser paints anything.
@@ -44,11 +46,27 @@ export const viewport = {
 //
 // Fails to the default rather than to nothing. If the cookie is missing, junk, or
 // naming a skin this build does not have, the app is the app it has always been.
+// The bar the phone paints above the page comes from the meta tag below rather
+// than from the stylesheet, so it has to be set here too. Without it, choosing
+// Midnight Aurora repainted the whole app and left a spruce band across the top
+// of the phone.
 const applySkin = `(function(){try{
 var m=document.cookie.match(/(?:^|; )${SKIN_COOKIE}=([^;]*)/);
 var s=m?decodeURIComponent(m[1]):"";
-var ok=${JSON.stringify(SKINS.map((skin) => skin.id))};
-document.documentElement.dataset.skin=ok.indexOf(s)>-1?s:"${DEFAULT_SKIN}";
+var bars=${JSON.stringify(
+  Object.fromEntries(SKINS.map((skin) => [skin.id, [skin.bar, skin.dark]])),
+)};
+var id=bars[s]?s:"${DEFAULT_SKIN}";
+var d=document.documentElement;
+d.dataset.skin=id;
+d.style.colorScheme=bars[id][1]?"dark":"light";
+var paint=function(){var t=document.querySelectorAll('meta[name="theme-color"]');
+for(var i=0;i<t.length;i++)t[i].setAttribute("content",bars[id][0]);
+return t.length>0;};
+// Whether the meta tag has been parsed yet depends on where the framework put
+// it relative to this script, and that is not ours to decide. Painted now if it
+// is there, and again once the head is finished if it is not.
+if(!paint())document.addEventListener("DOMContentLoaded",paint);
 }catch(e){}})()`;
 
 export default function RootLayout({ children }) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DEFAULT_SKIN, SKINS, skinOr } from "@/lib/skins";
+import { DEFAULT_SKIN, SKINS, paintChrome, skinOr } from "@/lib/skins";
 
 /**
  * Choosing how the app looks, for one person.
@@ -26,6 +26,10 @@ export default function SkinPicker({ skin: saved }) {
   // press somewhere else in the same browser.
   useEffect(() => {
     document.documentElement.dataset.skin = chosen;
+    // The phone's own bar above the page. It is a meta tag rather than a custom
+    // property, so it is the one surface that does not follow the attribute by
+    // itself and has to be repainted by hand.
+    paintChrome(chosen);
   }, [chosen]);
 
   async function choose(id) {
