@@ -174,10 +174,14 @@ export async function GET(request) {
     );
     missing.forEach((m, n) => {
       forecasts[m.i] = got[n] ?? null;
-      weather.set(
-        `${m.p.lat.toFixed(2)},${m.p.lon.toFixed(2)}`,
-        got[n] ?? null,
-      );
+      // Only a forecast is remembered. A failure used to be cached under the same
+      // half-hour rule as a success, so one bad second upstream took the weather
+      // off the day for thirty minutes and every reload agreed with itself --
+      // which reads as the feature being gone rather than the service being busy.
+      // Not caching the miss costs a repeat request on a genuinely down service
+      // and buys the next page load a chance of an answer.
+      if (got[n])
+        weather.set(`${m.p.lat.toFixed(2)},${m.p.lon.toFixed(2)}`, got[n]);
     });
   }
   // The anchor's forecast still speaks for the day: the band above the items, the

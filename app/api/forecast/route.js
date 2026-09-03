@@ -94,7 +94,9 @@ export async function GET(request) {
     // Seven days is the service's useful range. Asking for more would answer
     // with something, and that something would be climate rather than weather.
     [forecast] = await fetchForecasts([anchor], { days: 7 });
-    weather.set(key, forecast ?? null);
+    // Successes only. A cached failure is a day that keeps insisting it has no
+    // weather for the next half hour, long after the service has recovered.
+    if (forecast) weather.set(key, forecast);
   }
 
   const day = dayOf(forecast, date);
