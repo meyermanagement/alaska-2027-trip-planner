@@ -36,6 +36,10 @@ export default function LocationField({
   destination = "",
   placeholder = "Location",
   className = "field",
+  onPick = null,
+  inputProps = null,
+  onEnter = null,
+  onEscape = null,
 }) {
   const [places, setPlaces] = useState([]);
   const [open, setOpen] = useState(false);
@@ -104,6 +108,10 @@ export default function LocationField({
 
   const choose = (place) => {
     onChange(place.value);
+    // The whole answer, for callers that want more than the words -- the home
+    // address wants the coordinates the lookup already found, rather than
+    // throwing them away and asking a second time for the same point.
+    onPick?.(place);
     setOpen(false);
     setPlaces([]);
     setActive(-1);
@@ -137,6 +145,13 @@ export default function LocationField({
         // still saves the form the rest of the time.
         event.preventDefault();
         choose(places[active]);
+        return;
+      }
+      // Outside a form there is nothing for Enter to submit, so a caller that
+      // has its own save can ask to be told.
+      if (onEnter) {
+        event.preventDefault();
+        onEnter();
       }
       return;
     }
@@ -145,6 +160,11 @@ export default function LocationField({
         event.preventDefault();
         setOpen(false);
         setActive(-1);
+        return;
+      }
+      if (onEscape) {
+        event.preventDefault();
+        onEscape();
       }
       return;
     }
@@ -175,6 +195,7 @@ export default function LocationField({
           showing && active >= 0 ? `${listId}-${active}` : undefined
         }
         autoComplete="off"
+        {...(inputProps || {})}
       />
       {showing && (
         <ul

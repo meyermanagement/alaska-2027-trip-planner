@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import LocationField from "@/components/LocationField";
 
 /**
  * Where the household lives.
@@ -49,6 +50,11 @@ export default function HouseholdHome({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // The suggestion the family actually chose, kept whole. Picking one out of the
+  // list has already found the point, so saving it should not go and ask for the
+  // same point a second time -- and the answer to "12 Windsor Court" typed free
+  // and "12 Windsor Court" chosen from a list are not always the same answer.
+  const [picked, setPicked] = useState(null);
 
   async function locate(text) {
     // The same signed-in geocoder the "say where you are" box uses. A failure
@@ -103,10 +109,20 @@ export default function HouseholdHome({
     // Only looked up when the words changed. Re-geocoding an unchanged address
     // on every save is a request that can only produce the answer already held,
     // or a worse one on a bad day.
+    const chosen =
+      picked && picked.value === next
+        ? {
+            lat: picked.lat,
+            lon: picked.lon,
+            exact: picked.kind === "address",
+            label: picked.value,
+          }
+        : null;
     const point =
-      next === saved.address && saved.lat !== null
+      chosen ||
+      (next === saved.address && saved.lat !== null
         ? { lat: saved.lat, lon: saved.lon, exact: saved.precise, label: "" }
-        : await locate(next);
+        : await locate(next));
 
     // When the lookup matched an actual building it also hands back a tidied
     // version of the address, and that is the better thing to keep: it is what
@@ -191,25 +207,26 @@ export default function HouseholdHome({
         they are, and never shown to anyone outside this household.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <input
-          id="household-home"
-          className="field w-full sm:w-96"
-          value={draft}
-          maxLength={160}
-          placeholder="123 Windsor Court, Webster Groves, MO"
-          autoComplete="street-address"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              save();
-            }
-            if (e.key === "Escape") {
+        <div className="w-full sm:w-96">
+          <LocationField
+            value={draft}
+            onChange={(next) => {
+              setDraft(next);
+              // Typed over: the chosen answer no longer describes what is in the
+              // box, so it stops counting and the save falls back to a lookup.
+              setPicked((was) => (was && was.value === next ? was : null));
+            }}
+            onPick={(place) => setPicked(place)}
+            placeholder="123 Windsor Court, Webster Groves, MO"
+            className="field w-full"
+            inputProps={{ id: "household-home", maxLength: 160 }}
+            onEnter={save}
+            onEscape={() => {
               setOpen(false);
               setError("");
-            }
-          }}
-        />
+            }}
+          />
+        </div>
         <button
           type="button"
           className="btn btn-primary"
@@ -231,12 +248,12 @@ export default function HouseholdHome({
         </button>
       </div>
       <p className="mt-2 text-xs text-ink-faint">
-        The house is looked up when you save. If only the street can be found
-        &mdash; which happens on plenty of residential roads, because the free
-        map this app uses names streets far more completely than it numbers
-        doors &mdash; the point lands in the middle of the block, and it says
-        so. That is a few hundred feet out, which is nothing on the drive to an
-        airport.
+        Suggestions appear as you type, and choosing one keeps the exact point
+        it was found at. If only the street can be found &mdash; which happens
+        on plenty of residential roads, because the free map this app uses names
+        streets far more completely than it numbers doors &mdash; the point
+        lands in the middle of the block, and it says so. That is a few hundred
+        feet out, which is nothing on the drive to an airport.
       </p>
       {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
     </div>

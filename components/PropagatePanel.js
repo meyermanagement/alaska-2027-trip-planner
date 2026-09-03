@@ -102,6 +102,14 @@ export default function PropagatePanel() {
     }
   }
 
+  /** Throw the proposal away. Nothing has been written, so nothing is undone. */
+  function discard() {
+    setPlan(null);
+    setPicked(new Set());
+    setError("");
+    setDone(null);
+  }
+
   const toggle = (key) =>
     setPicked((was) => {
       const next = new Set(was);
@@ -179,6 +187,19 @@ export default function PropagatePanel() {
               {busy === "picked"
                 ? "Applying…"
                 : `Apply the ${chosen.count} ticked`}
+            </button>
+            {/* The way out. A plan that has been read and rejected should be
+                dismissable, not something you leave the page to escape: until
+                now the only exits from a screenful of proposed deletions were
+                to apply some of them or to navigate away. Nothing has been
+                written at this point, so this discards a proposal rather than
+                undoing anything. */}
+            <button
+              className="btn btn-ghost"
+              onClick={discard}
+              disabled={!!busy}
+            >
+              Cancel
             </button>
           </>
         )}
