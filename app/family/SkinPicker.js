@@ -83,11 +83,13 @@ export default function SkinPicker({ skin: saved }) {
     <section className="mt-10">
       <h2 className="font-display text-xl font-semibold">Your look</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Three looks, and the one you pick is yours alone — everyone else in the
+        Five looks, and the one you pick is yours alone — everyone else in the
         family keeps whichever they chose, on every device you sign in on.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      {/* Two across on a tablet and three on a desktop, because five cards do
+          not divide into three columns without leaving a lonely pair. */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SKINS.map((skin) => {
           const on = skin.id === chosen;
           return (

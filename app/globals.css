@@ -1531,3 +1531,234 @@ html[data-skin="daybreak"] #boot-veil {
     --on-photo-shadow: none;
   }
 }
+
+/* ----------------------------------------------------------------------- *
+   Frostglass. The lightest of the five: frosted panes over a pale mesh of
+   cyan, lilac and blush -- the aurora reduced to weather on a window -- with
+   an indigo accent that stays legible in daylight.
+
+   The gallery also opened the corners right up and dropped borders in favor
+   of soft shadow. Corners and hairlines are not per-skin here, so this keeps
+   the app's shapes and takes the palette: the same deviation already noted
+   for the two Auroras, whose typefaces it also does not change.
+ * ----------------------------------------------------------------------- */
+html[data-skin="frost"] {
+  color-scheme: light;
+
+  --color-white: #ffffff;
+  --color-ink: #14161f;
+  --color-ink-soft: #5a6070;
+  --color-ink-faint: #9aa0ae;
+  --color-sand: #eef0f7;
+  --color-sand-deep: #dfe3ef;
+  --color-teal: #4239c9;
+  --color-teal-soft: #e6e4f8;
+  --color-glacier: #0e7c86;
+  --color-amber: #9a5b12;
+  --color-rose: #b03271;
+  --color-on-accent: #ffffff;
+  --color-plum: #6b2fbf;
+
+  --line: rgba(24, 28, 48, 0.09);
+  --line-strong: rgba(24, 28, 48, 0.18);
+  /* No border where a soft shadow will do -- the one piece of the gallery's
+     shape language that survives as a value rather than a rule. */
+  --shadow-card: 0 1px 2px rgba(20, 22, 31, 0.04);
+  --shadow-card-lift:
+    0 1px 2px rgba(20, 22, 31, 0.04), 0 30px 60px -34px rgba(30, 34, 72, 0.42);
+  --shadow-inset: inset 0 1px 2px rgba(24, 28, 48, 0.06);
+
+  --sk-base: #e4e7f2;
+  --sk-sheen: rgba(24, 28, 48, 0.05);
+
+  --on-photo: #191b26;
+  --photo-filter: saturate(1.1) contrast(1.02) brightness(1.04);
+  --photo-opacity: 0.38;
+  --scrim: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.4) 44%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+  --map-water: #e7eaf4;
+  --map-land: #cbd2e6;
+  --map-line: rgba(38, 44, 80, 0.26);
+  --map-opacity: 1;
+  --header-tint: rgba(255, 255, 255, 0.6);
+  --on-photo-rose: #8d1f57;
+  --on-photo-amber: #74430c;
+  --on-photo-shadow: 0 1px 10px rgba(255, 255, 255, 0.65);
+}
+
+/* A photograph under glass keeps its color rather than being drained by the
+   words above it, exactly as on Daybreak Aurora. */
+html[data-skin="frost"] .trip-media .trip-photo {
+  mix-blend-mode: normal;
+}
+
+html[data-skin="frost"] body {
+  background-color: #f7f8fb;
+  background-image:
+    linear-gradient(rgba(24, 28, 48, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24, 28, 48, 0.026) 1px, transparent 1px),
+    radial-gradient(
+      110% 70% at 84% -12%,
+      rgba(179, 123, 255, 0.18) 0%,
+      rgba(179, 123, 255, 0) 60%
+    ),
+    radial-gradient(
+      110% 70% at -8% 104%,
+      rgba(76, 201, 240, 0.22) 0%,
+      rgba(76, 201, 240, 0) 62%
+    ),
+    linear-gradient(180deg, #fbfcfe 0%, #eef1f8 100%);
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto,
+    auto,
+    auto;
+  background-attachment: scroll, scroll, fixed, fixed, fixed;
+}
+
+html[data-skin="frost"] #boot-veil {
+  background-color: #f7f8fb;
+  background-image:
+    radial-gradient(
+      110% 70% at 84% -12%,
+      rgba(179, 123, 255, 0.18) 0%,
+      rgba(179, 123, 255, 0) 60%
+    ),
+    radial-gradient(
+      110% 70% at -8% 104%,
+      rgba(76, 201, 240, 0.22) 0%,
+      rgba(76, 201, 240, 0) 62%
+    ),
+    linear-gradient(180deg, #fbfcfe 0%, #eef1f8 100%);
+}
+
+/* ----------------------------------------------------------------------- *
+   Sodium. Night again, lit by the street rather than the sky: near-black
+   warmed toward brown, an amber wash coming up from the bottom edge the way
+   a town does, and copper hairlines.
+
+   The gallery pairs a serif display with a plain grotesque here. Typefaces
+   are not per-skin in the app -- Fraunces and Geist carry all five -- and
+   Fraunces is already the serif, so the intent survives even though the
+   faces do not change.
+ * ----------------------------------------------------------------------- */
+html[data-skin="sodium"] {
+  color-scheme: dark;
+
+  --color-white: #1a1411;
+  --color-ink: #f4ede4;
+  --color-ink-soft: #b0a294;
+  --color-ink-faint: #7a6e62;
+  --color-sand: #221a15;
+  --color-sand-deep: #2e231b;
+  --color-teal: #f2a54a;
+  --color-teal-soft: #33240f;
+  /* Every other accent here is warm, so the one that marks flights and
+     distances is deliberately not -- a cool pale that stays apart from the
+     amber instead of reading as another shade of it. */
+  --color-glacier: #8fb7c6;
+  --color-amber: #e2c05a;
+  --color-rose: #f4788a;
+  --color-on-accent: #251504;
+  --color-plum: #e2a4dd;
+
+  --line: rgba(255, 228, 196, 0.14);
+  --line-strong: rgba(255, 228, 196, 0.24);
+  --shadow-card: inset 0 1px 0 rgba(255, 235, 210, 0.05);
+  --shadow-card-lift:
+    inset 0 1px 0 rgba(255, 235, 210, 0.07),
+    0 26px 58px -34px rgba(0, 0, 0, 0.95);
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+
+  --sk-base: #221a15;
+  --sk-sheen: rgba(255, 235, 210, 0.07);
+
+  --on-photo: #f7f0e7;
+  --photo-filter: sepia(0.28) saturate(0.85) contrast(1.1) brightness(0.68);
+  --photo-opacity: 0.54;
+  --scrim: linear-gradient(
+    180deg,
+    rgba(16, 12, 10, 0.24) 0%,
+    rgba(16, 12, 10, 0.44) 46%,
+    rgba(16, 12, 10, 0.76) 100%
+  );
+  --map-water: #12100d;
+  --map-land: #241c15;
+  --map-line: rgba(255, 208, 150, 0.14);
+  --map-opacity: 1;
+  --header-tint: rgba(16, 12, 10, 0.6);
+  --on-photo-rose: #ff9eae;
+  --on-photo-amber: #ffd07a;
+  --on-photo-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+}
+
+html[data-skin="sodium"] body {
+  background-color: #100c0a;
+  background-image:
+    linear-gradient(rgba(255, 235, 210, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 235, 210, 0.022) 1px, transparent 1px),
+    radial-gradient(
+      120% 70% at 12% 108%,
+      rgba(242, 165, 74, 0.2) 0%,
+      rgba(242, 165, 74, 0) 62%
+    ),
+    radial-gradient(
+      110% 60% at 92% -10%,
+      rgba(194, 65, 95, 0.16) 0%,
+      rgba(194, 65, 95, 0) 60%
+    ),
+    linear-gradient(180deg, #130e0b 0%, #0c0908 100%);
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto,
+    auto,
+    auto;
+  background-attachment: scroll, scroll, fixed, fixed, fixed;
+}
+
+html[data-skin="sodium"] #boot-veil {
+  background-color: #100c0a;
+  background-image:
+    radial-gradient(
+      120% 70% at 12% 108%,
+      rgba(242, 165, 74, 0.2) 0%,
+      rgba(242, 165, 74, 0) 62%
+    ),
+    radial-gradient(
+      110% 60% at 92% -10%,
+      rgba(194, 65, 95, 0.16) 0%,
+      rgba(194, 65, 95, 0) 60%
+    ),
+    linear-gradient(180deg, #130e0b 0%, #0c0908 100%);
+}
+
+/* Sodium's ink is very nearly white too, so it hands its tokens back to the
+   paper ones for the printer on the same terms as Midnight Aurora. */
+@media print {
+  html[data-skin="sodium"] {
+    color-scheme: light;
+    --color-white: #fff;
+    --color-ink: #241f18;
+    --color-ink-soft: #4a4335;
+    --color-ink-faint: #5c5344;
+    --color-sand: #f4f1ea;
+    --color-sand-deep: #e9e5db;
+    --color-teal: #1b5a4c;
+    --color-teal-soft: #e6efe9;
+    --color-glacier: #1f5675;
+    --color-amber: #8f5416;
+    --color-rose: #96334c;
+    --color-on-accent: #fff;
+    --color-plum: #59386a;
+    --line: #d8d2c4;
+    --line-strong: #bdb5a3;
+    --on-photo: #241f18;
+    --on-photo-shadow: none;
+  }
+}
