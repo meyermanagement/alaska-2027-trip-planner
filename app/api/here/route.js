@@ -95,14 +95,14 @@ export async function GET(request) {
   // typed their own address wrong.
   let trouble = "";
   if (looksLikeAddress(q)) {
-    const { hit, why, detail } = await lookUpAddress(q);
+    const { hit, why, detail, second } = await lookUpAddress(q);
     if (hit) {
       found = { lat: hit.lat, lon: hit.lon, name: hit.address };
       exact = hit.exact;
     } else {
-      trouble = addressTrouble(why, detail);
+      trouble = addressTrouble(why, detail, second);
       if (why && why !== "none") {
-        console.warn("address lookup", { why, detail });
+        console.warn("address lookup", { why, detail, second });
       }
     }
   }

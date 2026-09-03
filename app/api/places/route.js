@@ -215,9 +215,15 @@ export async function GET(request) {
   // without the right API switched on, and an address Google has never heard of
   // all look identical -- an empty result -- and they need different fixes.
   const trouble =
-    wantsAddress && !exact ? addressTrouble(lookup.why, lookup.detail) : "";
+    wantsAddress && !exact
+      ? addressTrouble(lookup.why, lookup.detail, lookup.second)
+      : "";
   if (trouble) {
-    console.warn("address lookup", { why: lookup.why, detail: lookup.detail });
+    console.warn("address lookup", {
+      why: lookup.why,
+      detail: lookup.detail,
+      second: lookup.second,
+    });
   }
   // Only the answer is cached. A refusal or a timeout should be retried on the
   // next keystroke, not remembered for ten minutes.
