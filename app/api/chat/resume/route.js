@@ -1,7 +1,7 @@
 import { tripRef } from "@/lib/trips/route";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { FRESH_EACH_TIME, latestConversation } from "@/lib/agent/thread";
+import { latestConversation, resumesLastThread } from "@/lib/agent/thread";
 import { isKnownFocus } from "@/lib/agent/context";
 
 export const runtime = "nodejs";
@@ -37,13 +37,8 @@ export async function GET(request) {
     asked && asked !== "null" && asked !== "undefined" ? asked : null;
   const focus = isKnownFocus(params.get("focus")) ? params.get("focus") : null;
 
-  // Building a trip from nothing starts fresh every time — see FRESH_EACH_TIME.
-  if (FRESH_EACH_TIME.has(focus)) {
-    return NextResponse.json({ conversation: null });
-  }
-
   // A trip id from the client is trusted only as far as the person's own rows. A
-  // trip that is not theirs reads as no trip, which resumes their general thread
+  // trip that is not theirs reads as no trip, which starts a fresh conversation
   // rather than telling them the trip exists.
   let ownTripId = null;
   let ownTripRef = null;
@@ -55,6 +50,12 @@ export async function GET(request) {
       .maybeSingle();
     ownTripId = data?.id || null;
     ownTripRef = tripRef(data) || null;
+  }
+
+  // Nothing to pick up: a question with no trip behind it opens its own thread.
+  // See resumesLastThread.
+  if (!resumesLastThread(focus, ownTripId)) {
+    return NextResponse.json({ conversation: null });
   }
 
   const { conversation, error } = await latestConversation(supabase, {
