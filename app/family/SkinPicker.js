@@ -83,20 +83,22 @@ export default function SkinPicker({ skin: saved }) {
               }`}
             >
               <span className="flex items-center gap-2">
-                {/* Two dots: the ground, then the accent. Painted from the skin's
-                    own values rather than from the page, because the page is
-                    wearing one of the three and the other two have to be
-                    honest about what they would look like. */}
+                {/* A paint chip: the ground, cut across the diagonal by the
+                    accent. Painted from the skin's own values rather than from
+                    the page, because the page is wearing one of the three and
+                    the other two have to be honest about what they look like.
+
+                    Square and cut on the diagonal on purpose. This was a pill
+                    with a dot parked at one end, which is exactly what a switch
+                    looks like -- and since every chip showed its own accent,
+                    all three read as switched on at once. */}
                 <span
                   aria-hidden="true"
-                  className="inline-flex h-6 w-10 items-center justify-end overflow-hidden rounded-full border border-[var(--line-strong)] pr-1"
-                  style={{ background: skin.swatch[0] }}
-                >
-                  <span
-                    className="h-3.5 w-3.5 rounded-full"
-                    style={{ background: skin.swatch[1] }}
-                  />
-                </span>
+                  className="h-7 w-7 shrink-0 rounded-md border border-[var(--line-strong)]"
+                  style={{
+                    background: `linear-gradient(135deg, ${skin.swatch[0]} 0 48%, ${skin.swatch[1]} 52% 100%)`,
+                  }}
+                />
                 <span className="text-sm font-semibold">{skin.name}</span>
                 {on ? (
                   <span className="chip bg-teal-soft text-teal">
