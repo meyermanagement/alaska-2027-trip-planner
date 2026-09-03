@@ -25,6 +25,12 @@
 //   after five seconds. That fail-safe is in globals.css, not here, because the
 //   whole point is that it works when this file does not.
 //
+// Under the wordmark it says "Travel," and turns one word: personalized,
+// contextualized, simplified. Those are the three promises in the order they
+// are earned -- who is travelling, what the trip actually is, and what that
+// saves them -- and they turn on CSS alone, so they animate in the first frame
+// rather than waiting for React.
+//
 // It is shown once per document load. Moving between tabs afterwards never
 // brings it back: the flag lives on <html>, and the layout is not re-rendered
 // by a client-side navigation.
@@ -131,6 +137,27 @@ export default function BootVeil() {
           />
         </svg>
         <span className="boot-word font-display">Alyeska</span>
+        {/* The tagline turns on CSS keyframes rather than a React interval, for
+            the same reason the veil is markup in the layout: this has to be
+            animating in the first frame of HTML, before any JavaScript has run.
+            An interval would start its first swap after hydration -- which on
+            the open this exists to cover is the moment the veil is already
+            lifting.
+
+            Three words at 900ms each. The cadence in the design was 1.8-2.2s,
+            written for a splash that sits there; this one is held for 620ms and
+            capped at 2600ms, so at two seconds a word the family would only
+            ever see "personalized." and the rotation would be decoration
+            nobody witnessed. Faster is the honest reading of the same idea: a
+            warm open shows one word, a cold open shows two or three. */}
+        <p className="boot-tag" aria-hidden="true">
+          <span className="boot-tag-fixed">Travel,</span>
+          <span className="boot-tag-slot">
+            <span>personalized.</span>
+            <span>contextualized.</span>
+            <span>simplified.</span>
+          </span>
+        </p>
       </div>
     </div>
   );

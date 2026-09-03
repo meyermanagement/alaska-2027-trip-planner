@@ -237,6 +237,92 @@ html[data-booted] #boot-veil {
   color: var(--color-ink);
 }
 
+:root {
+  /* One cycle of the tagline, and one word's share of it. Named because the
+     three words are staggered by exactly one share and the loop has to close
+     on the third -- a hand-typed 1.8s in one rule and 2.7s in another drift
+     apart the first time the cadence is tuned. */
+  --boot-tag-turn: 2.7s;
+  --boot-tag-step: 0.9s;
+}
+
+.boot-tag {
+  /* Arrives after the wordmark, which arrives after the mark: three things
+     settling in order reads as the app waking up, where all three at once
+     reads as a static image somebody screenshotted. */
+  display: flex;
+  align-items: baseline;
+  gap: 0.34ch;
+  margin: 0.1rem 0 0;
+  /* Nudged right by half the slack the reserved slot leaves on an average
+     word. The line is centred as a box, but the box holds room for
+     "contextualized." whether or not that is the word showing, so without this
+     the ink sits visibly left of the compass above it. Half the mean puts the
+     worst case within nine pixels instead of eighteen. */
+  transform: translateX(0.9ch);
+  opacity: 0;
+  animation: boot-word 0.45s ease 0.52s forwards;
+  font-size: 0.9rem;
+  letter-spacing: 0.005em;
+  color: var(--color-ink-soft);
+}
+
+.boot-tag-slot {
+  /* Wide enough for "contextualized." and no wider, with the words stacked in
+     one place. Sized rather than measured because the alternative is the whole
+     lockup sliding sideways every 900ms -- the word is what moves, not the
+     line it sits on. 9.91ch is the measured width of the longest of the three
+     at this size; the tenth is for a fallback face setting it slightly wider
+     before Geist arrives. */
+  position: relative;
+  display: inline-block;
+  width: 10.2ch;
+  height: 1.25em;
+}
+
+.boot-tag-slot span {
+  position: absolute;
+  inset: 0;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-teal);
+  opacity: 0;
+  animation: boot-tag-turn var(--boot-tag-turn) linear infinite both;
+}
+
+.boot-tag-slot span:nth-child(2) {
+  animation-delay: var(--boot-tag-step);
+}
+
+.boot-tag-slot span:nth-child(3) {
+  animation-delay: calc(var(--boot-tag-step) * 2);
+}
+
+/* Up and into focus, out and up again -- the word is read as replaced rather
+   than as flickering. The percentages are one 900ms share of the 2.7s loop:
+   in by 8%, held to 26%, gone by 33%, absent for the other two shares. */
+@keyframes boot-tag-turn {
+  0% {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(0.5em);
+  }
+
+  8%,
+  26% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+
+  33%,
+  100% {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(-0.4em);
+  }
+}
+
 /* The compass draws itself: the ring and the needle outline are stroked in, and
    the filled half of the needle arrives once the outline is nearly closed. */
 .boot-mark circle,
@@ -294,9 +380,24 @@ html[data-booted] #boot-veil {
     animation: none;
   }
 
-  .boot-word {
+  .boot-word,
+  .boot-tag {
     opacity: 1;
     animation: none;
+  }
+
+  /* One word, standing still. The turn is the whole animation, so there is
+     nothing to slow down -- only a choice of which promise to make, and the
+     first one is the one the rest depend on. */
+  .boot-tag-slot span {
+    animation: none;
+    opacity: 0;
+  }
+
+  .boot-tag-slot span:first-child {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
   }
 }
 
