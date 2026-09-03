@@ -864,6 +864,7 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     tripPets,
     insights,
     tripTemplates,
+    households,
   ] = await Promise.all([
     // Who is asking. One more query in a batch of seventeen costs nothing; on
     // its own, in front of them, it cost a whole round trip.
@@ -956,6 +957,9 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     // can see what a trip already claims to be before she proposes a change to
     // it, and so she does not offer to add a list a trip is already using.
     supabase.from("trip_templates").select("trip_id, template_id"),
+    // Where they leave from. RLS keeps this to the households they belong to,
+    // and the first one is the one every other query here is already about.
+    supabase.from("families").select("name, home_address, home_lat, home_lon"),
   ]);
 
   return buildContext({
@@ -980,6 +984,7 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     insights: insights.data || [],
     message: said,
     userName: profile?.data?.display_name,
+    home: households?.data?.[0] || null,
   });
 }
 

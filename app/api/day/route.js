@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { makeCache } from "@/lib/places/photon";
+import { haversineKm, makeCache } from "@/lib/places/photon";
 import { locateItems } from "@/lib/day/locate";
 import { dayEnds } from "@/lib/day/ends";
 import { sortItinerary } from "@/lib/day/order";
@@ -57,6 +57,19 @@ const weather = makeCache({ ttlMs: 30 * 60 * 1000, max: 60 });
 // roughly true when it says so.
 const legs = makeCache({ ttlMs: 10 * 60 * 1000, max: 300 });
 
+// How far from the house the first thing of a day can be before "leave from
+// home" stops being a sensible reading of it. Roughly an hour's drive: far
+// enough to cover an airport, a port and a weekend two counties over, close
+// enough that Anchorage never qualifies.
+const HOME_REACH_KM = 90;
+
+/** Whether the first item of a day is close enough to have been left for. */
+function nearHome(home, to) {
+  if (!home || !to) return false;
+  const km = haversineKm(home, to);
+  return Number.isFinite(km) && km <= HOME_REACH_KM;
+}
+
 export async function GET(request) {
   const supabase = await createClient();
   const {
@@ -92,6 +105,24 @@ export async function GET(request) {
     .maybeSingle();
   if (tripError || !trip)
     return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  // Where the household leaves from. Only read when nobody has said where they
+  // are, because a saved address is a fact about the family and a shared position
+  // is a fact about this minute, and the minute wins.
+  let home = null;
+  if (!here) {
+    const { data: household } = await supabase
+      .from("families")
+      .select("home_address, home_lat, home_lon")
+      .eq("id", trip.family_id)
+      .maybeSingle();
+    home = normalizeHere({
+      lat: household?.home_lat,
+      lon: household?.home_lon,
+      label: household?.home_address,
+      source: "manual",
+    });
+  }
 
   const { data: rows } = await supabase
     .from("itinerary_items")
@@ -237,7 +268,16 @@ export async function GET(request) {
     const to = points.get(item.id);
     if (!to) continue;
     const previous = n === 0 ? null : timed[n - 1];
-    const from = previous ? points.get(previous.id) : here;
+    // The first thing of the day is measured from wherever the family said they
+    // are, and failing that from the house -- but only when the house is a
+    // plausible answer. Home is the right origin for the morning the trip starts
+    // and nonsense for day four in Denali, and the app cannot ask which one this
+    // is. So it lets the distance decide: within an hour or so of the driveway,
+    // leaving from home is the likeliest reading of the day; past that the
+    // family is already away and the honest answer is no departure time at all.
+    const from = previous
+      ? points.get(previous.id)
+      : here || (nearHome(home, to) ? home : null);
     if (!from) continue;
 
     const departAt = departureFor(date, item.start_time, forecast?.timezone);

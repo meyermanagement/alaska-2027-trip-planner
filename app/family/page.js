@@ -5,6 +5,7 @@ import TopBar from "@/components/TopBar";
 import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import HouseholdName from "./HouseholdName";
+import HouseholdHome from "./HouseholdHome";
 import People from "./People";
 import Pets from "./Pets";
 import { todayISO } from "@/lib/reminders";
@@ -21,7 +22,9 @@ export default async function PeoplePage() {
 
   const { data: memberships } = await supabase
     .from("family_members")
-    .select("family_id, families (id, name)")
+    .select(
+      "family_id, families (id, name, home_address, home_lat, home_lon, home_precise)",
+    )
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
 
@@ -119,6 +122,13 @@ export default async function PeoplePage() {
             family group can open this page.
           </p>
           <HouseholdName familyId={familyId} name={household?.name || ""} />
+          <HouseholdHome
+            familyId={familyId}
+            address={household?.home_address || ""}
+            lat={household?.home_lat ?? null}
+            lon={household?.home_lon ?? null}
+            precise={household?.home_precise === true}
+          />
         </div>
         <People
           familyId={familyId}

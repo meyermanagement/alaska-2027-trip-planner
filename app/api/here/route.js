@@ -17,6 +17,7 @@ import {
   searchUrl,
 } from "@/lib/places/photon";
 import { normalizeHere } from "@/lib/places/here";
+import { findAddress, looksLikeAddress } from "@/lib/places/street";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -41,13 +42,27 @@ export async function GET(request) {
 
   const key = q.toLowerCase();
   const cached = points.get(key);
-  if (cached) return NextResponse.json({ here: cached, cached: true });
+  if (cached)
+    return NextResponse.json({
+      here: cached.here,
+      exact: cached.exact,
+      cached: true,
+    });
 
-  // Towns and districts first, because someone typing where they are means a
-  // place rather than a building. A hotel name falls through to the wider search.
+  // A house number is asked of Google first, because OpenStreetMap mostly does
+  // not have doors and this endpoint now answers "where does the household live"
+  // as well as "where are we standing". Everything else keeps the old order.
   let found = null;
+  let exact = false;
+  if (looksLikeAddress(q)) {
+    const hit = await findAddress(q);
+    if (hit) {
+      found = { lat: hit.lat, lon: hit.lon, name: hit.address };
+      exact = hit.exact;
+    }
+  }
   try {
-    found = pointFrom(await fetchJson(destinationUrl(q)));
+    if (!found) found = pointFrom(await fetchJson(destinationUrl(q)));
     if (!found) {
       found = pointFrom(await fetchJson(searchUrl({ q, limit: 1 })));
     }
@@ -80,6 +95,9 @@ export async function GET(request) {
     );
   }
 
-  points.set(key, here);
-  return NextResponse.json({ here });
+  points.set(key, { here, exact });
+  // Whether the point is a door or the middle of the road it is on. The caller
+  // decides what to do with that; the difference is a couple of hundred feet,
+  // which does not matter for "we are in Skagway" and does for a driveway.
+  return NextResponse.json({ here, exact });
 }

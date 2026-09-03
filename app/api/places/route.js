@@ -11,6 +11,11 @@ import {
   searchUrl,
   withoutOutliers,
 } from "@/lib/places/photon";
+import {
+  asSuggestion,
+  findAddress,
+  looksLikeAddress,
+} from "@/lib/places/street";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -87,19 +92,43 @@ export async function GET(request) {
   }
   const bias = biasPoint(stops);
 
-  const json = await fetchJson(
-    searchUrl({ q, lat: bias?.lat ?? null, lon: bias?.lon ?? null }),
-  );
-  if (!json) {
+  // A typed house number and the free geocoder, asked at the same time. Google
+  // is only asked when the query opens with a number, because that is the only
+  // shape of question OpenStreetMap is reliably missing the answer to, and it
+  // is the one where the missing part is the whole point.
+  const [json, exact] = await Promise.all([
+    fetchJson(searchUrl({ q, lat: bias?.lat ?? null, lon: bias?.lon ?? null })),
+    looksLikeAddress(q)
+      ? findAddress(q, {
+          bias: bias
+            ? {
+                circle: {
+                  center: { latitude: bias.lat, longitude: bias.lon },
+                  radius: 50000,
+                },
+              }
+            : null,
+        })
+      : null,
+  ]);
+  if (!json && !exact) {
     // The geocoder is down or slow. The box stays typeable, which is what it was
     // before this feature existed, so this is a quiet nothing rather than an error.
     return NextResponse.json({ places: [], unavailable: true });
   }
 
-  const places = rankPlaces(
-    json.features || [],
+  const ranked = rankPlaces(
+    json?.features || [],
     kindsForCategory(category),
     stops,
+  );
+  // The addressed answer goes first and unranked. Somebody who typed a house
+  // number wants that house, and the street it is on -- which Photon has just
+  // returned and which is now a duplicate of it -- is what they were settling
+  // for. The street stays in the list underneath, in case the number was wrong.
+  const found = asSuggestion(exact);
+  const places = (
+    found ? [found, ...ranked.filter((p) => p.value !== found.value)] : ranked
   ).slice(0, 6);
   results.set(key, places);
   return NextResponse.json({ places });
