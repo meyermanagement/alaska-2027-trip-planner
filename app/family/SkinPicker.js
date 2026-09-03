@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DEFAULT_SKIN, SKINS, paintChrome, skinOr } from "@/lib/skins";
+import {
+  DEFAULT_SKIN,
+  SKINS,
+  chromeFollowsAlong,
+  paintChrome,
+  skinOr,
+} from "@/lib/skins";
 
 /**
  * Choosing how the app looks, for one person.
@@ -47,6 +53,19 @@ export default function SkinPicker({ skin: saved }) {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || "Could not save that.");
+      }
+      // Everything the stylesheet owns has already turned. What has not, on an
+      // iPhone, is the strip the clock and the battery sit in: Safari fixes that
+      // color while it is parsing the document and will not look at it again, so
+      // the page has to be parsed again to change it. Loading it fresh now is
+      // less strange than a settings page that visibly does not finish the job
+      // and leaves a band of the last skin above it until you happen to reload.
+      //
+      // Only where that is actually the situation, and only after the save came
+      // back, so a reload can never be what loses the choice.
+      if (!chromeFollowsAlong()) {
+        window.location.reload();
+        return;
       }
     } catch (err) {
       setChosen(was);
