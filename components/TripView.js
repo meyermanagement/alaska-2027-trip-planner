@@ -219,13 +219,26 @@ export default function TripView({
       setTab(wanted);
       return;
     }
-    // The night before, the question about a trip stops being what it is and
-    // becomes what still isn't in the bag. Only the day before: on the morning
-    // itself the itinerary is what matters, and two days out the overview still
-    // is. A link that named a tab has already won above, and a draft has no
-    // departure to count down to.
-    if (!isDraftTrip(trip) && daysUntil(trip?.start_date) === 1) {
+    // What the screen is for changes as a trip arrives, so what it opens on does
+    // too. The night before, the question stops being what the trip is and becomes
+    // what still isn't in the bag. From the morning of departure until the family
+    // is home, it becomes what is happening today and where they have to be. Two
+    // days out and further, the overview is still the answer.
+    //
+    // A link that named a tab has already won above, and a draft has no departure
+    // to count toward.
+    if (isDraftTrip(trip)) return;
+    const away = daysUntil(trip?.start_date);
+    if (away === 1) {
       setTab("packing");
+      return;
+    }
+    // Underway. Counted to the last day rather than only the first, because on day
+    // four of a cruise the itinerary is no less the thing than it was on day one --
+    // and a trip with no end date gets the day of departure alone.
+    const over = daysUntil(trip?.end_date ?? trip?.start_date);
+    if (away !== null && away <= 0 && (over === null || over >= 0)) {
+      setTab("itinerary");
     }
   }, [trip]);
   const [itinerary, setItinerary] = useState(initialItinerary);
