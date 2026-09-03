@@ -191,7 +191,7 @@ body {
     opacity 0.42s ease,
     transform 0.42s ease,
     visibility 0s linear 0.42s;
-  animation: boot-failsafe 0s linear 5s forwards;
+  animation: boot-failsafe 0s linear 8s forwards;
 }
 
 html[data-booted] #boot-veil {
@@ -242,49 +242,53 @@ html[data-booted] #boot-veil {
      three words are staggered by exactly one share and the loop has to close
      on the third -- a hand-typed 1.8s in one rule and 2.7s in another drift
      apart the first time the cadence is tuned. */
-  --boot-tag-turn: 2.7s;
-  --boot-tag-step: 0.9s;
+  --boot-tag-turn: 5.7s;
+  --boot-tag-step: 1.9s;
 }
 
 .boot-tag {
-  /* Arrives after the wordmark, which arrives after the mark: three things
+  /* Two lines, both centred on the same axis as the compass and the wordmark
+     above them. It was one line -- "Travel," fixed with the word beside it --
+     which meant the phrase had to sit in a box wide enough for the longest of
+     the three whichever word was showing, so a short word left the whole line
+     reading off-centre. Stacking it fixes that outright rather than by
+     nudging: "Travel," is centred, the word below it is centred, and neither
+     of them moves when the word changes.
+
+     Arrives after the wordmark, which arrives after the mark: three things
      settling in order reads as the app waking up, where all three at once
      reads as a static image somebody screenshotted. */
   display: flex;
-  align-items: baseline;
-  gap: 0.34ch;
-  margin: 0.1rem 0 0;
-  /* Nudged right by half the slack the reserved slot leaves on an average
-     word. The line is centred as a box, but the box holds room for
-     "contextualized." whether or not that is the word showing, so without this
-     the ink sits visibly left of the compass above it. Half the mean puts the
-     worst case within nine pixels instead of eighteen. */
-  transform: translateX(0.9ch);
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  margin: 0.45rem 0 0;
   opacity: 0;
   animation: boot-word 0.45s ease 0.52s forwards;
+  line-height: 1.2;
+}
+
+.boot-tag-fixed {
   font-size: 0.9rem;
-  letter-spacing: 0.005em;
+  letter-spacing: 0.04em;
   color: var(--color-ink-soft);
 }
 
 .boot-tag-slot {
-  /* Wide enough for "contextualized." and no wider, with the words stacked in
-     one place. Sized rather than measured because the alternative is the whole
-     lockup sliding sideways every 900ms -- the word is what moves, not the
-     line it sits on. 9.91ch is the measured width of the longest of the three
-     at this size; the tenth is for a fallback face setting it slightly wider
-     before Geist arrives. */
-  position: relative;
-  display: inline-block;
-  width: 10.2ch;
-  height: 1.25em;
+  /* All three words in one grid cell, so the box is as wide as the longest of
+     them and never resizes, and each word is centred inside it. No reserved
+     slack to correct for, because the words are centred on the axis rather
+     than butted against a fixed left edge. */
+  display: inline-grid;
+  grid-template-areas: "word";
 }
 
 .boot-tag-slot span {
-  position: absolute;
-  inset: 0;
-  text-align: left;
+  grid-area: word;
+  text-align: center;
+  font-size: 1.32rem;
   font-weight: 600;
+  letter-spacing: -0.012em;
   color: var(--color-teal);
   opacity: 0;
   animation: boot-tag-turn var(--boot-tag-turn) linear infinite both;
@@ -299,17 +303,19 @@ html[data-booted] #boot-veil {
 }
 
 /* Up and into focus, out and up again -- the word is read as replaced rather
-   than as flickering. The percentages are one 900ms share of the 2.7s loop:
-   in by 8%, held to 26%, gone by 33%, absent for the other two shares. */
+   than as flickering. The percentages are one 1.9s share of the 5.7s loop: in
+   by 4%, held to 28%, gone by 33%, absent for the other two shares. That
+   leaves about a second and a half of stillness on each word, which is long
+   enough to read the word and notice it is a claim rather than a spinner. */
 @keyframes boot-tag-turn {
   0% {
     opacity: 0;
-    filter: blur(4px);
-    transform: translateY(0.5em);
+    filter: blur(5px);
+    transform: translateY(0.42em);
   }
 
-  8%,
-  26% {
+  4%,
+  28% {
     opacity: 1;
     filter: blur(0);
     transform: translateY(0);
@@ -318,8 +324,8 @@ html[data-booted] #boot-veil {
   33%,
   100% {
     opacity: 0;
-    filter: blur(4px);
-    transform: translateY(-0.4em);
+    filter: blur(5px);
+    transform: translateY(-0.34em);
   }
 }
 

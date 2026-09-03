@@ -37,15 +37,19 @@
 
 import { useEffect } from "react";
 
-// Shortest time the mark stays up. The draw itself takes 1.15s, but being cut
-// off part-drawn looks intentional -- the veil fades, it does not snap -- and
-// waiting out the full draw on a fast connection would make the app slower for
-// no reason anybody can see.
-const HOLD_MS = 620;
+// Shortest time the mark stays up: one full turn of the tagline, three words at
+// 1.9s each. It was 620ms, chosen so a fast open stayed fast, which meant the
+// rotation was a thing only a slow connection ever saw. Holding for the whole
+// turn is a deliberate trade -- every open now costs the family five and a half
+// seconds they did not previously spend -- and it is the reason the words get
+// long enough on screen to be read as claims rather than as a spinner.
+const HOLD_MS = 5700;
 
 // Longest. Past this the page is shown whatever state it is in, because a veil
-// held over a screen that is never going to finish is just a hidden error.
-const CAP_MS = 2600;
+// held over a screen that is never going to finish is just a hidden error. It
+// has to sit above HOLD_MS with room to spare, and below the stylesheet's
+// fail-safe, or one of the three would be quietly overruling another.
+const CAP_MS = 7200;
 
 export default function BootVeil() {
   useEffect(() => {
@@ -144,12 +148,10 @@ export default function BootVeil() {
             the open this exists to cover is the moment the veil is already
             lifting.
 
-            Three words at 900ms each. The cadence in the design was 1.8-2.2s,
-            written for a splash that sits there; this one is held for 620ms and
-            capped at 2600ms, so at two seconds a word the family would only
-            ever see "personalized." and the rotation would be decoration
-            nobody witnessed. Faster is the honest reading of the same idea: a
-            warm open shows one word, a cold open shows two or three. */}
+            Three words at 1.9s each, and the veil is now held for the whole
+            turn rather than the other way round -- a rotation nobody stays
+            long enough to see is not worth having, and a word that leaves
+            before it has been read is a spinner with letters on it. */}
         <p className="boot-tag" aria-hidden="true">
           <span className="boot-tag-fixed">Travel,</span>
           <span className="boot-tag-slot">
