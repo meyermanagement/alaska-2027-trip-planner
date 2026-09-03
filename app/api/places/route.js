@@ -29,6 +29,63 @@ const results = makeCache({ ttlMs: 10 * 60 * 1000, max: 300 });
 // keeping for the day. This is what keeps a five-stop trip to five lookups
 // rather than five per search.
 const points = makeCache({ ttlMs: 12 * 60 * 60 * 1000, max: 50 });
+// The household's own address, per signed-in person. Short-lived on purpose: it
+// is editable on the Family page and a stale one would be offered as the place
+// the family lives.
+const homes = makeCache({ ttlMs: 5 * 60 * 1000, max: 50 });
+
+/**
+ * Where the family lives, as something the list can offer.
+ *
+ * Almost every trip begins and ends at the same address, and typing it out again
+ * on the drive to the airport, the drive home, and the kennel drop-off is work
+ * the app already knows the answer to. It is labeled "Home" rather than by its
+ * street, because that is what it is to the person choosing it -- and it saves
+ * the full address, because that is what a drive has to be measured from.
+ */
+async function homeSuggestion(supabase, userId) {
+  const held = homes.get(userId);
+  if (held !== undefined) return held;
+  let made = null;
+  const { data } = await supabase
+    .from("families")
+    .select("home_address, home_lat, home_lon, home_precise")
+    .not("home_address", "is", null)
+    .limit(1);
+  const row = data?.[0];
+  if (row?.home_address) {
+    made = {
+      name: "Home",
+      detail: row.home_address,
+      value: row.home_address,
+      kind: row.home_precise ? "address" : "street",
+      lat: Number.isFinite(row.home_lat) ? row.home_lat : null,
+      lon: Number.isFinite(row.home_lon) ? row.home_lon : null,
+    };
+  }
+  homes.set(userId, made);
+  return made;
+}
+
+/**
+ * Whether Home belongs at the top of this particular list.
+ *
+ * On an empty box, yes -- that is the tap this exists for. While typing, only
+ * when the words point at it, either the word "home" being spelled out or the
+ * address itself being typed. Anyone typing a restaurant name should not have to
+ * scroll past their own house to reach it.
+ */
+function wantsHome(q, home, blank) {
+  // Nothing typed. Whatever else is in the list was guessed from the title of the
+  // thing being planned, and a guess does not outrank the house.
+  if (blank) return true;
+  const said = q.trim().toLowerCase();
+  if (said.length < 2) return true;
+  if ("home".startsWith(said)) return true;
+  return String(home.detail || "")
+    .toLowerCase()
+    .includes(said);
+}
 
 /**
  * Place suggestions for the location box.
@@ -51,12 +108,32 @@ export async function GET(request) {
   const near = (params.get("near") || "").trim().slice(0, 120);
   const category = (params.get("category") || "").trim().slice(0, 40);
 
-  // Two characters is not a search, it is the beginning of one.
-  if (q.length < 2) return NextResponse.json({ places: [] });
+  // Home is offered before anything has been typed, which is the whole point of
+  // it, so this runs before the too-short check turns the search away.
+  const offerHome = params.get("home") === "1";
+  // An empty box, searching for the title instead. Home belongs at the top of it.
+  const blank = params.get("blank") === "1";
+  const home = offerHome ? await homeSuggestion(supabase, user.id) : null;
+
+  // Two characters is not a search, it is the beginning of one. Home is not a
+  // search result, so it still gets through.
+  if (q.length < 2) {
+    return NextResponse.json({ places: home ? [home] : [] });
+  }
+
+  // Home is stitched on after the cache, not into it: the cache is shared by
+  // everyone on the instance and the address is not.
+  const withHome = (places) => {
+    if (!home) return places;
+    if (!wantsHome(q, home, blank)) return places;
+    return [home, ...places.filter((p) => p.value !== home.value)].slice(0, 6);
+  };
 
   const key = `${q.toLowerCase()}|${near.toLowerCase()}|${category}`;
   const cached = results.get(key);
-  if (cached) return NextResponse.json({ places: cached, cached: true });
+  if (cached) {
+    return NextResponse.json({ places: withHome(cached), cached: true });
+  }
 
   // Every stop on the trip, not just the first one. The bias sent to Photon is
   // the middle stop, and the ranking afterwards measures against all of them, so
@@ -117,7 +194,7 @@ export async function GET(request) {
   if (!json && !exact) {
     // The geocoder is down or slow. The box stays typeable, which is what it was
     // before this feature existed, so this is a quiet nothing rather than an error.
-    return NextResponse.json({ places: [], unavailable: true });
+    return NextResponse.json({ places: withHome([]), unavailable: true });
   }
 
   const ranked = rankPlaces(
@@ -145,5 +222,8 @@ export async function GET(request) {
   // Only the answer is cached. A refusal or a timeout should be retried on the
   // next keystroke, not remembered for ten minutes.
   if (!trouble || lookup.why === "none") results.set(key, places);
-  return NextResponse.json({ places, ...(trouble ? { trouble } : {}) });
+  return NextResponse.json({
+    places: withHome(places),
+    ...(trouble ? { trouble } : {}),
+  });
 }

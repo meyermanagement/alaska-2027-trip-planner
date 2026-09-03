@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import LocationField from "@/components/LocationField";
@@ -58,6 +58,115 @@ export default function HouseholdHome({
   // What the lookup said about why it could not place a house number. Shown as a
   // note rather than an error, because the address still saved.
   const [note, setNote] = useState("");
+  // Asking the phone. Separate from the save spinner, because the two can happen
+  // at once and mean different things.
+  const [finding, setFinding] = useState(false);
+  // Whether the phone will even be asked. Resolved once, on opening the form,
+  // so a device with no location services never shows a button that cannot work.
+  const [canAsk, setCanAsk] = useState(false);
+
+  /**
+   * The address the phone is standing at.
+   *
+   * Called two ways. Quietly, when the box is opened and the browser says
+   * permission has already been given -- there is no prompt to spring in that
+   * case, so asking is free and the family gets their own address handed to them.
+   * And loudly, from the button, which is the only path allowed to raise a
+   * permission prompt, because a prompt should follow something that was pressed.
+   *
+   * It fills the box rather than saving. A reverse lookup can name the house next
+   * door, and the family reads the words before they become the place their trips
+   * start from.
+   */
+  async function useThePhone({ quiet } = { quiet: false }) {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    setError("");
+    setNote("");
+    setFinding(true);
+    const position = await new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve(p),
+        () => resolve(null),
+        // A five minute old fix is still the same driveway, and reusing one means
+        // no wait for a cold lock.
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+      );
+    });
+    if (!position) {
+      setFinding(false);
+      if (!quiet) {
+        setNote(
+          "This device would not say where it is. Type the address instead.",
+        );
+      }
+      return;
+    }
+    const { latitude, longitude } = position.coords || {};
+    try {
+      const res = await fetch(`/api/here?at=${latitude},${longitude}`);
+      const json = await res.json();
+      if (!res.ok || !json?.here) {
+        if (!quiet) {
+          setNote(
+            json?.error || "No address was found where you are standing.",
+          );
+        }
+        return;
+      }
+      const label = json.here.label || "";
+      setDraft(label);
+      // The point came back with the words, so a save does not need to look the
+      // same address up again.
+      setPicked({
+        value: label,
+        kind: json.exact ? "address" : "street",
+        lat: json.here.lat,
+        lon: json.here.lon,
+      });
+      setNote(
+        json.exact
+          ? "That is the address at your position. Check it, then save."
+          : "That is the nearest address to your position, placed on the street rather than at the house. Check it, then save.",
+      );
+    } catch {
+      if (!quiet) {
+        setNote("The address lookup did not answer. Try again in a moment.");
+      }
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  // Can the phone be asked, and has it already agreed? Read on opening the form.
+  // A granted permission is acted on straight away; anything else waits for the
+  // button, so nobody gets a browser prompt for opening a text field.
+  useEffect(() => {
+    if (!open) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setCanAsk(false);
+      return;
+    }
+    setCanAsk(true);
+    let stop = false;
+    navigator.permissions
+      ?.query({ name: "geolocation" })
+      .then((status) => {
+        if (stop) return;
+        if (status.state === "denied") setCanAsk(false);
+        // Already allowed, and the box is empty: fill it in without being asked.
+        if (status.state === "granted" && !draft.trim()) {
+          useThePhone({ quiet: true });
+        }
+      })
+      .catch(() => {
+        // Safari without the permissions API. The button still works.
+      });
+    return () => {
+      stop = true;
+    };
+    // Deliberately only on opening: re-running this while somebody types would
+    // fight them for the box.
+  }, [open]);
 
   async function locate(text) {
     // The same signed-in geocoder the "say where you are" box uses. A failure
@@ -212,7 +321,7 @@ export default function HouseholdHome({
         they are, and never shown to anyone outside this household.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <div className="w-full sm:w-96">
+        <div className="w-full sm:w-[30rem]">
           <LocationField
             value={draft}
             onChange={(next) => {
@@ -222,7 +331,7 @@ export default function HouseholdHome({
               setPicked((was) => (was && was.value === next ? was : null));
             }}
             onPick={(place) => setPicked(place)}
-            placeholder="123 Windsor Court, Webster Groves, MO"
+            placeholder="1234 Example Street, Springfield, MO 65801"
             className="field w-full"
             inputProps={{ id: "household-home", maxLength: 160 }}
             onEnter={save}
@@ -252,16 +361,28 @@ export default function HouseholdHome({
           Cancel
         </button>
       </div>
+      {canAsk && (
+        <button
+          type="button"
+          className="mt-2 text-sm text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:no-underline disabled:opacity-60"
+          disabled={finding || busy}
+          onClick={() => useThePhone({ quiet: false })}
+        >
+          {finding ? "Asking this device…" : "Use where I am now"}
+        </button>
+      )}
+      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+      {note ? <p className="mt-2 text-sm text-ink-soft">{note}</p> : null}
       <p className="mt-2 text-xs text-ink-faint">
         Suggestions appear as you type, and choosing one keeps the exact point
-        it was found at. If only the street can be found &mdash; which happens
-        on plenty of residential roads, because the free map this app uses names
-        streets far more completely than it numbers doors &mdash; the point
-        lands in the middle of the block, and it says so. That is a few hundred
-        feet out, which is nothing on the drive to an airport.
+        it was found at. If this device has already been allowed to share its
+        location, the box fills itself in when you open it. If only the street
+        can be found &mdash; which happens on plenty of residential roads,
+        because the free map this app uses names streets far more completely
+        than it numbers doors &mdash; the point lands in the middle of the
+        block, and it says so. That is a few hundred feet out, which is nothing
+        on the drive to an airport.
       </p>
-      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
-      {note ? <p className="mt-2 text-sm text-ink-faint">{note}</p> : null}
     </div>
   );
 }

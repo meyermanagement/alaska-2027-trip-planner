@@ -40,6 +40,7 @@ export default function LocationField({
   inputProps = null,
   onEnter = null,
   onEscape = null,
+  offerHome = false,
 }) {
   const [places, setPlaces] = useState([]);
   // A sentence explaining why a typed house number produced only streets. Empty
@@ -62,8 +63,10 @@ export default function LocationField({
   const term = typed.length >= MIN_CHARS ? typed : "";
 
   const look = useCallback(
-    async (q) => {
-      if (!q || q.length < MIN_CHARS) {
+    async (q, { blank = false } = {}) => {
+      // Nothing typed is still worth asking about when Home is on offer: it is
+      // the one suggestion that does not need a search behind it.
+      if ((!q || q.length < MIN_CHARS) && !offerHome) {
         setPlaces([]);
         setBusy(false);
         return;
@@ -71,7 +74,12 @@ export default function LocationField({
       askedFor.current = q;
       setBusy(true);
       try {
-        const params = new URLSearchParams({ q });
+        const params = new URLSearchParams({ q: q || "" });
+        if (offerHome) params.set("home", "1");
+        // The box is empty and this search is a guess made from the title. Home is
+        // wanted at the top of that list too -- more so, in fact, since nothing
+        // has been typed to disagree with it.
+        if (blank) params.set("blank", "1");
         if (destination) params.set("near", destination);
         if (category) params.set("category", category);
         const res = await fetch(`/api/places?${params.toString()}`);
@@ -87,20 +95,26 @@ export default function LocationField({
         if (askedFor.current === q) setBusy(false);
       }
     },
-    [destination, category],
+    [destination, category, offerHome],
   );
 
   // Typing. One request per pause, not one per keystroke.
   useEffect(() => {
     if (!open) return undefined;
     if (!term) {
-      setPlaces([]);
       setTrouble("");
-      return undefined;
+      // Typed back down to nothing. On a field that offers Home, that is the
+      // empty box again and Home belongs in it; anywhere else the list closes.
+      if (!offerHome || fromTitle) {
+        setPlaces([]);
+        return undefined;
+      }
+      const clear = setTimeout(() => look("", { blank: true }), DEBOUNCE_MS);
+      return () => clearTimeout(clear);
     }
     const timer = setTimeout(() => look(term), DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [term, open, look]);
+  }, [term, open, look, offerHome, fromTitle]);
 
   // Clicking away puts the list away, and leaves whatever was typed alone.
   useEffect(() => {
@@ -127,8 +141,11 @@ export default function LocationField({
   const onFocus = () => {
     setOpen(true);
     // An empty box, on an item that already says where it is going: offer that
-    // straight away rather than waiting to be told twice.
-    if (!typed && fromTitle) look(fromTitle);
+    // straight away rather than waiting to be told twice. Either way the request
+    // carries the Home flag, so the house sits at the top of whatever comes back
+    // -- most trips leave from it, and it should be one tap rather than an
+    // address typed out for the third time this month.
+    if (!typed) look(fromTitle || "", { blank: true });
   };
 
   const onKeyDown = (event) => {

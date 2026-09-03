@@ -18,6 +18,7 @@ import {
 } from "@/lib/places/photon";
 import { normalizeHere } from "@/lib/places/here";
 import {
+  addressAt,
   addressTrouble,
   looksLikeAddress,
   lookUpAddress,
@@ -37,6 +38,37 @@ export async function GET(request) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  // A phone that already knows where it is, asking what that place is called.
+  // The reverse of the rest of this route, and it belongs here because the answer
+  // is the same shape: a point, a label, and how sure we are of it.
+  const at = (request.nextUrl.searchParams.get("at") || "").trim();
+  if (at) {
+    const [lat, lon] = at.split(",").map((n) => Number(n));
+    const { hit, why, detail } = await addressAt(lat, lon);
+    if (!hit) {
+      const said = addressTrouble(why === "none" ? "nowhere" : why, detail);
+      if (why && why !== "none")
+        console.warn("reverse lookup", { why, detail });
+      return NextResponse.json(
+        { error: said || "No address was found at that position." },
+        { status: why === "denied" || why === "off" ? 503 : 404 },
+      );
+    }
+    const here = normalizeHere({
+      lat: hit.lat,
+      lon: hit.lon,
+      label: hit.address,
+      source: "device",
+    });
+    if (!here) {
+      return NextResponse.json(
+        { error: "That came back without a usable position." },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json({ here, exact: hit.exact });
   }
 
   const q = (request.nextUrl.searchParams.get("q") || "").trim().slice(0, 120);

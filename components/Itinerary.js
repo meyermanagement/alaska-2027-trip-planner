@@ -256,6 +256,10 @@ function ItemFields({ draft, setDraft, destination = "" }) {
           title={draft.title}
           category={draft.category}
           destination={destination}
+          // Trips start and end at the same address, and the drive to the airport
+          // is the most common thing anybody ever adds. Home sits at the top of
+          // the empty box so it is a tap rather than a retyped address.
+          offerHome
         />
         <input
           className="field"
