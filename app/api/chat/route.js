@@ -544,7 +544,17 @@ export async function POST(request) {
       const better = await generate({
         system: [system, writeTheWords(said, shortlistAll)].join("\n\n"),
         messages,
-        tools: tools.filter((tool) => tool.name === "offer_followups"),
+        // No tool at all, which is the whole point of this turn and was the bug
+        // in it. It used to leave offer_followups within reach, and a model given
+        // any tool can answer "write the words" by calling it and writing
+        // nothing -- which is not silence as far as the ladder is concerned, so
+        // the ladder returned that turn as a success, the empty text failed the
+        // check below, the retry was thrown away, and one card arrived under a
+        // line apologising for having no words. With nothing to call, an answer
+        // with no words in it is silence, and silence is what makes the ladder go
+        // on to the next model by itself. The cost is the follow-up questions
+        // this turn might have offered; whatever the first turn offered stands.
+        tools: [],
         // The words are the point of this turn and the searching is not: she is
         // being asked to say something about a shortlist that is already on the
         // screen. Taking the search away is what makes it affordable at the end
@@ -562,10 +572,6 @@ export async function POST(request) {
       // with the same roll call, or with nothing, leaves the first reply alone:
       // thin words above the cards beat no words above the cards.
       if (better?.text && !needsWords(better.text, shortlistAll)) {
-        const { followups: nextQuestions } = splitFollowupCalls(
-          better.calls || [],
-        );
-        if (nextQuestions.length) followups = nextQuestions;
         result = {
           ...result,
           text: better.text,
