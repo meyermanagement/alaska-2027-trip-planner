@@ -35,7 +35,9 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * phone never could. The screen you are on is ticked.
  *
  * Bottom right, Ask Aly: the same disc, the same size, carrying the speech
- * bubble alone. It used to live in the top right corner, a full reach away from
+ * bubble alone. Both marks are drawn large inside their disc, with only about
+ * ten pixels of clearance to the edge — a small glyph centred in a big circle
+ * reads as a button waiting for a label, and there is no label coming. It used to live in the top right corner, a full reach away from
  * a thumb; it is the thing people press most, so it takes the corner the thumb
  * lands on first. Navigation is deliberate and can afford the longer reach,
  * which is why the two are this way round and not the other. Only the fill tells
@@ -307,9 +309,9 @@ export default function NavTabs({
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label="Open the menu"
-            className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-white text-ink shadow-[0_10px_28px_rgba(20,32,30,0.24)] transition hover:border-[var(--line-strong)] active:translate-y-px"
+            className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-white text-ink shadow-[0_2px_6px_rgba(20,32,30,0.20),0_10px_20px_rgba(20,32,30,0.26),0_20px_44px_rgba(20,32,30,0.40)] transition hover:border-[var(--line-strong)] active:translate-y-px"
           >
-            <AlyeskaMark className="h-7 w-7 shrink-0" />
+            <AlyeskaMark className="h-9 w-9 shrink-0" />
             {/* The one number worth interrupting somebody for still shows on the
               closed control, because it lives on a screen the menu is hiding. */}
             {attention > 0 && !isActive("/reminders") && (
