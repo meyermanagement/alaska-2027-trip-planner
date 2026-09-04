@@ -119,8 +119,7 @@ export default async function PeoplePage() {
             Everyone who travels, and every animal that does or does not — with
             the passports, licenses, Known Traveler and Global Entry numbers
             kept in one place so nobody is digging through a drawer at booking
-            time. Numbers stay hidden until you tap to show them, and only our
-            family group can open this page.
+            time.
           </p>
           <HouseholdName familyId={familyId} name={household?.name || ""} />
           <HouseholdHome
