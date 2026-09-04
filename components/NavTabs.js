@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  countdownSaid,
+  daysUntil,
+  formatRange,
+  lastDayOf,
+  tripDayNumber,
+} from "@/lib/format";
+import { tripPath } from "@/lib/trips/route";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
@@ -162,6 +170,11 @@ export default function NavTabs({
   // The skeleton draws the button as a shape rather than a control, because
   // there is no drawer mounted behind it yet to answer a press.
   askLive = true,
+  // The trip the family is pointed at, if there is one: the top of the menu.
+  // Chosen and roster-checked in TopBar, which is the thing that knows who is
+  // asking. Absent on the skeleton, which has no database.
+  trip = null,
+  today = null,
 }) {
   // Read once, lazily, so the first frame the skeleton draws is already right
   // rather than being corrected a moment later.
@@ -200,17 +213,85 @@ export default function NavTabs({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // The plate above the arc. "Happening now" while they are away and a
+  // countdown before they leave, because those are two different sentences and
+  // a card that says the same thing on both days is only right on one of them.
+  const where = trip && today ? tripDayNumber(trip, today) : null;
+  const soon = trip && !where ? countdownSaid(daysUntil(trip.start_date)) : "";
+  const hero = trip ? (
+    <Link
+      href={tripPath(trip, where ? "itinerary" : "overview")}
+      onPointerEnter={() => router.prefetch(tripPath(trip, "itinerary"))}
+      onClick={() => setOpen(false)}
+      className="arc-hero"
+    >
+      <span aria-hidden="true" className="shrink-0 text-[1.15rem] leading-none">
+        {trip.cover_emoji || "🧭"}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[0.58rem] font-bold uppercase tracking-[0.12em] opacity-80">
+          {where ? "Happening now" : "Next trip"}
+        </span>
+        <span className="block truncate font-display text-[0.95rem] font-semibold leading-tight">
+          {trip.name}
+        </span>
+        <span className="block truncate text-[0.72rem] leading-tight opacity-90">
+          {where
+            ? `Day ${where.day} of ${where.of} · back to today`
+            : [soon, formatRange(trip.start_date, lastDayOf(trip))]
+                .filter(Boolean)
+                .join(" · ")}
+        </span>
+      </span>
+      <span aria-hidden="true" className="arc-hero-go">
+        <ArrowIcon className="h-[15px] w-[15px] shrink-0" />
+      </span>
+    </Link>
+  ) : null;
+
   return (
     <>
-      {/* The sheet sits above the bar it rose from, and below the Ask Aly
-          drawer, so that if both ever open the conversation is in front. */}
+      {/* The menu is an arc struck off the compass rather than a sheet raised
+          from the bottom edge.
+
+          A sheet is a second screen: it takes the whole width, covers what you
+          were looking at, and has to be dismissed. This is seven objects thrown
+          out from the disc you just pressed, along a shallow curve, with the
+          page still visible everywhere around them — so the menu belongs
+          visibly to the button that opened it and to the corner it came from,
+          and the screen underneath is never fully taken away.
+
+          Trips lands nearest the thumb and Settings furthest from it, which is
+          the inversion the whole shape exists for: the order runs outward from
+          the press, not downward from the top of a panel.
+
+          Each node is a frosted pill and not a bare circle because the second
+          line survives — the explanation of what each screen is for, which the
+          desktop dock used to get and the phone never could. Two lines of small
+          text cannot be read off a photograph, so they need something behind
+          them; a pill carrying both is about 250 of the 312 pixels a phone
+          gives you, which leaves roughly forty for the sweep. The bow is
+          therefore real but shallow, a lean rather than a fan, and it is set in
+          one custom property so a 320px phone can spend less on it.
+
+          Above the arc, on its own full-width plate, the trip the family is
+          actually pointed at: the one they are on, or the next one they are
+          going on. It is a card rather than another node because it is a
+          different kind of thing from a destination in the app — it is where
+          most presses of this menu were heading anyway, and answering that
+          before the seven doors is the point of putting it there.
+
+          It sits above the bar it rose from, and below the Ask Aly drawer, so
+          that if both ever open the conversation is in front. */}
       {open && (
-        <div className="no-print fixed inset-0 z-[38] flex flex-col justify-end">
+        <div className="no-print fixed inset-0 z-[38]">
           <button
             type="button"
             aria-label="Close the menu"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-ink/45 backdrop-blur-[2px]"
+            /* Lighter than the scrim under a sheet, and blurred rather than
+               darkened: the page is meant to still be there. */
+            className="absolute inset-0 bg-ink/30 backdrop-blur-[3px]"
           />
           <div
             ref={sheetRef}
@@ -218,28 +299,35 @@ export default function NavTabs({
             role="dialog"
             aria-modal="true"
             aria-label="Main menu"
-            className="relative mx-auto w-full max-w-lg rounded-t-[1.35rem] border border-[var(--line)] bg-white px-3 pt-2.5 shadow-[0_-10px_40px_rgba(20,32,30,0.22)] outline-none"
+            className="menu-arc absolute inset-x-0 bottom-0 outline-none"
             style={{
               paddingBottom:
-                "max(0.9rem, calc(env(safe-area-inset-bottom) + 0.6rem))",
-              maxHeight: "82vh",
-              overflowY: "auto",
+                "max(5.1rem, calc(env(safe-area-inset-bottom) + 4.6rem))",
             }}
           >
-            <span
-              aria-hidden="true"
-              className="mx-auto mb-2.5 block h-1 w-10 rounded-full bg-[var(--line-strong)]"
-            />
-            <ul className="space-y-1.5">
-              {tabs.map((tab) => {
-                // The way back out of a trip, rather than a name for where you are.
-                const isWayOut = tab.href === "/trips" && insideTrip;
-                const active = isActive(tab.href) && !isWayOut;
-                const count = tab.badge ? attention : 0;
-                const Icon = isWayOut ? BackIcon : tab.Icon;
-                return (
-                  <li key={tab.href}>
+            {/* Anchored to the same left edge the compass is on, so the arc
+                reads as having been thrown from it rather than floating in the
+                middle of a wide screen. */}
+            <div className="mx-auto max-w-5xl px-4">
+              <div className="flex max-w-[23rem] flex-col items-start gap-1.5">
+                {hero}
+                {/* Bottom of the arc first: the array is written top-down for
+                    the desk, and the arc is read outward from the thumb. */}
+                {[...tabs].reverse().map((tab, index) => {
+                  const isWayOut = tab.href === "/trips" && insideTrip;
+                  const active = isActive(tab.href) && !isWayOut;
+                  const count = tab.badge ? attention : 0;
+                  const Icon = isWayOut ? BackIcon : tab.Icon;
+                  // Zero at both ends, widest in the middle: one half-period of
+                  // a sine, which is what makes the column read as a curve
+                  // rather than a staircase.
+                  const bow =
+                    tabs.length > 1
+                      ? Math.sin((Math.PI * index) / (tabs.length - 1))
+                      : 0;
+                  return (
                     <Link
+                      key={tab.href}
                       href={tab.href}
                       aria-current={active ? "page" : undefined}
                       /* A link on a page like these prefetches only as far as
@@ -248,53 +336,42 @@ export default function NavTabs({
                          made of, so the wait is still the whole server render
                          after the tap. router.prefetch asks for the render
                          itself. Fired on the row being touched or pointed at
-                         rather than on all seven when the sheet opens, because
+                         rather than on all seven when the menu opens, because
                          warming six screens nobody asked for is how a phone on
                          mobile data ends up slower than it started. */
                       onPointerEnter={() => router.prefetch(tab.href)}
                       onPointerDown={() => router.prefetch(tab.href)}
                       onFocus={() => router.prefetch(tab.href)}
                       onClick={() => setOpen(false)}
-                      className={`flex items-center gap-3 rounded-[var(--radius-card)] border px-3.5 py-3 transition ${
-                        active
-                          ? "border-teal/40 bg-teal-soft"
-                          : "border-[var(--line)] bg-sand hover:border-[var(--line-strong)]"
-                      }`}
+                      style={{
+                        marginLeft: `calc(var(--arc-span) * ${bow.toFixed(3)})`,
+                      }}
+                      className={`arc-pill ${active ? "on" : ""}`}
                     >
-                      <PendingSwap
-                        href={tab.href}
-                        className={`h-5 w-5 shrink-0 ${
-                          active ? "text-teal" : "text-ink-soft"
-                        }`}
-                      >
-                        <Icon
-                          className={`h-5 w-5 shrink-0 ${
-                            active ? "text-teal" : "text-ink-soft"
-                          }`}
-                        />
-                      </PendingSwap>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-display text-[1rem] font-semibold text-ink">
+                      <span className="arc-disc">
+                        <PendingSwap href={tab.href} className="h-[18px] w-[18px] shrink-0">
+                          <Icon className="h-[18px] w-[18px] shrink-0" />
+                        </PendingSwap>
+                        {count > 0 && (
+                          <span className="arc-dot">
+                            {count}
+                            <span className="sr-only"> needing attention</span>
+                          </span>
+                        )}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-display text-[0.95rem] font-semibold leading-tight">
                           {isWayOut ? "All trips" : tab.label}
                         </span>
-                        <span className="block truncate text-[0.78rem] text-ink-soft">
+                        <span className="arc-sub block truncate text-[0.72rem] leading-tight">
                           {isWayOut ? "Back out of this trip" : tab.sub}
                         </span>
                       </span>
-                      {count > 0 && (
-                        <span className="shrink-0 rounded-full bg-rose px-1.5 py-px text-[0.68rem] font-bold leading-5 text-on-accent">
-                          {count}
-                          <span className="sr-only"> needing attention</span>
-                        </span>
-                      )}
-                      {active && (
-                        <TickIcon className="h-4 w-4 shrink-0 text-teal" />
-                      )}
                     </Link>
-                  </li>
-                );
-              })}
-            </ul>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -322,13 +399,18 @@ export default function NavTabs({
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label="Open the menu"
-            className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-white text-ink shadow-[0_2px_6px_rgba(20,32,30,0.20),0_10px_20px_rgba(20,32,30,0.26),0_20px_44px_rgba(20,32,30,0.40)] transition hover:border-[var(--line-strong)] active:translate-y-px"
+            /* Face, edge and shadow all come from the skin. On the two dark
+               skins a card-colored circle on a near-black page had nothing
+               separating it -- the drop shadow underneath is black on black --
+               so those skins hand back a lighter face, a stronger rim and a lit
+               top edge instead. See --disc-face in globals.css. */
+            className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)] transition hover:border-[var(--line-strong)] active:translate-y-px"
           >
             <AlyeskaMark className="h-9 w-9 shrink-0" />
             {/* The one number worth interrupting somebody for still shows on the
               closed control, because it lives on a screen the menu is hiding. */}
             {attention > 0 && !isActive("/reminders") && (
-              <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.62rem] font-bold leading-[1.15rem] text-on-accent ring-2 ring-white">
+              <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.62rem] font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
                 {attention}
                 <span className="sr-only"> reminders needing attention</span>
               </span>
@@ -353,7 +435,7 @@ export default function NavTabs({
               // way in, which is what it is.
               <span
                 aria-hidden="true"
-                className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-teal text-on-accent opacity-60 shadow-[0_2px_6px_rgba(20,32,30,0.20),0_10px_20px_rgba(20,32,30,0.26),0_20px_44px_rgba(20,32,30,0.40)] ring-1 ring-ink/10"
+                className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-teal text-on-accent opacity-60 shadow-[var(--disc-shadow)] ring-1 ring-ink/10"
               >
                 <BubbleIcon className="h-8 w-8 shrink-0" />
               </span>
@@ -461,10 +543,15 @@ function PeopleIcon({ className }) {
   );
 }
 
-function TickIcon({ className }) {
+// The tick that used to mark the screen you were on has gone: on the arc the
+// current node is filled in the accent, which is the same marker the rest of the
+// app uses and does not need a second one beside it.
+
+// The way into the trip on the plate.
+function ArrowIcon({ className }) {
   return (
     <svg {...iconProps(className)}>
-      <path d="M4.4 10.6l3.5 3.4 7.7-8" />
+      <path d="M4 10h11M10.4 5.4 15 10l-4.6 4.6" />
     </svg>
   );
 }

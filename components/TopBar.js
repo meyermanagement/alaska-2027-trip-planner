@@ -67,6 +67,15 @@ export default async function TopBar({ askHref, showAsk = true }) {
     ? notices.current
     : null;
 
+  // The trip the menu opens with. Same roster test, wider question: the band is
+  // only ever about a trip in progress, while the menu shows whichever trip the
+  // family is pointed at -- the one they are on, or failing that the next one
+  // they are going on. It is the first thing in the sheet because on the days it
+  // exists it is where most presses of that menu were heading anyway.
+  const menuTrip = isOnTrip(notices.upcoming, access?.travelerId)
+    ? notices.upcoming
+    : null;
+
   // There is no top bar most of the year.
   //
   // It used to carry two things: the app's name, and the Ask Aly button. Both
@@ -94,6 +103,8 @@ export default async function TopBar({ askHref, showAsk = true }) {
         level={access?.level}
         askHref={askHref}
         showAsk={showAsk}
+        trip={menuTrip}
+        today={today}
       />
       <PassportWarning warnings={warnings} />
       <TipStrip tips={urgent} today={today} />

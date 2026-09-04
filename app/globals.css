@@ -66,6 +66,21 @@
   /* A loading row: warm blank paper, and a sweep a shade darker than it. */
   --sk-base: #e4d9c2;
   --sk-sheen: color-mix(in srgb, var(--color-ink) 5.5%, transparent);
+
+  /* The two discs in the bottom corners, which are the only controls in the app
+     with no surface behind them: they lie directly on the page, and on a trip
+     screen directly on a photograph. On a light skin a drop shadow does all the
+     work of separating them, which is why they were written with one hard-coded
+     shadow and no tokens at all. In the dark that shadow is black on near-black
+     and simply is not there, so the menu disc -- a card-colored circle on a page
+     a few points darker -- had nothing telling it apart from the page at all.
+     These are the three things a floating disc needs: a face, an edge, and
+     something underneath it. Each dark skin overrides all three. */
+  --disc-face: var(--color-white);
+  --disc-edge: var(--line);
+  --disc-shadow:
+    0 2px 6px rgba(20, 32, 30, 0.2), 0 10px 20px rgba(20, 32, 30, 0.26),
+    0 20px 44px rgba(20, 32, 30, 0.4);
 }
 
 html,
@@ -1692,6 +1707,20 @@ html[data-skin="aurora"] {
   --sk-base: #202b36;
   --sk-sheen: rgba(233, 239, 243, 0.07);
 
+  /* The menu disc was drawn in card color, #18222c, on a page of #080c12: ten
+     points of lightness, no visible shadow under it, and a hairline at a fifth
+     opacity. It read as a smudge rather than a control. So the face steps well
+     above any surface the app puts behind it, the edge is nearly twice as
+     strong, and the shadow is replaced by the thing that actually reads in the
+     dark -- a lit top rim and a ring around the whole circumference, which
+     survives being over a photograph as well as over the page. */
+  --disc-face: #33475a;
+  --disc-edge: rgba(233, 239, 243, 0.42);
+  --disc-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 0 1px rgba(8, 12, 18, 0.65), 0 8px 18px rgba(0, 0, 0, 0.7),
+    0 18px 40px rgba(0, 0, 0, 0.6);
+
   /* The plate. A photograph is already dark here, so it needs less taking
      down and the map underneath can come up to full strength. */
   --on-photo: #e9eff3;
@@ -2076,6 +2105,16 @@ html[data-skin="sodium"] {
   --sk-base: #2d221a;
   --sk-sheen: rgba(255, 235, 210, 0.07);
 
+  /* Same correction as aurora, kept warm: the face is a lit brown rather than a
+     lit slate, and the ring is the skin's own near-black so the circle reads as
+     cut out of the street rather than pasted on it. */
+  --disc-face: #4a382a;
+  --disc-edge: rgba(255, 228, 196, 0.42);
+  --disc-shadow:
+    inset 0 1px 0 rgba(255, 240, 220, 0.18),
+    0 0 0 1px rgba(16, 12, 10, 0.7), 0 8px 18px rgba(0, 0, 0, 0.72),
+    0 18px 40px rgba(0, 0, 0, 0.62);
+
   --on-photo: #f7f0e7;
   --photo-filter: sepia(0.28) saturate(0.85) contrast(1.1) brightness(0.68);
   --photo-opacity: 0.76;
@@ -2158,5 +2197,177 @@ html[data-skin="sodium"] #boot-veil {
     --line-strong: #bdb5a3;
     --on-photo: #241f18;
     --on-photo-shadow: none;
+  }
+}
+
+/* -----------------------------------------------------------------------
+   The menu arc.
+
+   Seven frosted pills thrown out from the compass disc along a shallow curve,
+   with a plate above them carrying the trip the family is pointed at. Written
+   here rather than in class strings because it is one shape made of three
+   surfaces that all have to agree per skin -- and because the frosted-glass
+   pill needs a face, an edge and a shadow that a dark skin can replace whole,
+   for the same reason the two floating discs do.
+
+   --arc-span is how far the middle of the arc leans out. Two lines of small
+   text need about 250 of the 312 pixels a phone gives you, so there is not much
+   left to spend; on the narrowest phones there is less again.
+ * ----------------------------------------------------------------------- */
+.menu-arc {
+  --arc-span: 40px;
+  --arc-face: rgba(251, 253, 253, 0.78);
+  --arc-edge: rgba(251, 253, 253, 0.8);
+  --arc-shadow:
+    0 1px 3px rgba(16, 38, 43, 0.16), 0 10px 24px rgba(16, 38, 43, 0.26);
+}
+
+@media (max-width: 359px) {
+  .menu-arc {
+    --arc-span: 24px;
+  }
+}
+
+/* A dark skin gets a lifted panel rather than frost: a translucent near-white
+   over near-black comes out as a grey smear with unreadable subtitles, and the
+   blur has nothing bright behind it to frost. Same correction, and the same
+   reason, as the two floating discs above. */
+html[data-skin="aurora"] .menu-arc {
+  --arc-face: rgba(46, 62, 78, 0.86);
+  --arc-edge: rgba(233, 239, 243, 0.28);
+  --arc-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 8px rgba(0, 0, 0, 0.6),
+    0 16px 34px rgba(0, 0, 0, 0.55);
+}
+
+html[data-skin="sodium"] .menu-arc {
+  --arc-face: rgba(66, 50, 38, 0.88);
+  --arc-edge: rgba(255, 228, 196, 0.28);
+  --arc-shadow:
+    inset 0 1px 0 rgba(255, 240, 220, 0.14), 0 2px 8px rgba(0, 0, 0, 0.62),
+    0 16px 34px rgba(0, 0, 0, 0.55);
+}
+
+.arc-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  /* The whole travel of the arc comes off the ceiling, not just this row's
+     share of it. A pill allowed to fill the column and then be pushed right by
+     its own bow runs off the edge of the screen the day somebody writes a
+     longer subtitle; this way the widest row truncates instead. */
+  max-width: calc(100% - var(--arc-span));
+  padding: 0.3rem 0.9rem 0.3rem 0.3rem;
+  border-radius: 999px;
+  color: var(--color-ink);
+  background: var(--arc-face);
+  border: 1px solid var(--arc-edge);
+  box-shadow: var(--arc-shadow);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  transition:
+    transform 0.18s ease,
+    margin-left 0.18s ease;
+}
+
+.arc-pill:active {
+  transform: translateY(1px);
+}
+
+.arc-sub {
+  color: var(--color-ink-soft);
+}
+
+/* The screen you are already on: filled in the accent, which is the marker the
+   rest of the app uses for the same idea. */
+.arc-pill.on {
+  background: var(--color-teal);
+  border-color: transparent;
+  color: var(--color-on-accent);
+}
+
+.arc-pill.on .arc-sub {
+  color: var(--color-on-accent);
+  opacity: 0.82;
+}
+
+.arc-disc {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-teal) 13%, transparent);
+  color: var(--color-teal);
+}
+
+.arc-pill.on .arc-disc {
+  background: color-mix(in srgb, var(--color-on-accent) 22%, transparent);
+  color: var(--color-on-accent);
+}
+
+.arc-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--color-rose);
+  color: var(--color-on-accent);
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 2px var(--arc-face);
+}
+
+/* The plate. Full width and squarer corners, because the trip is a different
+   kind of thing from a destination in the app, not simply a wider one. */
+.arc-hero {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.4rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 1.15rem;
+  color: var(--color-on-accent);
+  /* Mostly the accent, leaning cool only at the far corner. An even split
+     between the two reads as two plates stuck together on the skins where
+     glacier is deliberately unrelated to the accent rather than a cousin of
+     it. */
+  background: linear-gradient(
+    135deg,
+    var(--color-teal) 0%,
+    var(--color-teal) 48%,
+    var(--color-glacier) 145%
+  );
+  box-shadow:
+    0 2px 6px rgba(16, 38, 43, 0.2), 0 14px 32px rgba(16, 38, 43, 0.34);
+  transition: transform 0.18s ease;
+}
+
+.arc-hero:active {
+  transform: translateY(1px);
+}
+
+.arc-hero-go {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-on-accent) 20%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-pill,
+  .arc-hero {
+    transition: none;
   }
 }

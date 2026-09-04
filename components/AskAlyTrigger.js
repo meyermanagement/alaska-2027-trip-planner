@@ -36,7 +36,7 @@ export default function AskAlyTrigger({ href, round = false }) {
   // the size of the menu beside it, carrying the bubble alone: the words were
   // the only reason that corner needed a bar behind it to sit on.
   const styles = round
-    ? "inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal text-on-accent shadow-[0_2px_6px_rgba(20,32,30,0.20),0_10px_20px_rgba(20,32,30,0.26),0_20px_44px_rgba(20,32,30,0.40)] ring-1 ring-ink/10 transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px"
+    ? "inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal text-on-accent shadow-[var(--disc-shadow)] ring-1 ring-[var(--disc-edge)] transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px"
     : "inline-flex items-center gap-1.5 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-on-accent shadow-sm transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px";
 
   const inner = round ? (
