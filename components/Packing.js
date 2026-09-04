@@ -13,6 +13,7 @@ import {
   tidyStranded,
 } from "@/lib/packing/roster";
 import { LAST_MINUTE_LABEL, looksLastMinute } from "@/lib/packing/lastMinute";
+import LastMinuteTasks from "@/components/LastMinuteTasks";
 import ProTips from "./ProTips";
 
 /**
@@ -57,6 +58,13 @@ export default function Packing({
   today,
   everLooked = false,
   pets = [],
+  // The pre-departure tasks and the trip they belong to, so the few that are
+  // about walking out of the door can sit above the list somebody is ticking on
+  // the morning they walk out of the door. See components/LastMinuteTasks.
+  tasks = [],
+  trip = null,
+  onTaskChange = () => {},
+  onOpenTasks = null,
   readOnly = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -1413,6 +1421,19 @@ export default function Packing({
 
   return (
     <section>
+      {/* Above everything, including the tips: on the day you leave, "stop the
+          mail" outranks advice about how to pack. Shut by default and drawn only
+          within a day of departure, so the rest of the run-up is unchanged. */}
+      <LastMinuteTasks
+        tasks={tasks}
+        trip={trip}
+        today={today}
+        userId={userId}
+        onChange={onTaskChange}
+        onOpenTasks={onOpenTasks}
+        readOnly={readOnly}
+        className="mb-3"
+      />
       {/* Above the progress bar, because the point of a packing tip is to be read
           before the list is worked through rather than after.
 

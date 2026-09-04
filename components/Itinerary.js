@@ -38,6 +38,7 @@ import DayDone from "@/components/DayDone";
 import { dayIsDone } from "@/lib/day/done";
 import { directionsToPlace } from "@/lib/travel/modes";
 import DayItemBrief from "@/components/DayItemBrief";
+import TimeDrag from "@/components/TimeDrag";
 import EarlyForecast from "@/components/EarlyForecast";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
 import { askQuietly, readStored } from "@/components/WhereIAm";
@@ -1230,6 +1231,23 @@ export default function Itinerary({
     onChange();
   }
 
+  // A card slid to a new time. One column, and only ever the start: sliding a
+  // hotel's checkout up the day would be a different gesture answering a
+  // different question, so a row with an end date is left alone -- see the
+  // guard where TimeDrag is used.
+  async function moveToTime(item, hm) {
+    const { error: err } = await supabase
+      .from("itinerary_items")
+      .update({ start_time: hm })
+      .eq("id", item.id);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setError("");
+    onChange();
+  }
+
   async function updateStatus(item, status) {
     await supabase.from("itinerary_items").update({ status }).eq("id", item.id);
     onChange();
@@ -1718,196 +1736,211 @@ export default function Itinerary({
                           )}
                         </ClosedRow>
                       )}
-                      <article
-                        className={`card p-4 ${PHASE_CLASS[phase] || ""} ${
-                          shut ? "hidden print:block" : ""
-                        }`}
-                        aria-current={phase === "next" ? "true" : undefined}
+                      <TimeDrag
+                        startTime={item.start_time}
+                        // Not on a folded row -- there is nothing to grab. Not
+                        // while the card is being edited by hand, not for
+                        // somebody who cannot write, and not on a stay, whose
+                        // "time" is a check-in on a row that spans nights.
+                        disabled={
+                          shut ||
+                          readOnly ||
+                          Boolean(item.end_date) ||
+                          item.status === "cancelled"
+                        }
+                        onCommit={(hm) => moveToTime(item, hm)}
                       >
-                        <div className="flex items-start gap-3">
-                          {phase === "past" && (
-                            <button
-                              type="button"
-                              onClick={() => reopen(item.id)}
-                              aria-expanded="true"
-                              aria-label="Fold this back to one line"
-                              className="no-print -my-1 -ml-1 grid size-7 shrink-0 place-items-center rounded-lg hover:bg-sand/60"
-                            >
-                              <FoldChevron open />
-                            </button>
-                          )}
-                          <span className="text-xl leading-none">
-                            {CATEGORY_ICONS[item.category]}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {item.start_time && (
-                                <span className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
-                                  {formatTime(item.start_time)}
+                        <article
+                          className={`card p-4 ${PHASE_CLASS[phase] || ""} ${
+                            shut ? "hidden print:block" : ""
+                          }`}
+                          aria-current={phase === "next" ? "true" : undefined}
+                        >
+                          <div className="flex items-start gap-3">
+                            {phase === "past" && (
+                              <button
+                                type="button"
+                                onClick={() => reopen(item.id)}
+                                aria-expanded="true"
+                                aria-label="Fold this back to one line"
+                                className="no-print -my-1 -ml-1 grid size-7 shrink-0 place-items-center rounded-lg hover:bg-sand/60"
+                              >
+                                <FoldChevron open />
+                              </button>
+                            )}
+                            <span className="text-xl leading-none">
+                              {CATEGORY_ICONS[item.category]}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {item.start_time && (
+                                  <span className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
+                                    {formatTime(item.start_time)}
+                                  </span>
+                                )}
+                                <h4 className="font-semibold leading-snug">
+                                  {item.title}
+                                </h4>
+                                <span className={`chip ${status.cls}`}>
+                                  {status.label}
                                 </span>
+                                {PHASE_LABEL[phase] && (
+                                  <span
+                                    className={`chip ${
+                                      phase === "next"
+                                        ? "border-teal/40 bg-teal/10 text-teal"
+                                        : "border-[var(--line)] text-ink-faint"
+                                    }`}
+                                  >
+                                    {PHASE_LABEL[phase]}
+                                  </span>
+                                )}
+                              </div>
+                              {nights && (
+                                <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-ink-soft">
+                                  <span className="tabular tracking-[0.01em]">
+                                    {formatStayRange(
+                                      item.item_date,
+                                      item.end_date,
+                                    )}
+                                  </span>
+                                  <span className="text-xs text-ink-faint">
+                                    {nights}
+                                  </span>
+                                </p>
                               )}
-                              <h4 className="font-semibold leading-snug">
-                                {item.title}
-                              </h4>
-                              <span className={`chip ${status.cls}`}>
-                                {status.label}
-                              </span>
-                              {PHASE_LABEL[phase] && (
-                                <span
-                                  className={`chip ${
-                                    phase === "next"
-                                      ? "border-teal/40 bg-teal/10 text-teal"
-                                      : "border-[var(--line)] text-ink-faint"
-                                  }`}
-                                >
-                                  {PHASE_LABEL[phase]}
-                                </span>
+                              {item.location && (
+                                <p className="mt-0.5 text-sm text-ink-soft">
+                                  {item.location}
+                                </p>
                               )}
-                            </div>
-                            {nights && (
-                              <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-ink-soft">
-                                <span className="tabular tracking-[0.01em]">
-                                  {formatStayRange(
-                                    item.item_date,
-                                    item.end_date,
-                                  )}
-                                </span>
-                                <span className="text-xs text-ink-faint">
-                                  {nights}
-                                </span>
-                              </p>
-                            )}
-                            {item.location && (
-                              <p className="mt-0.5 text-sm text-ink-soft">
-                                {item.location}
-                              </p>
-                            )}
-                            {item.confirmation_number && (
-                              <p className="mt-1 font-mono text-xs text-ink-soft">
-                                Conf: {item.confirmation_number}
-                              </p>
-                            )}
-                            {item.notes && (
-                              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
-                                {item.notes}
-                              </p>
-                            )}
-                            {/* Somewhere the family has now actually been. The
+                              {item.confirmation_number && (
+                                <p className="mt-1 font-mono text-xs text-ink-soft">
+                                  Conf: {item.confirmation_number}
+                                </p>
+                              )}
+                              {item.notes && (
+                                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
+                                  {item.notes}
+                                </p>
+                              )}
+                              {/* Somewhere the family has now actually been. The
                               stars appear on the walk home rather than a
                               fortnight later on another tab. */}
-                            {!readOnly &&
-                              canReviewNow(item, { today, nowHM }) && (
-                                <ReviewRow
-                                  item={item}
-                                  target={reviewTarget(item, items) || item}
-                                  busy={reviewBusy}
-                                  onSave={saveReview}
-                                />
-                              )}
-                            {item.status === "needs_booking" &&
-                              (taskByItem.has(item.id) ? (
-                                <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">
-                                  <span aria-hidden="true">✓</span>
-                                  {taskByItem.get(item.id).is_done
-                                    ? "Booking task is done"
-                                    : "On the task list"}
+                              {!readOnly &&
+                                canReviewNow(item, { today, nowHM }) && (
+                                  <ReviewRow
+                                    item={item}
+                                    target={reviewTarget(item, items) || item}
+                                    busy={reviewBusy}
+                                    onSave={saveReview}
+                                  />
+                                )}
+                              {item.status === "needs_booking" &&
+                                (taskByItem.has(item.id) ? (
+                                  <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">
+                                    <span aria-hidden="true">✓</span>
+                                    {taskByItem.get(item.id).is_done
+                                      ? "Booking task is done"
+                                      : "On the task list"}
+                                    <button
+                                      type="button"
+                                      onClick={onOpenTasks}
+                                      className="font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+                                    >
+                                      Open Tasks
+                                    </button>
+                                  </p>
+                                ) : readOnly ? null : (
                                   <button
                                     type="button"
-                                    onClick={onOpenTasks}
-                                    className="font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
+                                    onClick={() => makeBookingTask(item)}
+                                    disabled={taskBusyId === item.id}
+                                    className="no-print mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-[0.72rem] font-semibold text-amber hover:border-amber hover:bg-amber/15 disabled:opacity-60"
                                   >
-                                    Open Tasks
+                                    {taskBusyId === item.id
+                                      ? "Adding…"
+                                      : "Make this a task"}
                                   </button>
-                                </p>
-                              ) : readOnly ? null : (
-                                <button
-                                  type="button"
-                                  onClick={() => makeBookingTask(item)}
-                                  disabled={taskBusyId === item.id}
-                                  className="no-print mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-[0.72rem] font-semibold text-amber hover:border-amber hover:bg-amber/15 disabled:opacity-60"
-                                >
-                                  {taskBusyId === item.id
-                                    ? "Adding…"
-                                    : "Make this a task"}
-                                </button>
-                              ))}
-                            <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">
-                              {!readOnly && (
-                                <button
-                                  onClick={() => startEdit(item)}
-                                  className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
-                                >
-                                  Edit
-                                </button>
-                              )}
-                              {item.item_date && (
-                                <AddToCalendar
-                                  compact
-                                  event={eventFromItem(item, {
-                                    name: tripName,
-                                  })}
-                                />
-                              )}
-                              {!readOnly && (
-                                <>
-                                  <span
-                                    className="mx-1 h-4 w-px bg-sand-deep"
-                                    aria-hidden
-                                  />
-                                  {STATUSES.filter(
-                                    (s) => s !== item.status,
-                                  ).map((s) => (
-                                    <button
-                                      key={s}
-                                      onClick={() => updateStatus(item, s)}
-                                      className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
-                                    >
-                                      {STATUS_STYLES[s].label}
-                                    </button>
-                                  ))}
+                                ))}
+                              <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">
+                                {!readOnly && (
                                   <button
-                                    onClick={() => remove(item)}
-                                    className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
+                                    onClick={() => startEdit(item)}
+                                    className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
                                   >
-                                    Delete
+                                    Edit
                                   </button>
-                                </>
-                              )}
-                            </div>
-                            {/* What Aly worked out about this one thing today: when
+                                )}
+                                {item.item_date && (
+                                  <AddToCalendar
+                                    compact
+                                    event={eventFromItem(item, {
+                                      name: tripName,
+                                    })}
+                                  />
+                                )}
+                                {!readOnly && (
+                                  <>
+                                    <span
+                                      className="mx-1 h-4 w-px bg-sand-deep"
+                                      aria-hidden
+                                    />
+                                    {STATUSES.filter(
+                                      (s) => s !== item.status,
+                                    ).map((s) => (
+                                      <button
+                                        key={s}
+                                        onClick={() => updateStatus(item, s)}
+                                        className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
+                                      >
+                                        {STATUS_STYLES[s].label}
+                                      </button>
+                                    ))}
+                                    <button
+                                      onClick={() => remove(item)}
+                                      className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
+                                    >
+                                      Delete
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                              {/* What Aly worked out about this one thing today: when
                               to leave for it, what to wear, what would spoil it.
                               Above the pro tips because it is about the next hour
                               and they are about the trip. */}
-                            {dayBits && (
-                              <DayItemBrief
-                                item={item}
-                                insight={dayBits.insight}
-                                leg={dayBits.leg}
-                                hour={dayBits.hour}
-                                nowHM={nowHM}
-                                isNext={phase === "next"}
-                                past={phase === "past" || phase === "done"}
-                                dimmed={phase === "past" || phase === "done"}
-                              />
-                            )}
-                            {/* Advice about this one booking, under it rather than
+                              {dayBits && (
+                                <DayItemBrief
+                                  item={item}
+                                  insight={dayBits.insight}
+                                  leg={dayBits.leg}
+                                  hour={dayBits.hour}
+                                  nowHM={nowHM}
+                                  isNext={phase === "next"}
+                                  past={phase === "past" || phase === "done"}
+                                  dimmed={phase === "past" || phase === "done"}
+                                />
+                              )}
+                              {/* Advice about this one booking, under it rather than
                               anywhere else, because a tip about the ferry is
                               useless three screens away from the ferry. */}
-                            <ProTips
-                              tips={tipsFor(item.id)}
-                              today={today}
-                              tripId={tripId}
-                              scope="item"
-                              itemId={item.id}
-                              relatedDate={item.start_date}
-                              everLooked
-                              compact
-                              heading="Worth knowing"
-                              readOnly={readOnly}
-                            />
+                              <ProTips
+                                tips={tipsFor(item.id)}
+                                today={today}
+                                tripId={tripId}
+                                scope="item"
+                                itemId={item.id}
+                                relatedDate={item.start_date}
+                                everLooked
+                                compact
+                                heading="Worth knowing"
+                                readOnly={readOnly}
+                              />
+                            </div>
                           </div>
-                        </div>
-                      </article>
+                        </article>
+                      </TimeDrag>
                     </div>
                   );
                 })}

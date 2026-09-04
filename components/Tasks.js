@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import PriorityMeter from "@/components/PriorityMeter";
+import LastMinuteTasks from "@/components/LastMinuteTasks";
 import AddToCalendar from "@/components/AddToCalendar";
 import { eventFromTask } from "@/lib/calendar";
 import {
@@ -198,6 +199,19 @@ export default function Tasks({
 
   return (
     <section>
+      {/* The same box the packing list carries, above the same list it is part of.
+          It is not a filter on the piles below -- those still hold every task at
+          every stage -- it is the short version, shut, for the morning when
+          reading down forty rows is not going to happen. */}
+      <LastMinuteTasks
+        tasks={items}
+        trip={trip}
+        today={today}
+        userId={userId}
+        onChange={onChange}
+        readOnly={readOnly}
+        className="mb-4"
+      />
       <div className="no-print mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-ink-soft">
           {done} of {items.length} complete

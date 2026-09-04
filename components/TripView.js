@@ -683,6 +683,10 @@ export default function TripView({
             templateItems={packingTemplateItems}
             tripTemplateIds={tripTemplateIds}
             templatesChosen={templatesChosen}
+            tasks={tasks}
+            trip={info}
+            onTaskChange={() => refetch("predeparture_tasks")}
+            onOpenTasks={() => setTab("tasks")}
             onChange={() => refetch("packing_items")}
             readOnly={readOnly}
           />
