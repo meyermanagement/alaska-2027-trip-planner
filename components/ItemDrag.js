@@ -217,6 +217,10 @@ export default function ItemDrag({
         mins: base,
         dayAt: dayFrom,
         grabY: Math.round(downRef.current.y - rect.top),
+        // And how far in from the card's left edge, which is where the calendar
+        // axis has to hang its first day from: the day the card is on sits
+        // under the thumb that picked it up, not in the middle of the card.
+        grabX: Math.round(downRef.current.x - rect.left),
       });
     }, HOLD_MS);
   }
@@ -303,11 +307,7 @@ export default function ItemDrag({
   const lifted = Boolean(drag);
   const onDay = lifted && drag.axis === "day";
   const onTime = lifted && drag.axis === "time";
-  const moved = onTime
-    ? drag.mins !== base
-    : onDay
-      ? drag.dayAt !== dayFrom
-      : false;
+  const moved = onTime && drag.mins !== base;
 
   return (
     <div
@@ -319,6 +319,14 @@ export default function ItemDrag({
       className={off ? undefined : "relative select-none"}
     >
       {onTime && <Rail base={base} mins={drag.mins} top={drag.grabY} />}
+      {onDay && (
+        <DayRail
+          dayKeys={dayKeys}
+          from={dayFrom}
+          at={drag.dayAt}
+          left={drag.grabX}
+        />
+      )}
       <div
         style={
           lifted
@@ -342,31 +350,25 @@ export default function ItemDrag({
       >
         {children}
       </div>
-      {lifted && (
+      {/* The readout by the thumb. Not during a day drag: the axis above the
+          card is already saying the date, in the same teal, larger, and with the
+          days either side of it for company -- a badge repeating it would only be
+          covering up the card being moved. */}
+      {lifted && !onDay && (
         <div
           aria-live="polite"
           style={{
-            transform: `translate(${onTime ? 0 : drag.dx}px, ${
-              onDay ? 0 : drag.dy
-            }px)`,
+            transform: `translate(${onTime ? 0 : drag.dx}px, ${drag.dy}px)`,
             top: `${(drag.grabY || 0) - 16}px`,
           }}
           className="pointer-events-none absolute right-2 z-50 rounded-lg bg-ink px-2.5 py-1 text-white shadow-lg"
         >
           <span className="tabular text-base font-semibold tracking-[0.01em]">
-            {onDay
-              ? shortDay(dayKeys[drag.dayAt])
-              : formatTime(hmOf(drag.mins))}
+            {formatTime(hmOf(drag.mins))}
           </span>
           {moved && (
             <span className="ml-1.5 text-[0.7rem] opacity-70">
-              {onDay
-                ? drag.dayAt > dayFrom
-                  ? "later"
-                  : "earlier"
-                : drag.mins > base
-                  ? "later"
-                  : "earlier"}
+              {drag.mins > base ? "later" : "earlier"}
             </span>
           )}
           {/* Before the axis is chosen, the badge says what the two directions
@@ -377,6 +379,14 @@ export default function ItemDrag({
             </span>
           )}
         </div>
+      )}
+      {/* The axis is drawn, so it is invisible to a screen reader, and the badge
+          that used to carry the live announcement is gone on this axis. Said here
+          instead, in words, as the day changes. */}
+      {onDay && (
+        <p aria-live="polite" className="sr-only">
+          {shortDay(dayKeys[drag.dayAt])}
+        </p>
       )}
       {saving && (
         <p className="tabular mt-1 text-xs font-semibold text-teal">
@@ -446,6 +456,117 @@ function Rail({ base, mins, top = 0 }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The calendar, drawn only while a card is being moved through the days.
+ *
+ * The vertical drag has had its rail of quarter hours since the day it shipped,
+ * and the sideways drag went out without the equivalent: it named the day it was
+ * aiming at in the badge by the thumb and lit a tile up at the top of the
+ * screen, and both of those tell you where you have got to without telling you
+ * where anything else is. A day is 64 pixels; the only way to know that is to be
+ * shown it.
+ *
+ * So: an axis above the card, one tick per day of the trip, hung off the point
+ * the thumb picked the card up from -- the day the card is already on sits
+ * exactly under the finger, and every other day of the trip is a measured
+ * distance either side of it. The dates are the trip's own days, so a trip that
+ * ends on the ninth simply stops there rather than offering a tenth that would
+ * be refused.
+ *
+ * The panel is only as wide as the card, which on a phone holds a little under
+ * three days either side of the thumb, so a long trip does not fit. Rather than
+ * shrink the day steps to make it fit -- which would make the axis lie about the
+ * distance the finger has to travel -- it pans: the ticks keep their 64 pixels
+ * and the whole calendar slides along under the panel to keep the day being
+ * aimed at in view, the way a filmstrip does. Until the aimed day reaches the
+ * edge, nothing pans at all and the day the card came from stays put under the
+ * thumb, which is the thing worth anchoring.
+ */
+function DayRail({ dayKeys, from, at, left }) {
+  const boxRef = useRef(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (el) setW(el.clientWidth);
+  }, []);
+
+  // Where the aimed tick would fall with no panning, and how far the calendar
+  // has to slide to bring it back inside. EDGE is a tick's own half width plus a
+  // little, so an aimed day is never a half-legible thing against the border.
+  const EDGE = 34;
+  const rest = left + 8 + (at - from) * PX_PER_DAY;
+  let pan = 0;
+  if (w) {
+    if (rest < EDGE) pan = EDGE - rest;
+    else if (rest > w - EDGE) pan = w - EDGE - rest;
+  }
+
+  return (
+    <div
+      ref={boxRef}
+      aria-hidden="true"
+      // Hanging just above the card, and a little wider than it, so the first
+      // and last ticks are not cut in half by the card's own edges.
+      className="pointer-events-none absolute -left-2 -right-2 -top-[3.1rem] z-[45] h-11 overflow-hidden rounded-lg bg-white shadow-md ring-1 ring-[var(--line)]"
+    >
+      {/* The line the ticks stand on, so the axis reads as one measured thing
+          rather than a row of loose labels. */}
+      <span className="absolute inset-x-0 bottom-[0.55rem] block h-px bg-ink/10" />
+      {dayKeys.map((key, i) => {
+        const d = parseDate(key);
+        if (!d) return null;
+        // 8px for the panel's own overhang past the card's left edge.
+        const x = left + 8 + (i - from) * PX_PER_DAY + pan;
+        // Nothing is gained by laying out a fortnight of ticks the panel will
+        // only clip.
+        if (x < -40 || (w && x > w + 40)) return null;
+        const here = i === at;
+        const start = i === from;
+        return (
+          <div
+            key={key}
+            style={{ left: `${x}px` }}
+            className="absolute bottom-0 top-0 -ml-6 w-12 text-center"
+          >
+            <span
+              className={`tabular block pt-[0.3rem] text-[0.6rem] font-semibold uppercase leading-none tracking-[0.06em] ${
+                here ? "text-teal" : "text-ink-faint"
+              }`}
+            >
+              {/* The weekday, except on the first of a month, where the month
+                  itself is the more useful of the two: a trip that runs from the
+                  thirtieth to the second would otherwise show a 30, a 31, a 1
+                  and a 2 with nothing saying that the numbers restarted. */}
+              {d.getDate() === 1
+                ? d.toLocaleDateString("en-US", { month: "short" })
+                : d.toLocaleDateString("en-US", { weekday: "short" })}
+            </span>
+            <span
+              className={`tabular block pt-[0.15rem] text-[0.78rem] font-semibold leading-none ${
+                here ? "text-teal" : "text-ink-soft"
+              }`}
+            >
+              {d.getDate()}
+            </span>
+            {/* Three states on one tick, in one glyph: the day being aimed at is
+                a teal stem, the day the card came from is a hollow ring so it is
+                clear what is being left, and everything else is a hairline. */}
+            <span
+              className={`absolute bottom-[0.3rem] left-1/2 block -translate-x-1/2 rounded ${
+                here
+                  ? "h-2.5 w-0.5 bg-teal"
+                  : start
+                    ? "h-1.5 w-1.5 rounded-full border border-ink-faint bg-white"
+                    : "h-1.5 w-px bg-ink/25"
+              }`}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
