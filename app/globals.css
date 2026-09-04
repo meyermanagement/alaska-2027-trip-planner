@@ -2278,6 +2278,33 @@ html[data-skin="sodium"] .menu-arc {
   color: var(--color-ink-soft);
 }
 
+/* The first node, and the only one drawn at a different size. Trips is where
+   most presses of this menu were heading, and inside a trip it is the way back
+   out. A curve of seven identical rows makes you read all seven; one larger row
+   at the head of it is answered before you have started reading. */
+.arc-pill.lead {
+  padding: 0.45rem 1.05rem 0.45rem 0.4rem;
+  gap: 0.7rem;
+}
+
+.arc-pill.lead .arc-disc {
+  width: 44px;
+  height: 44px;
+}
+
+.arc-pill.lead .arc-disc svg {
+  width: 21px;
+  height: 21px;
+}
+
+.arc-pill.lead .arc-label {
+  font-size: 1.12rem;
+}
+
+.arc-pill.lead .arc-sub {
+  font-size: 0.78rem;
+}
+
 /* The screen you are already on: filled in the accent, which is the marker the
    rest of the app uses for the same idea. */
 .arc-pill.on {

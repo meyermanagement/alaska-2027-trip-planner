@@ -325,9 +325,13 @@ export default function NavTabs({
             <div className="mx-auto max-w-5xl px-4">
               <div className="flex max-w-[23rem] flex-col items-start gap-1.5">
                 {hero}
-                {/* Bottom of the arc first: the array is written top-down for
-                    the desk, and the arc is read outward from the thumb. */}
-                {[...tabs].reverse().map((tab, index) => {
+                {/* Read downward, in the order the tabs are written: the trip
+                    plate, then Trips under it, then the rest, with Settings
+                    last. The arc used to run the other way, outward from the
+                    thumb, which put the least-used door directly under the
+                    plate and made the column read bottom-up against every other
+                    list in the app. */}
+                {tabs.map((tab, index) => {
                   const isWayOut = tab.href === "/trips" && insideTrip;
                   const active = isActive(tab.href) && !isWayOut;
                   const count = tab.badge ? attention : 0;
@@ -360,7 +364,12 @@ export default function NavTabs({
                       style={{
                         marginLeft: `calc(var(--arc-span) * ${bow.toFixed(3)})`,
                       }}
-                      className={`arc-pill ${active ? "on" : ""}`}
+                      /* Trips is drawn larger than the six below it. It is the
+                         door most presses of this menu are looking for, and on a
+                         trip screen it is the way back out -- so it gets the
+                         size that says so rather than being one of seven equal
+                         rows in a curve. */
+                      className={`arc-pill ${index === 0 ? "lead " : ""}${active ? "on" : ""}`}
                     >
                       <span className="arc-disc">
                         <PendingSwap href={tab.href} className="h-[18px] w-[18px] shrink-0">
@@ -374,7 +383,7 @@ export default function NavTabs({
                         )}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate font-display text-[0.95rem] font-semibold leading-tight">
+                        <span className="arc-label block truncate font-display text-[0.95rem] font-semibold leading-tight">
                           {isWayOut ? "All trips" : tab.label}
                         </span>
                         <span className="arc-sub block truncate text-[0.72rem] leading-tight">
