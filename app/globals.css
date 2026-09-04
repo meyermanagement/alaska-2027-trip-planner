@@ -2391,8 +2391,18 @@ html[data-skin="sodium"] .menu-arc {
     var(--arc-hero-hue, var(--color-glacier)) 11%,
     var(--arc-face)
   );
-  border: 1px solid var(--arc-edge);
-  box-shadow: var(--arc-shadow);
+  /* A brighter edge and a deeper lift than a pill gets, both carrying the
+     trip's hue, because this card has to be the first thing the eye lands on
+     and the frosted face alone left it flush with the page. The far shadow is
+     tinted rather than grey, so the plate throws its own color onto whatever is
+     underneath it and reads as standing off the screen. */
+  border: 1.5px solid
+    color-mix(in srgb, var(--arc-hero-hue, var(--color-glacier)) 58%, var(--arc-edge));
+  box-shadow:
+    0 2px 5px rgba(16, 38, 43, 0.18),
+    0 18px 34px -12px
+      color-mix(in srgb, var(--arc-hero-hue, var(--color-glacier)) 62%, transparent),
+    0 10px 26px -14px rgba(16, 38, 43, 0.5);
   backdrop-filter: blur(20px) saturate(1.3);
   -webkit-backdrop-filter: blur(20px) saturate(1.3);
   transition: transform 0.18s ease;
