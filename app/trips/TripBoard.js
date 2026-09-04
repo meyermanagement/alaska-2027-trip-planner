@@ -165,7 +165,7 @@ function UpcomingCard({ trip, canRemove = false }) {
               recognizing a trip and knowing how close it is. */}
           <div className="flex flex-wrap gap-1.5">
             {countdown !== null && countdown >= 0 && (
-              <span className="chip chip-accent">
+              <span className="chip chip-shade">
                 {countdownSaid(countdown)}
               </span>
             )}

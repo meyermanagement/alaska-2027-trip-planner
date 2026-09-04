@@ -486,7 +486,7 @@ export default function TripView({
                     {info.name}
                   </h1>
                   {countdown !== null && countdown >= 0 && (
-                    <span className="chip chip-accent">
+                    <span className="chip chip-shade">
                       {countdownSaid(countdown)}
                     </span>
                   )}

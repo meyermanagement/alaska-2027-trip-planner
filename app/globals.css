@@ -1360,6 +1360,39 @@ input[type="month"]::-webkit-date-and-time-value {
   text-shadow: none;
 }
 
+/* A third value in the accent family, for the thing that repeats.
+ *
+ * The full-strength accent was being spent on the countdown, which appears on
+ * every card on the trips screen -- so a screen with five trips had five solid
+ * accent pills on it and the accent stopped meaning anything. A color used
+ * everywhere is not an accent, it is a background.
+ *
+ * So the countdown gets a shade of the same hue instead: the accent mixed most
+ * of the way into the plate's own ground, with a hairline of the accent at a
+ * strength that still reads as the accent, and the plate's own word color rather
+ * than the accent's. Same family, a third of the weight, and it holds its
+ * meaning when five of them are stacked. Full-strength accent is then left for
+ * the one badge per screen that is genuinely singular -- Happening now.
+ *
+ * Mixed off --map-water, not written out, so it is correct on all five skins and
+ * flips with the Current panel's polarity along with everything else. */
+/* Off a plate the same idea, mixed into paper instead of into water. Nothing in
+   the app uses it there yet, but a chip class that only exists inside one
+   container is a trap for the next screen. */
+.chip-shade {
+  background: color-mix(in srgb, var(--color-teal) 12%, var(--color-white));
+  border-color: color-mix(in srgb, var(--color-teal) 40%, transparent);
+  color: var(--color-ink);
+}
+
+.on-photo .chip-shade {
+  background: color-mix(in srgb, var(--color-teal) 26%, var(--map-water));
+  border-color: color-mix(in srgb, var(--color-teal) 62%, transparent);
+  color: var(--on-photo);
+  backdrop-filter: none;
+  text-shadow: none;
+}
+
 .on-photo .chip-accent {
   background: var(--color-teal);
   border-color: var(--color-teal);
@@ -1678,9 +1711,16 @@ html[data-skin="daybreak"] {
   --color-on-accent: #ffffff;
   --color-plum: #4b2bc4;
 
-  --line: rgba(16, 60, 68, 0.14);
-  --line-strong: rgba(16, 60, 68, 0.26);
-  --shadow-card: 0 1px 1px rgba(16, 50, 58, 0.04);
+  /* Firmer than a dark skin's hairline, because a pale skin has no contrast to
+     spare. A card here is white paper on near-white paper, so the edge is doing
+     the whole job of saying where the card stops. */
+  --line: rgba(16, 60, 68, 0.2);
+  --line-strong: rgba(16, 60, 68, 0.34);
+  /* And a shadow that reads as height rather than as a rendering artifact. At
+     0.04 the card was floating on nothing; a pale skin needs the lift to be
+     visible or every surface collapses into one plane. */
+  --shadow-card:
+    0 1px 2px rgba(16, 50, 58, 0.07), 0 6px 16px -12px rgba(16, 50, 58, 0.3);
   --shadow-card-lift:
     0 1px 2px rgba(16, 50, 58, 0.05), 0 12px 26px -20px rgba(16, 50, 58, 0.45);
   --shadow-inset: inset 0 1px 2px rgba(16, 50, 58, 0.05);
@@ -1722,8 +1762,13 @@ html[data-skin="daybreak"] .trip-media .trip-photo {
   mix-blend-mode: normal;
 }
 
+/* The page is now a clear step darker than a card. It was #eff5f5 against a
+   #fbfdfd card -- about two percent apart -- so nothing on the screen had a
+   ground to stand on. Deepening the page rather than brightening the cards is
+   the right direction: the cards are already almost white, and a pale skin
+   should read as paper in daylight, not as fog. */
 html[data-skin="daybreak"] body {
-  background-color: #eff5f5;
+  background-color: #e3edef;
   background-image:
     linear-gradient(rgba(16, 60, 68, 0.028) 1px, transparent 1px),
     linear-gradient(90deg, rgba(16, 60, 68, 0.028) 1px, transparent 1px),
@@ -1737,7 +1782,7 @@ html[data-skin="daybreak"] body {
       rgba(47, 191, 168, 0.16) 0%,
       rgba(47, 191, 168, 0) 64%
     ),
-    linear-gradient(180deg, #f4f9f9 0%, #e6eff0 100%);
+    linear-gradient(180deg, #ecf4f5 0%, #d9e7ea 100%);
   background-size:
     32px 32px,
     32px 32px,
@@ -1817,11 +1862,15 @@ html[data-skin="frost"] {
   --color-on-accent: #ffffff;
   --color-plum: #6b2fbf;
 
-  --line: rgba(24, 28, 48, 0.09);
-  --line-strong: rgba(24, 28, 48, 0.18);
+  /* The gallery direction wants almost no border, and at 0.09 over a near-white
+     page that meant no edge at all. Still the quietest hairline of the five,
+     but now a hairline. */
+  --line: rgba(24, 28, 48, 0.16);
+  --line-strong: rgba(24, 28, 48, 0.28);
   /* No border where a soft shadow will do -- the one piece of the gallery's
      shape language that survives as a value rather than a rule. */
-  --shadow-card: 0 1px 2px rgba(20, 22, 31, 0.04);
+  --shadow-card:
+    0 1px 2px rgba(20, 22, 31, 0.06), 0 8px 20px -14px rgba(30, 34, 72, 0.32);
   --shadow-card-lift:
     0 1px 2px rgba(20, 22, 31, 0.04), 0 30px 60px -34px rgba(30, 34, 72, 0.42);
   --shadow-inset: inset 0 1px 2px rgba(24, 28, 48, 0.06);
@@ -1861,8 +1910,10 @@ html[data-skin="frost"] .trip-media .trip-photo {
   mix-blend-mode: normal;
 }
 
+/* Same correction as Daybreak: a pure-white card needs a page that is visibly
+   not white. This one keeps its cool cast and loses the last of the glare. */
 html[data-skin="frost"] body {
-  background-color: #f7f8fb;
+  background-color: #eaedf6;
   background-image:
     linear-gradient(rgba(24, 28, 48, 0.026) 1px, transparent 1px),
     linear-gradient(90deg, rgba(24, 28, 48, 0.026) 1px, transparent 1px),
@@ -1876,7 +1927,7 @@ html[data-skin="frost"] body {
       rgba(76, 201, 240, 0.22) 0%,
       rgba(76, 201, 240, 0) 62%
     ),
-    linear-gradient(180deg, #fbfcfe 0%, #eef1f8 100%);
+    linear-gradient(180deg, #f2f4fb 0%, #e2e6f2 100%);
   background-size:
     32px 32px,
     32px 32px,
