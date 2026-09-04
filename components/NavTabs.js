@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger from "./AskAlyTrigger";
+import { PendingSwap } from "./LinkPending";
 import { SECONDARY } from "@/lib/travelers/access";
 import useSoftKeyboard from "./useSoftKeyboard";
 
@@ -43,6 +44,11 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * common thing anybody does from inside a trip, and it should not cost two taps
  * and a sheet to read. The row in the sheet stays, because that is where the
  * label spelling it out lives.
+ *
+ * Every row here, and the arrow beside the pill, turns its icon into a spinner
+ * while the screen it asks for is on its way. The sheet closes on the press, so
+ * without that there is nothing at all between the press and the next screen --
+ * which on a slow answer is indistinguishable from an app that has stopped.
  *
  * While you are typing on a phone the whole bar leaves. Left alone, iOS lifts
  * anything pinned to the bottom of the screen up on top of the keyboard as soon
@@ -243,11 +249,18 @@ export default function NavTabs({
                           : "border-[var(--line)] bg-sand hover:border-[var(--line-strong)]"
                       }`}
                     >
-                      <Icon
+                      <PendingSwap
+                        href={tab.href}
                         className={`h-5 w-5 shrink-0 ${
                           active ? "text-teal" : "text-ink-soft"
                         }`}
-                      />
+                      >
+                        <Icon
+                          className={`h-5 w-5 shrink-0 ${
+                            active ? "text-teal" : "text-ink-soft"
+                          }`}
+                        />
+                      </PendingSwap>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-display text-[1rem] font-semibold text-ink">
                           {isWayOut ? "All trips" : tab.label}
@@ -296,7 +309,9 @@ export default function NavTabs({
                 aria-label="Back to all trips"
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-sand text-ink transition hover:border-[var(--line-strong)] active:translate-y-px"
               >
-                <BackIcon className="h-5 w-5" />
+                <PendingSwap href="/trips" className="h-5 w-5">
+                  <BackIcon className="h-5 w-5" />
+                </PendingSwap>
               </Link>
             )}
             <button

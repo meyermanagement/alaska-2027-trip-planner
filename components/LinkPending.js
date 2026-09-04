@@ -31,9 +31,16 @@ import { useEffect } from "react";
  *
  * The number is a judgement about the worst honest wait, not the average one.
  * Hotel wifi on a phone can take two seconds to hand over a screen, and cutting
- * a working navigation short costs a reload and any typing in it. Three and a
- * half seconds is longer than a working screen takes and shorter than anybody's
- * patience.
+ * a working navigation short costs a reload and any typing in it.
+ *
+ * It was three and a half seconds, chosen while a redirect in the middleware was
+ * swallowing presses outright and nothing else was going to rescue them. That
+ * redirect is gone, so a press that has not landed yet is now almost always a
+ * slow screen rather than a lost one -- and at three and a half seconds this was
+ * firing on the slow ones, which is why changing screens kept reloading the whole
+ * app, splash screen and all. Eight seconds is past the point where anybody still
+ * believes the press worked, and well past any screen this app has been seen to
+ * take. The rescue is for a press that will never land, not for one that is late.
  *
  * Two things make this safe against firing on a healthy press. The deadline is
  * cleared when the link stops pending, and it is also cleared when the link
@@ -41,7 +48,7 @@ import { useEffect } from "react";
  * replaces the screen brings its own copy of the menu. A navigation that works
  * takes its timer with it.
  */
-const STUCK_MS = 3500;
+const STUCK_MS = 8000;
 
 function useStuckRescue(pending, href) {
   useEffect(() => {

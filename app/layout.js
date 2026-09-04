@@ -1,13 +1,7 @@
 import { Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import BootVeil from "@/components/BootVeil";
-import {
-  BAND_COOKIE,
-  DEFAULT_SKIN,
-  SKINS,
-  SKIN_COOKIE,
-  skinById,
-} from "@/lib/skins";
+import { BAND_COOKIE, DEFAULT_SKIN, SKINS, SKIN_COOKIE } from "@/lib/skins";
 
 // One editorial serif for names and headings, one quiet sans for everything
 // else. Loaded properly rather than falling back to whatever the device has.
@@ -32,9 +26,20 @@ export const metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  // The first frame's bar, before the script below has read the cookie. It is
-  // the default skin's, because that is what the page is wearing until it has.
-  themeColor: skinById(DEFAULT_SKIN).bar,
+  // No themeColor here, deliberately, and it must not come back.
+  //
+  // The color of the phone's own bar is not a constant in this app: it follows
+  // the skin, and it follows the band about the trip in progress. Both of those
+  // are settled by the script below, and the only way to make mobile Safari
+  // notice a new one is to take the tag out of the head and put a fresh one in --
+  // an attribute change is read while the document is parsed and never again.
+  //
+  // Declaring the tag here made the framework the owner of that node. Pulling it
+  // out from under React worked exactly once: the next client navigation, which is
+  // the next time React touched the head, threw on a node that was no longer
+  // where it had left it -- and the screen either sat there or the whole app
+  // reloaded. So the tag is the app's own from the first frame: created by the
+  // script, replaced by the script, and never rendered.
 };
 
 // The skin, put on <html> before the browser paints anything.
@@ -79,11 +84,17 @@ var d=document.documentElement;
 d.dataset.skin=id;
 d.style.colorScheme=bars[id][1]?"dark":"light";
 var paint=function(){var t=document.querySelectorAll('meta[name="theme-color"]');
+// Nothing rendered one, so this is where the tag comes from. Made here in the
+// head, while the document is still being parsed, which is the only moment
+// Safari reads it.
+if(!t.length){if(!document.head)return false;var f=document.createElement("meta");
+f.setAttribute("name","theme-color");f.setAttribute("content",bar);
+document.head.appendChild(f);return true;}
 for(var i=0;i<t.length;i++)t[i].setAttribute("content",bar);
-return t.length>0;};
-// Whether the meta tag has been parsed yet depends on where the framework put
-// it relative to this script, and that is not ours to decide. Painted now if it
-// is there, and again once the head is finished if it is not.
+return true;};
+// Normally the head exists by now and this is done on the spot. The fallback is
+// for the one case that cannot be: a build that inlines this script somewhere the
+// head has not been opened yet.
 if(!paint())document.addEventListener("DOMContentLoaded",paint);
 }catch(e){}})()`;
 

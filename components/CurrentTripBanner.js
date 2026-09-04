@@ -34,6 +34,10 @@ import TripBandChrome from "./TripBandChrome";
  * page's cream, which put a seam above the band and made it read as a panel that
  * had come loose. See components/TripBandChrome.js, which is mounted here.
  *
+ * `trip-band` carries the other half of that: teal continuing upward off the top
+ * of the screen, so that the strip which appears above a sticky band mid-scroll
+ * on an iPhone is teal rather than cream. See globals.css.
+ *
  * Only shown to people on the trip. That is decided in TopBar, which knows who is
  * asking; pass it a trip and it draws one, so nothing here needs to know about
  * rosters.
@@ -43,7 +47,7 @@ export default function CurrentTripBanner({ trip, today }) {
   const where = tripDayNumber(trip, today);
 
   return (
-    <div className="no-print border-b border-teal/30 bg-teal text-on-accent">
+    <div className="trip-band no-print border-b border-teal/30 bg-teal text-on-accent">
       <TripBandChrome endDate={trip.end_date} />
       <Link
         href={tripPath(trip, "itinerary")}

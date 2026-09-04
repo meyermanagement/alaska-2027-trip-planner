@@ -407,6 +407,42 @@ html[data-booted] #boot-veil {
   }
 }
 
+/* ------------------------------------------------------------------
+ * The band about the trip in progress, and the space above it
+ *
+ * The band is sticky at the top of the page and solid teal. On an iPhone a strip
+ * of cream kept appearing between it and the top of the screen: sticky positions
+ * are settled on the scrolling thread, so during a fast flick the band arrives a
+ * frame or two late, and the same strip opens up when the document rubber-bands
+ * past the top. Both showed the page's own ground through space the band had not
+ * filled yet, which is why the band read as a panel that had come loose -- and
+ * why it looked right again once the scroll had settled at the top.
+ *
+ * Nothing here chases the scroll. The band simply continues upward off the top of
+ * the screen: half a viewport of the same teal, out of flow, so whatever opens up
+ * above the band is already the band's color. It costs one painted rectangle that
+ * is normally not on screen at all, and there is no frame at which it can be
+ * wrong.
+ *
+ * Not 100vh, which on iOS is the tallest the viewport ever gets; half of it is
+ * more than any flick or bounce has been seen to expose. Never a target -- the
+ * band's own link is the thing you press.
+ * ------------------------------------------------------------------ */
+.trip-band {
+  position: relative;
+}
+
+.trip-band::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 50vh;
+  background: var(--color-teal);
+  pointer-events: none;
+}
+
 /* The ground goes on body rather than on the shell, so that it is the page's own
    background and gets handed to the canvas: whatever the shell's height works
    out to, and however far an overscroll bounce pulls, there is no strip at the

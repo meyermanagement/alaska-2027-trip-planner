@@ -24,9 +24,14 @@ import { BAND_COOKIE, paintChrome } from "@/lib/skins";
  *   fetched a trip. The blocking script in app/layout.js reads this cookie and
  *   paints accordingly, which is what makes a hard reload mid-trip come up right
  *   on the first frame.
- * - Repainting the tag is the half that works everywhere else, and it is what
- *   covers the moment the band first appears, or goes, without a page load:
- *   Chrome and Firefox follow a change to the head's child list.
+ * - Replacing the tag is the half that works everywhere else, and it is what
+ *   covers the moment the band first appears, or goes, without a page load.
+ *
+ * The tag it replaces has to be the app's own, which is why app/layout.js no
+ * longer declares a theme color in its viewport export. While the framework owned
+ * that node, taking it out from under React threw the next time React touched the
+ * head -- which is every client navigation -- and that took the app with it: a
+ * frozen screen, or a full reload, on every attempt to change screens.
  *
  * The cookie is dated to the end of the trip rather than left to the session, so
  * a phone that is closed on the last day and opened a week later does not come
