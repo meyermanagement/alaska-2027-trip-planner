@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
-import AskAlyTrigger from "./AskAlyTrigger";
+import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
 import { SECONDARY } from "@/lib/travelers/access";
 import useSoftKeyboard from "./useSoftKeyboard";
@@ -327,10 +327,23 @@ export default function NavTabs({
                 <AskAlyTrigger href={askHref} round />
               </span>
             ) : (
+              // Loading. The disc is drawn in full -- teal, bubble, shadow --
+              // rather than as a grey skeleton circle, because the skeleton
+              // version disappeared into whatever card happened to be behind
+              // it and the corner simply looked empty. A grey shape works for a
+              // row of text on a page; it does not work for the one element
+              // that is meant to be the brightest thing on the screen.
+              //
+              // It is a span rather than a button, and dimmed, because the
+              // drawer that answers a press is mounted by the page and the page
+              // is what has not arrived yet. So it reads as the control on its
+              // way in, which is what it is.
               <span
                 aria-hidden="true"
-                className="sk h-14 w-14 shrink-0 rounded-full"
-              />
+                className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-teal text-on-accent opacity-60 shadow-[0_2px_6px_rgba(20,32,30,0.20),0_10px_20px_rgba(20,32,30,0.26),0_20px_44px_rgba(20,32,30,0.40)] ring-1 ring-ink/10"
+              >
+                <BubbleIcon className="h-8 w-8 shrink-0" />
+              </span>
             ))}
         </div>
       </nav>
