@@ -1105,6 +1105,14 @@ input[type="month"]::-webkit-date-and-time-value {
   --on-photo-rose: #ffc7d0;
   --on-photo-amber: #f8cd91;
   --on-photo-shadow: 0 1px 12px rgba(24, 20, 14, 0.45);
+
+  /* The pair a plate is built from, aliased so it can be read after it has been
+     overridden. A custom property declared here is substituted here, so these
+     two hold the skin's own values as literal colors wherever they are inherited
+     -- which is what lets .plate-invert swap them without writing var(--x) in
+     terms of itself, and without a single skin-specific value. */
+  --plate-ground-base: var(--map-water);
+  --plate-word-base: var(--on-photo);
 }
 
 .trip-media {
@@ -1183,6 +1191,85 @@ input[type="month"]::-webkit-date-and-time-value {
   .trip-media .trip-photo {
     transition: none;
   }
+}
+
+/* The trip you are on, on a plate of the opposite polarity to the other cards.
+ * ------------------------------------------------------------------
+ * The Current panel already had a shape nothing else on the trips screen has,
+ * and on the Field Journal that was not enough: the page is cream, but every
+ * plate on it is dark, so the panel was a dark card among dark cards. On
+ * Daybreak and Frost the plates are pale ice, so it was a light card among light
+ * ones. The one thing on the screen that should be impossible to miss was the
+ * thing that blended in.
+ *
+ * So the plate's two ends swap. A plate is a ground with words on it, and those
+ * are exactly --map-water and --on-photo; --plate-ground-base and
+ * --plate-word-base hold the skin's own pair, and this rule trades them. One
+ * declaration, correct on all five skins and on any skin added later, with no
+ * hexes of its own: the Field Journal's near-black plate becomes cream with dark
+ * words, Frost's pale ice becomes near-black with light ones. Which is the shape
+ * of the answer either way round -- a light card where the others are dark, a
+ * dark card where the others are light.
+ *
+ * Everything drawn on the plate follows, because all of it is derived: the coast
+ * redraws on the new water, the picture dims to suit it, and the chips, rules and
+ * quieter voices are re-mixed below off the new word color. Those had to be
+ * repeated here -- each is declared at :root in terms of --on-photo, so it was
+ * substituted there and would otherwise carry the old value onto the new plate.
+ */
+.plate-invert,
+.plate-invert .trip-media {
+  --map-water: var(--plate-word-base);
+  --on-photo: var(--plate-ground-base);
+  --map-land: color-mix(in srgb, var(--map-water) 84%, var(--on-photo));
+  --map-line: color-mix(in srgb, var(--on-photo) 26%, transparent);
+  --on-photo-shadow: none;
+  --on-photo-glass: color-mix(in srgb, var(--on-photo) 15%, transparent);
+  --on-photo-glass-lift: color-mix(in srgb, var(--on-photo) 24%, transparent);
+  --on-photo-line: color-mix(in srgb, var(--on-photo) 32%, transparent);
+  --on-photo-line-lift: color-mix(in srgb, var(--on-photo) 58%, transparent);
+  --on-photo-muted: color-mix(in srgb, var(--on-photo) 86%, transparent);
+  --on-photo-system: color-mix(in srgb, var(--on-photo) 92%, transparent);
+  --on-photo-track: color-mix(in srgb, var(--on-photo) 24%, transparent);
+  --on-photo-fill: color-mix(in srgb, var(--on-photo) 90%, transparent);
+  --scrim: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--on-photo) 2%, transparent) 0%,
+    color-mix(in srgb, var(--on-photo) 8%, transparent) 46%,
+    color-mix(in srgb, var(--on-photo) 24%, transparent) 100%
+  );
+  /* A picture blended as luminosity over a flipped plate is doing the opposite
+     of what the skin tuned it for, so it comes in quieter. */
+  --photo-opacity: 0.32;
+  /* And barely any of the trip's hue, which is the second half of standing out.
+     Every other card on the screen now carries a strong color; if this one did
+     too it would be one more color among five. Held near-neutral, it is the only
+     card of its polarity and the only one without a color, so it reads as a
+     different kind of thing rather than as a differently colored one. */
+  --trip-wash: 0.24;
+}
+
+/* One hairline of the app's accent round the flipped plate, since a card whose
+   ground is now the page's own paper needs an edge the page does not give it. */
+.plate-invert.card {
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--color-teal) 55%, transparent),
+    0 18px 44px -28px color-mix(in srgb, var(--color-ink) 45%, transparent);
+}
+
+/* The trip's own color, over the map and under the picture.
+   `color` blend: hue and chroma from here, lightness from the drawing below. So
+   this does not lighten or darken a plate -- a pale ice coast stays pale ice and
+   a near-black one stays near-black -- it only gives each trip its own hue. The
+   strength is a token so a skin can pull it back; the default is high on purpose,
+   because at anything subtle the five colors stop being distinguishable at the
+   size these cards actually appear. */
+.trip-media .trip-wash {
+  position: absolute;
+  inset: 0;
+  background: var(--trip-hue, var(--color-teal));
+  mix-blend-mode: color;
+  opacity: var(--trip-wash, 0.88);
 }
 
 .trip-media .trip-scrim {

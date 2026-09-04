@@ -55,6 +55,12 @@ function Section({ id, view, title, blurb, count, children }) {
  * tinted, full width, above the tab switcher rather than inside it, because it is
  * the one thing here that should not be possible to hide behind a tab.
  *
+ * And .plate-invert, which is what actually makes it unmissable. See the rule in
+ * globals.css: the panel takes the opposite polarity to the page, so it is a dark
+ * card on the three light skins and a light card on the two dark ones. Shape alone
+ * was not enough -- on four of the five skins this panel was the same value as
+ * every card under it, which is the one thing a "happening now" panel cannot be.
+ *
  * Wider than the other cards on purpose. Every other card on this screen is an
  * invitation to plan something; this one is the answer to "what is happening
  * today", so it carries a button rather than only being tappable.
@@ -64,9 +70,9 @@ function CurrentCard({ trip, today }) {
   return (
     <section
       aria-label={`${trip.name}, happening now`}
-      className="trip-plate card on-photo min-h-[228px] justify-end border-teal/35 shadow-[0_14px_34px_-26px_rgba(27,90,76,0.55)]"
+      className="trip-plate plate-invert card on-photo min-h-[248px] justify-end border-transparent"
     >
-      <TripBackdrop trip={trip} shape="head" />
+      <TripBackdrop trip={trip} shape="head" plain />
       <div className="relative p-5">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="emoji-badge" aria-hidden="true">

@@ -1962,21 +1962,7 @@ export default function Itinerary({
         </form>
       )}
 
-      <div className="no-print mt-5 flex flex-wrap gap-2 border-t border-[var(--line)] pt-4">
-        {!readOnly && (
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              if (adding) {
-                setAdding(false);
-                return;
-              }
-              addToDay(selected);
-            }}
-          >
-            {adding ? "Close" : "+ Add"}
-          </button>
-        )}
+      <div className="no-print mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-4">
         <AddToCalendar
           events={tripEvents}
           title={tripName ? `${tripName} itinerary` : "Trip itinerary"}
@@ -1989,6 +1975,25 @@ export default function Itinerary({
         >
           Print
         </button>
+        {/* Kept on the right, where it was when this row lived at the top of the
+            screen. Add is the only one of the three that changes the trip, and
+            the thumb that reaches for it should not have to learn a new corner
+            just because the row moved down. ml-auto rather than
+            justify-between, so it still sits right when the two others wrap. */}
+        {!readOnly && (
+          <button
+            className="btn btn-primary ml-auto"
+            onClick={() => {
+              if (adding) {
+                setAdding(false);
+                return;
+              }
+              addToDay(selected);
+            }}
+          >
+            {adding ? "Close" : "+ Add"}
+          </button>
+        )}
       </div>
     </section>
   );

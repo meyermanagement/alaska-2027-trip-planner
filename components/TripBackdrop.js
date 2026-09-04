@@ -33,7 +33,7 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { useSkin } from "@/components/SkinWatch";
 import { contourSvg } from "@/lib/covers/contour";
-import { coverTint } from "@/lib/covers/tint";
+import { coverTint, coverToken } from "@/lib/covers/tint";
 
 let landPromise = null;
 
@@ -104,8 +104,14 @@ function land() {
 /**
  * @param {object} trip     needs lat, lon, cover_image_url, cover_image_alt
  * @param {string} shape    "card" | "head" -- only the frame proportions differ
+ * @param {boolean} plain   drop the trip's own ground and take the plate's
+ *                          instead. For the Current panel, whose whole job is to
+ *                          be the one card on the screen without a color of its
+ *                          own -- and whose ground has to come from CSS, since the
+ *                          rule that flips its polarity cannot outrank an inline
+ *                          style.
  */
-function TripBackdrop({ trip, shape = "card" }) {
+function TripBackdrop({ trip, shape = "card", plain = false }) {
   const [contour, setContour] = useState("");
   // Neither layer is shown until it has decoded, and each fades in on its own.
   // A picture that appears the instant its bytes land snaps into place over a
@@ -168,7 +174,15 @@ function TripBackdrop({ trip, shape = "card" }) {
       className="trip-media"
       aria-hidden={url ? undefined : "true"}
       // Painted on the server, in the first frame, before anything is fetched.
-      style={{ backgroundImage: coverTint(trip) }}
+      // --trip-hue is the same choice as one flat color, for the wash below.
+      style={
+        plain
+          ? { "--trip-hue": coverToken(trip) }
+          : {
+              backgroundImage: coverTint(trip),
+              "--trip-hue": coverToken(trip),
+            }
+      }
     >
       {contour ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -181,6 +195,17 @@ function TripBackdrop({ trip, shape = "card" }) {
           onLoad={() => arrived("contour")}
         />
       ) : null}
+      {/* The trip's own color, laid over the coastline and under the picture.
+          Without it the ground was decoration nobody saw: the contour is drawn
+          at full opacity in the skin's map colors, so every located trip came
+          out the same blue-grey or the same brown and only the handful with no
+          point at all showed a color of their own. Blended as `color`, which
+          takes hue and saturation from this layer and lightness from the drawing
+          underneath -- so the coast keeps every line it had, a light skin stays
+          light and a dark one stays dark, and the picture above, being blended
+          as luminosity, now prints as a duotone in the trip's color rather than
+          in the map's. */}
+      <div className="trip-wash" />
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -205,6 +230,7 @@ export default memo(TripBackdrop, (a, b) => {
   const y = b.trip || {};
   return (
     a.shape === b.shape &&
+    a.plain === b.plain &&
     x.id === y.id &&
     x.lat === y.lat &&
     x.lon === y.lon &&
