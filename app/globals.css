@@ -2214,6 +2214,21 @@ html[data-skin="sodium"] #boot-veil {
    text need about 250 of the 312 pixels a phone gives you, so there is not much
    left to spend; on the narrowest phones there is less again.
  * ----------------------------------------------------------------------- */
+/* The panel takes focus when it opens, so that a keyboard and a screen reader
+   land inside the menu rather than back on the page behind it. Safari paints a
+   ring around a programmatically focused element even through Tailwind's
+   transparent outline, and because this panel is the full width of the screen
+   the ring arrived as a hairline ruled straight across the page just above the
+   trip plate. It is a focus ring on a container nobody is typing into, so it is
+   removed outright rather than restyled. */
+.menu-arc,
+.menu-arc:focus,
+.menu-arc:focus-visible {
+  outline: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .menu-arc {
   --arc-span: 40px;
   --arc-face: rgba(251, 253, 253, 0.78);
@@ -2362,16 +2377,25 @@ html[data-skin="sodium"] .menu-arc {
   margin-bottom: 0.4rem;
   padding: 0.65rem 0.8rem;
   border-radius: 1.15rem;
-  color: var(--color-on-accent);
-  /* Mostly the accent, leaning cool only at the far corner. An even split
-     between the two reads as two plates stuck together on the skins where
-     glacier is deliberately unrelated to the accent rather than a cousin of
-     it. */
+  color: #ffffff;
+  /* The trip's own hue, handed down from the component, deepened at the near
+     corner so white type sits on it safely whichever of the five a trip drew.
+     This used to be the accent, which meant the plate and the pill for the
+     screen you were already on were the same green: the menu looked like it had
+     two things selected. The accent is now spent once, on the pill, and the
+     plate wears the color its own cover is printed in. */
+  /* Both stops are the hue laid over near-black rather than the hue itself,
+     because two of the five skins hand back pale accents -- a dark skin's tokens
+     are lit for dark ground -- and a pale plate cannot carry white type. Mixed
+     down like this the darkest corner clears 7:1 on every skin and the far
+     corner clears 4.5:1 on all of them, which is what the small caps line at the
+     top needs. */
   background: linear-gradient(
     135deg,
-    var(--color-teal) 0%,
-    var(--color-teal) 48%,
-    var(--color-glacier) 145%
+    color-mix(in srgb, var(--arc-hero-hue, var(--color-glacier)) 40%, #0d1416)
+      0%,
+    color-mix(in srgb, var(--arc-hero-hue, var(--color-glacier)) 55%, #0d1416)
+      100%
   );
   box-shadow:
     0 2px 6px rgba(16, 38, 43, 0.2), 0 14px 32px rgba(16, 38, 43, 0.34);
@@ -2389,7 +2413,7 @@ html[data-skin="sodium"] .menu-arc {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--color-on-accent) 20%, transparent);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 @media (prefers-reduced-motion: reduce) {

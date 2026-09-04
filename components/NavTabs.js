@@ -10,6 +10,7 @@ import {
   lastDayOf,
   tripDayNumber,
 } from "@/lib/format";
+import { coverToken } from "@/lib/covers/tint";
 import { parseTripRef, tripPath } from "@/lib/trips/route";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
@@ -237,6 +238,13 @@ export default function NavTabs({
       onPointerEnter={() => router.prefetch(tripPath(trip, "itinerary"))}
       onClick={() => setOpen(false)}
       className="arc-hero"
+      /* The trip's own color, the one its cover is printed in, rather than the
+         accent. Painted in the accent the plate was the same green as the pill
+         for the screen you were already on, so the menu appeared to have two
+         things selected and neither of them said which. Only one thing in this
+         shape is allowed to be the accent, and it is the one that means "you
+         are here". */
+      style={{ "--arc-hero-hue": coverToken(trip) }}
     >
       <span aria-hidden="true" className="shrink-0 text-[1.15rem] leading-none">
         {trip.cover_emoji || "🧭"}
@@ -275,9 +283,11 @@ export default function NavTabs({
           visibly to the button that opened it and to the corner it came from,
           and the screen underneath is never fully taken away.
 
-          Trips lands nearest the thumb and Settings furthest from it, which is
-          the inversion the whole shape exists for: the order runs outward from
-          the press, not downward from the top of a panel.
+          The column reads downward, the way every other list in the app does,
+          with Trips first and Settings last. Running it the other way -- outward
+          from the thumb -- was a nice idea about where a hand is and a bad one
+          about where the eye starts: it put the least-used door directly beneath
+          the trip plate, at the top of the shape, where the reading begins.
 
           Each node is a frosted pill and not a bare circle because the second
           line survives — the explanation of what each screen is for, which the
