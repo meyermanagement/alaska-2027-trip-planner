@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
@@ -58,6 +58,22 @@ import { FIRST_NAME, templateRequest } from "@/lib/packing/newTemplate";
  * screen picks it up. See lib/covers/queue.js.
  */
 
+/**
+ * Asks whichever of these buttons is on the page to open its panel.
+ *
+ * The button lives near the top of the draft screen, beside the progress bar it
+ * belongs to, and the draft screen is long — six basics, the ideas, the days,
+ * and the summary of everything else. By the time somebody has read to the
+ * bottom and decided the draft is finished, the control that finishes it is
+ * several screens back up. A second button down there that only said "scroll
+ * up" would be a signpost; this one does the thing, and the scroll is so the
+ * panel it opens is actually looked at rather than opened out of sight.
+ *
+ * `detail.tripId` is checked because the trips board mounts one of these per
+ * draft card, and an unaddressed event there would open all of them at once.
+ */
+export const PROMOTE_DRAFT_EVENT = "alyeska:promote-draft";
+
 const MONTHS = [
   "January",
   "February",
@@ -101,6 +117,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
   const [listCount, setListCount] = useState(hasPacking ? -1 : 0);
   const [packedCount, setPackedCount] = useState(0);
   const [sure, setSure] = useState(false);
+  const hostRef = useRef(null);
 
   const look = useCallback(async () => {
     setLoading(true);
@@ -156,7 +173,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
     if (open) look();
   }, [open, look]);
 
-  function begin() {
+  const begin = useCallback(() => {
     setProblem("");
     if (!trip.start_date || !trip.end_date) {
       setProblem(
@@ -172,7 +189,29 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
       return;
     }
     setOpen(true);
-  }
+  }, [trip.start_date, trip.end_date]);
+
+  // Opened from somewhere else on the page. The scroll waits a frame so it is
+  // measuring the panel rather than the button it replaced, and it centers
+  // rather than aligning to the top because the panel is taller than a button
+  // and its buttons are at the bottom of it. When the dates refuse the move,
+  // begin() writes a sentence instead of opening anything -- and that sentence
+  // is the thing worth scrolling to, so the scroll happens either way.
+  useEffect(() => {
+    function onAsk(e) {
+      const wanted = e?.detail?.tripId;
+      if (wanted && wanted !== trip.id) return;
+      begin();
+      requestAnimationFrame(() => {
+        hostRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      });
+    }
+    window.addEventListener(PROMOTE_DRAFT_EVENT, onAsk);
+    return () => window.removeEventListener(PROMOTE_DRAFT_EVENT, onAsk);
+  }, [trip.id, begin]);
 
   function toggle(id) {
     setChosen((prev) => {
@@ -294,7 +333,10 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
   const working = Boolean(busy);
 
   return (
-    <span className="no-print inline-flex w-full flex-col items-start gap-1">
+    <span
+      ref={hostRef}
+      className="no-print inline-flex w-full flex-col items-start gap-1"
+    >
       {!open && (
         <button
           type="button"
@@ -331,7 +373,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
       )}
 
       {open && (
-        <div className="mt-1 w-full max-w-md rounded-[0.875rem] border border-[var(--line)] bg-white px-3.5 py-3 text-left">
+        <div className="mt-1 w-full max-w-xl rounded-[0.875rem] border border-[var(--line)] bg-white px-3.5 py-3 text-left">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
             {hasList
               ? "Its packing list"

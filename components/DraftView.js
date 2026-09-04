@@ -13,7 +13,7 @@ import {
 } from "@/lib/trips/basics";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import AskAlyDrawer from "./AskAlyDrawer";
-import PromoteDraft from "./PromoteDraft";
+import PromoteDraft, { PROMOTE_DRAFT_EVENT } from "./PromoteDraft";
 import TripRoster from "./TripRoster";
 import BasicAnswer from "./BasicAnswer";
 
@@ -162,13 +162,7 @@ export default function DraftView({
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
               {progress.answered} of {progress.total} sketched in
             </p>
-            {progress.complete ? (
-              <PromoteDraft
-                trip={trip}
-                hasPacking={packing.length > 0}
-                onDone={() => router.refresh()}
-              />
-            ) : (
+            {!progress.complete && (
               <p className="text-xs text-ink-soft">
                 {next ? `Next: ${next.label.toLowerCase()}` : ""}
               </p>
@@ -195,6 +189,24 @@ export default function DraftView({
                   : "Move it across whenever you are ready."
                 : "It needs a first and last day before it can move across — ask Aly to work the dates out."}
             </p>
+          )}
+
+          {/* The move sits under the bar rather than opposite the count. It used
+              to be the right-hand half of that one-line flex row, which is fine
+              for a button and wrong for what the button opens: the panel naming
+              what the packing list would be built from inherited the row's
+              right-hand cell, so it was shoved against the right edge and
+              squeezed to whatever width the count had left it. Given its own
+              full-width row it opens where it is read, left-aligned with
+              everything above it. */}
+          {progress.complete && (
+            <div className="mt-3">
+              <PromoteDraft
+                trip={trip}
+                hasPacking={packing.length > 0}
+                onDone={() => router.refresh()}
+              />
+            </div>
           )}
         </div>
 
@@ -477,6 +489,30 @@ export default function DraftView({
           on purpose: while the dates and the destination are still moving,
           anything worked out now would only be worked out again.
         </p>
+
+        {/* The end of the screen is where somebody decides the draft is
+            finished, and until now the control that finishes it was several
+            screens back up beside the progress bar. This is the same control,
+            reached from where the reading ends: it opens the panel up there --
+            the one naming what the packing list would be built from, with the
+            add-ons still tappable -- and carries the screen to it, so the
+            choices are seen rather than made blind. Drawn only once every basic
+            has an answer, because before that the move is refused anyway. */}
+        {progress.complete && (
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent(PROMOTE_DRAFT_EVENT, {
+                  detail: { tripId: trip?.id },
+                }),
+              )
+            }
+            className="no-print btn btn-primary mt-4 w-full text-sm sm:w-auto"
+          >
+            Move to Upcoming trips
+          </button>
+        )}
       </section>
 
       {asked && (
