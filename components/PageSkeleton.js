@@ -1,18 +1,21 @@
 import { cookies } from "next/headers";
-import AlyeskaMark from "./AlyeskaMark";
 import NavTabs from "./NavTabs";
 
 /**
  * What a screen looks like while its data is still on its way.
  *
- * The point is that the frame never disappears: the header and the menu stay
- * exactly where they were, and only the part that depends on the database is
- * drawn as grey shapes roughly the size of the real thing. Moving between
- * screens should feel like the page filling in, not like the app blinking out.
+ * The point is that the frame never disappears: the bar along the bottom stays
+ * exactly where it was, and only the part that depends on the database is drawn
+ * as grey shapes roughly the size of the real thing. Moving between screens
+ * should feel like the page filling in, not like the app blinking out.
  *
- * The header here is a still copy rather than the real one, because the real
- * one asks the database how many reminders need attention, and waiting on that
- * would defeat the whole purpose.
+ * The bar here is a still copy rather than the real one, because the real one
+ * asks the database how many reminders need attention, and waiting on that would
+ * defeat the whole purpose. Ask Aly is drawn as a shape for the same reason:
+ * there is no drawer mounted yet to answer a press.
+ *
+ * No band about the current trip, because whether there is one is a database
+ * question too. It arrives with the page.
  */
 export default async function PageSkeleton({ label = "Loading", children }) {
   // Which menu to draw. Left for us by the middleware, which had already asked,
@@ -23,18 +26,7 @@ export default async function PageSkeleton({ label = "Loading", children }) {
 
   return (
     <>
-      <header className="no-print sticky top-0 z-20 border-b border-[var(--line)] bg-sand/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-3">
-          <span className="flex items-center gap-2.5 text-ink">
-            <AlyeskaMark className="h-7 w-7 shrink-0" />
-            <span className="font-display text-[1.1rem] font-semibold tracking-[0.005em]">
-              Alyeska
-            </span>
-          </span>
-          <span className="sk h-9 w-[6.5rem] rounded-full" aria-hidden="true" />
-        </div>
-      </header>
-      <NavTabs level={level} />
+      <NavTabs level={level} askLive={false} />
       <main
         className="mx-auto w-full max-w-5xl px-5 pb-16 pt-7"
         role="status"

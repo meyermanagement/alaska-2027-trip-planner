@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { countNeedingAttention, todayISO } from "@/lib/reminders";
 import { loadHeaderNotices } from "@/lib/tips/load";
 import { isOnTrip, resolveAccess } from "@/lib/travelers/access";
-import AlyeskaMark from "./AlyeskaMark";
-import AskAlyTrigger from "./AskAlyTrigger";
 import CurrentTripBanner from "./CurrentTripBanner";
 import NavTabs from "./NavTabs";
 import PassportWarning from "./PassportWarning";
@@ -69,28 +67,34 @@ export default async function TopBar({ askHref, showAsk = true }) {
     ? notices.current
     : null;
 
+  // There is no top bar most of the year.
+  //
+  // It used to carry two things: the app's name, and the Ask Aly button. Both
+  // have gone -- Ask Aly to the bottom right corner where a thumb lands, and the
+  // name into the compass on the menu pill beside it -- and a bar holding nothing
+  // is just fifty pixels of every screen spent on a hairline. So the header is
+  // now only ever the band about the trip you are living, and it appears on the
+  // days that band has something to say: from the morning you leave to the
+  // evening you are back, for the people actually on the trip. Every other day
+  // the page starts at the top of the screen.
+  //
   // The menu is a sibling of the header, not a child: the header blurs what is
   // behind it, and a blurred element becomes the frame its fixed children are
   // positioned against, which would nail the menu to the top of the screen
   // instead of the bottom of the window.
   return (
     <>
-      <header className="no-print sticky top-0 z-20 border-b border-[var(--line)] bg-sand/80 backdrop-blur-md">
-        {/* Above the logo, and inside the sticky header so it stays reachable
-            through any scroll on any screen. Nothing at all on the days the
-            family is not travelling, which is almost every day. */}
-        <CurrentTripBanner trip={current} today={today} />
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-3">
-          <Link href="/trips" className="flex items-center gap-2.5 text-ink">
-            <AlyeskaMark className="h-7 w-7 shrink-0" />
-            <span className="font-display text-[1.1rem] font-semibold tracking-[0.005em]">
-              Alyeska
-            </span>
-          </Link>
-          {showAsk && <AskAlyTrigger href={askHref} />}
-        </div>
-      </header>
-      <NavTabs attention={attention} level={access?.level} />
+      {current && (
+        <header className="no-print sticky top-0 z-20">
+          <CurrentTripBanner trip={current} today={today} />
+        </header>
+      )}
+      <NavTabs
+        attention={attention}
+        level={access?.level}
+        askHref={askHref}
+        showAsk={showAsk}
+      />
       <PassportWarning warnings={warnings} />
       <TipStrip tips={urgent} today={today} />
     </>

@@ -1,63 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { PendingSwap } from "./LinkPending";
+import AlyeskaMark from "./AlyeskaMark";
+import AskAlyTrigger from "./AskAlyTrigger";
 import { SECONDARY } from "@/lib/travelers/access";
 import useSoftKeyboard from "./useSoftKeyboard";
 
 /**
- * The main menu, and on every screen size it lives at the bottom. On a phone
- * that puts it under your thumb rather than at the top of a page you have
- * scrolled away from; on a laptop it becomes a floating dock, centred, one
- * track with the destinations inside it so they read as alternatives to
- * each other rather than a row of unrelated buttons. The top of every screen is
- * left to the Alyeska mark and Ask Aly.
+ * The bar along the bottom of every signed-in screen, and the only navigation
+ * the app has.
  *
- * Trips is home; Reminders and Packing templates cut across all of them; the last
- * three are for looking things up.
+ * It replaces a row of six equal tabs. Six tabs on a phone meant six labels in
+ * fifty-eight pixels each, one of which ("Preferences") had to be shrunk below
+ * a legible size to fit, and the whole thing floated clear of the edges as a
+ * rounded panel with the page sliding underneath it — which read as something
+ * that had come loose rather than part of the app.
  *
- * Half of these screens hold more than their name admits — Preferences is also
- * where the reviews of places the family has been live, and what used to be
- * called Rewards is now the Wallet, holding every program the family belongs to —
- * so the broad noun leads and a second, quieter line carries what is inside.
- * The first line stays short so the dock is no wider than it was when the words
- * were crammed onto one line. On a phone there is no room for two lines at a
- * legible size, so the short label stands alone there and the page's own
- * subtitle does the explaining once you arrive.
+ * So: one solid bar, welded to the bottom edge, nothing visible beneath it, and
+ * two things on it.
  *
- * The dock needs about nine hundred pixels to lay six destinations out in a
- * row, so the switch between the two layouts happens at lg rather than sm. Any
- * earlier and a tablet held in portrait gets a pill wider than the screen,
- * clipped at both ends.
+ * Bottom left, the menu. A pill carrying the compass, the name of the screen you
+ * are on, and a chevron; tapping it raises a sheet with every destination spelled
+ * out in full, one per line, with the second line of explanation the desktop dock
+ * used to get and the phone never could. The screen you are on is ticked. This
+ * side of the bar answers one question only — where am I in the app, and where
+ * else can I go.
  *
- * One exception, and it matters: while you are inside a single trip, the first
- * item stops pretending to be where you already are and becomes the way out —
- * an arrow and the words "All trips". Filling it in like a current page made it
- * look like a label rather than a door. Those two words are wider than a sixth of
- * a phone at the size the other labels use, so this one label alone steps down
- * until it fits on one line — the alternatives were shortening it to "Back",
- * which read as a browser control rather than a place, or letting it wrap and
- * making the whole bar taller than the five items beside it.
+ * Bottom right, Ask Aly. It used to live in the top right corner, a full reach
+ * away from a thumb; it is the thing people press most, so it takes the corner
+ * the thumb lands on first. Navigation is deliberate and can afford the longer
+ * reach, which is why the two are this way round and not the other.
  *
- * While you are typing on a phone the menu gets out of the way. Left alone, iOS
- * lifts anything pinned to the bottom of the screen up on top of the keyboard as
- * soon as you scroll, so the menu ends up sitting in the middle of the page over
- * the form you are filling in. It slides back as soon as the keyboard closes.
+ * One exception inside a single trip: the first row in the sheet stops naming
+ * where you already are and becomes the way out — an arrow, and the words
+ * "All trips". Filling it in like a current page made it look like a label
+ * rather than a door.
+ *
+ * While you are typing on a phone the whole bar leaves. Left alone, iOS lifts
+ * anything pinned to the bottom of the screen up on top of the keyboard as soon
+ * as you scroll, so it ends up sitting in the middle of the page over the form
+ * you are filling in. It slides back as soon as the keyboard closes.
  */
 const TABS = [
   {
     href: "/trips",
     label: "Trips",
-    short: "Trips",
     sub: "Itineraries & plans",
     Icon: SuitcaseIcon,
   },
   {
     href: "/reminders",
     label: "Reminders",
-    short: "Reminders",
     sub: "Pre-travel checklist",
     Icon: BellIcon,
     badge: true,
@@ -65,30 +60,24 @@ const TABS = [
   {
     href: "/packing",
     label: "Packing",
-    short: "Packing",
     sub: "Packing templates",
     Icon: ShirtIcon,
   },
   {
     href: "/wallet",
     label: "Wallet",
-    short: "Wallet",
     sub: "Points, miles & cards",
     Icon: RewardsIcon,
   },
   {
     href: "/preferences",
     label: "Preferences",
-    short: "Preferences",
     sub: "And what you thought",
-    // The only label that does not fit the phone column at the normal size.
-    tight: true,
     Icon: StarIcon,
   },
   {
     href: "/family",
     label: "Family",
-    short: "Family",
     sub: "People & pets",
     Icon: PeopleIcon,
   },
@@ -98,7 +87,7 @@ const TABS = [
 // doors: the trips they are on, and their own share of the checklist. Their
 // packing items live inside a trip, on its packing tab, which is why there is no
 // third one. The rest is not merely hidden: the database refuses those reads, so
-// drawing those tabs would offer four empty rooms.
+// drawing those rows would offer four empty rooms.
 const SECONDARY_TABS = new Set(["/trips", "/reminders"]);
 
 // And one destination that only they get. About You is in the footer for
@@ -113,18 +102,17 @@ const SECONDARY_EXTRA = [
   {
     href: "/about-you",
     label: "About you",
-    short: "About you",
     sub: "What you are like on a trip",
     Icon: PersonIcon,
   },
 ];
 
-// The loading skeleton draws this menu too, and it has no database of its own to
+// The loading skeleton draws this bar too, and it has no database of its own to
 // ask -- that is the whole point of a skeleton. Without help it falls back to the
-// full menu, which is why a secondary traveler saw all six tabs flicker past on
-// every navigation. So the answer is remembered in the browser the first time a
-// real screen supplies it, and the skeleton reads it back. It only ever decides
-// what to draw for a moment; the database is what actually refuses.
+// full menu, which is why a secondary traveler saw doors they cannot open flicker
+// past on every navigation. So the answer is remembered in the browser the first
+// time a real screen supplies it, and the skeleton reads it back. It only ever
+// decides what to draw for a moment; the database is what actually refuses.
 const REMEMBERED = "alyeska.level";
 
 function remember(level) {
@@ -144,7 +132,15 @@ function recall() {
   }
 }
 
-export default function NavTabs({ attention = 0, level = null }) {
+export default function NavTabs({
+  attention = 0,
+  level = null,
+  askHref,
+  showAsk = true,
+  // The skeleton draws the button as a shape rather than a control, because
+  // there is no drawer mounted behind it yet to answer a press.
+  askLive = true,
+}) {
   // Read once, lazily, so the first frame the skeleton draws is already right
   // rather than being corrected a moment later.
   const [recalled] = useState(recall);
@@ -154,9 +150,11 @@ export default function NavTabs({ attention = 0, level = null }) {
   }, [level]);
   const pathname = usePathname() || "";
   const keyboardOpen = useSoftKeyboard();
+  const [open, setOpen] = useState(false);
+  const sheetRef = useRef(null);
+
   const isActive = (href) =>
     pathname === href || pathname.startsWith(`${href}/`);
-  const countFor = (tab) => (tab.badge ? attention : 0);
   // Inside one trip, as opposed to the list of them.
   const insideTrip = /^\/trips\/[^/]+/.test(pathname);
   const tabs =
@@ -164,110 +162,158 @@ export default function NavTabs({ attention = 0, level = null }) {
       ? [...TABS.filter((t) => SECONDARY_TABS.has(t.href)), ...SECONDARY_EXTRA]
       : TABS;
 
+  // The name on the pill. Inside a trip the pill cannot say "Trips", because
+  // that is the door out and not where you are; and it cannot say the trip's
+  // name either, because the band at the top of the screen is already saying
+  // exactly that and two corners repeating one word is how a screen starts to
+  // look careless.
+  const here = tabs.find((t) => isActive(t.href));
+  const label = insideTrip ? "This trip" : here?.label || "Menu";
+
+  // Shut the sheet the moment you arrive somewhere, and on Escape.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    // Focus the sheet so a keyboard lands inside it rather than back on the page.
+    sheetRef.current?.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
-    <nav
-      aria-label="Main menu"
-      aria-hidden={keyboardOpen ? "true" : undefined}
-      /* The bar no longer reaches the edges of the phone. It was a full-width
-         strip welded to the bottom of the screen with a hairline on top -- a
-         browser chrome shape, not a shape belonging to this app -- while the
-         same menu on a desktop was a floating rounded panel. Now it is the one
-         thing at both sizes: a panel with its own border and its own shadow,
-         standing clear of the edges, wide on a phone and only as wide as its
-         contents on a desktop. */
-      className={`no-print fixed inset-x-0 bottom-0 z-30 px-2.5 pt-2 transition-transform duration-200 lg:right-auto lg:bottom-5 lg:left-1/2 lg:w-max lg:-translate-x-1/2 lg:px-0 ${
-        // Out of reach as well as out of sight, so a tap meant for the field
-        // underneath cannot land on a menu item on the way down.
-        keyboardOpen ? "translate-y-full pointer-events-none" : ""
-      }`}
-      style={{ paddingBottom: "max(0.6rem, env(safe-area-inset-bottom))" }}
-    >
-      <div className="mx-auto flex max-w-lg items-stretch justify-between rounded-[12px] border border-[var(--line)] bg-white/92 px-0.5 py-1 shadow-[0_6px_24px_rgba(20,32,30,0.14)] backdrop-blur-md min-[375px]:px-1.5 lg:w-auto lg:max-w-none lg:items-center lg:gap-1 lg:rounded-full lg:p-1.5">
-        {tabs.map((tab) => {
-          // The way back out of a trip, rather than a name for where you are.
-          const isWayOut = tab.href === "/trips" && insideTrip;
-          const active = isActive(tab.href) && !isWayOut;
-          const count = countFor(tab);
-          const Icon = isWayOut ? BackIcon : tab.Icon;
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              aria-current={active ? "page" : undefined}
-              title={isWayOut ? "Back to all your trips" : undefined}
-              aria-label={isWayOut ? "Back to all your trips" : undefined}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-full px-0 py-1.5 text-[0.5rem] min-[375px]:px-0.5 min-[375px]:text-[0.55rem] font-semibold uppercase tracking-normal transition lg:flex-none lg:flex-row lg:gap-1.5 lg:rounded-full lg:px-3.5 lg:py-1.5 lg:text-[0.72rem] lg:tracking-[0.07em] ${
-                active
-                  ? "bg-teal text-on-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(20,32,30,0.16)]"
-                  : isWayOut
-                    ? "text-teal lg:border lg:border-teal/35 lg:bg-teal/5 lg:px-3 lg:text-teal lg:hover:border-teal lg:hover:bg-teal/10"
-                    : "text-ink-soft lg:hover:bg-sand lg:hover:text-teal"
-              }`}
-            >
-              <span className="relative lg:contents">
-                <PendingSwap
-                  className="h-5 w-5 shrink-0 lg:h-4 lg:w-4"
-                  href={tab.href}
-                >
-                  <Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" />
-                </PendingSwap>
-                {count > 0 && (
-                  <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-on-accent lg:hidden">
-                    {count}
-                    <span className="sr-only"> needing attention</span>
-                  </span>
-                )}
+    <>
+      {/* The sheet sits above the bar it rose from, and below the Ask Aly
+          drawer, so that if both ever open the conversation is in front. */}
+      {open && (
+        <div className="no-print fixed inset-0 z-[38] flex flex-col justify-end">
+          <button
+            type="button"
+            aria-label="Close the menu"
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 bg-ink/45 backdrop-blur-[2px]"
+          />
+          <div
+            ref={sheetRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Main menu"
+            className="relative mx-auto w-full max-w-lg rounded-t-[1.35rem] border border-[var(--line)] bg-white px-3 pt-2.5 shadow-[0_-10px_40px_rgba(20,32,30,0.22)] outline-none"
+            style={{
+              paddingBottom: "max(0.9rem, calc(env(safe-area-inset-bottom) + 0.6rem))",
+              maxHeight: "82vh",
+              overflowY: "auto",
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className="mx-auto mb-2.5 block h-1 w-10 rounded-full bg-[var(--line-strong)]"
+            />
+            <ul className="space-y-1.5">
+              {tabs.map((tab) => {
+                // The way back out of a trip, rather than a name for where you are.
+                const isWayOut = tab.href === "/trips" && insideTrip;
+                const active = isActive(tab.href) && !isWayOut;
+                const count = tab.badge ? attention : 0;
+                const Icon = isWayOut ? BackIcon : tab.Icon;
+                return (
+                  <li key={tab.href}>
+                    <Link
+                      href={tab.href}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => setOpen(false)}
+                      className={`flex items-center gap-3 rounded-[var(--radius-card)] border px-3.5 py-3 transition ${
+                        active
+                          ? "border-teal/40 bg-teal-soft"
+                          : "border-[var(--line)] bg-sand hover:border-[var(--line-strong)]"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-5 w-5 shrink-0 ${
+                          active ? "text-teal" : "text-ink-soft"
+                        }`}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-display text-[1rem] font-semibold text-ink">
+                          {isWayOut ? "All trips" : tab.label}
+                        </span>
+                        <span className="block truncate text-[0.78rem] text-ink-soft">
+                          {isWayOut ? "Back out of this trip" : tab.sub}
+                        </span>
+                      </span>
+                      {count > 0 && (
+                        <span className="shrink-0 rounded-full bg-rose px-1.5 py-px text-[0.68rem] font-bold leading-5 text-on-accent">
+                          {count}
+                          <span className="sr-only"> needing attention</span>
+                        </span>
+                      )}
+                      {active && (
+                        <TickIcon className="h-4 w-4 shrink-0 text-teal" />
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      <nav
+        aria-label="Main menu"
+        aria-hidden={keyboardOpen ? "true" : undefined}
+        /* Solid, edge to edge, and nothing shows underneath it. */
+        className={`no-print fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-white px-3 pt-2 transition-transform duration-200 ${
+          // Out of reach as well as out of sight, so a tap meant for the field
+          // underneath cannot land on a menu row on the way down.
+          keyboardOpen ? "translate-y-full pointer-events-none" : ""
+        }`}
+        style={{ paddingBottom: "max(0.55rem, env(safe-area-inset-bottom))" }}
+      >
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={`${label} — open the menu`}
+            className="relative inline-flex min-w-0 items-center gap-2 rounded-full border border-[var(--line)] bg-sand px-3 py-2 text-ink transition hover:border-[var(--line-strong)] active:translate-y-px min-[375px]:px-3.5"
+          >
+            <AlyeskaMark className="h-[1.35rem] w-[1.35rem] shrink-0" />
+            <span className="min-w-0 truncate font-display text-[0.95rem] font-semibold">
+              {label}
+            </span>
+            <ChevronIcon className="h-3.5 w-3.5 shrink-0 text-ink-soft" />
+            {/* The one number worth interrupting somebody for still shows on the
+                closed pill, because it lives on a screen the menu is hiding. */}
+            {attention > 0 && !isActive("/reminders") && (
+              <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-on-accent">
+                {attention}
+                <span className="sr-only"> reminders needing attention</span>
               </span>
+            )}
+          </button>
+          {showAsk &&
+            (askLive ? (
+              <AskAlyTrigger href={askHref} />
+            ) : (
               <span
-                className={`w-full text-center leading-tight lg:hidden ${
-                  // Labels too long for a column sized for one short word get a
-                  // step down rather than being clipped. "Preferences" at the
-                  // normal size measures 69px into 58px of column at 390, which
-                  // truncate renders as "Preference…" -- a tab whose name the
-                  // phone will not say. A smaller word you can read beats a
-                  // bigger one you cannot, and wrapping would make the whole bar
-                  // taller for one tab's sake.
-                  isWayOut || tab.tight
-                    ? "whitespace-nowrap tracking-tight text-[0.42rem] min-[430px]:text-[0.46rem]"
-                    : "truncate"
-                }`}
-              >
-                {isWayOut ? "All trips" : tab.short}
-              </span>
-              <span className="hidden text-left lg:flex lg:flex-col lg:leading-[1.15]">
-                <span>{isWayOut ? "All trips" : tab.label}</span>
-                {!isWayOut && tab.sub && (
-                  <span
-                    className={`text-[0.6rem] font-medium normal-case tracking-[0.02em] ${
-                      active ? "text-on-accent/75" : "text-ink-soft/75"
-                    }`}
-                  >
-                    {tab.sub}
-                  </span>
-                )}
-              </span>
-              {count > 0 && (
-                <span
-                  className={`hidden rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 lg:ml-0.5 lg:inline ${
-                    active
-                      ? "bg-on-accent/20 text-on-accent"
-                      : "bg-rose/15 text-rose"
-                  }`}
-                >
-                  {count}
-                  <span className="sr-only"> needing attention</span>
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+                aria-hidden="true"
+                className="sk h-9 w-[6.5rem] shrink-0 rounded-full"
+              />
+            ))}
+        </div>
+      </nav>
+    </>
   );
 }
 
 // Line icons drawn to match the Ask Aly bubble: one weight, round joins, no
-// fills. They label the menu on a phone, where there is no room for the words.
+// fills.
 function iconProps(className) {
   return {
     viewBox: "0 0 20 20",
@@ -354,6 +400,23 @@ function PeopleIcon({ className }) {
       <circle cx="7.8" cy="7.4" r="2.6" />
       <path d="M3 16.3c0-2.4 2.1-4.1 4.8-4.1s4.8 1.7 4.8 4.1" />
       <path d="M13.4 5.2a2.4 2.4 0 0 1 0 4.6M14.2 12.5c1.7.3 2.9 1.5 2.9 3.3" />
+    </svg>
+  );
+}
+
+// Points up while the sheet is shut: this opens upward.
+function ChevronIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M5.4 12.4 10 7.8l4.6 4.6" />
+    </svg>
+  );
+}
+
+function TickIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M4.4 10.6l3.5 3.4 7.7-8" />
     </svg>
   );
 }
