@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { whoIs } from "@/lib/supabase/who";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
 import { SETTINGS_FOCUS } from "@/lib/agent/context";
@@ -27,9 +28,7 @@ export default async function AboutYouPage({ searchParams }) {
   const first = params?.first === "1";
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await whoIs(supabase);
   if (!user) redirect("/login");
 
   // Matched on the account rather than the name: a name is not an identity, and

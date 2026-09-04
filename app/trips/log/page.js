@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
@@ -23,9 +24,7 @@ export const metadata = { title: "Log a previous trip · Alyeska" };
  */
 export default async function LogTripPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await whoIs(supabase);
   if (!user) redirect("/login");
 
   const { data: memberships } = await supabase

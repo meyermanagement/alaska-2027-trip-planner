@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { whoIs } from "@/lib/supabase/who";
 import { sortItinerary } from "@/lib/day/order";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
@@ -77,9 +78,7 @@ export default async function TripPage({ params, searchParams }) {
   const query = await searchParams;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await whoIs(supabase);
   if (!user) redirect("/login");
   const access = await resolveAccess(supabase, user);
 

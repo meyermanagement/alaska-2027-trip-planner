@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { whoIs } from "@/lib/supabase/who";
 import SettingsBody from "./SettingsBody";
 
 export const metadata = { title: "Settings · Alyeska" };
@@ -23,9 +24,7 @@ export const metadata = { title: "Settings · Alyeska" };
  */
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await whoIs(supabase);
   if (!user) redirect("/login");
 
   const [{ data: profile }, { data: mine }] = await Promise.all([

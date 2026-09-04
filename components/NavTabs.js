@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
@@ -171,6 +171,7 @@ export default function NavTabs({
     remember(level);
   }, [level]);
   const pathname = usePathname() || "";
+  const router = useRouter();
   const keyboardOpen = useSoftKeyboard();
   const [open, setOpen] = useState(false);
   const sheetRef = useRef(null);
@@ -241,6 +242,18 @@ export default function NavTabs({
                     <Link
                       href={tab.href}
                       aria-current={active ? "page" : undefined}
+                      /* A link on a page like these prefetches only as far as
+                         the loading skeleton: enough to draw the frame
+                         instantly, and nothing of what the screen is actually
+                         made of, so the wait is still the whole server render
+                         after the tap. router.prefetch asks for the render
+                         itself. Fired on the row being touched or pointed at
+                         rather than on all seven when the sheet opens, because
+                         warming six screens nobody asked for is how a phone on
+                         mobile data ends up slower than it started. */
+                      onPointerEnter={() => router.prefetch(tab.href)}
+                      onPointerDown={() => router.prefetch(tab.href)}
+                      onFocus={() => router.prefetch(tab.href)}
                       onClick={() => setOpen(false)}
                       className={`flex items-center gap-3 rounded-[var(--radius-card)] border px-3.5 py-3 transition ${
                         active

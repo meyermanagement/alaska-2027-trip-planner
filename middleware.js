@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { whoIs } from "@/lib/supabase/who";
 import {
   DEFAULT_SKIN,
   SKIN_COOKIE,
@@ -41,17 +42,17 @@ const LEVEL_COOKIE_MAX_AGE = 600;
 /**
  * Is there a session here at all?
  *
- * Not "is it valid" -- that is what getUser asks the auth server, over the
- * network, and a network answer can be no for reasons that have nothing to do
- * with whether the person is signed in: a blip, a rate limit, or two requests
- * racing to spend the same rotating refresh token, which is what a screen full
- * of parallel prefetches does on a phone. Treating any of those as "signed out"
- * and bouncing the request to the login page is how a tap on a menu item lands
- * you back where you started.
+ * Not "is it valid" -- that is what checking the token decides, and it can come
+ * back no for reasons that have nothing to do with whether the person is signed
+ * in: an expiry reached mid-navigation, or two requests racing to spend the same
+ * rotating refresh token, which is what a screen full of parallel prefetches
+ * does on a phone. Treating any of those as "signed out" and bouncing the
+ * request to the login page is how a tap on a menu item lands you back where you
+ * started.
  *
  * So the redirect below is reserved for the one case that needs no network to
  * decide: there is no session cookie, so there is nothing to check. Anything
- * else is passed through to the page, and every protected page asks getUser
+ * else is passed through to the page, and every protected page checks for
  * itself and redirects on its own -- a redirect the router understands, because
  * it comes back inside the payload it was already waiting for rather than as a
  * 307 on the request carrying it.
@@ -92,9 +93,12 @@ export async function middleware(request) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // The signature check rather than a question put to the auth server. Middleware
+  // runs on every request this app makes -- every navigation, every prefetch the
+  // router fires while a menu is open, every API call -- and each one used to
+  // begin with an HTTPS round-trip to Supabase before Next had decided what to
+  // render. See lib/supabase/who.js.
+  const user = await whoIs(supabase);
 
   const { pathname } = request.nextUrl;
   const isPublic =

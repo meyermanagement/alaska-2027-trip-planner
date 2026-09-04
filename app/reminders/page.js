@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 // wants to come back to it, so the component and its route stay in the repo.
 // import CalendarLink from "@/components/CalendarLink";
 import { createClient } from "@/lib/supabase/server";
+import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
@@ -17,9 +18,7 @@ export const metadata = { title: "Reminders · Alyeska" };
 
 export default async function RemindersPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await whoIs(supabase);
   if (!user) redirect("/login");
 
   const { data: memberships } = await supabase
