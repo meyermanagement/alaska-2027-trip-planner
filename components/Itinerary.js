@@ -34,6 +34,9 @@ import {
 import Stars from "@/components/Stars";
 import { canReviewNow, reviewTarget } from "@/lib/reviews/when";
 import DayBrief from "@/components/DayBrief";
+import DayDone from "@/components/DayDone";
+import { dayIsDone } from "@/lib/day/done";
+import { directionsToPlace } from "@/lib/travel/modes";
 import DayItemBrief from "@/components/DayItemBrief";
 import EarlyForecast from "@/components/EarlyForecast";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
@@ -83,13 +86,23 @@ function buildStays(items) {
     const nights = stayNights(item.item_date, item.end_date);
     if (!nights) return;
     daysBetween(item.item_date, item.end_date).forEach((day, i) => {
-      if (i === 0) return; // the first day already has the full card
       if (!map.has(day)) map.set(day, []);
       const leaving = i === nights;
       // On the last day nobody sleeps there, so there is no night to number.
-      map
-        .get(day)
-        .push({ item, night: leaving ? null : i + 1, nights, leaving });
+      map.get(day).push({
+        item,
+        night: leaving ? null : i + 1,
+        nights,
+        leaving,
+        // The day the family checks in. It used to be skipped here, on the
+        // reasoning that the check-in card is already on that day and the strip
+        // would be saying it twice. But the strip and the card answer different
+        // questions -- the card is a booking with a confirmation number, the
+        // strip is where you are sleeping tonight -- and a first day without it
+        // was the one day of a stay that never said which night it was. Both
+        // now, and the card stays exactly where it was.
+        arriving: i === 0,
+      });
     });
   });
   return map;
@@ -329,6 +342,166 @@ function FoldChevron({ open }) {
   );
 }
 
+/**
+ * A folded line for something that has already happened.
+ *
+ * Two jobs in one strip, which is why it is a component and not the plain
+ * button it used to be. The line still opens the card when it is pressed. But
+ * the stars on the right are now pressable in place: a family walking out of a
+ * restaurant can rate it with one tap on the line it is already looking at,
+ * rather than opening the card, finding the row, and pressing again.
+ *
+ * That is also why the strip is a div holding two buttons rather than one
+ * button holding stars. A button inside a button is not a thing a browser will
+ * render, and the version that tried lost the stars entirely on Safari.
+ *
+ * Pressing a star opens the note box underneath, because a rating is the moment
+ * somebody has an opinion in their head, and it is the only moment they will
+ * ever be willing to type. Pressing the star already lit takes the rating back,
+ * and does not open anything -- somebody undoing a mistake is not being asked to
+ * explain themselves.
+ */
+function ClosedRow({
+  item,
+  rated,
+  rateable,
+  readOnly,
+  busy,
+  onSave,
+  onOpen,
+  children,
+}) {
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [draft, setDraft] = useState(rated?.review || "");
+  const stars = rated?.rating || 0;
+  const noted = Boolean(String(rated?.review || "").trim());
+  const saving = busy === rated?.id;
+
+  // Somebody else's edit, or this person rating the same place from another
+  // night, should be in the box the next time it opens.
+  useEffect(() => {
+    if (!noteOpen) setDraft(rated?.review || "");
+  }, [rated?.review, noteOpen]);
+
+  async function pick(n) {
+    const clearing = n === stars;
+    const err = await onSave(item, { rating: clearing ? null : n });
+    if (!err && !clearing) {
+      setDraft(rated?.review || "");
+      setNoteOpen(true);
+    }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const err = await onSave(item, { review: draft.trim() || null });
+    if (!err) setNoteOpen(false);
+  }
+
+  return (
+    <div
+      className={`no-print rounded-[0.875rem] border bg-sand/40 ${
+        noteOpen ? "border-teal/40" : "border-[var(--line)]"
+      }`}
+    >
+      {/* Wraps on a phone. Five stars and a note toggle beside a title leave the
+          title about six characters on a 375px screen, and a folded row whose
+          whole job is to say which place this was cannot afford that. Below sm
+          the title owns the first line and the stars sit right-aligned beneath
+          it; from sm up they share one line as before. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pr-2">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-expanded="false"
+          className="flex min-w-0 basis-full items-center gap-2 rounded-[0.875rem] px-3 py-2 text-left text-sm text-ink-soft hover:text-ink sm:basis-auto sm:flex-1"
+        >
+          {children}
+        </button>
+        {rateable &&
+          (readOnly ? (
+            <span
+              className="tabular ml-auto shrink-0 pb-2 pl-3 text-[0.78rem] leading-none sm:pb-0 sm:pl-0"
+              aria-label={stars ? `Rated ${stars} out of 5` : "Not rated"}
+            >
+              <span className="text-amber" aria-hidden="true">
+                {"★".repeat(stars)}
+              </span>
+              <span className="text-sand-deep" aria-hidden="true">
+                {"★".repeat(5 - stars)}
+              </span>
+            </span>
+          ) : (
+            <span className="ml-auto flex shrink-0 items-center gap-1 pb-2 pl-3 sm:pb-0 sm:pl-0">
+              {/* Thumb-sized on purpose. Five stars in a row on a phone is the
+                  easiest thing in the app to mis-tap, and a wrong rating saves
+                  instantly. The padding is the hit area; the glyph stays small. */}
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => pick(n)}
+                  disabled={saving}
+                  aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                  aria-pressed={stars === n}
+                  className="-my-1 px-px py-1.5 text-[0.95rem] leading-none transition disabled:opacity-50"
+                >
+                  <span
+                    className={n <= stars ? "text-amber" : "text-sand-deep"}
+                  >
+                    ★
+                  </span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(rated?.review || "");
+                  setNoteOpen((v) => !v);
+                }}
+                aria-expanded={noteOpen}
+                aria-label={noted ? "Edit the note" : "Add a note"}
+                className={`ml-0.5 grid size-6 place-items-center rounded-md text-[0.8rem] ${
+                  noted ? "text-teal" : "text-ink-faint"
+                } hover:bg-sand`}
+              >
+                ✎
+              </button>
+            </span>
+          ))}
+      </div>
+
+      {noteOpen && (
+        <form onSubmit={submit} className="space-y-2 px-3 pb-3 pt-1">
+          <textarea
+            className="field text-sm"
+            rows={2}
+            autoFocus
+            value={draft}
+            placeholder="Would we go back? What should we remember?"
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="btn btn-primary px-3 py-1.5 text-xs"
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save note"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost px-3 py-1.5 text-xs"
+              onClick={() => setNoteOpen(false)}
+            >
+              Skip
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function ReviewRow({ item, target, busy, onSave }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(target.review || "");
@@ -355,11 +528,20 @@ function ReviewRow({ item, target, busy, onSave }) {
           <Stars
             size="sm"
             value={target.rating || 0}
-            onPick={(rating) =>
-              onSave(item, {
-                rating: rating === target.rating ? null : rating,
-              })
-            }
+            onPick={async (rating) => {
+              const clearing = rating === target.rating;
+              const err = await onSave(item, {
+                rating: clearing ? null : rating,
+              });
+              // A rating is the one moment somebody has an opinion in their
+              // head. Asking them to find a second button before they can write
+              // it down is how the note never gets written. Not on the way back
+              // to no rating, though: undoing is not a thing to explain.
+              if (!err && !clearing) {
+                setDraft(target.review || "");
+                setOpen(true);
+              }
+            }}
           />
           {!target.rating && !target.review && (
             <span className="text-xs text-ink-faint">
@@ -1304,6 +1486,16 @@ export default function Itinerary({
           const phaseOfItem = new Map(
             plan.items.map((r) => [r.item.id, r.phase]),
           );
+          // Everything on this day is behind the family. The screen turns around
+          // at that point: the brief at the top and its forecast are answering a
+          // question about hours that have gone, so they are not rendered, and
+          // the quiet "staying at" strip is replaced by something that says the
+          // day is done and asks for the ratings while the evening is still on.
+          const finished =
+            date !== UNSCHEDULED &&
+            dayItems.length > 0 &&
+            dayIsDone(plan.items, { isToday: date === today, nowHM });
+          const sleepingHere = stays.find((st) => !st.leaving) || null;
           return (
             <div
               key={date}
@@ -1330,7 +1522,7 @@ export default function Itinerary({
               {/* Only on the day being lived and the one after it. A band offering
                   to look into a day four months out would be answering a question
                   nobody asked and spending money to do it. */}
-              {active && withinReach && dayItems.length > 0 && (
+              {active && !finished && withinReach && dayItems.length > 0 && (
                 <DayBrief
                   tripId={tripId}
                   date={date}
@@ -1360,35 +1552,83 @@ export default function Itinerary({
                   to offer on any day of the week ahead, and honest enough to say
                   nothing at all past that. */}
               {active &&
+                !finished &&
                 !withinReach &&
                 date !== UNSCHEDULED &&
                 Boolean(date) && (
                   <EarlyForecast tripId={tripId} date={date} today={today} />
                 )}
-              {stays.length > 0 && (
-                <ul className="mb-2 space-y-1">
-                  {stays.map(({ item, night, nights, leaving }) => (
-                    <li
-                      key={`${item.id}-stay`}
-                      className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-xl border border-dashed border-[var(--line)] bg-sand/50 px-3 py-1.5 text-sm text-ink-soft"
-                    >
-                      <span aria-hidden="true">
-                        {CATEGORY_ICONS[item.category]}
-                      </span>
-                      <span>
-                        {leaving ? "Check out of " : "Staying at "}
-                        <span className="font-semibold text-ink">
-                          {item.title}
-                        </span>
-                      </span>
-                      {!leaving && (
-                        <span className="text-xs text-ink-faint">
-                          night {night} of {nights}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+              {finished ? (
+                <DayDone
+                  rows={plan.items}
+                  stay={sleepingHere}
+                  items={items}
+                  today={today}
+                  isToday={date === today}
+                  nowHM={nowHM}
+                  readOnly={readOnly}
+                  busy={reviewBusy}
+                  onSave={saveReview}
+                />
+              ) : (
+                stays.length > 0 && (
+                  <ul className="mb-2 space-y-1">
+                    {stays.map(({ item, night, nights, leaving }) => {
+                      // The one thing on this strip anybody wants to do with it
+                      // is get there. It used to be inert text, so the family
+                      // read the hotel name off the screen and typed it into
+                      // Maps by hand. No origin is sent: the route starts where
+                      // the phone is standing, which it knows and this app does
+                      // not.
+                      const href = directionsToPlace(item);
+                      const inside = (
+                        <>
+                          <span aria-hidden="true">
+                            {CATEGORY_ICONS[item.category]}
+                          </span>
+                          <span>
+                            {leaving ? "Check out of " : "Staying at "}
+                            <span
+                              className={`font-semibold ${
+                                href ? "text-teal" : "text-ink"
+                              }`}
+                            >
+                              {item.title}
+                            </span>
+                          </span>
+                          {!leaving && (
+                            <span className="text-xs text-ink-faint">
+                              night {night} of {nights}
+                            </span>
+                          )}
+                          {href && (
+                            <span className="ml-auto shrink-0 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-teal/80">
+                              Directions
+                            </span>
+                          )}
+                        </>
+                      );
+                      const cls =
+                        "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-xl border border-dashed border-[var(--line)] bg-sand/50 px-3 py-1.5 text-sm text-ink-soft";
+                      return (
+                        <li key={`${item.id}-stay`}>
+                          {href ? (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`${cls} w-full hover:border-teal/50 hover:bg-sand`}
+                            >
+                              {inside}
+                            </a>
+                          ) : (
+                            <span className={cls}>{inside}</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )
               )}
               <div className="space-y-2">
                 {dayItems.map((item) => {
@@ -1435,27 +1675,29 @@ export default function Itinerary({
                   // about. See the note in lib/day/phase.js.
                   const shut = phase === "past" && !reopened.has(item.id);
                   // A place worth an opinion carries its opinion on the folded
-                  // line. Read through reviewTarget for the same reason the card
-                  // does: a hotel typed in as four separate nights holds its
-                  // rating on one of them, and a line reading "not rated" above
-                  // a card showing four stars would be the app contradicting
-                  // itself. Flights and transfers are not places, so they get
-                  // nothing here rather than an empty row of stars.
+                  // line, and can be given one there. Read through reviewTarget
+                  // for the same reason the card does: a hotel typed in as four
+                  // separate nights holds its rating on one of them, and a line
+                  // reading "not rated" above a card showing four stars would be
+                  // the app contradicting itself. Flights and transfers are not
+                  // places, so they get nothing here rather than an empty row of
+                  // stars.
                   const rateable = canReviewNow(item, { today, nowHM });
                   const rated = rateable
                     ? reviewTarget(item, items) || item
                     : null;
-                  const stars = rated?.rating || 0;
-                  const noted = Boolean(String(rated?.review || "").trim());
 
                   return (
                     <div key={item.id}>
                       {shut && (
-                        <button
-                          type="button"
-                          onClick={() => reopen(item.id)}
-                          aria-expanded="false"
-                          className="no-print flex w-full items-center gap-2 rounded-[0.875rem] border border-[var(--line)] bg-sand/40 px-3 py-2 text-left text-sm text-ink-soft hover:border-teal/40 hover:text-ink"
+                        <ClosedRow
+                          item={item}
+                          rated={rated}
+                          rateable={rateable}
+                          readOnly={readOnly}
+                          busy={reviewBusy}
+                          onSave={saveReview}
+                          onOpen={() => reopen(item.id)}
                         >
                           <FoldChevron open={false} />
                           <span aria-hidden="true" className="opacity-60">
@@ -1474,31 +1716,7 @@ export default function Itinerary({
                               Cancelled
                             </span>
                           )}
-                          {rateable &&
-                            (stars > 0 ? (
-                              <span
-                                className="tabular shrink-0 text-[0.78rem] leading-none"
-                                aria-label={`Rated ${stars} out of 5`}
-                              >
-                                <span className="text-amber" aria-hidden="true">
-                                  {"★".repeat(stars)}
-                                </span>
-                                <span
-                                  className="text-sand-deep"
-                                  aria-hidden="true"
-                                >
-                                  {"★".repeat(5 - stars)}
-                                </span>
-                                {noted && (
-                                  <span className="ml-1 text-ink-faint">✎</span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="shrink-0 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-teal/80">
-                                {noted ? "Noted" : "Rate it"}
-                              </span>
-                            ))}
-                        </button>
+                        </ClosedRow>
                       )}
                       <article
                         className={`card p-4 ${PHASE_CLASS[phase] || ""} ${

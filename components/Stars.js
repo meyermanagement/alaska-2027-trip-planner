@@ -12,7 +12,15 @@
  * Pressing the star already showing clears the rating, which is the only way back
  * to no opinion once you have given one.
  */
-export default function Stars({ value = 0, onPick, size = "base" }) {
+export default function Stars({
+  value = 0,
+  onPick,
+  size = "base",
+  // The color of a star nobody has given yet. Sand is right on a cream card and
+  // nearly invisible on a tinted one, and a rating widget you cannot see is a
+  // rating nobody gives.
+  dim = "text-sand-deep",
+}) {
   const text = size === "sm" ? "text-sm" : "text-base";
   return (
     <div className="flex items-center gap-0.5">
@@ -25,9 +33,7 @@ export default function Stars({ value = 0, onPick, size = "base" }) {
           aria-pressed={value === n}
           className={`${text} leading-none transition hover:scale-110`}
         >
-          <span className={n <= value ? "text-amber" : "text-sand-deep"}>
-            ★
-          </span>
+          <span className={n <= value ? "text-amber" : dim}>★</span>
         </button>
       ))}
       {value > 0 && (
