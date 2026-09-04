@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { tripDayNumber } from "@/lib/format";
 import { tripPath } from "@/lib/trips/route";
+import TripBandChrome from "./TripBandChrome";
 
 /**
  * The band that appears while the family is actually away.
@@ -27,6 +28,12 @@ import { tripPath } from "@/lib/trips/route";
  * has to be honest: a passport that will not work is a problem, and being on
  * holiday is not.
  *
+ * The phone's own bar is painted this same color for as long as the band is up,
+ * so that the two are one surface. Left alone, the strip above the band -- the
+ * status bar, and the ground either side of the Dynamic Island -- stayed the
+ * page's cream, which put a seam above the band and made it read as a panel that
+ * had come loose. See components/TripBandChrome.js, which is mounted here.
+ *
  * Only shown to people on the trip. That is decided in TopBar, which knows who is
  * asking; pass it a trip and it draws one, so nothing here needs to know about
  * rosters.
@@ -37,6 +44,7 @@ export default function CurrentTripBanner({ trip, today }) {
 
   return (
     <div className="no-print border-b border-teal/30 bg-teal text-on-accent">
+      <TripBandChrome endDate={trip.end_date} />
       <Link
         href={tripPath(trip, "itinerary")}
         aria-label={`${trip.name} is happening now — open today's plan`}

@@ -38,6 +38,12 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * "All trips". Filling it in like a current page made it look like a label
  * rather than a door.
  *
+ * Inside a trip that way out also comes up onto the bar itself, as a round arrow
+ * to the left of the menu pill. Going back to the list of trips is the most
+ * common thing anybody does from inside a trip, and it should not cost two taps
+ * and a sheet to read. The row in the sheet stays, because that is where the
+ * label spelling it out lives.
+ *
  * While you are typing on a phone the whole bar leaves. Left alone, iOS lifts
  * anything pinned to the bottom of the screen up on top of the keyboard as soon
  * as you scroll, so it ends up sitting in the middle of the page over the form
@@ -66,7 +72,11 @@ const TABS = [
   {
     href: "/wallet",
     label: "Wallet",
-    sub: "Points, miles & cards",
+    // Not "Points, miles & cards", which named the contents and not the job.
+    // The screen keeps track of every rewards program the family belongs to,
+    // what each one is actually worth to them, and what is newly on offer that
+    // they could use.
+    sub: "Rewards programs, perks & new offers",
     Icon: RewardsIcon,
   },
   {
@@ -275,28 +285,42 @@ export default function NavTabs({
         }`}
         style={{ paddingBottom: "max(0.55rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-label={`${label} — open the menu`}
-            className="relative inline-flex min-w-0 items-center gap-2 rounded-full border border-[var(--line)] bg-sand px-3 py-2 text-ink transition hover:border-[var(--line-strong)] active:translate-y-px min-[375px]:px-3.5"
-          >
-            <AlyeskaMark className="h-[1.35rem] w-[1.35rem] shrink-0" />
-            <span className="min-w-0 truncate font-display text-[0.95rem] font-semibold">
-              {label}
-            </span>
-            <ChevronIcon className="h-3.5 w-3.5 shrink-0 text-ink-soft" />
-            {/* The one number worth interrupting somebody for still shows on the
-                closed pill, because it lives on a screen the menu is hiding. */}
-            {attention > 0 && !isActive("/reminders") && (
-              <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-on-accent">
-                {attention}
-                <span className="sr-only"> reminders needing attention</span>
-              </span>
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 min-[375px]:gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {/* The door out of a trip, on the bar rather than behind the menu.
+              Left of the pill, so the order along the bar reads: out, where am
+              I, and ask. */}
+            {insideTrip && (
+              <Link
+                href="/trips"
+                aria-label="Back to all trips"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-sand text-ink transition hover:border-[var(--line-strong)] active:translate-y-px"
+              >
+                <BackIcon className="h-5 w-5" />
+              </Link>
             )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-label={`${label} — open the menu`}
+              className="relative inline-flex min-w-0 items-center gap-2 rounded-full border border-[var(--line)] bg-sand px-3 py-2 text-ink transition hover:border-[var(--line-strong)] active:translate-y-px min-[375px]:px-3.5"
+            >
+              <AlyeskaMark className="h-[1.35rem] w-[1.35rem] shrink-0" />
+              <span className="min-w-0 truncate font-display text-[0.95rem] font-semibold">
+                {label}
+              </span>
+              <ChevronIcon className="h-3.5 w-3.5 shrink-0 text-ink-soft" />
+              {/* The one number worth interrupting somebody for still shows on the
+                closed pill, because it lives on a screen the menu is hiding. */}
+              {attention > 0 && !isActive("/reminders") && (
+                <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-on-accent">
+                  {attention}
+                  <span className="sr-only"> reminders needing attention</span>
+                </span>
+              )}
+            </button>
+          </div>
           {showAsk &&
             (askLive ? (
               <AskAlyTrigger href={askHref} />
