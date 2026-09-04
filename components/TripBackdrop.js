@@ -34,6 +34,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { useSkin } from "@/components/SkinWatch";
 import { contourSvg } from "@/lib/covers/contour";
 import { coverTint, coverToken } from "@/lib/covers/tint";
+import { DEFAULT_SKIN } from "@/lib/skins";
 
 let landPromise = null;
 
@@ -67,8 +68,8 @@ function mapColors() {
 // same trip at the same size is a different picture in a different skin -- and
 // without this, changing skin left every coast already drawn on the old water.
 function skinNow() {
-  if (typeof document === "undefined") return "journal";
-  return document.documentElement.dataset.skin || "journal";
+  if (typeof document === "undefined") return DEFAULT_SKIN;
+  return document.documentElement.dataset.skin || DEFAULT_SKIN;
 }
 
 // key -> data: URI. A trip's drawing depends only on its point and the frame it

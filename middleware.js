@@ -4,6 +4,7 @@ import {
   DEFAULT_SKIN,
   SKIN_COOKIE,
   SKIN_COOKIE_MAX_AGE,
+  SKIN_COOKIE_STALE,
   skinOr,
 } from "@/lib/skins";
 
@@ -153,6 +154,13 @@ export async function middleware(request) {
       sameSite: "lax",
       path: "/",
     });
+  }
+
+  // And the cookie this one used to be called, on its way out. Harmless if left
+  // -- nothing reads it -- but it is a year-long cookie naming a skin the person
+  // is no longer set to, and a browser should not carry that around.
+  for (const stale of SKIN_COOKIE_STALE) {
+    if (request.cookies.get(stale)) response.cookies.delete(stale);
   }
 
   if (user && pathname === "/login") {
