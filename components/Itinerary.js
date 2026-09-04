@@ -362,6 +362,32 @@ function FoldChevron({ open }) {
  * and does not open anything -- somebody undoing a mistake is not being asked to
  * explain themselves.
  */
+/**
+ * The pencil on the folded row.
+ *
+ * A drawn mark rather than the "✎" character: that glyph renders at wildly
+ * different weights across platforms -- hairline on Android, nearly invisible at
+ * small sizes on Windows -- and it sits on the text baseline, so it never
+ * centred properly in its own button.
+ */
+function PencilMark() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="size-[1.05rem]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      <path d="m15 5 3 3" />
+    </svg>
+  );
+}
+
 function ClosedRow({
   item,
   rated,
@@ -462,11 +488,19 @@ function ClosedRow({
                 }}
                 aria-expanded={noteOpen}
                 aria-label={noted ? "Edit the note" : "Add a note"}
-                className={`ml-0.5 grid size-6 place-items-center rounded-md text-[0.8rem] ${
-                  noted ? "text-teal" : "text-ink-faint"
-                } hover:bg-sand`}
+                title={noted ? "Edit the note" : "Add a note"}
+                // A 24px square holding a text glyph was below the size a thumb
+                // can hit and small enough to read as punctuation rather than a
+                // control. Now a 36px target with a drawn pencil and a border,
+                // so it looks like the button it is. Negative margins keep the
+                // folded row the same height it was.
+                className={`-my-1.5 ml-1 grid size-9 shrink-0 place-items-center rounded-lg border transition ${
+                  noted
+                    ? "border-teal/40 bg-teal/10 text-teal"
+                    : "border-[var(--line)] bg-white/60 text-ink-soft hover:border-teal/40 hover:text-teal"
+                }`}
               >
-                ✎
+                <PencilMark />
               </button>
             </span>
           ))}
@@ -686,7 +720,6 @@ export default function Itinerary({
     return map;
   }, [tips]);
   const tipsFor = useCallback((id) => tipsByItem.get(id) || [], [tipsByItem]);
-  const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
@@ -707,13 +740,13 @@ export default function Itinerary({
     });
   }, []);
 
-  const visible = items.filter((i) =>
-    filter === "all"
-      ? true
-      : filter === "open"
-        ? i.status === "needs_booking" || i.status === "optional"
-        : i.status === "confirmed",
-  );
+  // Every item, always. There used to be an All / Confirmed / Still open switch
+  // above the days; it was answering a question the itinerary is the wrong place
+  // for. A trip you are reading day by day wants the whole day, including the
+  // dinner nobody has booked yet -- hiding it is how it gets forgotten. The
+  // things that still need booking have their own prompt further down, and the
+  // status pill on each card says which is which in place.
+  const visible = items;
 
   // The rail is built from the trip window, not from what happens to be
   // booked, so a quiet day is still somewhere you can go and add to.
@@ -1302,73 +1335,10 @@ export default function Itinerary({
 
   return (
     <section>
-      <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-full bg-white p-1 text-xs font-semibold shadow-sm ring-1 ring-[var(--line)]">
-          {[
-            { id: "all", label: "All" },
-            { id: "confirmed", label: "Confirmed" },
-            { id: "open", label: "Still open" },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={`rounded-full px-3 py-1.5 transition ${
-                filter === f.id
-                  ? "bg-teal text-on-accent"
-                  : "text-ink-soft hover:text-ink"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <AddToCalendar
-            events={tripEvents}
-            title={tripName ? `${tripName} itinerary` : "Trip itinerary"}
-            label="Add trip to calendar"
-          />
-          <button
-            className="btn btn-ghost"
-            onClick={() => window.print()}
-            type="button"
-          >
-            Print
-          </button>
-          {!readOnly && (
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                if (adding) {
-                  setAdding(false);
-                  return;
-                }
-                addToDay(selected);
-              }}
-            >
-              {adding ? "Close" : "+ Add"}
-            </button>
-          )}
-        </div>
-      </div>
-
       {error && (
         <p className="mb-4 rounded-xl bg-rose/10 px-4 py-3 text-sm font-medium text-rose">
           {error}
         </p>
-      )}
-
-      {adding && !readOnly && (
-        <form onSubmit={addItem} className="card mb-5 space-y-3 p-4">
-          <ItemFields
-            draft={draft}
-            setDraft={setDraft}
-            destination={destination}
-          />
-          <button className="btn btn-primary w-full sm:w-auto" disabled={busy}>
-            {busy ? "Saving…" : "Add to itinerary"}
-          </button>
-        </form>
       )}
 
       {untracked.length > 1 && !readOnly && (
@@ -1947,13 +1917,11 @@ export default function Itinerary({
                 {dayItems.length === 0 && (
                   <div className="card p-6 text-center">
                     <p className="text-sm text-ink-soft">
-                      {filter !== "all"
-                        ? "Nothing on this day matches the filter."
-                        : stays.some((s) => !s.leaving)
-                          ? "A free day, with the room already booked."
-                          : stays.length > 0
-                            ? "Nothing else planned before you head off."
-                            : "Nothing planned for this day."}
+                      {stays.some((s) => !s.leaving)
+                        ? "A free day, with the room already booked."
+                        : stays.length > 0
+                          ? "Nothing else planned before you head off."
+                          : "Nothing planned for this day."}
                     </p>
                     <button
                       type="button"
@@ -1973,6 +1941,54 @@ export default function Itinerary({
             Nothing on the itinerary yet.
           </p>
         )}
+      </div>
+
+      {/* The three things you do to a whole trip rather than to one day, kept at
+          the foot of it. Above the days they were the first thing on the screen
+          and the least often wanted -- a header offering to print sits between
+          the reader and the only question they came with, which is what is
+          happening next. Adding something is a deliberate act at the end of
+          reading, so the form opens here, under the button that asked for it. */}
+      {adding && !readOnly && (
+        <form onSubmit={addItem} className="card mt-5 space-y-3 p-4">
+          <ItemFields
+            draft={draft}
+            setDraft={setDraft}
+            destination={destination}
+          />
+          <button className="btn btn-primary w-full sm:w-auto" disabled={busy}>
+            {busy ? "Saving…" : "Add to itinerary"}
+          </button>
+        </form>
+      )}
+
+      <div className="no-print mt-5 flex flex-wrap gap-2 border-t border-[var(--line)] pt-4">
+        {!readOnly && (
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              if (adding) {
+                setAdding(false);
+                return;
+              }
+              addToDay(selected);
+            }}
+          >
+            {adding ? "Close" : "+ Add"}
+          </button>
+        )}
+        <AddToCalendar
+          events={tripEvents}
+          title={tripName ? `${tripName} itinerary` : "Trip itinerary"}
+          label="Add trip to calendar"
+        />
+        <button
+          className="btn btn-ghost"
+          onClick={() => window.print()}
+          type="button"
+        >
+          Print
+        </button>
       </div>
     </section>
   );

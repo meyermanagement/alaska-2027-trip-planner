@@ -70,6 +70,36 @@ export default function TimeDrag({
   // with the new time beside it.
   const [drag, setDrag] = useState(null);
   const [saving, setSaving] = useState(false);
+  // The same fact as `drag`, kept where a native event listener can read it.
+  // React state is a closure; the listener below is attached once and would
+  // otherwise be reading whatever `drag` was when it was attached.
+  const liftedRef = useRef(false);
+  liftedRef.current = Boolean(drag);
+
+  // Why this exists, and why the obvious version did not work.
+  //
+  // React attaches touchmove at the document root as a *passive* listener, and a
+  // passive listener is one that has promised not to cancel the event. So
+  // e.preventDefault() inside onPointerMove is silently ignored, and the browser
+  // goes on doing what it had already decided to do with the touch: scroll the
+  // page. The card lifted, the rail drew, and then the finger scrolled the day
+  // out from under it and the browser sent pointercancel, which took the rail
+  // away. Setting touch-action while a touch is already in flight does not help
+  // either -- that property is read once, when the finger lands.
+  //
+  // The fix is a listener this component attaches itself, non-passive, on its
+  // own element. Because the lift needs a third of a second of stillness, no
+  // scroll has begun by the time it fires, and a touchmove cancelled before the
+  // scroll starts is a scroll that never starts.
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const stop = (e) => {
+      if (liftedRef.current && e.cancelable) e.preventDefault();
+    };
+    el.addEventListener("touchmove", stop, { passive: false });
+    return () => el.removeEventListener("touchmove", stop);
+  }, []);
 
   const clearHold = useCallback(() => {
     if (holdRef.current) {
@@ -103,6 +133,9 @@ export default function TimeDrag({
         // Capture is a convenience; the drag still tracks without it.
       }
       if (navigator.vibrate) navigator.vibrate(12);
+      // Belt as well as braces: some platforms do honour a mid-gesture change,
+      // and every one of them honours it for the next touch on this card.
+      el.style.touchAction = "none";
       // Where in the card the thumb actually landed, so the time being aimed at
       // can be drawn beside the thumb rather than over the title. On a six-line
       // hotel card those are 120px apart, and the one thing that must not be
@@ -134,11 +167,16 @@ export default function TimeDrag({
     setDrag((d) => ({ ...d, dy, mins }));
   }
 
+  function unlock() {
+    if (boxRef.current) boxRef.current.style.touchAction = "";
+  }
+
   async function onPointerUp() {
     clearHold();
     const live = drag;
     downRef.current = null;
     setDrag(null);
+    unlock();
     if (!live) return;
     if (live.mins === base) return;
     setSaving(true);
@@ -150,6 +188,7 @@ export default function TimeDrag({
     clearHold();
     downRef.current = null;
     setDrag(null);
+    unlock();
   }
 
   const lifted = Boolean(drag);
@@ -162,9 +201,6 @@ export default function TimeDrag({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
-      // Only while lifted. Locking touch-action before the press is deliberate
-      // would take scrolling away from the whole itinerary.
-      style={lifted ? { touchAction: "none" } : undefined}
       className={off ? undefined : "relative select-none"}
     >
       {lifted && <Rail base={base} mins={drag.mins} top={drag.grabY} />}
