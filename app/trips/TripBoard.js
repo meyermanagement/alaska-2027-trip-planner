@@ -60,13 +60,19 @@ function Section({ id, view, title, blurb, count, children }) {
  * invitation to plan something; this one is the answer to "what is happening
  * today", so it carries a button rather than only being tappable.
  */
+// The trip the family is on. It is the same object as every other card on this
+// screen, so it opens the same way: the whole plate is the tap target, and it
+// goes to the trip. It used to carry a button into today's plan instead, which
+// made the one card you most want to open the only one you had to aim at.
 function CurrentCard({ trip }) {
   return (
-    <section
+    <Link
+      href={tripPath(trip)}
       aria-label={`${trip.name}, happening now`}
-      className="trip-plate plate-invert card on-photo min-h-[248px] justify-end border-transparent"
+      className="trip-plate plate-invert card on-photo min-h-[248px] justify-end border-transparent transition hover:border-teal/40 hover:shadow-md"
     >
       <TripBackdrop trip={trip} shape="head" plain />
+      <PendingVeil href={tripPath(trip)} />
       <div className="relative p-5">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="emoji-badge" aria-hidden="true">
@@ -81,26 +87,15 @@ function CurrentCard({ trip }) {
           {formatRange(trip.start_date, trip.end_date)}
           {trip.destination ? ` · ${trip.destination}` : ""}
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Link
-            href={tripPath(trip, "itinerary")}
-            className="btn btn-primary relative"
-          >
-            <PendingVeil href={tripPath(trip, "itinerary")} />
-            Open today’s plan
-          </Link>
-          {trip.tasks > trip.tasksDone && (
-            <Link
-              href={tripPath(trip, "tasks")}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold underline decoration-white/40 underline-offset-2 hover:decoration-white"
-            >
-              {trip.tasks - trip.tasksDone} still to do
-              <PendingSpark />
-            </Link>
-          )}
-        </div>
+        {/* Said, not linked: the card is the link now, and a second one nested
+            inside it would be neither valid nor tappable. */}
+        {trip.tasks > trip.tasksDone && (
+          <p className="mt-3 text-sm font-semibold">
+            {trip.tasks - trip.tasksDone} still to do
+          </p>
+        )}
       </div>
-    </section>
+    </Link>
   );
 }
 

@@ -35,6 +35,10 @@ export default function MorningRun({ runs, today, dueCount = 0, hour }) {
   const calm =
     status.state === OK || status.state === QUIET || status.state === EARLY;
 
+  // A state with nothing to report renders nothing at all, rather than a line of
+  // grey text holding a space open for news that has not happened.
+  if (!status.headline) return null;
+
   return (
     <section
       className={

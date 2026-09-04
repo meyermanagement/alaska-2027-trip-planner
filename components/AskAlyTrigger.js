@@ -7,7 +7,7 @@ export const ASK_ALY_EVENT = "ask-aly";
 // A speech bubble: the button starts a conversation rather than opening help,
 // so a bubble fits it better than a question mark. Drawn to match the app's
 // other line icons.
-function BubbleIcon() {
+export function BubbleIcon() {
   return (
     <svg
       viewBox="0 0 20 20"

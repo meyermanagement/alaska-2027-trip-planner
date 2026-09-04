@@ -190,18 +190,9 @@ export default async function HistoryPage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-        <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">
-            Preferences &amp; Reviews
-          </h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            How we like to travel in general, and what we thought of everywhere
-            we have stayed and everything we have done. Rate a place and leave a
-            line about it &mdash; here, or on the trip itself the evening it
-            happens &mdash; and it will be waiting the next time we are
-            deciding.
-          </p>
-        </div>
+        <h1 className="mb-6 font-display text-3xl font-semibold">
+          Preferences &amp; Reviews
+        </h1>
 
         <div className="mb-6">
           <Preferences

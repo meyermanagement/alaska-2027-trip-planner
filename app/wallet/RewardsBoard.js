@@ -10,6 +10,7 @@ import {
   catalogByKind,
   catalogEntry,
 } from "@/lib/rewards-catalog";
+import { ASK_ALY_EVENT, BubbleIcon } from "@/components/AskAlyTrigger";
 import {
   CREDIT_PERIODS,
   KIND_ORDER,
@@ -37,6 +38,27 @@ const SPENDS = [
   { key: "groceries", label: "Groceries" },
   { key: "gas", label: "Gas" },
 ];
+
+/** The filter value meaning "the ones nobody in particular holds". */
+const FAMILY = "_family";
+
+/**
+ * The question this screen exists to answer, written out so nobody has to type
+ * it. It is seeded rather than sent: the last line is the part only the person
+ * asking knows, and Aly cannot guess what is about to be booked. Everything
+ * before it is the reasoning we want applied every time -- which card, which
+ * credit, points against cash, and whether the way you book changes the answer.
+ */
+function payAskRequest() {
+  return [
+    "Using our Wallet, work out the best way to pay for and book this.",
+    "Say which card it should go on and why, whether any statement credit we hold covers part of it,",
+    "and whether paying with points or miles from one of our programs beats paying cash.",
+    "If it matters how we book it -- direct with the airline, hotel or line, through a card portal, through an agency --",
+    "say which way earns or saves the most.",
+    "\n\nWhat I am booking: ",
+  ].join(" ");
+}
 
 const BLANK = {
   kind: "credit_card",
@@ -118,6 +140,13 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
   const [balanceDraft, setBalanceDraft] = useState("");
   const formRef = useRef(null);
 
+  // Three ways to narrow a wallet that has grown past the point of being read
+  // top to bottom: the words on a program, what kind of thing it is, and whose
+  // it is.
+  const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState("all");
+  const [whose, setWhose] = useState("all");
+
   // The form opens directly under the button, but on a long list the page can
   // still be scrolled past it — so bring it into view whenever it appears.
   useEffect(() => {
@@ -129,13 +158,91 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
   const total = totalEstimatedValue(rows);
   const cards = rows.filter((r) => r.kind === "credit_card");
 
+  // Everything written on a program, in one string, so a search matches the
+  // thing people actually remember -- "lounge", "Global Entry", "5x on dining",
+  // "Steph" -- and not just the brand on the front of the card.
+  const haystack = (row) =>
+    [
+      row.brand,
+      row.program_name,
+      row.status_tier,
+      row.currency_label,
+      row.perks,
+      row.expiry_note,
+      row.notes,
+      nameFor(row.traveler_id),
+      REWARD_KINDS.find((k) => k.key === row.kind)?.label,
+      ...normalizeRules(row.earn_rules).map((rule) => formatRule(rule)),
+      ...normalizeCredits(row.credits).map((credit) => formatCredit(credit)),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+  // Every word has to match something, though not the same something: "amex
+  // dining" finds the card whose brand is one and whose earning rule is the
+  // other. Member numbers are deliberately not searched -- they are hidden until
+  // you tap to show them, and a list that narrowed to one card when you typed
+  // four digits would give that away.
+  const visible = useMemo(() => {
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return rows.filter((row) => {
+      if (kindFilter !== "all" && row.kind !== kindFilter) return false;
+      if (whose === FAMILY && row.traveler_id) return false;
+      if (whose !== "all" && whose !== FAMILY && row.traveler_id !== whose)
+        return false;
+      if (!words.length) return true;
+      const text = haystack(row);
+      return words.every((word) => text.includes(word));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, query, kindFilter, whose, travelers]);
+
+  const narrowed =
+    Boolean(query.trim()) || kindFilter !== "all" || whose !== "all";
+
   const groups = useMemo(() => {
     return KIND_ORDER.map((kind) => ({
       kind,
       meta: REWARD_KINDS.find((k) => k.key === kind),
-      items: rows.filter((r) => r.kind === kind),
+      items: visible.filter((r) => r.kind === kind),
     })).filter((g) => g.items.length);
-  }, [rows]);
+  }, [visible]);
+
+  // The counts on the chips are of the whole wallet, not of what the other
+  // filters have already left: a chip that reads "Hotels · 4" and then shows
+  // nothing is worse than no count at all.
+  const kindTally = useMemo(
+    () =>
+      KIND_ORDER.map((kind) => ({
+        kind,
+        label: REWARD_KINDS.find((k) => k.key === kind)?.plural || kind,
+        count: rows.filter((r) => r.kind === kind).length,
+      })).filter((k) => k.count),
+    [rows],
+  );
+
+  const whoseTally = useMemo(() => {
+    const list = travelers
+      .map((t) => ({
+        value: t.id,
+        label: t.name,
+        count: rows.filter((r) => r.traveler_id === t.id).length,
+      }))
+      .filter((t) => t.count);
+    const family = rows.filter((r) => !r.traveler_id).length;
+    if (family)
+      list.push({ value: FAMILY, label: "Whole family", count: family });
+    return list;
+  }, [rows, travelers]);
+
+  function askHowToPay() {
+    window.dispatchEvent(
+      new CustomEvent(ASK_ALY_EVENT, {
+        detail: { seed: payAskRequest(), autoSend: false, focus: "rewards" },
+      }),
+    );
+  }
 
   const payWith = useMemo(() => {
     if (!cards.length) return [];
@@ -215,7 +322,9 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           {rows.length ? (
             <>
               <span className="font-semibold text-ink">
-                {rows.length} {rows.length === 1 ? "program" : "programs"}
+                {narrowed
+                  ? `${visible.length} of ${rows.length} programs`
+                  : `${rows.length} ${rows.length === 1 ? "program" : "programs"}`}
               </span>
               {total > 0 && (
                 <>
@@ -231,14 +340,101 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
             "Nothing added yet."
           )}
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => startAdd()}
-        >
-          Add a program
-        </button>
+        <div className="no-print flex flex-wrap items-center gap-2">
+          {rows.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={askHowToPay}
+            >
+              <BubbleIcon />
+              Ask how to pay for something
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => startAdd()}
+          >
+            Add a program
+          </button>
+        </div>
       </div>
+
+      {/* The wallet is a reference book, not a list to read through, so once it
+          is long enough to scroll it gets the same three controls the places
+          record has: a search across everything written on a program, and chips
+          for what kind of thing it is and whose it is. */}
+      {rows.length > 4 && (
+        <div className="no-print space-y-2.5">
+          <label className="block">
+            <span className="sr-only">Search your programs</span>
+            <input
+              type="search"
+              className="field"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search a brand, a perk, an earning rule, or a name"
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <FilterChip
+              active={kindFilter === "all"}
+              onClick={() => setKindFilter("all")}
+            >
+              Everything
+            </FilterChip>
+            {kindTally.map((k) => (
+              <FilterChip
+                key={k.kind}
+                active={kindFilter === k.kind}
+                onClick={() => setKindFilter(k.kind)}
+              >
+                {k.label} · {k.count}
+              </FilterChip>
+            ))}
+          </div>
+          {whoseTally.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-ink-soft">Whose</span>
+              <FilterChip
+                active={whose === "all"}
+                onClick={() => setWhose("all")}
+              >
+                Anyone
+              </FilterChip>
+              {whoseTally.map((w) => (
+                <FilterChip
+                  key={w.value}
+                  active={whose === w.value}
+                  onClick={() => setWhose(w.value)}
+                >
+                  {w.label} · {w.count}
+                </FilterChip>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {rows.length > 0 && groups.length === 0 && (
+        <p className="card p-5 text-sm text-ink-soft">
+          {query.trim()
+            ? `Nothing matches \u201c${query.trim()}\u201d. Try a shorter search, or clear the filters.`
+            : "Nothing in the wallet matches those filters."}{" "}
+          <button
+            type="button"
+            className="font-semibold text-teal underline decoration-teal/30 underline-offset-2"
+            onClick={() => {
+              setQuery("");
+              setKindFilter("all");
+              setWhose("all");
+            }}
+          >
+            Show everything
+          </button>
+        </p>
+      )}
 
       {form && (
         <div ref={formRef} className="scroll-mt-24">
@@ -584,6 +780,22 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
         and correct anything that looks wrong.
       </p>
     </div>
+  );
+}
+
+function FilterChip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+        active
+          ? "border-teal bg-teal text-on-accent"
+          : "border-[var(--line)] bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

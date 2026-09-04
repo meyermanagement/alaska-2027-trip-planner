@@ -1603,12 +1603,18 @@ html[data-skin="aurora"] {
   --trip-wash: 0.66;
   color-scheme: dark;
 
-  --color-white: #121a22;
+  /* A card has to be visibly lighter than the page it sits on, and on a dark
+     skin that gap is the only thing doing the work -- there is no shadow to see
+     against near-black. The plate was four points off the page, which read as
+     one continuous dark surface. Card, secondary surface and divider all step
+     up together, and the page below steps down, so the edge of a card is
+     legible without a line being drawn around it. */
+  --color-white: #18222c;
   --color-ink: #e9eff3;
   --color-ink-soft: #93a5b3;
   --color-ink-faint: #5f6e7b;
-  --color-sand: #1a232d;
-  --color-sand-deep: #24303c;
+  --color-sand: #202b36;
+  --color-sand-deep: #2a3744;
   --color-teal: #3fdfbe;
   --color-teal-soft: #123029;
   --color-glacier: #7fb6e6;
@@ -1617,15 +1623,20 @@ html[data-skin="aurora"] {
   --color-on-accent: #04211d;
   --color-plum: #c8a6ff;
 
-  --line: rgba(233, 239, 243, 0.13);
-  --line-strong: rgba(233, 239, 243, 0.24);
-  --shadow-card: inset 0 1px 0 rgba(233, 239, 243, 0.05);
+  --line: rgba(233, 239, 243, 0.2);
+  --line-strong: rgba(233, 239, 243, 0.32);
+  /* The lit top edge is what a raised surface looks like in the dark; the drop
+     underneath it is faint on purpose, since black on black is barely a shadow
+     and too much of it turns into a grey halo. */
+  --shadow-card:
+    inset 0 1px 0 rgba(233, 239, 243, 0.07),
+    0 10px 24px -16px rgba(0, 0, 0, 0.9);
   --shadow-card-lift:
     inset 0 1px 0 rgba(233, 239, 243, 0.07),
     0 20px 48px -28px rgba(0, 0, 0, 0.95);
   --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.45);
 
-  --sk-base: #1a232d;
+  --sk-base: #202b36;
   --sk-sheen: rgba(233, 239, 243, 0.07);
 
   /* The plate. A photograph is already dark here, so it needs less taking
@@ -1654,7 +1665,7 @@ html[data-skin="aurora"] {
    near-black, with the 32px weave kept so the page still has a grain.
    The paper tooth is gone: a night page is glass, not paper. */
 html[data-skin="aurora"] body {
-  background-color: #080c12;
+  background-color: #05080d;
   background-image:
     linear-gradient(rgba(233, 239, 243, 0.022) 1px, transparent 1px),
     linear-gradient(90deg, rgba(233, 239, 243, 0.022) 1px, transparent 1px),
@@ -1668,7 +1679,7 @@ html[data-skin="aurora"] body {
       rgba(46, 211, 183, 0.22) 0%,
       rgba(46, 211, 183, 0) 64%
     ),
-    linear-gradient(180deg, #0a0f16 0%, #060a0f 100%);
+    linear-gradient(180deg, #070b11 0%, #04070b 100%);
   background-size:
     32px 32px,
     32px 32px,
@@ -1679,7 +1690,7 @@ html[data-skin="aurora"] body {
 }
 
 html[data-skin="aurora"] #boot-veil {
-  background-color: #080c12;
+  background-color: #05080d;
   background-image:
     radial-gradient(
       120% 80% at 88% -14%,
@@ -1691,7 +1702,7 @@ html[data-skin="aurora"] #boot-veil {
       rgba(46, 211, 183, 0.22) 0%,
       rgba(46, 211, 183, 0) 64%
     ),
-    linear-gradient(180deg, #0a0f16 0%, #060a0f 100%);
+    linear-gradient(180deg, #070b11 0%, #04070b 100%);
 }
 
 /* ------------------------------------------------------------------
@@ -1980,12 +1991,14 @@ html[data-skin="sodium"] {
   --trip-wash: 0.66;
   color-scheme: dark;
 
-  --color-white: #1a1411;
+  /* Same correction as aurora: the card steps up off the page far enough to
+     have an edge of its own in the dark. */
+  --color-white: #241b15;
   --color-ink: #f4ede4;
   --color-ink-soft: #b0a294;
   --color-ink-faint: #7a6e62;
-  --color-sand: #221a15;
-  --color-sand-deep: #2e231b;
+  --color-sand: #2d221a;
+  --color-sand-deep: #3a2c21;
   --color-teal: #f2a54a;
   --color-teal-soft: #33240f;
   /* Every other accent here is warm, so the one that marks flights and
@@ -1997,15 +2010,17 @@ html[data-skin="sodium"] {
   --color-on-accent: #251504;
   --color-plum: #e2a4dd;
 
-  --line: rgba(255, 228, 196, 0.14);
-  --line-strong: rgba(255, 228, 196, 0.24);
-  --shadow-card: inset 0 1px 0 rgba(255, 235, 210, 0.05);
+  --line: rgba(255, 228, 196, 0.2);
+  --line-strong: rgba(255, 228, 196, 0.32);
+  --shadow-card:
+    inset 0 1px 0 rgba(255, 235, 210, 0.07),
+    0 10px 24px -16px rgba(0, 0, 0, 0.9);
   --shadow-card-lift:
     inset 0 1px 0 rgba(255, 235, 210, 0.07),
     0 26px 58px -34px rgba(0, 0, 0, 0.95);
   --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.45);
 
-  --sk-base: #221a15;
+  --sk-base: #2d221a;
   --sk-sheen: rgba(255, 235, 210, 0.07);
 
   --on-photo: #f7f0e7;
@@ -2028,7 +2043,7 @@ html[data-skin="sodium"] {
 }
 
 html[data-skin="sodium"] body {
-  background-color: #100c0a;
+  background-color: #0c0908;
   background-image:
     linear-gradient(rgba(255, 235, 210, 0.022) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 235, 210, 0.022) 1px, transparent 1px),
@@ -2042,7 +2057,7 @@ html[data-skin="sodium"] body {
       rgba(194, 65, 95, 0.16) 0%,
       rgba(194, 65, 95, 0) 60%
     ),
-    linear-gradient(180deg, #130e0b 0%, #0c0908 100%);
+    linear-gradient(180deg, #0f0b09 0%, #080605 100%);
   background-size:
     32px 32px,
     32px 32px,
@@ -2053,7 +2068,7 @@ html[data-skin="sodium"] body {
 }
 
 html[data-skin="sodium"] #boot-veil {
-  background-color: #100c0a;
+  background-color: #0c0908;
   background-image:
     radial-gradient(
       120% 70% at 12% 108%,
@@ -2065,7 +2080,7 @@ html[data-skin="sodium"] #boot-veil {
       rgba(194, 65, 95, 0.16) 0%,
       rgba(194, 65, 95, 0) 60%
     ),
-    linear-gradient(180deg, #130e0b 0%, #0c0908 100%);
+    linear-gradient(180deg, #0f0b09 0%, #080605 100%);
 }
 
 /* Sodium's ink is very nearly white too, so it hands its tokens back to the
