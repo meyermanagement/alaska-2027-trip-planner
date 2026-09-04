@@ -2375,33 +2375,51 @@ html[data-skin="sodium"] .menu-arc {
   align-items: center;
   gap: 0.7rem;
   margin-bottom: 0.4rem;
-  padding: 0.65rem 0.8rem;
+  padding: 0.6rem 0.8rem;
   border-radius: 1.15rem;
-  color: #ffffff;
-  /* The trip's own hue, handed down from the component, deepened at the near
-     corner so white type sits on it safely whichever of the five a trip drew.
-     This used to be the accent, which meant the plate and the pill for the
-     screen you were already on were the same green: the menu looked like it had
-     two things selected. The accent is now spent once, on the pill, and the
-     plate wears the color its own cover is printed in. */
-  /* Both stops are the hue laid over near-black rather than the hue itself,
-     because two of the five skins hand back pale accents -- a dark skin's tokens
-     are lit for dark ground -- and a pale plate cannot carry white type. Mixed
-     down like this the darkest corner clears 7:1 on every skin and the far
-     corner clears 4.5:1 on all of them, which is what the small caps line at the
-     top needs. */
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--arc-hero-hue, var(--color-glacier)) 40%, #0d1416)
-      0%,
-    color-mix(in srgb, var(--arc-hero-hue, var(--color-glacier)) 55%, #0d1416)
-      100%
+  /* The same frosted face the seven pills are cut from, and not a filled slab.
+     Filled in the accent it was the same green as the pill for the screen you
+     were already on, so the menu looked like it had two things selected; filled
+     in the trip's own hue instead, it went dark and heavy and sat on a pale page
+     like something dropped there. It is the same material as the rest of the
+     arc, at full width, with the trip's color spent as a wash through the face
+     and on the small type -- so it belongs to the shape and still says which
+     trip it is. */
+  color: var(--color-ink);
+  background: color-mix(
+    in srgb,
+    var(--arc-hero-hue, var(--color-glacier)) 11%,
+    var(--arc-face)
   );
-  box-shadow:
-    0 2px 6px rgba(16, 38, 43, 0.2), 0 14px 32px rgba(16, 38, 43, 0.34);
+  border: 1px solid var(--arc-edge);
+  box-shadow: var(--arc-shadow);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
   transition: transform 0.18s ease;
 }
-
+.arc-hero-when {
+  color: color-mix(
+    in srgb,
+    var(--arc-hero-hue, var(--color-glacier)) 62%,
+    var(--color-ink)
+  );
+  opacity: 1;
+}
+.arc-hero-mark {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  background: color-mix(
+    in srgb,
+    var(--arc-hero-hue, var(--color-glacier)) 16%,
+    transparent
+  );
+}
 .arc-hero:active {
   transform: translateY(1px);
 }
@@ -2413,7 +2431,12 @@ html[data-skin="sodium"] .menu-arc {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.22);
+  color: var(--color-ink);
+  background: color-mix(
+    in srgb,
+    var(--arc-hero-hue, var(--color-glacier)) 20%,
+    transparent
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {

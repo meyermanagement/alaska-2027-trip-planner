@@ -246,17 +246,17 @@ export default function NavTabs({
          are here". */
       style={{ "--arc-hero-hue": coverToken(trip) }}
     >
-      <span aria-hidden="true" className="shrink-0 text-[1.15rem] leading-none">
+      <span aria-hidden="true" className="arc-hero-mark">
         {trip.cover_emoji || "🧭"}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[0.58rem] font-bold uppercase tracking-[0.12em] opacity-80">
+        <span className="arc-hero-when block text-[0.58rem] font-bold uppercase tracking-[0.12em]">
           {where ? "Happening now" : "Next trip"}
         </span>
         <span className="block truncate font-display text-[0.95rem] font-semibold leading-tight">
           {trip.name}
         </span>
-        <span className="block truncate text-[0.72rem] leading-tight opacity-90">
+        <span className="arc-sub block truncate text-[0.72rem] leading-tight">
           {where
             ? `Day ${where.day} of ${where.of} · back to today`
             : [soon, formatRange(trip.start_date, lastDayOf(trip))]
