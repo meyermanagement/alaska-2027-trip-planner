@@ -38,7 +38,7 @@ import DayDone from "@/components/DayDone";
 import { dayIsDone } from "@/lib/day/done";
 import { directionsToPlace } from "@/lib/travel/modes";
 import DayItemBrief from "@/components/DayItemBrief";
-import TimeDrag from "@/components/TimeDrag";
+import ItemDrag, { DragGrip } from "@/components/ItemDrag";
 import EarlyForecast from "@/components/EarlyForecast";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
 import { askQuietly, readStored } from "@/components/WhereIAm";
@@ -792,6 +792,12 @@ export default function Itinerary({
   // caller that forgets the prop.
   const [today, setToday] = useState(() => todayProp || homeToday());
 
+  // The day a lifted card is currently pointed at, or null when nothing is being
+  // dragged. It lives up here rather than inside the gesture because the thing
+  // it lights is the rail at the top of the screen, which is a sibling of the
+  // card being held and often a long way above it.
+  const [aimedDay, setAimedDay] = useState(null);
+
   // Open on the day the family is living, not on the first morning of the trip.
   const [selected, setSelected] = useState(
     () => openingDay(dayKeys, today) ?? UNSCHEDULED,
@@ -1080,6 +1086,28 @@ export default function Itinerary({
     // to 205 between the two paints.
   }, [selected, overflowing, railKeys.length]);
 
+  // And while a card is being dragged sideways, keep the day it is aimed at on
+  // screen. On a twelve-day trip on a phone the rail shows four tiles, so by the
+  // third day of travel the target had scrolled out of the rail and the only
+  // thing left saying where the excursion was going was the badge by the thumb.
+  // Nudged to the nearest edge rather than centred, because a tile that jumps to
+  // the middle on every day crossed is a rail that will not hold still under a
+  // finger already trying to aim.
+  useEffect(() => {
+    if (!aimedDay) return;
+    const rail = railRef.current;
+    const tile = rail?.querySelector('[data-aim="true"]');
+    if (!rail || !tile) return;
+    const railBox = rail.getBoundingClientRect();
+    const tileBox = tile.getBoundingClientRect();
+    const pad = 8;
+    if (tileBox.left < railBox.left + pad) {
+      rail.scrollLeft -= railBox.left + pad - tileBox.left;
+    } else if (tileBox.right > railBox.right - pad) {
+      rail.scrollLeft += tileBox.right - (railBox.right - pad);
+    }
+  }, [aimedDay]);
+
   const index = railKeys.indexOf(selected);
   const step = useCallback(
     (delta) => {
@@ -1264,14 +1292,23 @@ export default function Itinerary({
     onChange();
   }
 
-  // A card slid to a new time. One column, and only ever the start: sliding a
-  // hotel's checkout up the day would be a different gesture answering a
-  // different question, so a row with an end date is left alone -- see the
-  // guard where TimeDrag is used.
-  async function moveToTime(item, hm) {
+  // A card slid to a new time, or across to a different day. One column either
+  // way, and on the time axis only ever the start: sliding a hotel's checkout up
+  // the day would be a different gesture answering a different question, so a
+  // row with an end date is left alone -- see the guard where ItemDrag is used.
+  //
+  // The day the card lands on becomes the day the family is looking at, before
+  // the write is even acknowledged. Without that, a thing dragged to Thursday
+  // simply vanishes from Wednesday and the family is left looking at the gap it
+  // left, with no way to tell a successful move from a deleted excursion.
+  async function moveItem(item, next) {
+    const patch = next.date
+      ? { item_date: next.date }
+      : { start_time: next.time };
+    if (next.date) setSelected(next.date);
     const { error: err } = await supabase
       .from("itinerary_items")
-      .update({ start_time: hm })
+      .update(patch)
       .eq("id", item.id);
     if (err) {
       setError(err.message);
@@ -1401,10 +1438,11 @@ export default function Itinerary({
                   role="tab"
                   aria-selected={active}
                   data-active={active}
+                  data-aim={key === aimedDay ? "true" : undefined}
                   onClick={() => setSelected(key)}
                   className={`day-tile ${date ? "" : "day-tile-wide"} ${
                     active ? "day-tile-on" : ""
-                  }`}
+                  } ${key === aimedDay ? "day-tile-aim" : ""}`}
                 >
                   {date ? (
                     <>
@@ -1674,6 +1712,19 @@ export default function Itinerary({
                   const rated = rateable
                     ? reviewTarget(item, items) || item
                     : null;
+                  // Two different questions, deliberately kept apart. The first
+                  // is whether this card is the kind of thing a hold-and-slide
+                  // could ever move: a stay is not, a cancelled row is not, and
+                  // nothing is while the page is somebody else's to read only.
+                  // The second is whether it can be moved *right now*, which
+                  // also needs a time on the clock to slide away from. A card
+                  // that fails the first question says nothing at all; one that
+                  // fails only the second wears the hollow grip, because "give
+                  // it a time and you can drag it" is worth saying.
+                  const draggableKind =
+                    !readOnly && !item.end_date && item.status !== "cancelled";
+                  const movable =
+                    draggableKind && !shut && Boolean(item.start_time);
 
                   return (
                     <div key={item.id}>
@@ -1706,19 +1757,22 @@ export default function Itinerary({
                           )}
                         </ClosedRow>
                       )}
-                      <TimeDrag
+                      <ItemDrag
                         startTime={item.start_time}
+                        // Only the trip's real days, never the "No date" tile:
+                        // sliding a thing sideways off the calendar altogether
+                        // is not a move, it is an unschedule, and it belongs to
+                        // the form where it can be said on purpose.
+                        dayKeys={dayKeys}
+                        dayKey={item.item_date}
                         // Not on a folded row -- there is nothing to grab. Not
                         // while the card is being edited by hand, not for
                         // somebody who cannot write, and not on a stay, whose
-                        // "time" is a check-in on a row that spans nights.
-                        disabled={
-                          shut ||
-                          readOnly ||
-                          Boolean(item.end_date) ||
-                          item.status === "cancelled"
-                        }
-                        onCommit={(hm) => moveToTime(item, hm)}
+                        // "time" is a check-in on a row that spans nights and
+                        // whose day cannot move without its checkout moving too.
+                        disabled={!movable}
+                        onAim={setAimedDay}
+                        onCommit={(next) => moveItem(item, next)}
                       >
                         <article
                           className={`card p-4 ${PHASE_CLASS[phase] || ""} ${
@@ -1737,6 +1791,13 @@ export default function Itinerary({
                               >
                                 <FoldChevron open />
                               </button>
+                            )}
+                            {/* Beside the category mark rather than out at the
+                                right-hand edge: this is a fact about the whole
+                                card, and the right edge already belongs to the
+                                time badge that appears when the card lifts. */}
+                            {draggableKind && !shut && (
+                              <DragGrip ready={movable} />
                             )}
                             <span className="text-xl leading-none">
                               {CATEGORY_ICONS[item.category]}
@@ -1910,7 +1971,7 @@ export default function Itinerary({
                             </div>
                           </div>
                         </article>
-                      </TimeDrag>
+                      </ItemDrag>
                     </div>
                   );
                 })}

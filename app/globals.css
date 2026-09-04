@@ -951,6 +951,28 @@ input[type="month"]::-webkit-date-and-time-value {
 .day-tile-on .day-tile-today {
   background: var(--color-on-accent);
 }
+/* The day a card is being dragged towards.
+
+   Deliberately not the same treatment as the chosen day: the chosen tile is a
+   filled teal plate, and a second filled plate on the rail would read as two
+   days being open at once. This is an outline instead -- a ring in the accent,
+   over a faint teal wash -- which says "landing here"
+   without claiming to be the day on screen. It also has to win against
+   .day-tile-on, since the commonest drag of all is out of today.
+
+   Drawn inside the tile, not around it. A ring outside was the obvious version
+   and it was invisible on the two tiles that matter most: the rail scrolls
+   horizontally, which makes it a clipping box, so a ring on the tile at either
+   end was cut off exactly when a finger was pushing that way. */
+.day-tile-aim,
+.day-tile-aim:hover {
+  border-color: var(--color-teal);
+  box-shadow: inset 0 0 0 2px var(--color-teal);
+  transform: translateY(-1px);
+}
+.day-tile-aim:not(.day-tile-on) {
+  background: color-mix(in srgb, var(--color-teal) 12%, var(--color-white));
+}
 .day-arrow {
   flex: 0 0 auto;
   width: 2.1rem;
