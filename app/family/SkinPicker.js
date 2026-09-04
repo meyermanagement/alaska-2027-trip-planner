@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  DEFAULT_SKIN,
-  SKINS,
-  chromeFollowsAlong,
-  paintChrome,
-  skinOr,
-} from "@/lib/skins";
+import { DEFAULT_SKIN, SKINS, paintChrome, skinOr } from "@/lib/skins";
 
 /**
  * Choosing how the app looks, for one person.
@@ -54,19 +48,18 @@ export default function SkinPicker({ skin: saved }) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || "Could not save that.");
       }
-      // Everything the stylesheet owns has already turned. What has not, on an
-      // iPhone, is the strip the clock and the battery sit in: Safari fixes that
-      // color while it is parsing the document and will not look at it again, so
-      // the page has to be parsed again to change it. Loading it fresh now is
-      // less strange than a settings page that visibly does not finish the job
-      // and leaves a band of the last skin above it until you happen to reload.
+      // Nothing else to do. This used to reload the whole page on an iPhone, to
+      // force Safari to re-read the theme color for the strip the clock and the
+      // battery sit in -- and paintChrome above already handles that a gentler
+      // way, by removing the theme-color tag and inserting a fresh one, which is
+      // a change to the head's child list rather than to an attribute and is the
+      // part Safari does watch. The reload was belt and braces on top of a belt,
+      // and it cost far more than it was insuring: pressing a color swatch threw
+      // the entire app away and rebuilt it, splash screen and all.
       //
-      // Only where that is actually the situation, and only after the save came
-      // back, so a reload can never be what loses the choice.
-      if (!chromeFollowsAlong()) {
-        window.location.reload();
-        return;
-      }
+      // If some version of Safari still ignores the fresh tag, the whole cost is
+      // one band above the page wearing the old color until the next screen
+      // loads. That is a smaller thing than the reload was.
     } catch (err) {
       setChosen(was);
       setFailed(
