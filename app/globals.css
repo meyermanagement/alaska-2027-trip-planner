@@ -2285,6 +2285,79 @@ html[data-skin="sodium"] .menu-arc {
     margin-left 0.18s ease;
 }
 
+/* Opening and closing. Seven objects thrown from a disc should be seen to be
+   thrown: each row comes up out of the bottom-left corner -- where the compass
+   is -- a fifth of a second each, twenty milliseconds apart, so the shape
+   assembles along the curve in the order you read it. Closing is one movement
+   with no stagger and half the distance: leaving is not a thing anybody wants
+   to watch, it just needs to not be a cut.
+
+   The entry fill is backwards and not forwards on purpose. A forwards fill
+   keeps the animation's own transform in force after it ends, at animation
+   priority, which would silently kill the press-down on every row for the rest
+   of the menu's life. */
+@keyframes arc-node-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-12px, 14px, 0) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes arc-node-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-7px, 9px, 0) scale(0.96);
+  }
+}
+@keyframes arc-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.arc-in .arc-hero,
+.arc-in .arc-pill {
+  transform-origin: 0% 100%;
+  animation: arc-node-in 0.19s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--arc-i, 0) * 20ms);
+}
+.arc-out .arc-hero,
+.arc-out .arc-pill {
+  transform-origin: 0% 100%;
+  animation: arc-node-out 0.13s ease-in forwards;
+}
+.arc-in .arc-scrim {
+  animation: arc-scrim-in 0.18s ease backwards;
+}
+.arc-out .arc-scrim {
+  animation: arc-scrim-in 0.13s ease reverse forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-in .arc-hero,
+  .arc-in .arc-pill,
+  .arc-in .arc-scrim {
+    animation: none;
+  }
+  /* Gone at once rather than left sitting there for the eighth of a second it
+     takes the component to unmount. */
+  .arc-out .arc-hero,
+  .arc-out .arc-pill,
+  .arc-out .arc-scrim {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 .arc-pill:active {
   transform: translateY(1px);
 }

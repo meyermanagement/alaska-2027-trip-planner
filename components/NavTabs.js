@@ -188,6 +188,10 @@ export default function NavTabs({
   const router = useRouter();
   const keyboardOpen = useSoftKeyboard();
   const [open, setOpen] = useState(false);
+  // Kept on screen for the length of the closing animation after open goes
+  // false. Unmounting on the press would cut the arc away mid-movement, so the
+  // intent and the presence are two different pieces of state.
+  const [present, setPresent] = useState(false);
   const sheetRef = useRef(null);
 
   const isActive = (href) =>
@@ -209,6 +213,14 @@ export default function NavTabs({
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+  useEffect(() => {
+    if (open) {
+      setPresent(true);
+      return undefined;
+    }
+    const t = setTimeout(() => setPresent(false), 150);
+    return () => clearTimeout(t);
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -244,7 +256,7 @@ export default function NavTabs({
          things selected and neither of them said which. Only one thing in this
          shape is allowed to be the accent, and it is the one that means "you
          are here". */
-      style={{ "--arc-hero-hue": coverToken(trip) }}
+      style={{ "--arc-hero-hue": coverToken(trip), "--arc-i": 0 }}
     >
       <span aria-hidden="true" className="arc-hero-mark">
         {trip.cover_emoji || "🧭"}
@@ -307,15 +319,17 @@ export default function NavTabs({
 
           It sits above the bar it rose from, and below the Ask Aly drawer, so
           that if both ever open the conversation is in front. */}
-      {open && (
-        <div className="no-print fixed inset-0 z-[38]">
+      {present && (
+        <div
+          className={`no-print fixed inset-0 z-[38] ${open ? "arc-in" : "arc-out"}`}
+        >
           <button
             type="button"
             aria-label="Close the menu"
             onClick={() => setOpen(false)}
             /* Lighter than the scrim under a sheet, and blurred rather than
                darkened: the page is meant to still be there. */
-            className="absolute inset-0 bg-ink/30 backdrop-blur-[3px]"
+            className="arc-scrim absolute inset-0 bg-ink/30 backdrop-blur-[3px]"
           />
           <div
             ref={sheetRef}
@@ -373,6 +387,8 @@ export default function NavTabs({
                       onClick={() => setOpen(false)}
                       style={{
                         marginLeft: `calc(var(--arc-span) * ${bow.toFixed(3)})`,
+                        // Its place in the stagger, counted from the plate.
+                        "--arc-i": index + 1,
                       }}
                       /* Trips is drawn larger than the six below it. It is the
                          door most presses of this menu are looking for, and on a
@@ -421,7 +437,7 @@ export default function NavTabs({
            put it away. A menu whose button vanishes underneath it makes you hunt
            for empty page to tap instead. */
         className={`no-print pointer-events-none fixed inset-x-0 bottom-0 ${
-          open ? "z-[39]" : "z-30"
+          present ? "z-[39]" : "z-30"
         } px-4 transition-transform duration-200 ${
           // Out of reach as well as out of sight, so a tap meant for the field
           // underneath cannot land on a control on the way down.
