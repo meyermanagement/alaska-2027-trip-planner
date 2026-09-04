@@ -19,31 +19,36 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * rounded panel with the page sliding underneath it — which read as something
  * that had come loose rather than part of the app.
  *
- * So: one solid bar, welded to the bottom edge, nothing visible beneath it, and
- * two things on it.
+ * So: no bar at all. Two discs lying on top of the page, bottom left and bottom
+ * right, each with a shadow under it so it reads as floating above the content
+ * rather than competing with it. A bar is a horizon: it cuts the screen and
+ * everything above it has to end before it starts. Two discs are objects, and
+ * the page runs on underneath them.
  *
- * Bottom left, the menu. A pill carrying the compass, the name of the screen you
- * are on, and a chevron; tapping it raises a sheet with every destination spelled
- * out in full, one per line, with the second line of explanation the desktop dock
- * used to get and the phone never could. The screen you are on is ticked. This
- * side of the bar answers one question only — where am I in the app, and where
- * else can I go.
+ * Bottom left, the menu: the compass alone, on a disc. It carried the name of
+ * the screen you were on and a chevron, and both have gone. The screen already
+ * says what it is at the top; a control repeating it in the opposite corner was
+ * answering a question nobody standing on the page has, and the words are what
+ * forced the whole corner into a pill wide enough to need a bar behind it.
+ * Tapping it raises a sheet with every destination spelled out in full, one per
+ * line, with the second line of explanation the desktop dock used to get and the
+ * phone never could. The screen you are on is ticked.
  *
- * Bottom right, Ask Aly. It used to live in the top right corner, a full reach
- * away from a thumb; it is the thing people press most, so it takes the corner
- * the thumb lands on first. Navigation is deliberate and can afford the longer
- * reach, which is why the two are this way round and not the other.
+ * Bottom right, Ask Aly: the same disc, the same size, carrying the speech
+ * bubble alone. It used to live in the top right corner, a full reach away from
+ * a thumb; it is the thing people press most, so it takes the corner the thumb
+ * lands on first. Navigation is deliberate and can afford the longer reach,
+ * which is why the two are this way round and not the other. Only the fill tells
+ * them apart, and that is the point: two identical discs, one of them the app's
+ * single accent, because one of them is the thing you came to do.
  *
  * One exception inside a single trip: the first row in the sheet stops naming
  * where you already are and becomes the way out — an arrow, and the words
  * "All trips". Filling it in like a current page made it look like a label
- * rather than a door.
- *
- * Inside a trip that way out also comes up onto the bar itself, as a round arrow
- * to the left of the menu pill. Going back to the list of trips is the most
- * common thing anybody does from inside a trip, and it should not cost two taps
- * and a sheet to read. The row in the sheet stays, because that is where the
- * label spelling it out lives.
+ * rather than a door. That row is the only place the way out lives; it briefly
+ * had a third disc of its own on the bar, which made a two-control corner into a
+ * cluster and put the least considered decision on the screen at the same weight
+ * as the two most common ones.
  *
  * Every row here, and the arrow beside the pill, turns its icon into a spinner
  * while the screen it asks for is on its way. The sheet closes on the press, so
@@ -177,14 +182,6 @@ export default function NavTabs({
       ? TABS.filter((t) => SECONDARY_TABS.has(t.href))
       : TABS;
 
-  // The name on the pill. Inside a trip the pill cannot say "Trips", because
-  // that is the door out and not where you are; and it cannot say the trip's
-  // name either, because the band at the top of the screen is already saying
-  // exactly that and two corners repeating one word is how a screen starts to
-  // look careless.
-  const here = tabs.find((t) => isActive(t.href));
-  const label = insideTrip ? "This trip" : here?.label || "Menu";
-
   // Shut the sheet the moment you arrive somewhere, and on Escape.
   useEffect(() => {
     setOpen(false);
@@ -290,59 +287,47 @@ export default function NavTabs({
       <nav
         aria-label="Main menu"
         aria-hidden={keyboardOpen ? "true" : undefined}
-        /* Solid, edge to edge, and nothing shows underneath it. */
-        className={`no-print fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-white px-3 pt-2 transition-transform duration-200 ${
+        /* No surface of its own: two discs lying on the page, and the page
+           visible everywhere between and behind them. The wrapper takes no
+           presses -- only the discs do -- so the strip of screen either side of
+           them still belongs to whatever is underneath. */
+        className={`no-print pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 transition-transform duration-200 ${
           // Out of reach as well as out of sight, so a tap meant for the field
-          // underneath cannot land on a menu row on the way down.
-          keyboardOpen ? "translate-y-full pointer-events-none" : ""
+          // underneath cannot land on a control on the way down.
+          keyboardOpen ? "translate-y-[130%]" : ""
         }`}
-        style={{ paddingBottom: "max(0.55rem, env(safe-area-inset-bottom))" }}
+        style={{
+          paddingBottom:
+            "max(1rem, calc(env(safe-area-inset-bottom) + 0.4rem))",
+        }}
       >
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 min-[375px]:gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* The door out of a trip, on the bar rather than behind the menu.
-              Left of the pill, so the order along the bar reads: out, where am
-              I, and ask. */}
-            {insideTrip && (
-              <Link
-                href="/trips"
-                aria-label="Back to all trips"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-sand text-ink transition hover:border-[var(--line-strong)] active:translate-y-px"
-              >
-                <PendingSwap href="/trips" className="h-5 w-5">
-                  <BackIcon className="h-5 w-5" />
-                </PendingSwap>
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-expanded={open}
-              aria-label={`${label} — open the menu`}
-              className="relative inline-flex min-w-0 items-center gap-2 rounded-full border border-[var(--line)] bg-sand px-3 py-2 text-ink transition hover:border-[var(--line-strong)] active:translate-y-px min-[375px]:px-3.5"
-            >
-              <AlyeskaMark className="h-[1.35rem] w-[1.35rem] shrink-0" />
-              <span className="min-w-0 truncate font-display text-[0.95rem] font-semibold">
-                {label}
+        <div className="mx-auto flex max-w-5xl items-end justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label="Open the menu"
+            className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-white text-ink shadow-[0_10px_28px_rgba(20,32,30,0.24)] transition hover:border-[var(--line-strong)] active:translate-y-px"
+          >
+            <AlyeskaMark className="h-7 w-7 shrink-0" />
+            {/* The one number worth interrupting somebody for still shows on the
+              closed control, because it lives on a screen the menu is hiding. */}
+            {attention > 0 && !isActive("/reminders") && (
+              <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.62rem] font-bold leading-[1.15rem] text-on-accent ring-2 ring-white">
+                {attention}
+                <span className="sr-only"> reminders needing attention</span>
               </span>
-              <ChevronIcon className="h-3.5 w-3.5 shrink-0 text-ink-soft" />
-              {/* The one number worth interrupting somebody for still shows on the
-                closed pill, because it lives on a screen the menu is hiding. */}
-              {attention > 0 && !isActive("/reminders") && (
-                <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-rose px-1 text-[0.55rem] font-bold leading-4 text-on-accent">
-                  {attention}
-                  <span className="sr-only"> reminders needing attention</span>
-                </span>
-              )}
-            </button>
-          </div>
+            )}
+          </button>
           {showAsk &&
             (askLive ? (
-              <AskAlyTrigger href={askHref} />
+              <span className="pointer-events-auto">
+                <AskAlyTrigger href={askHref} round />
+              </span>
             ) : (
               <span
                 aria-hidden="true"
-                className="sk h-9 w-[6.5rem] shrink-0 rounded-full"
+                className="sk h-14 w-14 shrink-0 rounded-full"
               />
             ))}
         </div>
@@ -444,15 +429,6 @@ function PeopleIcon({ className }) {
       <circle cx="7.8" cy="7.4" r="2.6" />
       <path d="M3 16.3c0-2.4 2.1-4.1 4.8-4.1s4.8 1.7 4.8 4.1" />
       <path d="M13.4 5.2a2.4 2.4 0 0 1 0 4.6M14.2 12.5c1.7.3 2.9 1.5 2.9 3.3" />
-    </svg>
-  );
-}
-
-// Points up while the sheet is shut: this opens upward.
-function ChevronIcon({ className }) {
-  return (
-    <svg {...iconProps(className)}>
-      <path d="M5.4 12.4 10 7.8l4.6 4.6" />
     </svg>
   );
 }

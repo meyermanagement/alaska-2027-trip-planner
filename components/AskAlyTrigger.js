@@ -7,11 +7,11 @@ export const ASK_ALY_EVENT = "ask-aly";
 // A speech bubble: the button starts a conversation rather than opening help,
 // so a bubble fits it better than a question mark. Drawn to match the app's
 // other line icons.
-export function BubbleIcon() {
+export function BubbleIcon({ className = "-ml-0.5 h-4 w-4 shrink-0" }) {
   return (
     <svg
       viewBox="0 0 20 20"
-      className="-ml-0.5 h-4 w-4 shrink-0"
+      className={className}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
@@ -28,17 +28,34 @@ export function BubbleIcon() {
 //  - `href` set: we're on a screen with no trip loaded, so link through to a
 //    trip page with ?ask=1, which opens the drawer on arrival.
 //  - no `href`: a drawer is listening on this page, so just poke it.
-export default function AskAlyTrigger({ href }) {
+export default function AskAlyTrigger({ href, round = false }) {
   const label = "Ask Aly";
 
-  const styles =
-    "inline-flex items-center gap-1.5 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-on-accent shadow-sm transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px";
+  // Two shapes, one control. Inline in a page it is still a labelled pill. On
+  // the floating pair of controls at the bottom of every screen it is a disc
+  // the size of the menu beside it, carrying the bubble alone: the words were
+  // the only reason that corner needed a bar behind it to sit on.
+  const styles = round
+    ? "inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal text-on-accent shadow-[0_10px_28px_rgba(20,32,30,0.24)] ring-1 ring-ink/10 transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px"
+    : "inline-flex items-center gap-1.5 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-on-accent shadow-sm transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px";
+
+  const inner = round ? (
+    <BubbleIcon className="h-6 w-6 shrink-0" />
+  ) : (
+    <>
+      <BubbleIcon />
+      {label}
+    </>
+  );
 
   if (href) {
     return (
-      <Link href={href} className={styles}>
-        <BubbleIcon />
-        {label}
+      <Link
+        href={href}
+        className={styles}
+        aria-label={round ? label : undefined}
+      >
+        {inner}
       </Link>
     );
   }
@@ -48,9 +65,9 @@ export default function AskAlyTrigger({ href }) {
       type="button"
       onClick={() => window.dispatchEvent(new CustomEvent(ASK_ALY_EVENT))}
       className={styles}
+      aria-label={round ? label : undefined}
     >
-      <BubbleIcon />
-      {label}
+      {inner}
     </button>
   );
 }

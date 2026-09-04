@@ -71,7 +71,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
   //
   // It used to carry two things: the app's name, and the Ask Aly button. Both
   // have gone -- Ask Aly to the bottom right corner where a thumb lands, and the
-  // name into the compass on the menu pill beside it -- and a bar holding nothing
+  // compass to the disc in the corner opposite it -- and a bar holding nothing
   // is just fifty pixels of every screen spent on a hairline. So the header is
   // now only ever the band about the trip you are living, and it appears on the
   // days that band has something to say: from the morning you leave to the

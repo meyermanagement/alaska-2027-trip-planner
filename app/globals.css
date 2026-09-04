@@ -456,14 +456,12 @@ html[data-booted] #boot-veil {
 
 /* Keep a wide row (a scrolling tab strip, a long word) from stretching the
    whole page sideways on a phone. */
-/* The menu is fixed to the bottom of the screen, so the page has to end above
-   it rather than under it. One number at every size now: the bar is welded to
-   the bottom edge instead of floating clear of it, so there is no gap under it
-   to account for, and it is a single row of controls rather than two lines of
-   icon and label -- about a centimetre shorter than the strip of six tabs it
-   replaces, which the page gets back. */
+/* The two round controls float over the page rather than sitting on a bar, so
+   strictly nothing has to end above them — but the last line of a page landing
+   underneath a disc is unreachable, so the shell still keeps their height clear:
+   fifty-six pixels of control, the gap under it, and a little air. */
 .app-shell {
-  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }
 
 .app-shell > * {
