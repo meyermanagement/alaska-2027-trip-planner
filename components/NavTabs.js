@@ -461,7 +461,21 @@ export default function NavTabs({
                top edge instead. See --disc-face in globals.css. */
             className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)] transition hover:border-[var(--line-strong)] active:translate-y-px"
           >
-            <AlyeskaMark className="h-9 w-9 shrink-0" />
+            {/* Drawn to very nearly the width of the button, with its own
+                housing dropped, because the button's rim is that circle: two
+                circles a few pixels apart looked like a mistake and cost the
+                needle a third of the space it had.
+
+                The needle turns to point right while the menu is open and back
+                to north when it is shut -- a compass held still is a logo, one
+                that swings is a control, and the direction it settles on says
+                which of the two states you are in without a second icon. */}
+            <AlyeskaMark
+              ring={false}
+              className={`h-[52px] w-[52px] shrink-0 transition-transform duration-200 ease-out ${
+                open ? "rotate-90" : "rotate-0"
+              }`}
+            />
             {/* The one number worth interrupting somebody for still shows on the
               closed control, because it lives on a screen the menu is hiding. */}
             {attention > 0 && !isActive("/reminders") && (
