@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
-import { programsForTrip } from "@/lib/tips/members";
 import {
   CATALOG,
   CATALOG_AS_OF,
@@ -29,7 +27,6 @@ import {
   totalCreditValue,
   totalEstimatedValue,
 } from "@/lib/rewards";
-import { tripPath } from "@/lib/trips/route";
 
 const SPENDS = [
   { key: "flights", label: "Flights" },
@@ -110,13 +107,7 @@ function maskNumber(value) {
   return `•••• ${text.slice(-4)}`;
 }
 
-export default function RewardsBoard({
-  familyId,
-  travelers,
-  programs,
-  trips = [],
-  items = [],
-}) {
+export default function RewardsBoard({ familyId, travelers, programs }) {
   const supabase = createClient();
   const router = useRouter();
   const [rows, setRows] = useState(programs);
@@ -137,36 +128,6 @@ export default function RewardsBoard({
   const nameFor = (id) => travelers.find((t) => t.id === id)?.name;
   const total = totalEstimatedValue(rows);
   const cards = rows.filter((r) => r.kind === "credit_card");
-
-  /**
-   * Which trips each program belongs to.
-   *
-   * Same reasoning the tips use, run here so a program is never a mystery: the
-   * operators written on a trip's own lines decide it, so Castaway Club lands on
-   * the Disney sailing and not on the Holland America one, and a trip named
-   * Alaska is not Alaska Airlines. Two states are worth a chip — it counts on
-   * this trip, or that part of the trip is still unbooked so it could. A program
-   * that cannot count anywhere gets no chip rather than a row of apologies.
-   */
-  const tripChips = useMemo(() => {
-    const byProgram = new Map();
-    for (const trip of trips) {
-      const itinerary = items.filter((i) => i.trip_id === trip.id);
-      const sorted = programsForTrip({ programs: rows, trip, itinerary });
-      for (const [state, list] of [
-        ["applies", sorted.applies],
-        ["open", sorted.opportunity],
-      ]) {
-        for (const program of list) {
-          if (!program?.id) continue;
-          const found = byProgram.get(program.id) || [];
-          found.push({ trip, state });
-          byProgram.set(program.id, found);
-        }
-      }
-    }
-    return byProgram;
-  }, [rows, trips, items]);
 
   const groups = useMemo(() => {
     return KIND_ORDER.map((kind) => ({
@@ -429,37 +390,6 @@ export default function RewardsBoard({
                           <span className="chip bg-sand-deep/60 text-ink-soft">
                             Whole family
                           </span>
-                        )}
-                        {row.kind === "credit_card" ? (
-                          <span className="chip bg-sand-deep/60 text-ink-soft">
-                            Any trip
-                          </span>
-                        ) : (
-                          (tripChips.get(row.id) || []).map(
-                            ({ trip, state }) => (
-                              <Link
-                                key={`${row.id}-${trip.id}`}
-                                href={tripPath(trip)}
-                                title={
-                                  state === "applies"
-                                    ? `${trip.name} has something booked with them`
-                                    : `That part of ${trip.name} is not booked yet, so this could still be used`
-                                }
-                                className={
-                                  state === "applies"
-                                    ? "chip border border-teal/40 bg-teal-soft text-teal transition hover:border-teal"
-                                    : "chip border border-dashed border-[var(--line)] bg-white/70 text-ink-soft transition hover:border-teal hover:text-teal"
-                                }
-                              >
-                                {trip.name}
-                                {state === "open" && (
-                                  <span className="ml-1 opacity-70">
-                                    · could use
-                                  </span>
-                                )}
-                              </Link>
-                            ),
-                          )
                         )}
                         {row.program_name && (
                           <span className="text-xs text-ink-soft">

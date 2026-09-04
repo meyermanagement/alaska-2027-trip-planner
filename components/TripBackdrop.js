@@ -130,9 +130,20 @@ function TripBackdrop({ trip, shape = "card", plain = false }) {
     },
     [arrived],
   );
+  const url = trip?.cover_image_url || null;
   const lat = Number(trip?.lat);
   const lon = Number(trip?.lon);
-  const hasPoint = Number.isFinite(lat) && Number.isFinite(lon);
+  /* The coastline is only drawn where there is no photograph.
+   *
+   * It was doing two different jobs and only one of them worked. On a trip with
+   * no cover it is the whole ground -- a recognizable piece of the world, at a
+   * size where you can read it. Under a photograph it was a texture: cropped to
+   * a card, washed in the trip's color, half-covered by the picture and lit by
+   * the same scrim, so it stopped being a map you could identify and became
+   * busy-ness behind the words. A gradient in the trip's color says the same
+   * thing about the trip and says it quietly, so that is what a card with a
+   * picture gets. */
+  const hasPoint = !url && Number.isFinite(lat) && Number.isFinite(lon);
   // Read at render rather than inside the effect, so that it is a dependency and
   // a skin change redraws the coast instead of leaving the old one in place.
   const skin = useSkin();
@@ -166,8 +177,6 @@ function TripBackdrop({ trip, shape = "card", plain = false }) {
       alive = false;
     };
   }, [hasPoint, lat, lon, shape, skin]);
-
-  const url = trip?.cover_image_url || null;
 
   return (
     <div

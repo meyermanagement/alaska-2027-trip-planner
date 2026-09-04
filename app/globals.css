@@ -1254,7 +1254,7 @@ input[type="month"]::-webkit-date-and-time-value {
   /* A picture blended as luminosity over a flipped plate is doing the opposite
      of what the skin tuned it for, so it comes in quieter -- and it is pushed up
      into the top of the frame by the mask below, clear of the words. */
-  --photo-opacity: 0.42;
+  --photo-opacity: 0.62;
   /* And barely any of the trip's hue, which is the second half of standing out.
      Every other card on the screen now carries a strong color; if this one did
      too it would be one more color among five. Held near-neutral, it is the only
@@ -1274,6 +1274,16 @@ input[type="month"]::-webkit-date-and-time-value {
    paper, so anything the picture darkens near them costs contrast rather than
    adding it. Same drawing, same duotone, kept above the text. */
 .plate-invert .trip-media .trip-photo {
+  /* And it prints as itself here rather than as a duotone. A luminosity blend
+     takes its color from what is underneath, and underneath this plate there is
+     now nothing to take it from: the coastline that used to be there is gone
+     from every card that has a photograph, and this plate deliberately has no
+     color of its own either. Blended over flat paper, luminosity left the
+     picture almost invisible. Normal, at the strength the token below sets, and
+     the mask still keeps it clear of the words. Opacity is deliberately not
+     touched here: it belongs to the fade-in, and this selector would outrank
+     .is-in and make the picture appear all at once. */
+  mix-blend-mode: normal;
   -webkit-mask-image: linear-gradient(
     180deg,
     #000 0%,

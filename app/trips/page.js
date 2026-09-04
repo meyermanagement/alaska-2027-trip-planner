@@ -154,9 +154,6 @@ export default async function TripsPage() {
                 three groups below are each named now, so the page keeps the
                 plain name and "Upcoming trips" labels the list it belongs to. */}
             <h1 className="font-display text-3xl font-semibold">Trips</h1>
-            <p className="mt-1 text-sm text-ink-soft">
-              Everything here is shared live with everyone in the family group.
-            </p>
           </div>
           {!access?.can.isSecondary && <NewTripButton />}
         </div>

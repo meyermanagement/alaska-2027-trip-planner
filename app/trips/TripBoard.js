@@ -3,12 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
-import {
-  countdownSaid,
-  formatRange,
-  daysUntil,
-  tripDayNumber,
-} from "@/lib/format";
+import { countdownSaid, formatRange, daysUntil } from "@/lib/format";
 import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
 import TripBackdrop from "@/components/TripBackdrop";
@@ -65,8 +60,7 @@ function Section({ id, view, title, blurb, count, children }) {
  * invitation to plan something; this one is the answer to "what is happening
  * today", so it carries a button rather than only being tappable.
  */
-function CurrentCard({ trip, today }) {
-  const where = tripDayNumber(trip, today);
+function CurrentCard({ trip }) {
   return (
     <section
       aria-label={`${trip.name}, happening now`}
@@ -79,11 +73,6 @@ function CurrentCard({ trip, today }) {
             {trip.cover_emoji}
           </span>
           <span className="chip chip-accent">Happening now</span>
-          {where && (
-            <span className="text-xs font-bold uppercase tracking-[0.09em]">
-              Day {where.day} of {where.of}
-            </span>
-          )}
         </div>
         <h3 className="font-display mt-3 text-2xl font-semibold">
           {trip.name}
@@ -100,13 +89,6 @@ function CurrentCard({ trip, today }) {
             <PendingVeil href={tripPath(trip, "itinerary")} />
             Open today’s plan
           </Link>
-          <Link
-            href={tripPath(trip, "packing")}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold underline decoration-white/40 underline-offset-2 hover:decoration-white"
-          >
-            Packing {trip.packed}/{trip.packing}
-            <PendingSpark />
-          </Link>
           {trip.tasks > trip.tasksDone && (
             <Link
               href={tripPath(trip, "tasks")}
@@ -117,11 +99,6 @@ function CurrentCard({ trip, today }) {
             </Link>
           )}
         </div>
-        <p className="mt-3 text-xs font-semibold opacity-90">
-          {trip.going.length
-            ? `Going: ${trip.going.join(", ")}`
-            : "Nobody added yet"}
-        </p>
       </div>
     </section>
   );
@@ -375,7 +352,7 @@ export default function TripBoard({
       {current.length > 0 && (
         <div className="mb-7 space-y-4">
           {current.map((trip) => (
-            <CurrentCard key={trip.id} trip={trip} today={today} />
+            <CurrentCard key={trip.id} trip={trip} />
           ))}
         </div>
       )}

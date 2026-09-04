@@ -113,9 +113,6 @@ export default async function RemindersPage() {
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
         <div className="mb-5">
           <h1 className="font-display text-3xl font-semibold">Reminders</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Every open task across every upcoming trip, the urgent ones first.
-          </p>
         </div>
         <MorningRun runs={runs || []} today={today} dueCount={dueCount} />
         {/* <CalendarLink /> */}
