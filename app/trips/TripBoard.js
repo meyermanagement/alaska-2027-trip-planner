@@ -91,7 +91,7 @@ function CurrentCard({ trip, today }) {
             href={tripPath(trip, "itinerary")}
             className="btn btn-primary relative"
           >
-            <PendingVeil />
+            <PendingVeil href={tripPath(trip, "itinerary")} />
             Open today’s plan
           </Link>
           <Link
@@ -130,7 +130,7 @@ function UpcomingCard({ trip, canRemove = false }) {
         className="trip-plate card on-photo group min-h-[268px] justify-end transition hover:border-teal/40 hover:shadow-md sm:min-h-[306px]"
       >
         <TripBackdrop trip={trip} />
-        <PendingVeil />
+        <PendingVeil href={tripPath(trip)} />
         {/* Everything the card says sits in the bottom of the picture rather than
             on paper above it. Which is the whole point of the plate: the name of
             the trip is read against the place it is about. */}
@@ -302,7 +302,7 @@ function PastCard({ trip }) {
       className="trip-plate card on-photo group min-h-[168px] justify-end transition hover:-translate-y-px hover:border-teal/30 hover:shadow-[0_10px_26px_-20px_rgba(36,31,24,0.4)]"
     >
       <TripBackdrop trip={trip} />
-      <PendingVeil />
+      <PendingVeil href={tripPath(trip)} />
       <div className="relative grid gap-1.5 p-3.5 pt-7">
         <div className="flex items-center gap-2">
           <span className="text-base leading-none" aria-hidden="true">

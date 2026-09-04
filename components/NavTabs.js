@@ -205,7 +205,10 @@ export default function NavTabs({ attention = 0, level = null }) {
               }`}
             >
               <span className="relative lg:contents">
-                <PendingSwap className="h-5 w-5 shrink-0 lg:h-4 lg:w-4">
+                <PendingSwap
+                  className="h-5 w-5 shrink-0 lg:h-4 lg:w-4"
+                  href={tab.href}
+                >
                   <Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" />
                 </PendingSwap>
                 {count > 0 && (
@@ -246,7 +249,9 @@ export default function NavTabs({ attention = 0, level = null }) {
               {count > 0 && (
                 <span
                   className={`hidden rounded-full px-1.5 py-px text-[0.62rem] font-bold leading-4 lg:ml-0.5 lg:inline ${
-                    active ? "bg-on-accent/20 text-on-accent" : "bg-rose/15 text-rose"
+                    active
+                      ? "bg-on-accent/20 text-on-accent"
+                      : "bg-rose/15 text-rose"
                   }`}
                 >
                   {count}

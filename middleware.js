@@ -37,7 +37,37 @@ const MACHINE_PREFIXES = ["/api/calendar/"];
 const LEVEL_COOKIE = "alyeska_level";
 const LEVEL_COOKIE_MAX_AGE = 600;
 
+/**
+ * Is there a session here at all?
+ *
+ * Not "is it valid" -- that is what getUser asks the auth server, over the
+ * network, and a network answer can be no for reasons that have nothing to do
+ * with whether the person is signed in: a blip, a rate limit, or two requests
+ * racing to spend the same rotating refresh token, which is what a screen full
+ * of parallel prefetches does on a phone. Treating any of those as "signed out"
+ * and bouncing the request to the login page is how a tap on a menu item lands
+ * you back where you started.
+ *
+ * So the redirect below is reserved for the one case that needs no network to
+ * decide: there is no session cookie, so there is nothing to check. Anything
+ * else is passed through to the page, and every protected page asks getUser
+ * itself and redirects on its own -- a redirect the router understands, because
+ * it comes back inside the payload it was already waiting for rather than as a
+ * 307 on the request carrying it.
+ */
+function hasSessionCookie(request) {
+  return request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+}
+
 export async function middleware(request) {
+  // Note for anyone tempted to treat prefetches differently here: you cannot.
+  // Next strips its own routing headers before middleware sees the request, so
+  // `RSC` and `Next-Router-Prefetch` are both absent -- verified by logging the
+  // full header set. Middleware cannot tell a person tapping a link from the
+  // router warming one, which is exactly why the rule below has to be safe for
+  // every request rather than careful about one kind.
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -71,7 +101,11 @@ export async function middleware(request) {
     MACHINE_PATHS.includes(pathname) ||
     MACHINE_PREFIXES.some((p) => pathname.startsWith(p));
 
-  if (!user && !isPublic) {
+  // Only when there is no session to speak of. See hasSessionCookie above: a
+  // held session that the auth server declined to confirm this second is left
+  // for the page to judge, so one bad answer cannot throw a signed-in family
+  // out mid-navigation.
+  if (!user && !isPublic && !hasSessionCookie(request)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
