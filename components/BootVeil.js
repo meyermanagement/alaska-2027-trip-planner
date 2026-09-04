@@ -25,7 +25,7 @@
 //   after five seconds. That fail-safe is in globals.css, not here, because the
 //   whole point is that it works when this file does not.
 //
-// Under the wordmark it says "Travel," and turns one word: personalized,
+// Under the wordmark it says "Travel" and turns one word: personalized,
 // contextualized, simplified. Those are the three promises in the order they
 // are earned -- who is travelling, what the trip actually is, and what that
 // saves them -- and they turn on CSS alone, so they animate in the first frame
@@ -153,7 +153,7 @@ export default function BootVeil() {
             long enough to see is not worth having, and a word that leaves
             before it has been read is a spinner with letters on it. */}
         <p className="boot-tag" aria-hidden="true">
-          <span className="boot-tag-fixed">Travel,</span>
+          <span className="boot-tag-fixed">Travel</span>
           <span className="boot-tag-slot">
             <span>personalized.</span>
             <span>contextualized.</span>
