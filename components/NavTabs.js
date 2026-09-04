@@ -103,7 +103,7 @@ const TABS = [
   },
   {
     href: "/preferences",
-    label: "Preferences",
+    label: "Travel preferences",
     // Not "And what you thought", which only made sense as a trailing clause on
     // the label and told nobody what the screen is for. Half of it is reviews of
     // places and activities the family has already been to, and that is the half
