@@ -4,7 +4,6 @@ import { sortItinerary } from "@/lib/day/order";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import DraftView from "@/components/DraftView";
-import FooterBar from "@/components/FooterBar";
 import TripView from "@/components/TripView";
 import { todayISO } from "@/lib/reminders";
 import { isDraftTrip } from "@/lib/format";
@@ -250,7 +249,6 @@ export default async function TripPage({ params, searchParams }) {
           readOnly={access?.can?.isSecondary === true}
           today={todayISO()}
         />
-        <FooterBar displayName={profile?.display_name} />
       </>
     );
   }
@@ -280,7 +278,6 @@ export default async function TripPage({ params, searchParams }) {
         userId={user.id}
         userName={profile?.display_name || "Family member"}
       />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

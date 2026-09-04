@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import {
   homeToday,
   isCurrentTrip,
@@ -38,7 +37,6 @@ export default async function TripsPage() {
   // after another: seven round trips to the database stacked end to end is
   // most of the wait people notice when this screen opens.
   const [
-    { data: profile },
     { data: trips },
     { data: counts },
     { data: taskRows },
@@ -46,11 +44,6 @@ export default async function TripsPage() {
     { data: people },
     { data: rosters },
   ] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle(),
     supabase
       .from("trips")
       .select(
@@ -170,7 +163,6 @@ export default async function TripsPage() {
         />
       </main>
       <AskAlyGeneral />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

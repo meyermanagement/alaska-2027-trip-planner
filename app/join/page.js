@@ -1,5 +1,4 @@
 import JoinForm from "./JoinForm";
-import FooterBar from "@/components/FooterBar";
 
 export const metadata = { title: "Join a family · Alyeska" };
 
@@ -18,8 +17,19 @@ export default function JoinPage() {
           </p>
         </div>
         <JoinForm />
+        {/* This screen has no menu on it, because an account with no family
+            group has nowhere to go. So the one way back out — signing in as
+            somebody else — has to be here. */}
+        <form
+          action="/auth/signout"
+          method="post"
+          className="no-print mt-8 text-center"
+        >
+          <button className="text-xs font-semibold text-ink-soft underline decoration-ink-faint/60 underline-offset-4 transition hover:text-teal">
+            Log out
+          </button>
+        </form>
       </main>
-      <FooterBar />
     </>
   );
 }

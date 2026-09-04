@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import Reminders from "@/components/Reminders";
 import { isPastTrip } from "@/lib/format";
@@ -35,39 +34,30 @@ export default async function RemindersPage() {
   const access = await resolveAccess(supabase, user);
   const familyIds = memberships.map((m) => m.family_id);
 
-  const [
-    { data: profile },
-    { data: rows },
-    { data: travelers },
-    { data: runs },
-  ] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("predeparture_tasks")
-      .select(
-        "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, public_id, start_date, end_date, status, family_id)",
-      )
-      .eq("is_done", false)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("travelers")
-      .select(
-        "id, name, is_person, family_id, sort_order, email, wants_reminders",
-      )
-      .in("family_id", familyIds)
-      .order("sort_order", { ascending: true }),
-    // What happened to the morning email, most recent first. Six is enough to
-    // find the last scheduled run and the last test behind a run of tests.
-    supabase
-      .from("reminder_runs")
-      .select("ran_for, ran_at, source, considered, sent, failed, error")
-      .order("ran_at", { ascending: false })
-      .limit(6),
-  ]);
+  const [{ data: rows }, { data: travelers }, { data: runs }] =
+    await Promise.all([
+      supabase
+        .from("predeparture_tasks")
+        .select(
+          "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, public_id, start_date, end_date, status, family_id)",
+        )
+        .eq("is_done", false)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("travelers")
+        .select(
+          "id, name, is_person, family_id, sort_order, email, wants_reminders",
+        )
+        .in("family_id", familyIds)
+        .order("sort_order", { ascending: true }),
+      // What happened to the morning email, most recent first. Six is enough to
+      // find the last scheduled run and the last test behind a run of tests.
+      supabase
+        .from("reminder_runs")
+        .select("ran_for, ran_at, source, considered, sent, failed, error")
+        .order("ran_at", { ascending: false })
+        .limit(6),
+    ]);
 
   const tasks = (rows || [])
     .filter((row) => row.trips && !isPastTrip(row.trips))
@@ -125,7 +115,6 @@ export default async function RemindersPage() {
         />
       </main>
       <AskAlyGeneral />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

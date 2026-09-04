@@ -2,13 +2,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
 import People from "./People";
 import Pets from "./Pets";
-import SkinPicker from "./SkinPicker";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 
@@ -37,9 +35,8 @@ export default async function PeoplePage() {
   const familyId = memberships[0].family_id;
   const household = memberships[0].families;
 
-  // Seven independent reads, asked for at once rather than in a queue.
+  // Six independent reads, asked for at once rather than in a queue.
   const [
-    { data: profile },
     { data: travelers },
     { data: trips },
     { data: rosters },
@@ -47,11 +44,6 @@ export default async function PeoplePage() {
     { data: pets },
     { data: tripPets },
   ] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name, skin")
-      .eq("id", user.id)
-      .maybeSingle(),
     supabase
       .from("travelers")
       .select(
@@ -146,12 +138,8 @@ export default async function PeoplePage() {
           trips={trips || []}
           tripPets={tripPets || []}
         />
-        {/* Last on the page, because it is the only thing here that is about the
-            person reading it rather than about the family. */}
-        <SkinPicker skin={profile?.skin} />
       </main>
       <AskAlyGeneral />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

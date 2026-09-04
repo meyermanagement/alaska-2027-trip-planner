@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TripBuilderStart from "./TripBuilderStart";
 
@@ -34,14 +33,7 @@ export default async function NewTripPage() {
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
 
-  const [access, { data: profile }] = await Promise.all([
-    resolveAccess(supabase, user),
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle(),
-  ]);
+  const access = await resolveAccess(supabase, user);
 
   if (access?.can?.isSecondary) redirect("/trips");
 
@@ -54,7 +46,6 @@ export default async function NewTripPage() {
       {/* The conversation opens here, on this screen, so the answer arrives where
           the question was asked. */}
       <AskAlyGeneral focus="new_trip" />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

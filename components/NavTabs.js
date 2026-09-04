@@ -81,6 +81,12 @@ const TABS = [
     sub: "People & pets",
     Icon: PeopleIcon,
   },
+  {
+    href: "/settings",
+    label: "Settings",
+    sub: "About you, your look, sign-in",
+    Icon: GearIcon,
+  },
 ];
 
 // A secondary traveler -- a minor, or a friend along for one trip -- gets two
@@ -88,24 +94,13 @@ const TABS = [
 // packing items live inside a trip, on its packing tab, which is why there is no
 // third one. The rest is not merely hidden: the database refuses those reads, so
 // drawing those rows would offer four empty rooms.
-const SECONDARY_TABS = new Set(["/trips", "/reminders"]);
+const SECONDARY_TABS = new Set(["/trips", "/reminders", "/settings"]);
 
-// And one destination that only they get. About You is in the footer for
-// everybody, which is the right weight for a primary traveler -- they can also
-// reach the same paragraph, and everything else about themselves, on the Family
-// tab. A secondary traveler cannot open that tab, and About Me is the one thing
-// about themselves they are allowed to change at all: the database refuses every
-// other column on their own row. A single thing you are permitted to edit should
-// not be a footnote under the fold, so for them it is a place in the menu with a
-// name on it.
-const SECONDARY_EXTRA = [
-  {
-    href: "/about-you",
-    label: "About you",
-    sub: "What you are like on a trip",
-    Icon: PersonIcon,
-  },
-];
+// Settings is in that set on purpose. It is the screen About you, your look and
+// the sign-in address now live on, and for a secondary traveler About you is the
+// one thing about themselves the database will let them change at all -- every
+// other column on their own row is refused. A single thing you are permitted to
+// edit should not be unreachable.
 
 // The loading skeleton draws this bar too, and it has no database of its own to
 // ask -- that is the whole point of a skeleton. Without help it falls back to the
@@ -159,7 +154,7 @@ export default function NavTabs({
   const insideTrip = /^\/trips\/[^/]+/.test(pathname);
   const tabs =
     effective === SECONDARY
-      ? [...TABS.filter((t) => SECONDARY_TABS.has(t.href)), ...SECONDARY_EXTRA]
+      ? TABS.filter((t) => SECONDARY_TABS.has(t.href))
       : TABS;
 
   // The name on the pill. Inside a trip the pill cannot say "Trips", because
@@ -205,7 +200,8 @@ export default function NavTabs({
             aria-label="Main menu"
             className="relative mx-auto w-full max-w-lg rounded-t-[1.35rem] border border-[var(--line)] bg-white px-3 pt-2.5 shadow-[0_-10px_40px_rgba(20,32,30,0.22)] outline-none"
             style={{
-              paddingBottom: "max(0.9rem, calc(env(safe-area-inset-bottom) + 0.6rem))",
+              paddingBottom:
+                "max(0.9rem, calc(env(safe-area-inset-bottom) + 0.6rem))",
               maxHeight: "82vh",
               overflowY: "auto",
             }}
@@ -385,11 +381,16 @@ function StarIcon({ className }) {
   );
 }
 
-function PersonIcon({ className }) {
+// Sliders rather than a cog. A ring with eight short teeth collapses into a sun
+// at twenty pixels, and this app already has weather in it; three rails with a
+// knob on each stays unmistakable at the same one stroke weight.
+function GearIcon({ className }) {
   return (
     <svg {...iconProps(className)}>
-      <circle cx="10" cy="6.6" r="3" />
-      <path d="M4.4 16.7c0-2.9 2.5-4.8 5.6-4.8s5.6 1.9 5.6 4.8" />
+      <path d="M3 5.6h2.6M8.8 5.6H17M3 10h8.2M14.4 10H17M3 14.4h2.6M8.8 14.4H17" />
+      <circle cx="7.2" cy="5.6" r="1.6" />
+      <circle cx="12.8" cy="10" r="1.6" />
+      <circle cx="7.2" cy="14.4" r="1.6" />
     </svg>
   );
 }

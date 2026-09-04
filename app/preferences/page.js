@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
 import Preferences from "./Preferences";
@@ -52,12 +51,6 @@ export default async function HistoryPage() {
   const access = await resolveAccess(supabase, user);
   if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
 
   const [{ data: preferences }, { data: people }] = await Promise.all([
     supabase
@@ -224,7 +217,6 @@ export default async function HistoryPage() {
         )}
       </main>
       <AskAlyGeneral />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

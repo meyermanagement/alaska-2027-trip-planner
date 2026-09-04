@@ -15,6 +15,10 @@ import { DEFAULT_SKIN, SKINS, paintChrome, skinOr } from "@/lib/skins";
  * remembered.
  *
  * It is per person, not per household. Nobody else's app changes.
+ *
+ * It lives on Settings rather than at the foot of the Family tab, where it used
+ * to sit under the pets: how the app looks is about the person reading it, not
+ * about the household, and a secondary traveler could never reach it at all.
  */
 export default function SkinPicker({ skin: saved }) {
   const [chosen, setChosen] = useState(() => skinOr(saved));
@@ -73,7 +77,7 @@ export default function SkinPicker({ skin: saved }) {
   }
 
   return (
-    <section className="mt-10">
+    <section>
       <h2 className="font-display text-xl font-semibold">Your look</h2>
       <p className="mt-1 text-sm text-ink-soft">
         Five looks, and the one you pick is yours alone — everyone else in the

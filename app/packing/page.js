@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { templateScope } from "@/lib/packing/propagate";
@@ -35,36 +34,27 @@ export default async function PackingTemplatesPage() {
   if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
 
-  const [
-    { data: profile },
-    { data: travelers },
-    { data: templates },
-    { data: pets },
-  ] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("travelers")
-      .select("id, name, sort_order, is_person")
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("packing_templates")
-      .select("id, name, description, is_base, pet_id")
-      .eq("family_id", familyId)
-      .order("is_base", { ascending: false })
-      .order("name", { ascending: true }),
-    // The animals, so each one's list can be shown under its own name rather
-    // than as another add-on with a person's chip on it.
-    supabase
-      .from("pets")
-      .select("id, name, species, color, sort_order")
-      .eq("family_id", familyId)
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true }),
-  ]);
+  const [{ data: travelers }, { data: templates }, { data: pets }] =
+    await Promise.all([
+      supabase
+        .from("travelers")
+        .select("id, name, sort_order, is_person")
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("packing_templates")
+        .select("id, name, description, is_base, pet_id")
+        .eq("family_id", familyId)
+        .order("is_base", { ascending: false })
+        .order("name", { ascending: true }),
+      // The animals, so each one's list can be shown under its own name rather
+      // than as another add-on with a person's chip on it.
+      supabase
+        .from("pets")
+        .select("id, name, species, color, sort_order")
+        .eq("family_id", familyId)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true }),
+    ]);
 
   // The items for every template at once: there are a few hundred at most, and
   // one read means switching between lists is instant rather than a spinner.
@@ -246,7 +236,6 @@ export default async function PackingTemplatesPage() {
         />
       </main>
       <AskAlyGeneral focus={TEMPLATES_FOCUS} />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

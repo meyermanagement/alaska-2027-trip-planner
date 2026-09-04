@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AboutYouForm from "./AboutYouForm";
 
 export const metadata = { title: "About you · Alyeska" };
@@ -9,16 +8,17 @@ export const metadata = { title: "About you · Alyeska" };
 /**
  * The question that is worth asking before anything else, on a screen of its own.
  *
- * Reached three ways. On a first sign-in the Trips page sends people here, because
+ * Reached two ways. On a first sign-in the Trips page sends people here, because
  * an account with no trips and no preferences in it gives Aly nothing to work
- * with and every answer she gives comes out generic. After that it is a quiet
- * link in the footer, which is the right weight for a primary traveler -- the
- * same paragraph, and everything else about them, is also on the Family tab.
+ * with and every answer she gives comes out generic. After that it is the first
+ * thing on Settings, above the look and the sign-in address, because it is the
+ * one of the three somebody actually comes back to change.
  *
- * For a secondary traveler it is a named place in the menu instead. They cannot
- * open the Family tab, and this paragraph is the only thing about themselves the
- * database will let them change, so it is the whole of their own record rather
- * than one field of it, and the screen says so out loud.
+ * A primary traveler can also reach this paragraph, and everything else about
+ * themselves, on the Family tab. A secondary traveler cannot open that tab, and
+ * this paragraph is the only thing about themselves the database will let them
+ * change, so it is the whole of their own record rather than one field of it, and
+ * the screen says so out loud.
  */
 export default async function AboutYouPage({ searchParams }) {
   const params = await searchParams;
@@ -30,21 +30,14 @@ export default async function AboutYouPage({ searchParams }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: mine }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle(),
-    // Matched on the account rather than the name: a name is not an identity, and
-    // two Marks would both be handed the same paragraph to write.
-    supabase
-      .from("travelers")
-      .select("id, name, about_me, access_level")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  // Matched on the account rather than the name: a name is not an identity, and
+  // two Marks would both be handed the same paragraph to write.
+  const { data: mine } = await supabase
+    .from("travelers")
+    .select("id, name, about_me, access_level")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
 
   // Somebody whose seat has not been claimed has no row to write this on. Sending
   // them to a box that cannot save is worse than not asking.
@@ -62,7 +55,6 @@ export default async function AboutYouPage({ searchParams }) {
           secondary={mine.access_level === "secondary"}
         />
       </main>
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

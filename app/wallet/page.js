@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import ProTips from "@/components/ProTips";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
@@ -32,25 +31,19 @@ export default async function RewardsPage() {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: profile }, { data: travelers }, { data: programs }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("travelers")
-        .select("id, name, sort_order, is_person")
-        .eq("is_person", true)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("rewards_programs")
-        .select("*")
-        .order("kind", { ascending: true })
-        .order("sort_order", { ascending: true })
-        .order("brand", { ascending: true }),
-    ]);
+  const [{ data: travelers }, { data: programs }] = await Promise.all([
+    supabase
+      .from("travelers")
+      .select("id, name, sort_order, is_person")
+      .eq("is_person", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("rewards_programs")
+      .select("*")
+      .order("kind", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .order("brand", { ascending: true }),
+  ]);
 
   // The Wallet's own advice: what to do about the programs they hold, and which
   // welcome offer is worth opening for. Both scopes into one list, because a
@@ -116,7 +109,6 @@ export default async function RewardsPage() {
         </p>
       </main>
       <AskAlyGeneral focus="rewards" />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }

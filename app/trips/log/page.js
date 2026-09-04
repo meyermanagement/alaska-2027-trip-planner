@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import FooterBar from "@/components/FooterBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import LogTripStart from "./LogTripStart";
 
@@ -35,14 +34,7 @@ export default async function LogTripPage() {
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
 
-  const [access, { data: profile }] = await Promise.all([
-    resolveAccess(supabase, user),
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle(),
-  ]);
+  const access = await resolveAccess(supabase, user);
 
   if (access?.can?.isSecondary) redirect("/trips");
 
@@ -55,7 +47,6 @@ export default async function LogTripPage() {
       {/* The conversation opens on this screen, with the focus that tells Aly the
           trip is finished. */}
       <AskAlyGeneral focus="log_trip" />
-      <FooterBar displayName={profile?.display_name} />
     </>
   );
 }
