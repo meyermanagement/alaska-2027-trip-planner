@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
+import { SETTINGS_FOCUS } from "@/lib/agent/context";
 import AboutYouForm from "./AboutYouForm";
 
 export const metadata = { title: "About you · Alyeska" };
@@ -55,6 +57,10 @@ export default async function AboutYouPage({ searchParams }) {
           secondary={mine.access_level === "secondary"}
         />
       </main>
+      {/* Aly is good at drafting the paragraph this screen is for, which makes
+        her absence here the worst place to be missing. Same subject as Settings:
+        the person, not a trip. */}
+      <AskAlyGeneral focus={SETTINGS_FOCUS} />
     </>
   );
 }

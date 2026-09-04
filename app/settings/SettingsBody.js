@@ -1,6 +1,8 @@
 import Link from "next/link";
+import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
 import SkinPicker from "@/components/SkinPicker";
+import { SETTINGS_FOCUS } from "@/lib/agent/context";
 
 /**
  * Everything the Settings screen draws, given what it needs. Kept apart from the
@@ -79,6 +81,10 @@ export default function SettingsBody({ email, displayName, skin, mine }) {
           </section>
         </div>
       </main>
+      {/* The button in the corner is drawn by the frame on every screen, but the
+        drawer that answers it is mounted by the page -- and this page had never
+        mounted one, so pressing Ask Aly here did nothing at all. */}
+      <AskAlyGeneral focus={SETTINGS_FOCUS} />
     </>
   );
 }
