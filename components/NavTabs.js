@@ -10,7 +10,7 @@ import {
   lastDayOf,
   tripDayNumber,
 } from "@/lib/format";
-import { tripPath } from "@/lib/trips/route";
+import { parseTripRef, tripPath } from "@/lib/trips/route";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
@@ -193,6 +193,12 @@ export default function NavTabs({
     pathname === href || pathname.startsWith(`${href}/`);
   // Inside one trip, as opposed to the list of them.
   const insideTrip = /^\/trips\/[^/]+/.test(pathname);
+  // Which trip, by the half of the address that is actually its identity. The
+  // readable half drifts after a rename and old links carry none at all, so
+  // comparing whole paths would answer no on a trip you are plainly looking at.
+  const openTripKey = insideTrip
+    ? parseTripRef(pathname.split("/")[2] || "").key
+    : "";
   const tabs =
     effective === SECONDARY
       ? TABS.filter((t) => SECONDARY_TABS.has(t.href))
@@ -216,9 +222,16 @@ export default function NavTabs({
   // The plate above the arc. "Happening now" while they are away and a
   // countdown before they leave, because those are two different sentences and
   // a card that says the same thing on both days is only right on one of them.
+  //
+  // Not shown while you are on that trip's own screen: there it is an offer to
+  // go where you already are, and it pushes the seven doors -- the only thing
+  // the menu can still do for you -- a plate's height further from your thumb.
+  const onThisTrip = Boolean(
+    trip?.public_id && openTripKey && trip.public_id === openTripKey,
+  );
   const where = trip && today ? tripDayNumber(trip, today) : null;
   const soon = trip && !where ? countdownSaid(daysUntil(trip.start_date)) : "";
-  const hero = trip ? (
+  const hero = trip && !onThisTrip ? (
     <Link
       href={tripPath(trip, where ? "itinerary" : "overview")}
       onPointerEnter={() => router.prefetch(tripPath(trip, "itinerary"))}
@@ -248,6 +261,7 @@ export default function NavTabs({
       </span>
     </Link>
   ) : null;
+
 
   return (
     <>
@@ -383,7 +397,13 @@ export default function NavTabs({
            visible everywhere between and behind them. The wrapper takes no
            presses -- only the discs do -- so the strip of screen either side of
            them still belongs to whatever is underneath. */
-        className={`no-print pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 transition-transform duration-200 ${
+        /* Above the arc's own scrim while the menu is open, so the disc you
+           pressed to open it is still there -- and still the thing you press to
+           put it away. A menu whose button vanishes underneath it makes you hunt
+           for empty page to tap instead. */
+        className={`no-print pointer-events-none fixed inset-x-0 bottom-0 ${
+          open ? "z-[39]" : "z-30"
+        } px-4 transition-transform duration-200 ${
           // Out of reach as well as out of sight, so a tap meant for the field
           // underneath cannot land on a control on the way down.
           keyboardOpen ? "translate-y-[130%]" : ""
@@ -398,7 +418,7 @@ export default function NavTabs({
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            aria-label="Open the menu"
+            aria-label={open ? "Close the menu" : "Open the menu"}
             /* Face, edge and shadow all come from the skin. On the two dark
                skins a card-colored circle on a near-black page had nothing
                separating it -- the drop shadow underneath is black on black --
