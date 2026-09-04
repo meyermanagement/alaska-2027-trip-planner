@@ -318,13 +318,28 @@ export default function ItemDrag({
       onPointerCancel={onPointerCancel}
       className={off ? undefined : "relative select-none"}
     >
-      {onTime && <Rail base={base} mins={drag.mins} top={drag.grabY} />}
-      {onDay && (
+      {/* Both scales are up from the instant the card lifts, and the one the
+          drag turns out not to be about goes away. A gesture that can go two
+          ways has to say so before the finger has moved, because the only other
+          way to find out is to try it -- and trying it on the wrong axis moves
+          the thing you were holding. While neither has been chosen they are
+          drawn faint, so it is clear the app is offering two directions rather
+          than reporting one. */}
+      {lifted && !onDay && (
+        <Rail
+          base={base}
+          mins={drag.mins}
+          top={drag.grabY}
+          preview={!drag.axis}
+        />
+      )}
+      {lifted && canDay && !onTime && (
         <DayRail
           dayKeys={dayKeys}
           from={dayFrom}
           at={drag.dayAt}
           left={drag.grabX}
+          preview={!drag.axis}
         />
       )}
       <div
@@ -371,13 +386,6 @@ export default function ItemDrag({
               {drag.mins > base ? "later" : "earlier"}
             </span>
           )}
-          {/* Before the axis is chosen, the badge says what the two directions
-              are for rather than pretending to be one of them. */}
-          {!drag.axis && canDay && (
-            <span className="ml-1.5 text-[0.7rem] opacity-70">
-              or slide across for another day
-            </span>
-          )}
         </div>
       )}
       {/* The axis is drawn, so it is invisible to a screen reader, and the badge
@@ -411,29 +419,63 @@ export default function ItemDrag({
  * "we are running late", and not so far that the panel becomes a second clock
  * competing with the day.
  */
-function Rail({ base, mins, top = 0 }) {
-  const REACH = 5;
+function Rail({ base, mins, top = 0, preview = false }) {
+  // A quarter hour either way while the drag is still undecided, an hour and a
+  // quarter once it has committed to time.
+  //
+  // The preview is a different object from the instrument, and it has to be. The
+  // full rail is a labelled panel fifty-six pixels wide and four hundred tall,
+  // which is right when it is the only thing on screen and wrong the instant it
+  // is up merely to say the direction exists: on a card it covers the left half
+  // of the title, which is the name of the thing being moved and the one thing
+  // that must stay readable. So the preview is a hairline strip of ticks with no
+  // times on it, narrow enough to sit inside the card's own left padding.
+  //
+  // It is not clipped to the card. Clipping it was the first attempt and it made
+  // the thing useless: a quarter hour is forty-four pixels, a typical card is
+  // seventy tall, and a scale trimmed to fit inside one shows a single tick,
+  // which says nothing at all about direction. So the strip keeps the real
+  // spacing and is allowed to run a little past the card into the gutter, where
+  // ten faint pixels for a third of a second cost nothing.
+  const REACH = preview ? 1 : 5;
   const half = REACH * PX_PER_STEP;
   const steps = [];
   for (let s = -REACH; s <= REACH; s++) {
     const at = base + s * STEP_MIN;
     if (at < 0 || at > DAY_MAX) continue;
-    steps.push({ at, y: (s + REACH) * PX_PER_STEP, onHour: at % 60 === 0 });
+    steps.push({ at, onHour: at % 60 === 0 });
   }
+  // Both versions are centred on the thumb, and ticks are placed from the thumb
+  // outward rather than from the panel's own top, so the two versions agree
+  // about where a quarter hour is and the swap between them at the moment the
+  // axis is chosen is a change of dress rather than a jump.
+  const panelH = 2 * half + 20;
+  const panelTop = top - half - 10;
+
   return (
     <div
       aria-hidden="true"
-      style={{ top: `${top - half - 10}px`, height: `${2 * half + 20}px` }}
+      style={{
+        top: `${panelTop}px`,
+        height: `${panelH}px`,
+        opacity: preview ? 0.75 : 1,
+      }}
       // Above the lifted card, not beneath it. The card is the full width of
       // the day, so a rail drawn behind it shows only the two or three ticks
       // that happen to fall in the gaps between cards -- which is worse than no
       // rail, because it looks like the ticks are missing.
-      className="pointer-events-none absolute -left-1 z-[45] w-14 rounded-lg bg-white shadow-md ring-1 ring-[var(--line)]"
+      className={`pointer-events-none absolute -left-1 z-[45] rounded-lg ${
+        preview
+          ? "w-2.5"
+          : "w-14 overflow-hidden bg-white shadow-md ring-1 ring-[var(--line)]"
+      }`}
     >
       {steps.map((s) => (
         <div
           key={s.at}
-          style={{ top: `${s.y + 10}px` }}
+          style={{
+            top: `${top + ((s.at - base) / STEP_MIN) * PX_PER_STEP - panelTop}px`,
+          }}
           className="absolute left-0 flex h-0 w-full items-center gap-1"
         >
           <span
@@ -445,7 +487,7 @@ function Rail({ base, mins, top = 0 }) {
                   : "block h-px w-1.5 rounded-r bg-ink/15"
             }
           />
-          {(s.onHour || s.at === mins) && (
+          {!preview && (s.onHour || s.at === mins) && (
             <span
               className={`tabular text-[0.6rem] font-semibold leading-none ${
                 s.at === mins ? "text-teal" : "text-ink-faint"
@@ -485,42 +527,119 @@ function Rail({ base, mins, top = 0 }) {
  * aimed at in view, the way a filmstrip does. Until the aimed day reaches the
  * edge, nothing pans at all and the day the card came from stays put under the
  * thumb, which is the thing worth anchoring.
+ *
+ * The pan is then clamped to the trip, the way a scroll container is clamped to
+ * its content, and that clamp is the whole point of this being a second pass.
+ * Anchoring the calendar to the thumb is right in the middle of a trip and wrong
+ * at either end of it: a card on the first morning had its own day sitting under
+ * the finger with the entire left half of the panel blank, because there is no
+ * day before the first one to draw there. It read as a broken component rather
+ * than as the beginning of the trip. Clamped, the first day slides over to the
+ * left edge and the days that do exist fill the space instead.
+ *
+ * A trip too short to fill the panel at all -- two or three days -- cannot be
+ * clamped both ways at once, and is centered.
+ *
+ * What is left is a real edge, and the baseline says so: it runs from the first
+ * day of the trip to the last and no further, with a turned-up cap at each end.
+ * Blank panel beside a line that has visibly stopped is the trip ending. Blank
+ * panel beside a line running out to the border is a bug.
  */
-function DayRail({ dayKeys, from, at, left }) {
+function DayRail({ dayKeys, from, at, left, preview = false }) {
   const boxRef = useRef(null);
   const [w, setW] = useState(0);
   useEffect(() => {
     const el = boxRef.current;
     if (el) setW(el.clientWidth);
-  }, []);
+    // Remeasured when the preview becomes the panel: the two are not the same
+    // width, and a stale measurement makes the clamp miss by the difference.
+  }, [preview]);
 
-  // Where the aimed tick would fall with no panning, and how far the calendar
-  // has to slide to bring it back inside. EDGE is a tick's own half width plus a
-  // little, so an aimed day is never a half-legible thing against the border.
+  // A tick's own half width plus a little, so neither an aimed day nor the end
+  // of the trip is ever a half-legible thing jammed against the border.
   const EDGE = 34;
-  const rest = left + 8 + (at - from) * PX_PER_DAY;
+  // Where each tick would sit with no panning at all: the day the card came from
+  // directly under the thumb that picked it up, and 8px for the panel's own
+  // overhang past the card's left edge.
+  // The 8 is the panel's own overhang past the card's left edge, which the
+  // preview lying inside the card does not have.
+  const xOf = (i) => left + (preview ? 0 : 8) + (i - from) * PX_PER_DAY;
+
+  // First, keep the aimed day in view.
+  const rest = xOf(at);
   let pan = 0;
   if (w) {
     if (rest < EDGE) pan = EDGE - rest;
     else if (rest > w - EDGE) pan = w - EDGE - rest;
   }
 
+  // Then refuse to pan past the trip itself, the way a scroll container refuses
+  // to scroll past its content. One bound keeps the first day from drifting in
+  // off the left edge, the other keeps the last day from drifting off the right.
+  //
+  // The two swap places depending on whether the trip is wider than the panel,
+  // which is why they are sorted rather than used as a low and a high. A trip
+  // longer than the panel is a window onto something bigger, and the bounds are
+  // the ends of the scroll. A trip shorter than the panel fits entirely, and the
+  // bounds are the room it has to sit in. Treating one as the other is what put
+  // a nine-day trip in the middle of the panel with its own first day nowhere
+  // near the left edge.
+  const lastX = xOf(dayKeys.length - 1);
+  if (w) {
+    const a = EDGE - xOf(0);
+    const b = w - EDGE - lastX;
+    pan = Math.min(Math.max(pan, Math.min(a, b)), Math.max(a, b));
+  }
+
+  const startX = xOf(0) + pan;
+  const endX = lastX + pan;
+
   return (
     <div
       ref={boxRef}
       aria-hidden="true"
-      // Hanging just above the card, and a little wider than it, so the first
-      // and last ticks are not cut in half by the card's own edges.
-      className="pointer-events-none absolute -left-2 -right-2 -top-[3.1rem] z-[45] h-11 overflow-hidden rounded-lg bg-white shadow-md ring-1 ring-[var(--line)]"
+      style={{ opacity: preview ? 0.75 : 1 }}
+      // Two shapes, and which one is showing is the whole message.
+      //
+      // Committed, it is a panel hanging just above the card and a little wider
+      // than it, so the first and last ticks are not cut in half by the card's
+      // own edges. Previewing, it is a bare hairline ruler lying along the
+      // card's bottom padding: no panel, no shadow, no dates. That is not only
+      // restraint. The panel version occupies the fifty pixels directly above
+      // the card, which is exactly where the clock's own upper tick falls, and
+      // the first attempt had the calendar painting over it -- two scales
+      // offered at once, one of them missing a third of itself.
+      className={
+        preview
+          ? "pointer-events-none absolute inset-x-0 bottom-[0.35rem] z-[45] h-3 overflow-hidden"
+          : "pointer-events-none absolute -left-2 -right-2 -top-[3.1rem] z-[45] h-11 overflow-hidden rounded-lg bg-white shadow-md ring-1 ring-[var(--line)]"
+      }
     >
       {/* The line the ticks stand on, so the axis reads as one measured thing
-          rather than a row of loose labels. */}
-      <span className="absolute inset-x-0 bottom-[0.55rem] block h-px bg-ink/10" />
+          rather than a row of loose labels -- and so that it can stop where the
+          trip stops. It runs first day to last and no further, with a cap turned
+          up at each end, which is what makes empty panel beside it read as the
+          beginning or the end of the trip rather than as a component that failed
+          to draw. */}
+      <span
+        style={{
+          left: `${startX}px`,
+          width: `${Math.max(endX - startX, 1)}px`,
+        }}
+        className={`absolute block h-px bg-ink/10 ${preview ? "bottom-[0.3rem]" : "bottom-[0.55rem]"}`}
+      />
+      <span
+        style={{ left: `${startX}px` }}
+        className={`absolute block h-[0.3rem] w-px bg-ink/20 ${preview ? "bottom-[0.3rem]" : "bottom-[0.55rem]"}`}
+      />
+      <span
+        style={{ left: `${endX}px` }}
+        className={`absolute block h-[0.3rem] w-px bg-ink/20 ${preview ? "bottom-[0.3rem]" : "bottom-[0.55rem]"}`}
+      />
       {dayKeys.map((key, i) => {
         const d = parseDate(key);
         if (!d) return null;
-        // 8px for the panel's own overhang past the card's left edge.
-        const x = left + 8 + (i - from) * PX_PER_DAY + pan;
+        const x = xOf(i) + pan;
         // Nothing is gained by laying out a fortnight of ticks the panel will
         // only clip.
         if (x < -40 || (w && x > w + 40)) return null;
@@ -532,31 +651,37 @@ function DayRail({ dayKeys, from, at, left }) {
             style={{ left: `${x}px` }}
             className="absolute bottom-0 top-0 -ml-6 w-12 text-center"
           >
-            <span
-              className={`tabular block pt-[0.3rem] text-[0.6rem] font-semibold uppercase leading-none tracking-[0.06em] ${
-                here ? "text-teal" : "text-ink-faint"
-              }`}
-            >
-              {/* The weekday, except on the first of a month, where the month
+            {!preview && (
+              <span
+                className={`tabular block pt-[0.3rem] text-[0.6rem] font-semibold uppercase leading-none tracking-[0.06em] ${
+                  here ? "text-teal" : "text-ink-faint"
+                }`}
+              >
+                {/* The weekday, except on the first of a month, where the month
                   itself is the more useful of the two: a trip that runs from the
                   thirtieth to the second would otherwise show a 30, a 31, a 1
                   and a 2 with nothing saying that the numbers restarted. */}
-              {d.getDate() === 1
-                ? d.toLocaleDateString("en-US", { month: "short" })
-                : d.toLocaleDateString("en-US", { weekday: "short" })}
-            </span>
-            <span
-              className={`tabular block pt-[0.15rem] text-[0.78rem] font-semibold leading-none ${
-                here ? "text-teal" : "text-ink-soft"
-              }`}
-            >
-              {d.getDate()}
-            </span>
+                {d.getDate() === 1
+                  ? d.toLocaleDateString("en-US", { month: "short" })
+                  : d.toLocaleDateString("en-US", { weekday: "short" })}
+              </span>
+            )}
+            {!preview && (
+              <span
+                className={`tabular block pt-[0.15rem] text-[0.78rem] font-semibold leading-none ${
+                  here ? "text-teal" : "text-ink-soft"
+                }`}
+              >
+                {d.getDate()}
+              </span>
+            )}
             {/* Three states on one tick, in one glyph: the day being aimed at is
                 a teal stem, the day the card came from is a hollow ring so it is
                 clear what is being left, and everything else is a hairline. */}
             <span
-              className={`absolute bottom-[0.3rem] left-1/2 block -translate-x-1/2 rounded ${
+              className={`absolute left-1/2 block -translate-x-1/2 rounded ${
+                preview ? "bottom-[0.05rem]" : "bottom-[0.3rem]"
+              } ${
                 here
                   ? "h-2.5 w-0.5 bg-teal"
                   : start
