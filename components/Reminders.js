@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PendingSpark } from "./LinkPending";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import FilterChips from "@/components/FilterChips";
 import PriorityMeter from "@/components/PriorityMeter";
 import AddToCalendar from "@/components/AddToCalendar";
 import { eventFromTask } from "@/lib/calendar";
@@ -113,6 +114,14 @@ export default function Reminders({
   function startEdit(task) {
     setEditingId(task.id);
     setDraft({
+      // The wording is the first thing that turns out to be wrong about a
+      // reminder -- Aly names them from whatever prompted them, and a task
+      // carried over from last year says the wrong month -- and until now this
+      // editor could change the date, the priority and who it was down to but
+      // not a single word of it. Fixing a title meant going to the trip, finding
+      // the row again, and editing it there.
+      title: task.title || "",
+      detail: task.detail || "",
       timing: task.due_date ? ON_A_DATE : task.timing || "now",
       due_date: task.due_date || "",
       priority: task.priority || "normal",
@@ -121,7 +130,13 @@ export default function Reminders({
   }
 
   async function saveEdit(row) {
+    const title = draft.title.trim();
+    // An empty title would leave a row with nothing to read and no way back into
+    // it, so the save simply does not happen.
+    if (!title) return;
     const patch = {
+      title,
+      detail: draft.detail.trim() || null,
       ...whenColumns(draft.timing, draft.due_date, row.trip, today),
       priority: draft.priority,
       assignee: draft.assignee,
@@ -164,13 +179,13 @@ export default function Reminders({
       </p>
 
       <div className="no-print mb-5 flex flex-col gap-2.5">
-        <FilterRow
+        <FilterChips
           legend="When"
           options={DUE_FILTERS}
           value={due}
           onChange={setDue}
         />
-        <FilterRow
+        <FilterChips
           legend="Priority"
           options={[
             { id: "all", label: "All" },
@@ -275,91 +290,113 @@ export default function Reminders({
 
                   {editingId === row.task.id && draft && (
                     <form
-                      className="no-print mt-3 grid gap-2 rounded-xl border border-[var(--line)] bg-sand/40 p-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto]"
+                      className="no-print mt-3 space-y-2 rounded-xl border border-[var(--line)] bg-sand/40 p-3"
                       onSubmit={(e) => {
                         e.preventDefault();
                         saveEdit(row);
                       }}
                     >
-                      <div
-                        className={`grid gap-2 ${
-                          draft.timing === ON_A_DATE ? "sm:grid-cols-2" : ""
-                        }`}
-                      >
-                        <WhenField
-                          idPrefix={`rem-${row.task.id}`}
-                          timing={draft.timing}
-                          due={draft.due_date}
-                          onTiming={(value) =>
-                            setDraft({
-                              ...draft,
-                              timing: value,
-                              due_date:
-                                value === ON_A_DATE ? draft.due_date : "",
-                            })
-                          }
-                          onDue={(value) =>
-                            setDraft({ ...draft, due_date: value })
-                          }
-                        />
-                      </div>
-                      <select
+                      <input
                         className="field"
-                        value={draft.assignee}
-                        aria-label="Who it is down to"
+                        value={draft.title}
+                        aria-label="What the reminder says"
+                        placeholder="What the reminder says"
                         onChange={(e) =>
-                          setDraft({ ...draft, assignee: e.target.value })
+                          setDraft({ ...draft, title: e.target.value })
                         }
-                      >
-                        {(assigneesByTrip[row.trip.id] || ["Shared"]).map(
-                          (name) => (
-                            <option key={name} value={name}>
-                              {name}
-                            </option>
-                          ),
-                        )}
-                        {/* Somebody who is no longer on the roster is still who
+                        required
+                      />
+                      <textarea
+                        className="field"
+                        rows={2}
+                        value={draft.detail}
+                        aria-label="Note"
+                        placeholder="Anything worth remembering with it — a number, a link, what it is for"
+                        onChange={(e) =>
+                          setDraft({ ...draft, detail: e.target.value })
+                        }
+                      />
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)_minmax(0,0.85fr)_auto]">
+                        <div
+                          className={`grid gap-2 ${
+                            draft.timing === ON_A_DATE ? "sm:grid-cols-2" : ""
+                          }`}
+                        >
+                          <WhenField
+                            idPrefix={`rem-${row.task.id}`}
+                            timing={draft.timing}
+                            due={draft.due_date}
+                            onTiming={(value) =>
+                              setDraft({
+                                ...draft,
+                                timing: value,
+                                due_date:
+                                  value === ON_A_DATE ? draft.due_date : "",
+                              })
+                            }
+                            onDue={(value) =>
+                              setDraft({ ...draft, due_date: value })
+                            }
+                          />
+                        </div>
+                        <select
+                          className="field"
+                          value={draft.assignee}
+                          aria-label="Who it is down to"
+                          onChange={(e) =>
+                            setDraft({ ...draft, assignee: e.target.value })
+                          }
+                        >
+                          {(assigneesByTrip[row.trip.id] || ["Shared"]).map(
+                            (name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ),
+                          )}
+                          {/* Somebody who is no longer on the roster is still who
                             this is down to, and dropping them silently would be
                             a reassignment nobody asked for. */}
-                        {!(assigneesByTrip[row.trip.id] || []).includes(
-                          draft.assignee,
-                        ) && (
-                          <option value={draft.assignee}>
-                            {draft.assignee}
-                          </option>
-                        )}
-                      </select>
-                      <select
-                        className="field"
-                        value={draft.priority}
-                        aria-label="Priority"
-                        onChange={(e) =>
-                          setDraft({ ...draft, priority: e.target.value })
-                        }
-                      >
-                        {PRIORITY_ORDER.map((p) => (
-                          <option key={p} value={p}>
-                            {PRIORITY_LABELS[p]}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="submit"
-                          className="btn btn-primary px-3 py-1.5 text-xs"
+                          {!(assigneesByTrip[row.trip.id] || []).includes(
+                            draft.assignee,
+                          ) && (
+                            <option value={draft.assignee}>
+                              {draft.assignee}
+                            </option>
+                          )}
+                        </select>
+                        <select
+                          className="field"
+                          value={draft.priority}
+                          aria-label="Priority"
+                          onChange={(e) =>
+                            setDraft({ ...draft, priority: e.target.value })
+                          }
                         >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(null);
-                            setDraft(null);
-                          }}
-                          className="btn btn-ghost px-3 py-1.5 text-xs"
-                        >
-                          Cancel
-                        </button>
+                          {PRIORITY_ORDER.map((p) => (
+                            <option key={p} value={p}>
+                              {PRIORITY_LABELS[p]}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="submit"
+                            className="btn btn-primary px-3 py-1.5 text-xs"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(null);
+                              setDraft(null);
+                            }}
+                            className="btn btn-ghost px-3 py-1.5 text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     </form>
                   )}
@@ -378,33 +415,5 @@ export default function Reminders({
       </div>
       <ClearedTips />
     </section>
-  );
-}
-
-function FilterRow({ legend, options, value, onChange }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-        {legend}
-      </span>
-      {options.map((option) => {
-        const active = option.id === value;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(option.id)}
-            className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] transition ${
-              active
-                ? "border-teal/80 bg-teal text-on-accent"
-                : "border-[var(--line)] bg-white/70 text-ink-soft hover:border-teal/30 hover:text-teal"
-            }`}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }

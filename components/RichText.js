@@ -7,6 +7,7 @@
 // so the worst a strange reply can do is look plain.
 
 import { parseRich } from "@/lib/agent/rich";
+import { isQuestion } from "@/lib/agent/asking";
 
 function Spans({ spans }) {
   return (
@@ -45,8 +46,15 @@ export default function RichText({ text }) {
   return (
     <div className="space-y-2">
       {blocks.map((b, i) => {
-        if (b.type === "h")
-          return b.level === 2 ? (
+        if (b.type === "h") {
+          // A question is never a label. Set in small capitals -- WHAT FIGURE DO
+          // YOU HAVE IN MIND? -- it reads as a heading for the section under it
+          // rather than as something being asked of the person reading, which is
+          // how a budget conversation ended up stalled with Aly waiting for an
+          // answer nobody knew she wanted. Questions get the sentence treatment
+          // whichever level they arrive at.
+          const asking = isQuestion(b.spans.map((sp) => sp.v || "").join(""));
+          return b.level === 2 || asking ? (
             // The first thing the eye lands on when an answer has parts: darker
             // and heavier than the writing under it, and given air above unless
             // it opens the reply.
@@ -64,6 +72,7 @@ export default function RichText({ text }) {
               <Spans spans={b.spans} />
             </h5>
           );
+        }
         if (b.type === "ul")
           return (
             <ul key={i} className="list-disc space-y-1 pl-4">

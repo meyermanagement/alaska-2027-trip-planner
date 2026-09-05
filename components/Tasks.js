@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import PriorityMeter from "@/components/PriorityMeter";
 import LastMinuteTasks from "@/components/LastMinuteTasks";
+import FilterChips from "@/components/FilterChips";
 import AddToCalendar from "@/components/AddToCalendar";
 import { eventFromTask } from "@/lib/calendar";
 import {
@@ -53,6 +54,12 @@ export default function Tasks({
   // below a wall of struck-through ones. Ticking a task now makes it leave the
   // list, which is the right feeling and reversible in one click.
   const [hideDone, setHideDone] = useState(true);
+  // The row under the add form used to be a legend: the word Priority, then the
+  // three meters and their names, explaining what the bars mean. It looked
+  // exactly like the filter on the Reminders page one level up, so it got
+  // pressed, and nothing happened. It filters now, and still says what the bars
+  // mean by wearing one on each chip.
+  const [priority, setPriority] = useState("all");
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({
     title: "",
@@ -79,13 +86,11 @@ export default function Tasks({
     return word?.late || word?.soon ? 0 : 1;
   };
 
-  // The bars are quiet on purpose, so say once what they mean.
-  const legend = ["low", "normal", "high"];
-
   const grouped = useMemo(() => {
     const map = new Map();
     items
       .filter((t) => (hideDone ? !t.is_done : true))
+      .filter((t) => priority === "all" || priorityOf(t) === priority)
       .forEach((t) => {
         const key = timingGroupOf(t, trip, today);
         if (!map.has(key)) map.set(key, []);
@@ -111,7 +116,7 @@ export default function Tasks({
         )
         .map(([t]) => t),
     ]);
-  }, [items, hideDone, trip, today]);
+  }, [items, hideDone, priority, trip, today]);
 
   async function toggle(task) {
     await supabase
@@ -298,14 +303,21 @@ export default function Tasks({
         </form>
       )}
 
-      <div className="mb-3 flex items-center gap-4 px-1 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-        <span>Priority</span>
-        {legend.map((level) => (
-          <span key={level} className="flex items-center gap-1.5">
-            <PriorityMeter task={{ priority: level }} />
-            {level}
-          </span>
-        ))}
+      <div className="no-print mb-3 px-1">
+        <FilterChips
+          legend="Priority"
+          value={priority}
+          onChange={setPriority}
+          options={[
+            { id: "all", label: "All" },
+            // High first, the way the list itself is ordered.
+            ...PRIORITY_ORDER.map((p) => ({
+              id: p,
+              label: PRIORITY_LABELS[p],
+              icon: <PriorityMeter task={{ priority: p }} className="mt-0" />,
+            })),
+          ]}
+        />
       </div>
 
       <div className="space-y-4">
@@ -496,13 +508,26 @@ export default function Tasks({
           <p className="card p-6 text-center text-sm text-ink-soft">
             {items.length === 0
               ? "Nothing on the list yet."
-              : hideDone
-                ? // Everything is done and hidden, so the page would otherwise be
-                  // blank under a header saying 8 of 8 complete. Say where the
-                  // rows went, and offer the way back to them.
-                  "All clear — everything on this list is done."
-                : "All clear — no open tasks."}
-            {items.length > 0 && hideDone && done > 0 && (
+              : priority !== "all"
+                ? `Nothing ${PRIORITY_LABELS[priority].toLowerCase()} priority${
+                    hideDone ? " is still open" : ""
+                  }.`
+                : hideDone
+                  ? // Everything is done and hidden, so the page would otherwise
+                    // be blank under a header saying 8 of 8 complete. Say where
+                    // the rows went, and offer the way back to them.
+                    "All clear — everything on this list is done."
+                  : "All clear — no open tasks."}
+            {priority !== "all" && (
+              <button
+                type="button"
+                className="ml-2 font-semibold text-teal underline"
+                onClick={() => setPriority("all")}
+              >
+                Show every priority
+              </button>
+            )}
+            {priority === "all" && items.length > 0 && hideDone && done > 0 && (
               <button
                 type="button"
                 className="ml-2 font-semibold text-teal underline"

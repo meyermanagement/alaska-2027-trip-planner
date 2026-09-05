@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AlyeskaMark from "./AlyeskaMark";
+import { BubbleIcon } from "./Icons";
 import { groupActions } from "@/lib/agent/groups";
 import {
   applyLabel,
@@ -32,6 +33,7 @@ import { receiptTone, receiptLabel } from "@/lib/agent/receipt";
 import Thinking from "./Thinking";
 import RichText from "./RichText";
 import { askPlaceholder } from "@/lib/agent/placeholders";
+import { askedOfYou } from "@/lib/agent/asking";
 import Followups from "./Followups";
 
 // What a receipt looks like once it has earned its colour. Amber is the honest
@@ -411,6 +413,31 @@ export default function ChatPanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed, autoSendSeed, loadingHistory]);
+
+  // The question Aly is waiting on an answer to, if her last word was a
+  // question. Nothing about the old panel said she was waiting: the question
+  // landed as one more gray bubble, and on the budget card it landed as a
+  // heading in small capitals, which reads as a section label. So it gets said
+  // again, in plain words, directly above the box you would type the answer
+  // into -- the only place you are looking once you have decided to reply.
+  const asked = useMemo(() => {
+    if (busy || pending || looking) return null;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant" || last.kind === "receipt") {
+      return null;
+    }
+    return askedOfYou(last.text);
+  }, [messages, busy, pending, looking]);
+
+  // Put the cursor where the answer goes, but only on a pointer device: on a
+  // phone this throws the keyboard up over the answer you are still reading.
+  useEffect(() => {
+    if (!asked) return;
+    if (!window.matchMedia?.("(hover: hover) and (pointer: fine)").matches) {
+      return;
+    }
+    inputRef.current?.focus({ preventScroll: true });
+  }, [asked]);
 
   // The message box grows with what is in it, between a floor and a ceiling set
   // in CSS below: three lines tall even when empty, so it reads as somewhere you
@@ -1279,6 +1306,17 @@ export default function ChatPanel({
         }}
         className="shrink-0 border-t border-[var(--line)] bg-sand/50 px-3 py-3"
       >
+        {asked && (
+          <div className="mb-2 flex items-start gap-2 rounded-xl border border-teal/35 bg-teal-soft px-3 py-2">
+            <BubbleIcon className="mt-[0.15rem] h-3.5 w-3.5 shrink-0 text-teal" />
+            <p className="text-xs leading-snug text-ink">
+              <span className="font-semibold text-teal">
+                Aly is waiting on you:
+              </span>{" "}
+              {asked}
+            </p>
+          </div>
+        )}
         <div className="mb-2">
           <WhereIAm here={here} onChange={setHere} />
         </div>
@@ -1286,7 +1324,9 @@ export default function ChatPanel({
           <textarea
             ref={inputRef}
             rows={1}
-            className="field max-h-48 min-h-[7rem] resize-none overflow-y-auto leading-relaxed"
+            className={`field max-h-48 min-h-[7rem] resize-none overflow-y-auto leading-relaxed ${
+              asked ? "border-teal/60 ring-2 ring-teal/20" : ""
+            }`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1301,7 +1341,11 @@ export default function ChatPanel({
                 send(input);
               }
             }}
-            placeholder={askPlaceholder({ focus, hasTrip: Boolean(trip) })}
+            placeholder={
+              asked
+                ? "Your answer…"
+                : askPlaceholder({ focus, hasTrip: Boolean(trip) })
+            }
             disabled={busy}
             aria-label="Message Aly"
           />
