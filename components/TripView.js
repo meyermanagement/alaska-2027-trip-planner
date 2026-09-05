@@ -12,6 +12,7 @@ import {
   isPastTrip,
 } from "@/lib/format";
 import PromoteDraft from "./PromoteDraft";
+import ArchiveTrip from "./ArchiveTrip";
 import TripBackdrop from "./TripBackdrop";
 import { PencilIcon } from "./Icons";
 import TripOverview from "./TripOverview";
@@ -551,6 +552,15 @@ export default function TripView({
                   onGo={setTab}
                   readOnly={readOnly}
                 />
+                {/* Only on a trip that is over, and quieter than the two buttons
+                    above it: tidying the shelf is not why anybody opened this
+                    screen. Both directions live here, so the way out of the
+                    archive is on the trip you archived. */}
+                {!readOnly && past && (
+                  <span className="flex justify-end sm:ml-1">
+                    <ArchiveTrip trip={info} />
+                  </span>
+                )}
               </div>
             </div>
           </div>

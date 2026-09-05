@@ -12,6 +12,7 @@ import {
 } from "@/lib/format";
 import { coverToken } from "@/lib/covers/tint";
 import { parseTripRef, tripPath } from "@/lib/trips/route";
+import { TRIPS_VIEW_EVENT } from "@/lib/trips/viewEvent";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
@@ -271,19 +272,6 @@ export default function NavTabs({
   const router = useRouter();
   const keyboardOpen = useSoftKeyboard();
   const [open, setOpen] = useState(false);
-  // A stamp minted each time the sheet is opened, appended to the three trip
-  // rows' addresses.
-  //
-  // Those three are one screen with a different group showing, and the board's own
-  // tabs switch groups by writing the address with replaceState -- no server, no
-  // wait, nothing to wait for. So the group in the address is often already the
-  // group the menu row points at, and pressing the row did nothing at all: same
-  // address, no navigation, no skeleton, a sheet that closed on a press that
-  // visibly achieved nothing. The stamp makes every press of a menu row a genuinely
-  // new address, which is a real navigation and so a real skeleton. It rides only
-  // on these rows: the tab strip never writes it, so toggling groups on the board
-  // stays instant and silent, which is the whole point of it being a toggle.
-  const [stamp, setStamp] = useState("");
   // Kept on screen for the length of the closing animation after open goes
   // false. Unmounting on the press would cut the arc away mid-movement, so the
   // intent and the presence are two different pieces of state.
@@ -450,9 +438,6 @@ export default function NavTabs({
           last: n === g.kids.length - 1,
           key: kid.href,
           ...kid,
-          // See `stamp`. Only the trip rows carry one, because only they can be
-          // pointing at the address you are already on.
-          href: kid.view && stamp ? `${kid.href}&m=${stamp}` : kid.href,
           // A trip row is only the row you are on when the board is showing its
           // group. Upcoming is what the board opens on with nothing asked for,
           // so an address with no view in it is Planned Trips.
@@ -617,7 +602,31 @@ export default function NavTabs({
                       onPointerEnter={() => router.prefetch(row.href)}
                       onPointerDown={() => router.prefetch(row.href)}
                       onFocus={() => router.prefetch(row.href)}
-                      onClick={() => setOpen(false)}
+                      onClick={(e) => {
+                        setOpen(false);
+                        // Already on the board: the three groups are all here, so
+                        // the router has nothing to fetch and a press through it
+                        // changed the address and drew no skeleton. Hand the
+                        // request to the board instead, which puts its skeleton up
+                        // and then draws the group. Modified clicks are left alone
+                        // so a row can still be opened in a new tab.
+                        if (
+                          row.view &&
+                          pathname === "/trips" &&
+                          !e.metaKey &&
+                          !e.ctrlKey &&
+                          !e.shiftKey &&
+                          !e.altKey &&
+                          e.button === 0
+                        ) {
+                          e.preventDefault();
+                          window.dispatchEvent(
+                            new CustomEvent(TRIPS_VIEW_EVENT, {
+                              detail: { view: row.view },
+                            }),
+                          );
+                        }
+                      }}
                       style={{
                         // Its place in the stagger, counted from the plate.
                         "--arc-i": row.i,
@@ -693,12 +702,7 @@ export default function NavTabs({
         <div className="mx-auto flex max-w-5xl items-end justify-between gap-3">
           <button
             type="button"
-            onClick={() => {
-              setOpen((v) => {
-                if (!v) setStamp(Date.now().toString(36));
-                return !v;
-              });
-            }}
+            onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label={open ? "Close the menu" : "Open the menu"}
             /* Face, edge and shadow all come from the skin. On the two dark

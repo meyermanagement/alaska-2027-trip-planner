@@ -8,7 +8,6 @@ const STATUSES = [
   // Draft keeps the trip out of Upcoming and out of Past until someone moves it.
   { value: "draft", label: "Draft — still an idea" },
   { value: "planning", label: "Planning" },
-  { value: "booked", label: "Booked" },
   { value: "active", label: "Happening now" },
   { value: "complete", label: "Finished" },
   { value: "archived", label: "Archived" },

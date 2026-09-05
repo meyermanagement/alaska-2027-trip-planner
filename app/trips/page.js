@@ -36,12 +36,11 @@ export default async function TripsPage({ searchParams }) {
   // Only used as the boundary's key -- the board reads the group itself, on the
   // client, so the two never disagree about which tab is open.
   //
-  // The menu's stamp is part of the key as well, so that pressing Trip Log while
-  // the address already says past still resets the boundary and still shows the
-  // skeleton. The board's own tab strip never writes a stamp, and switches groups
-  // without going to the server at all, so toggling stays instant and skeleton-free.
-  const asked = await searchParams;
-  const view = `${String(asked?.view || "")}:${String(asked?.m || "")}`;
+  // Arriving from another screen is covered by loading.js, and a menu press while
+  // the board is already up is answered by the board itself -- see
+  // lib/trips/viewEvent.js. This key is what is left: a group typed or shared as an
+  // address, which is a real server render and deserves the skeleton.
+  const view = String((await searchParams)?.view || "");
 
   const supabase = await createClient();
   const user = await whoIs(supabase);

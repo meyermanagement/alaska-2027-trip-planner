@@ -1,16 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
-import { countdownSaid, formatRange, daysUntil } from "@/lib/format";
+import {
+  countdownSaid,
+  formatRange,
+  daysUntil,
+  isArchivedTrip,
+} from "@/lib/format";
 import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
 import TripBackdrop from "@/components/TripBackdrop";
 import RemoveTrip from "@/components/RemoveTrip";
+import ArchiveTrip from "@/components/ArchiveTrip";
 import CoverQueue from "@/components/CoverQueue";
 import { tripPath } from "@/lib/trips/route";
+import BoardSkeleton from "./BoardSkeleton";
+import { TRIPS_VIEW_EVENT, TRIP_VIEWS } from "@/lib/trips/viewEvent";
+
+// How long the skeleton stands there when the menu asks for a group. The groups
+// are all already here, so this is not a wait for data -- it is long enough to
+// read as a screen arriving rather than a flicker, and short enough that nobody
+// waits for it. See lib/trips/viewEvent.js for why the menu does this at all.
+const SWITCH_MS = 380;
 
 // Three kinds of trip, three shapes of card. Upcoming trips are the reason the
 // app exists, so they stay large; drafts are unfinished, so they read as
@@ -22,7 +36,7 @@ import { tripPath } from "@/lib/trips/route";
 // there are — and printing still lays out all three, since the switch is
 // interactive and paper is not.
 
-const VIEWS = ["upcoming", "drafts", "past"];
+const VIEWS = TRIP_VIEWS;
 
 function Section({ id, view, title, blurb, count, children }) {
   return (
@@ -276,44 +290,54 @@ function DraftCard({ trip, canRemove = false }) {
   );
 }
 
-function PastCard({ trip }) {
+function PastCard({ trip, canArchive = false }) {
   return (
-    <Link
-      href={tripPath(trip)}
-      className="trip-plate card on-photo group min-h-[168px] justify-end transition hover:-translate-y-px hover:border-teal/30 hover:shadow-[0_10px_26px_-20px_rgba(36,31,24,0.4)]"
-    >
-      <TripBackdrop trip={trip} />
-      <PendingVeil href={tripPath(trip)} />
-      <div className="relative grid gap-1.5 p-3.5 pt-7">
-        <div className="flex items-center gap-2">
-          <span className="text-base leading-none" aria-hidden="true">
-            {trip.cover_emoji}
-          </span>
-          <h3 className="font-display truncate text-[0.98rem] font-semibold">
-            {trip.name}
-          </h3>
+    <div>
+      <Link
+        href={tripPath(trip)}
+        className="trip-plate card on-photo group min-h-[168px] justify-end transition hover:-translate-y-px hover:border-teal/30 hover:shadow-[0_10px_26px_-20px_rgba(36,31,24,0.4)]"
+      >
+        <TripBackdrop trip={trip} />
+        <PendingVeil href={tripPath(trip)} />
+        <div className="relative grid gap-1.5 p-3.5 pt-7">
+          <div className="flex items-center gap-2">
+            <span className="text-base leading-none" aria-hidden="true">
+              {trip.cover_emoji}
+            </span>
+            <h3 className="font-display truncate text-[0.98rem] font-semibold">
+              {trip.name}
+            </h3>
+          </div>
+          <p className="text-[0.74rem] font-medium opacity-95">
+            {formatRange(trip.start_date, trip.end_date)}
+            {trip.destination && (
+              <>
+                <span className="px-1.5 opacity-55" aria-hidden="true">
+                  ·
+                </span>
+                {trip.destination}
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="chip">
+              {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
+            </span>
+            {trip.going.length > 0 && (
+              <span className="chip">{trip.going.join(", ")}</span>
+            )}
+          </div>
         </div>
-        <p className="text-[0.74rem] font-medium opacity-95">
-          {formatRange(trip.start_date, trip.end_date)}
-          {trip.destination && (
-            <>
-              <span className="px-1.5 opacity-55" aria-hidden="true">
-                ·
-              </span>
-              {trip.destination}
-            </>
-          )}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="chip">
-            {trip.stops} {trip.stops === 1 ? "stop" : "stops"}
-          </span>
-          {trip.going.length > 0 && (
-            <span className="chip">{trip.going.join(", ")}</span>
-          )}
+      </Link>
+      {/* Outside the link, for the same reason the remove control is: the whole
+          plate is one link, and a button nested inside it would navigate away
+          from the thing it just did. */}
+      {canArchive && (
+        <div className="mt-1.5 flex justify-end">
+          <ArchiveTrip trip={trip} />
         </div>
-      </div>
-    </Link>
+      )}
+    </div>
   );
 }
 
@@ -342,6 +366,13 @@ export default function TripBoard({
   useEffect(() => {
     setPicked(null);
   }, [asked]);
+
+  // A group asked for from the menu, still being drawn.
+  const [switching, setSwitching] = useState(null);
+
+  // The archive says "Hide" once it is open, the way the other shut panels in the
+  // app do, so it has to be told whether it is.
+  const [archivedOpen, setArchivedOpen] = useState(false);
 
   // With nothing asked for, land on whatever the family most likely came for:
   // their next trips, unless there are none and something is half-written. A trip
@@ -375,11 +406,58 @@ export default function TripBoard({
     }
   };
 
+  // The menu's request. The skeleton goes up first and the group is drawn after
+  // it, so the press is answered by something changing rather than by nothing.
+  const askedRef = useRef(null);
+  useEffect(() => {
+    function onAsk(e) {
+      const id = String(e?.detail?.view || "").toLowerCase();
+      if (!VIEWS.includes(id)) return;
+      askedRef.current = id;
+      setSwitching(id);
+    }
+    window.addEventListener(TRIPS_VIEW_EVENT, onAsk);
+    return () => window.removeEventListener(TRIPS_VIEW_EVENT, onAsk);
+  }, []);
+
+  // Drawn as its own step so the skeleton has been painted before the group
+  // replaces it, and so a second request landing mid-wait simply wins.
+  useEffect(() => {
+    if (!switching) return undefined;
+    const timer = setTimeout(() => {
+      setPicked(switching);
+      try {
+        window.history.replaceState(null, "", `${pathname}?view=${switching}`);
+      } catch {
+        // An address that does not keep up is not worth losing the group over.
+      }
+      setSwitching(null);
+    }, SWITCH_MS);
+    return () => clearTimeout(timer);
+  }, [switching, pathname]);
+
+  // Past trips, split in two. The shelf is what the screen opens on; the archive is
+  // what somebody put away. Both are past, so the arithmetic that decides that is
+  // done once, upstream -- this only asks which of the two a finished trip is in.
+  const archived = past.filter(isArchivedTrip);
+  const shelf = past.filter((t) => !isArchivedTrip(t));
+
   const tabs = [
     { id: "upcoming", label: "Upcoming", count: upcoming.length },
     { id: "drafts", label: "Drafts", count: drafts.length },
-    { id: "past", label: "Past", count: past.length },
+    { id: "past", label: "Past", count: shelf.length },
   ];
+
+  if (switching) {
+    return (
+      <>
+        <span className="sr-only" role="status">
+          Loading
+        </span>
+        <BoardSkeleton />
+      </>
+    );
+  }
 
   return (
     <>
@@ -448,18 +526,6 @@ export default function TripBoard({
                 : "No trips coming up. Start one whenever you are ready — or sketch an idea in Drafts and move it here once it is settled."}
             </p>
           )}
-
-          {drafts.length > 0 && (
-            <button
-              type="button"
-              onClick={() => show("drafts")}
-              className="no-print mt-4 text-sm font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-            >
-              {drafts.length === 1
-                ? "1 draft in the works"
-                : `${drafts.length} drafts in the works`}
-            </button>
-          )}
         </Section>
 
         <Section
@@ -490,19 +556,53 @@ export default function TripBoard({
           view={view}
           title="Past trips"
           blurb="Kept for the record — itineraries, packing lists and notes are all still here."
-          count={past.length}
+          count={shelf.length}
         >
-          {past.length > 0 ? (
+          {shelf.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {past.map((trip) => (
-                <PastCard key={trip.id} trip={trip} />
+              {shelf.map((trip) => (
+                <PastCard key={trip.id} trip={trip} canArchive />
               ))}
             </div>
           ) : (
             <p className="card p-5 text-sm text-ink-soft">
-              Nothing finished yet. Trips move here on their own once the last
-              day has gone by.
+              {archived.length > 0
+                ? "Everything finished is in the archive below."
+                : "Nothing finished yet. Trips move here on their own once the last day has gone by."}
             </p>
+          )}
+
+          {/* Shut, and counted on the outside. The archive is for the trips
+              somebody decided they were done looking at, so it opens on being
+              asked and not before -- and what it holds still teaches Aly what
+              this family likes, still seeds the next packing list, and is one
+              press away when somebody wants to remember where they ate. */}
+          {archived.length > 0 && (
+            <details
+              className="no-print card mt-6 px-4 py-3.5"
+              open={archivedOpen}
+              onToggle={(e) => setArchivedOpen(e.currentTarget.open)}
+            >
+              <summary className="flex cursor-pointer list-none items-center gap-2">
+                <h3 className="font-display text-lg font-semibold text-ink">
+                  Archived
+                </h3>
+                <span className="text-sm text-ink-soft">{archived.length}</span>
+                <span className="ml-auto text-xs font-semibold uppercase tracking-[0.09em] text-teal">
+                  {archivedOpen ? "Hide" : "Show"}
+                </span>
+              </summary>
+              <p className="mt-2 text-sm text-ink-soft">
+                Put away, and still counted. These trips keep teaching Aly what
+                the family likes and still seed the packing lists of the trips
+                to come.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {archived.map((trip) => (
+                  <PastCard key={trip.id} trip={trip} canArchive />
+                ))}
+              </div>
+            </details>
           )}
         </Section>
       </div>
