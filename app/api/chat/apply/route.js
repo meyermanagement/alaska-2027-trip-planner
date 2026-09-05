@@ -19,6 +19,7 @@ import {
 } from "@/lib/agent/thread";
 import { WIPE_TOOLS } from "@/lib/agent/groups";
 import { copiedTemplateItems } from "@/lib/packing/copy";
+import { pushHouseTasks } from "@/lib/tasks/house";
 import { draftPackingWords, packingWaitsForDraft } from "@/lib/packing/draft";
 import { coverQueuePatch } from "@/lib/covers/queue";
 import { tidyStranded } from "@/lib/packing/roster";
@@ -1069,6 +1070,49 @@ async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
         }));
       if (rows.length) await supabase.from("trip_basic_history").insert(rows);
     }
+
+    // A draft becoming a real trip is the third door into the house list. It got
+    // nothing at creation, on purpose -- a draft has no settled start date, so
+    // "a week before" measures back from nothing -- and this is the moment it
+    // acquires one. The same push, so the same skipping rules and the same
+    // refusal to write a second copy of anything already there.
+    if (before?.status === "draft" && row.status && row.status !== "draft") {
+      try {
+        const [{ data: trip }, { data: roster }, { data: people }] =
+          await Promise.all([
+          supabase
+            .from("trips")
+            .select("id, status, start_date")
+            .eq("id", id)
+            .maybeSingle(),
+          supabase
+            .from("trip_travelers")
+            .select("travelers (name, is_person)")
+            .eq("trip_id", id),
+          supabase
+            .from("travelers")
+            .select("name, is_person")
+            .eq("family_id", familyId),
+        ]);
+        if (trip) {
+          await pushHouseTasks({
+            supabase,
+            familyId,
+            trip,
+            going: (roster || [])
+              .map((r) => r.travelers)
+              .filter((t) => t?.is_person)
+              .map((t) => t.name),
+            household: (people || [])
+              .filter((p) => p.is_person)
+              .map((p) => p.name),
+            userId,
+          });
+        }
+      } catch {
+        // Best effort, same as at creation.
+      }
+    }
     return { error: null };
   }
 
@@ -1102,7 +1146,7 @@ async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
   // it, which is why this is written here rather than left to the family.
   const { data: people } = await supabase
     .from("travelers")
-    .select("id, name")
+    .select("id, name, is_person")
     .eq("family_id", familyId);
   // "Shared" is a traveler row so that things can be assigned to nobody in
   // particular. It is not a person and never belongs on a roster.
@@ -1113,6 +1157,33 @@ async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
     await supabase
       .from("trip_travelers")
       .insert(roster.map((p) => ({ trip_id: trip.id, traveler_id: p.id })));
+  }
+
+  // The household's departure list lands here, unasked.
+  //
+  // This is deliberately the opposite of how the packing list works four
+  // paragraphs down, and the difference is size. A base packing list is 87 items
+  // and appearing without being asked for is how it used to feel like a side
+  // effect of approving a trip. The house list is a handful of lines the family
+  // does on every single departure, and the entire value of writing it down once
+  // is never having to remember to attach it. Of the nine trips on the board when
+  // this was built, four had no travel-day or night-before task at all.
+  //
+  // Best effort. A trip that arrives without the bins on it is still the trip
+  // they asked for, and the button on the Packing page can put them there.
+  try {
+    await pushHouseTasks({
+      supabase,
+      familyId,
+      trip: { id: trip.id, status: row.status, start_date: row.start_date },
+      // The roster as it was just written, not as it was asked for -- so the
+      // empty-house rule reads the same names the trip actually carries.
+      going: roster.map((p) => p.name),
+      household: (people || []).filter((p) => p.is_person).map((p) => p.name),
+      userId,
+    });
+  } catch {
+    // Nothing to say. The list is available on the Packing page either way.
   }
 
   // The animals go on last, once the trip has an id. Their packing lines are

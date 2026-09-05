@@ -12,6 +12,7 @@ import { homeToday } from "@/lib/format";
 import TripPackingLinks from "@/components/TripPackingLinks";
 import Templates from "./Templates";
 import PetTemplates from "./PetTemplates";
+import HouseTasks from "./HouseTasks";
 
 export const metadata = { title: "Packing templates · Alyeska" };
 
@@ -33,8 +34,12 @@ export default async function PackingTemplatesPage() {
   if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
 
-  const [{ data: travelers }, { data: templates }, { data: pets }] =
-    await Promise.all([
+  const [
+    { data: travelers },
+    { data: templates },
+    { data: pets },
+    { data: houseTasks },
+  ] = await Promise.all([
       supabase
         .from("travelers")
         .select("id, name, sort_order, is_person")
@@ -53,7 +58,17 @@ export default async function PackingTemplatesPage() {
         .eq("family_id", familyId)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true }),
-    ]);
+      // The household's own departure list -- the task-shaped counterpart to the
+      // base template. It lives on this screen because this is the one people
+      // have open the night before, with the cases half packed.
+      supabase
+        .from("house_tasks")
+        .select(
+          "id, title, detail, timing, assignee, only_when_empty, sort_order",
+        )
+        .eq("family_id", familyId)
+        .order("sort_order", { ascending: true }),
+  ]);
 
   // The items for every template at once: there are a few hundred at most, and
   // one read means switching between lists is instant rather than a spinner.
@@ -213,6 +228,12 @@ export default async function PackingTemplatesPage() {
             nothing you have already ticked off gets rewritten underneath you.
           </p>
         </div>
+        <HouseTasks
+          tasks={houseTasks || []}
+          people={(travelers || [])
+            .filter((t) => t.is_person)
+            .map((t) => t.name)}
+        />
         <Templates
           travelers={(travelers || [])
             .filter((t) => t.is_person)
