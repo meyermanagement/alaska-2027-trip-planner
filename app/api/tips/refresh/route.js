@@ -325,6 +325,7 @@ export async function POST(request) {
     { data: existing },
     { data: facts },
     { data: memberships },
+    { data: costs },
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -365,6 +366,14 @@ export async function POST(request) {
         "brand, program_name, kind, status_tier, perks, traveler_id, is_active",
       )
       .eq("family_id", trip.family_id),
+    // The costs that are not itinerary lines -- the fees, the insurance, the
+    // parking. Without them the money the brief quotes is short by whatever the
+    // family typed on the Money tab, which is exactly the part they had to enter
+    // by hand and would notice missing.
+    supabase
+      .from("trip_costs")
+      .select("id, label, category, cost_estimate, cost_actual, cost_note")
+      .eq("trip_id", tripId),
   ]);
 
   const travelers = (going || []).map((row) => row.travelers).filter(Boolean);
@@ -467,6 +476,7 @@ export async function POST(request) {
       facts: sheet,
       itinerary: itinerary || [],
       packing: packing || [],
+      costs: costs || [],
       travelers,
     });
     const { housed: filed } = await writeHouseTips({
