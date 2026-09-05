@@ -894,11 +894,11 @@ export default function ChatPanel({
               type="button"
               onClick={onClose}
               aria-label="Close the assistant"
-              className="rounded-full p-1.5 text-ink-soft transition hover:bg-sand hover:text-ink"
+              className="-mr-1 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft transition hover:bg-sand hover:text-ink sm:h-10 sm:w-10"
             >
               <svg
                 viewBox="0 0 20 20"
-                className="h-4 w-4"
+                className="h-5 w-5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.8"

@@ -52,7 +52,7 @@ export default function CurrentTripBanner({ trip, today }) {
       <Link
         href={tripPath(trip, "itinerary")}
         aria-label={`${trip.name} is happening now — open today's plan`}
-        className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-2 transition hover:bg-on-accent/10"
+        className="mx-auto flex max-w-5xl items-center gap-2.5 py-1.5 pl-5 pr-2 transition hover:bg-on-accent/10"
       >
         <span aria-hidden="true" className="shrink-0 text-base leading-none">
           {trip.cover_emoji || "🧭"}
@@ -67,14 +67,20 @@ export default function CurrentTripBanner({ trip, today }) {
         <span className="min-w-0 flex-1 truncate text-[0.9rem] font-semibold">
           {trip.name}
         </span>
-        {/* Spelled out where there is room, and a chevron where there is not —
-            but never nothing, because a band that is a link has to look like one. */}
-        <span className="hidden shrink-0 whitespace-nowrap text-[0.8rem] font-semibold text-on-accent/90 sm:inline">
+        {/* Spelled out where there is room, and an arrow where there is not —
+            but never nothing, because a band that is a link has to look like one.
+
+            Both wear a filled pill rather than sitting bare on the teal. The whole
+            band has always been the link, so nothing here was ever unreachable,
+            but the thing that looks pressable was an arrow a few pixels wide and
+            people aim at what looks pressable. On a phone that pill is a
+            thumb-sized disc, which is the least a target should be. */}
+        <span className="hidden shrink-0 whitespace-nowrap rounded-full bg-on-accent/15 px-3 py-1.5 text-[0.8rem] font-semibold text-on-accent sm:inline">
           Today’s plan →
         </span>
         <span
           aria-hidden="true"
-          className="shrink-0 text-[0.9rem] font-semibold text-on-accent/90 sm:hidden"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-on-accent/15 text-[1.05rem] font-semibold leading-none text-on-accent sm:hidden"
         >
           →
         </span>
