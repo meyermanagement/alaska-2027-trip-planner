@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { sortItinerary } from "@/lib/day/order";
 import { formatRange, formatFullDay } from "@/lib/format";
 import {
   BASICS,
@@ -37,20 +39,67 @@ import BasicAnswer from "./BasicAnswer";
  * like "probably fly into Kona" ever lands in a field.
  */
 export default function DraftView({
-  trip,
-  itinerary = [],
+  trip: initialTrip,
+  itinerary: initialItinerary = [],
   tasks = [],
   packing = [],
   travelers = [],
   going: initialGoing = [],
   pets = [],
   petLinks: initialPetLinks = [],
-  basicHistory = [],
+  basicHistory: initialBasicHistory = [],
   readOnly = false,
   today,
 }) {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [asked, setAsked] = useState(null);
+  /**
+   * The trip, held on the client so an answer appears where it was asked for.
+   *
+   * The seven cards ARE this screen, and they were being drawn from a server
+   * render that only happened again when the drawer was closed. So telling Aly
+   * the Maui budget, watching the change card save it, and looking back at the
+   * card behind the drawer showed the question still unanswered -- the figure was
+   * in the database, and the screen was a version of the page taken before it got
+   * there. The refresh on close still runs, because the days, tasks and packing
+   * lines on this page come from the server; this is what makes the answer land
+   * immediately, the same way the trip screen's tabs already do.
+   */
+  const [trip, setTrip] = useState(initialTrip);
+  const [itinerary, setItinerary] = useState(initialItinerary);
+  const [basicHistory, setBasicHistory] = useState(initialBasicHistory);
+  // A server refresh, when it does arrive, is the more authoritative of the two.
+  useEffect(() => setTrip(initialTrip), [initialTrip]);
+  useEffect(() => setItinerary(initialItinerary), [initialItinerary]);
+  useEffect(() => setBasicHistory(initialBasicHistory), [initialBasicHistory]);
+
+  // Read straight from the database on the client the moment a change is saved,
+  // which is what the seven cards, the progress ring and the "what is next"
+  // prompt all depend on.
+  const applied = useCallback(async () => {
+    const id = initialTrip?.id;
+    if (!id) return;
+    const [row, items, history] = await Promise.all([
+      supabase.from("trips").select("*").eq("id", id).maybeSingle(),
+      supabase
+        .from("itinerary_items")
+        .select("*")
+        .eq("trip_id", id)
+        .order("item_date", { ascending: true })
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("trip_basic_history")
+        .select("*")
+        .eq("trip_id", id)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (row.data) setTrip(row.data);
+    // The same order the server rendered in, so a refetch cannot quietly
+    // rearrange a day the two views must agree about.
+    if (items.data) setItinerary(sortItinerary(items.data));
+    if (history.data) setBasicHistory(history.data);
+  }, [supabase, initialTrip?.id]);
   // Held here rather than in the widget so the rest of the screen can read them:
   // a draft's roster is the answer to one of the six, and the line at the bottom
   // that says who is going has to move when somebody taps a name.
@@ -521,7 +570,11 @@ export default function DraftView({
         </p>
       )}
 
-      <AskAlyDrawer trip={trip} onRefresh={() => router.refresh()} />
+      <AskAlyDrawer
+        trip={trip}
+        onApplied={applied}
+        onRefresh={() => router.refresh()}
+      />
     </main>
   );
 }
