@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
@@ -8,6 +8,7 @@ import { coverQueuePatch } from "@/lib/covers/queue";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { FIRST_NAME, templateRequest } from "@/lib/packing/newTemplate";
 import { houseListOnto } from "@/lib/tasks/onto";
+import { Spinner } from "./LinkPending";
 
 /**
  * Moves a finished draft into Upcoming trips, and builds its packing list on the
@@ -103,7 +104,20 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  // The move is the longest wait in the app: templates saved, the trip's status
+  // written, the household's departure list attached, then a packing list worked
+  // out by Aly from what the family packed on trips like this one. That last part
+  // alone can run into double-digit seconds. All of it used to be reported inside
+  // a button the width of its own label, which meant the one press in the app most
+  // worth being sure about looked, for ten seconds, like nothing had happened.
+  //
+  // So the stage names moved onto a screen of their own, over the whole page, and
+  // the stages already finished stay listed with a tick -- because a wait you can
+  // see making progress is a different wait from one that only spins.
   const [busy, setBusy] = useState("");
+  const [passed, setPassed] = useState([]);
+  const busyRef = useRef("");
+  const [refreshing, startRefresh] = useTransition();
   const [problem, setProblem] = useState("");
   const [needsList, setNeedsList] = useState(false);
 
@@ -119,6 +133,22 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
   const [packedCount, setPackedCount] = useState(0);
   const [sure, setSure] = useState(false);
   const hostRef = useRef(null);
+
+  // Naming the next stage files the one before it under the ticks.
+  const stage = useCallback((label) => {
+    if (busyRef.current) {
+      const done = busyRef.current;
+      setPassed((prev) => [...prev, done]);
+    }
+    busyRef.current = label;
+    setBusy(label);
+  }, []);
+
+  const stop = useCallback(() => {
+    busyRef.current = "";
+    setBusy("");
+    setPassed([]);
+  }, []);
 
   const look = useCallback(async () => {
     setLoading(true);
@@ -241,7 +271,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
     const added = [...chosen].filter((id) => !wasChosen.has(id));
     const dropped = [...wasChosen].filter((id) => !chosen.has(id));
     if (added.length || dropped.length) {
-      setBusy("Saving what it counts as…");
+      stage("Saving what it counts as…");
       if (dropped.length) {
         const { error } = await supabase
           .from("trip_templates")
@@ -249,7 +279,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
           .eq("trip_id", trip.id)
           .in("template_id", dropped);
         if (error) {
-          setBusy("");
+          stop();
           setProblem("That did not save. Try it again.");
           return;
         }
@@ -259,7 +289,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
           .from("trip_templates")
           .insert(added.map((id) => ({ trip_id: trip.id, template_id: id })));
         if (error) {
-          setBusy("");
+          stop();
           setProblem("That did not save. Try it again.");
           return;
         }
@@ -271,14 +301,14 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
       setWasChosen(new Set(chosen));
     }
 
-    setBusy("Moving…");
+    stage("Moving it into Upcoming trips…");
     const patch = { status: "planning" };
     const { error } = await supabase
       .from("trips")
       .update({ ...patch, ...(coverQueuePatch(trip, patch) || {}) })
       .eq("id", trip.id);
     if (error) {
-      setBusy("");
+      stop();
       setProblem("That did not save. Try it again.");
       return;
     }
@@ -292,13 +322,13 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
     // handful of lines the family does on every single departure, and the whole
     // point of writing them down once is never having to remember to attach
     // them. See lib/tasks/onto.js.
-    setBusy("Adding the house list\u2026");
+    stage("Adding the house list\u2026");
     await houseListOnto(trip.id);
 
     if (build) {
-      setBusy(
+      stage(
         rebuild
-          ? "Building it again from scratch…"
+          ? "Building its list again from scratch…"
           : "Working out its packing list…",
       );
       let built = false;
@@ -322,7 +352,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
       if (!built) {
         // Leave the screen alone so the retry below stays pressable. The trip
         // has already moved; only its list is missing.
-        setBusy("");
+        stop();
         setOpen(false);
         setNeedsList(!rebuild);
         setProblem(
@@ -334,226 +364,304 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
       }
     }
 
-    setBusy("");
+    // Held open across the refresh as well. The trip has moved by now, but the
+    // screen still shows it as a draft until the server sends the board back, and
+    // dropping the veil a second before that would be a flash of the old answer.
+    stage("Opening it\u2026");
     if (onDone) onDone();
-    router.refresh();
+    startRefresh(() => {
+      router.refresh();
+    });
   }
+
+  // The refresh has landed, so the board (or the trip screen) is now showing the
+  // trip where it belongs and the veil has nothing left to cover.
+  useEffect(() => {
+    if (!refreshing && busyRef.current === "Opening it\u2026") stop();
+  }, [refreshing, stop]);
 
   const hasList = listCount > 0 || listCount === -1;
   const month = monthOf(trip.start_date);
   const working = Boolean(busy);
 
   return (
-    <span
-      ref={hostRef}
-      className="no-print inline-flex w-full flex-col items-start gap-1"
-    >
-      {!open && (
-        <button
-          type="button"
-          onClick={begin}
-          className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:opacity-60"
-        >
-          Move to Upcoming trips
-        </button>
+    <>
+      {working && (
+        <MoveVeil
+          busy={busy}
+          passed={passed}
+          name={trip.name || "This trip"}
+          building={busy.includes("packing list") || busy.includes("scratch")}
+        />
       )}
+      <span
+        ref={hostRef}
+        className="no-print inline-flex w-full flex-col items-start gap-1"
+      >
+        {!open && (
+          <button
+            type="button"
+            onClick={begin}
+            className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:opacity-60"
+          >
+            Move to Upcoming trips
+          </button>
+        )}
 
-      {problem && (
-        <span className="text-xs font-normal leading-relaxed text-rose">
-          {problem}
-        </span>
-      )}
+        {problem && (
+          <span className="text-xs font-normal leading-relaxed text-rose">
+            {problem}
+          </span>
+        )}
 
-      {needsList && (
-        <button
-          type="button"
-          onClick={() =>
-            window.dispatchEvent(
-              new CustomEvent(ASK_ALY_EVENT, {
-                detail: {
-                  seed: "Start the packing list for this trip.",
-                  autoSend: true,
-                },
-              }),
-            )
-          }
-          className="text-xs font-normal leading-relaxed text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal"
-        >
-          Try its packing list again?
-        </button>
-      )}
+        {needsList && (
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent(ASK_ALY_EVENT, {
+                  detail: {
+                    seed: "Start the packing list for this trip.",
+                    autoSend: true,
+                  },
+                }),
+              )
+            }
+            className="text-xs font-normal leading-relaxed text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal"
+          >
+            Try its packing list again?
+          </button>
+        )}
 
-      {open && (
-        <div className="mt-1 w-full max-w-xl rounded-[0.875rem] border border-[var(--line)] bg-white px-3.5 py-3 text-left">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
-            {hasList
-              ? "Its packing list"
-              : "Its packing list would be built from"}
-          </p>
+        {open && (
+          <div className="mt-1 w-full max-w-xl rounded-[0.875rem] border border-[var(--line)] bg-white px-3.5 py-3 text-left">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
+              {hasList
+                ? "Its packing list"
+                : "Its packing list would be built from"}
+            </p>
 
-          {loading ? (
-            <p className="mt-2 text-xs text-ink-soft">Looking…</p>
-          ) : (
-            <>
-              {/* A list already there is left alone by the move -- but the
+            {loading ? (
+              <p className="mt-2 text-xs text-ink-soft">Looking…</p>
+            ) : (
+              <>
+                {/* A list already there is left alone by the move -- but the
                   sources are still worth showing, because they are what a
                   rebuild would use and they are adjustable in the same breath. */}
-              {hasList && (
-                <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-                  It already has a packing list
-                  {listCount > 0 ? ` of ${things(listCount)}` : ""}, and the
-                  move leaves it exactly as it is. Building it again from
-                  scratch would start from:
-                </p>
-              )}
-              {base ? (
-                <p className="mt-2 text-xs leading-relaxed text-ink">
-                  <span className="font-semibold">{base.name}</span>
-                  <span className="text-ink-soft">
-                    {" "}
-                    — {things(base.count)}, and every trip starts there.
-                  </span>
-                </p>
-              ) : (
-                <div className="mt-2 rounded-[0.75rem] border border-amber/35 bg-amber/10 px-3 py-2.5">
-                  <p className="text-xs leading-relaxed text-ink">
-                    You have no base packing list yet — the list every trip
-                    starts from. Without it there is little to build on, so what
-                    arrives will be thin.
+                {hasList && (
+                  <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+                    It already has a packing list
+                    {listCount > 0 ? ` of ${things(listCount)}` : ""}, and the
+                    move leaves it exactly as it is. Building it again from
+                    scratch would start from:
                   </p>
-                  <button
-                    type="button"
-                    disabled={working}
-                    onClick={() =>
-                      askAly(templateRequest({ name: FIRST_NAME, first: true }))
-                    }
-                    className="mt-2 text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:opacity-60"
-                  >
-                    Have Aly start a base list first
-                  </button>
-                </div>
-              )}
-
-              {addOns.length > 0 && (
-                <div className="mt-2.5">
-                  <p className="text-xs leading-relaxed text-ink-soft">
-                    Which of these it also counts as — tap to change:
+                )}
+                {base ? (
+                  <p className="mt-2 text-xs leading-relaxed text-ink">
+                    <span className="font-semibold">{base.name}</span>
+                    <span className="text-ink-soft">
+                      {" "}
+                      — {things(base.count)}, and every trip starts there.
+                    </span>
                   </p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                    {addOns.map((t) => {
-                      const on = chosen.has(t.id);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => toggle(t.id)}
-                          disabled={working}
-                          aria-pressed={on}
-                          className={`inline-block max-w-full rounded-[999px] border px-2.5 py-1 text-left text-[0.675rem] font-semibold uppercase leading-snug tracking-[0.06em] [overflow-wrap:anywhere] ${
-                            on
-                              ? "border-teal/40 bg-teal/10 font-semibold text-teal"
-                              : "border-[var(--line)] bg-white text-ink-soft"
-                          } ${working ? "opacity-60" : ""}`}
-                        >
-                          {on ? "✓ " : ""}
-                          {t.name}
-                          <span className="font-normal text-ink-faint">
-                            {" · "}
-                            {t.count}
-                          </span>
-                        </button>
-                      );
-                    })}
+                ) : (
+                  <div className="mt-2 rounded-[0.75rem] border border-amber/35 bg-amber/10 px-3 py-2.5">
+                    <p className="text-xs leading-relaxed text-ink">
+                      You have no base packing list yet — the list every trip
+                      starts from. Without it there is little to build on, so
+                      what arrives will be thin.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={working}
+                      onClick={() =>
+                        askAly(
+                          templateRequest({ name: FIRST_NAME, first: true }),
+                        )
+                      }
+                      className="mt-2 text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:opacity-60"
+                    >
+                      Have Aly start a base list first
+                    </button>
                   </div>
-                </div>
-              )}
+                )}
 
-              <p className="mt-2.5 text-xs leading-relaxed text-ink-soft">
-                Then what you actually packed on recent trips
-                {trip.destination ? `, where ${trip.destination} is` : ""}
-                {month ? ` in ${month}` : ""}, and who is going. You can change
-                every line of it on the packing screen afterwards — nothing here
-                is final.
-              </p>
+                {addOns.length > 0 && (
+                  <div className="mt-2.5">
+                    <p className="text-xs leading-relaxed text-ink-soft">
+                      Which of these it also counts as — tap to change:
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                      {addOns.map((t) => {
+                        const on = chosen.has(t.id);
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => toggle(t.id)}
+                            disabled={working}
+                            aria-pressed={on}
+                            className={`inline-block max-w-full rounded-[999px] border px-2.5 py-1 text-left text-[0.675rem] font-semibold uppercase leading-snug tracking-[0.06em] [overflow-wrap:anywhere] ${
+                              on
+                                ? "border-teal/40 bg-teal/10 font-semibold text-teal"
+                                : "border-[var(--line)] bg-white text-ink-soft"
+                            } ${working ? "opacity-60" : ""}`}
+                          >
+                            {on ? "✓ " : ""}
+                            {t.name}
+                            <span className="font-normal text-ink-faint">
+                              {" · "}
+                              {t.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-              {/* The one thing on this panel that can lose work, so it is said
+                <p className="mt-2.5 text-xs leading-relaxed text-ink-soft">
+                  Then what you actually packed on recent trips
+                  {trip.destination ? `, where ${trip.destination} is` : ""}
+                  {month ? ` in ${month}` : ""}, and who is going. You can
+                  change every line of it on the packing screen afterwards —
+                  nothing here is final.
+                </p>
+
+                {/* The one thing on this panel that can lose work, so it is said
                   before it is offered, and it is not offered at all once the
                   list has been started -- the route would refuse it anyway. */}
-              {hasList && packedCount > 0 && (
-                <p className="mt-2 text-xs leading-relaxed text-amber">
-                  {things(packedCount)} on it {packedCount === 1 ? "is" : "are"}{" "}
-                  already ticked off, so it cannot be built again from scratch —
-                  that would throw away what you have done. Ask Aly for the
-                  pieces you want instead.
-                </p>
-              )}
-            </>
-          )}
+                {hasList && packedCount > 0 && (
+                  <p className="mt-2 text-xs leading-relaxed text-amber">
+                    {things(packedCount)} on it{" "}
+                    {packedCount === 1 ? "is" : "are"} already ticked off, so it
+                    cannot be built again from scratch — that would throw away
+                    what you have done. Ask Aly for the pieces you want instead.
+                  </p>
+                )}
+              </>
+            )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => move(!hasList)}
-              disabled={working || loading}
-              className="btn btn-primary text-xs disabled:opacity-60"
-            >
-              {busy ||
-                (hasList
-                  ? "Move to Upcoming trips"
-                  : "Move and build the list")}
-            </button>
-            {!hasList && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => move(false)}
+                onClick={() => move(!hasList)}
                 disabled={working || loading}
-                className="text-xs font-semibold text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal disabled:opacity-60"
+                className="btn btn-primary text-xs disabled:opacity-60"
               >
-                Move without a list
+                {busy ||
+                  (hasList
+                    ? "Move to Upcoming trips"
+                    : "Move and build the list")}
               </button>
-            )}
-            {hasList && packedCount === 0 && (
+              {!hasList && (
+                <button
+                  type="button"
+                  onClick={() => move(false)}
+                  disabled={working || loading}
+                  className="text-xs font-semibold text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal disabled:opacity-60"
+                >
+                  Move without a list
+                </button>
+              )}
+              {hasList && packedCount === 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!sure) {
+                      setSure(true);
+                      return;
+                    }
+                    move(true, true);
+                  }}
+                  disabled={working || loading}
+                  className={`text-xs font-semibold underline underline-offset-2 disabled:opacity-60 ${
+                    sure
+                      ? "text-rose decoration-rose/40 hover:decoration-rose"
+                      : "text-ink-soft decoration-[var(--line-strong)] hover:text-teal"
+                  }`}
+                >
+                  {sure
+                    ? `Yes — replace ${listCount > 0 ? things(listCount) : "the list"}`
+                    : "Move and start the list from scratch"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
-                  if (!sure) {
-                    setSure(true);
-                    return;
-                  }
-                  move(true, true);
+                  setSure(false);
+                  setOpen(false);
                 }}
-                disabled={working || loading}
-                className={`text-xs font-semibold underline underline-offset-2 disabled:opacity-60 ${
-                  sure
-                    ? "text-rose decoration-rose/40 hover:decoration-rose"
-                    : "text-ink-soft decoration-[var(--line-strong)] hover:text-teal"
-                }`}
+                disabled={working}
+                className="text-xs font-normal text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink disabled:opacity-60"
               >
-                {sure
-                  ? `Yes — replace ${listCount > 0 ? things(listCount) : "the list"}`
-                  : "Move and start the list from scratch"}
+                Cancel
               </button>
+            </div>
+            {sure && !working && (
+              <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+                Every unpacked line goes, and a new list is worked out from the
+                sources above. Anything set aside stays set aside.
+              </p>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                setSure(false);
-                setOpen(false);
-              }}
-              disabled={working}
-              className="text-xs font-normal text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink disabled:opacity-60"
-            >
-              Cancel
-            </button>
           </div>
-          {sure && !working && (
-            <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
-              Every unpacked line goes, and a new list is worked out from the
-              sources above. Anything set aside stays set aside.
-            </p>
-          )}
+        )}
+      </span>
+    </>
+  );
+}
+
+/**
+ * The screen that stands over the page while a draft becomes a trip.
+ *
+ * A veil rather than a panel because there is nothing useful to do underneath it
+ * and one of the stages writes the trip's status: a second press, or a wander onto
+ * another screen mid-write, is worth taking off the table. It says the trip's name
+ * so that on a board of four drafts it is obvious which one is moving, keeps the
+ * finished stages listed with a tick, and while the packing list is being worked
+ * out it says so in words -- that stage is an Aly call and the slowest thing here,
+ * and a wait explained is a wait people will sit through.
+ */
+function MoveVeil({ busy, passed, name, building }) {
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-ink/40 px-5 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="w-full max-w-sm rounded-[1.25rem] border border-[var(--line)] bg-white px-6 py-6 text-left shadow-[0_24px_60px_-24px_rgba(36,31,24,0.55)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint">
+          {name}
+        </p>
+        <div className="mt-2 flex items-baseline gap-2.5">
+          <Spinner className="h-4 w-4 shrink-0 translate-y-0.5 text-teal" />
+          <p className="font-display text-lg font-semibold leading-snug text-ink">
+            {busy}
+          </p>
         </div>
-      )}
-    </span>
+
+        {passed.length > 0 && (
+          <ul className="mt-3 space-y-1">
+            {passed.map((line) => (
+              <li
+                key={line}
+                className="flex items-baseline gap-2 text-xs text-ink-soft"
+              >
+                <span aria-hidden="true" className="text-teal">
+                  ✓
+                </span>
+                <span>{line.replace(/…$/, "")}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="mt-4 text-xs leading-relaxed text-ink-soft">
+          {building
+            ? "Aly is reading what you packed on trips like this one, so this stage takes a few seconds. Every line of it is yours to change afterwards."
+            : "Nothing to do but wait — this screen goes when the trip does."}
+        </p>
+      </div>
+    </div>
   );
 }
