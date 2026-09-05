@@ -317,57 +317,15 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-ink-soft">
-          {rows.length ? (
-            <>
-              <span className="font-semibold text-ink">
-                {narrowed
-                  ? `${visible.length} of ${rows.length} programs`
-                  : `${rows.length} ${rows.length === 1 ? "program" : "programs"}`}
-              </span>
-              {total > 0 && (
-                <>
-                  {" · "}
-                  <span>
-                    roughly {formatMoney(total)} of points and miles between
-                    them
-                  </span>
-                </>
-              )}
-            </>
-          ) : (
-            "Nothing added yet."
-          )}
-        </div>
-        <div className="no-print flex flex-wrap items-center gap-2">
-          {rows.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={askHowToPay}
-            >
-              <BubbleIcon />
-              Ask how to pay for something
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => startAdd()}
-          >
-            Add a program
-          </button>
-        </div>
-      </div>
-
-      {/* Shut on arrival, and above the search box.
-          This is the one panel on the screen that is worked out rather than
-          entered, and open by default it stood between the wallet and the search
-          box -- so the answer to "what did I write down about the Bonvoy card"
-          began with scrolling past advice nobody asked for in that moment. Closed
-          it is one line saying how many kinds of spending it has an answer for,
-          which is enough to decide whether to open it. */}
+      {/* Shut on arrival, and first on the screen, directly under Pro tips.
+          Advice belongs with advice: this panel and the tips above it are the two
+          things here the app worked out rather than the family typed in, so they
+          sit together at the top, above the count and the wallet itself. Open by
+          default it stood between the wallet and the search box, so looking up
+          what was written down about a card began with scrolling past something
+          nobody had asked for. Closed it is one line saying how many kinds of
+          spending it has an answer for, which is enough to decide whether to
+          open it. */}
       {payWith.length > 0 && (
         <details className="no-print rounded-2xl border border-[var(--line)] bg-white/60 px-5 py-4">
           <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -461,6 +419,50 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           </p>
         </details>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-ink-soft">
+          {rows.length ? (
+            <>
+              <span className="font-semibold text-ink">
+                {narrowed
+                  ? `${visible.length} of ${rows.length} programs`
+                  : `${rows.length} ${rows.length === 1 ? "program" : "programs"}`}
+              </span>
+              {total > 0 && (
+                <>
+                  {" · "}
+                  <span>
+                    roughly {formatMoney(total)} of points and miles between
+                    them
+                  </span>
+                </>
+              )}
+            </>
+          ) : (
+            "Nothing added yet."
+          )}
+        </div>
+        <div className="no-print flex flex-wrap items-center gap-2">
+          {rows.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={askHowToPay}
+            >
+              <BubbleIcon />
+              Ask how to pay for something
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => startAdd()}
+          >
+            Add a program
+          </button>
+        </div>
+      </div>
 
       {/* The wallet is a reference book, not a list to read through, so once it
           is long enough to scroll it gets the same three controls the places
