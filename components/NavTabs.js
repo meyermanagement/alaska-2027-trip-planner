@@ -461,17 +461,22 @@ export default function NavTabs({
                top edge instead. See --disc-face in globals.css. */
             className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)] transition hover:border-[var(--line-strong)] active:translate-y-px"
           >
-            {/* Drawn to very nearly the width of the button. The mark carries no
-                housing of its own, so the button's rim is the only circle here.
+            {/* Drawn to very nearly the width of the button, and the only place
+                in the app that wears the graduated bezel. The button's own rim
+                is the bezel's edge -- the mark supplies the sixteen marks
+                inside it and no second circle -- which is what turns this from
+                a logo in a circle into a dial.
 
                 The needle turns to point right while the menu is open and back
                 to north when it is shut -- a compass held still is a logo, one
                 that swings is a control, and the direction it settles on says
-                which of the two states you are in without a second icon. */}
+                which of the two states you are in without a second icon. The
+                graduations stay put while it swings, because a card that turned
+                with the needle would leave north sitting on the east mark. */}
             <AlyeskaMark
-              className={`h-[52px] w-[52px] shrink-0 transition-transform duration-200 ease-out ${
-                open ? "rotate-90" : "rotate-0"
-              }`}
+              className="h-[52px] w-[52px] shrink-0"
+              bezel
+              turned={open}
             />
             {/* The one number worth interrupting somebody for still shows on the
               closed control, because it lives on a screen the menu is hiding. */}
