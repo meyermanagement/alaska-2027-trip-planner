@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
 import { countdownSaid, formatRange, daysUntil } from "@/lib/format";
 import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
@@ -320,6 +321,10 @@ export default function TripBoard({
   drafts,
   past,
   today,
+  // Which group to open on, when the address said so. The menu's three trip rows
+  // are this one screen with a different group showing, so a row that arrived
+  // here has already made the choice.
+  view: asked = null,
   canRemove = false,
 }) {
   // Land on whatever the family most likely came for: their next trips, unless
@@ -327,10 +332,30 @@ export default function TripBoard({
   // switcher rather than in it, so it counts as having something to show and the
   // page does not open on Drafts while they are away.
   const [view, setView] = useState(
-    upcoming.length === 0 && current.length === 0 && drafts.length > 0
-      ? "drafts"
-      : "upcoming",
+    asked ||
+      (upcoming.length === 0 && current.length === 0 && drafts.length > 0
+        ? "drafts"
+        : "upcoming"),
   );
+  // Pressing a tab writes the group into the address as well as into state, so a
+  // reload or a shared link lands on the group the reader was actually looking
+  // at. Written straight into history rather than through the router: the three
+  // groups are all already on this page, so asking the server to render the
+  // screen again would be a network wait and a fresh skeleton in exchange for
+  // nothing. Next supports this exact case.
+  const pathname = usePathname();
+  const show = (id) => {
+    setView(id);
+    try {
+      window.history.replaceState(
+        null,
+        "",
+        id === "upcoming" ? pathname : `${pathname}?view=${id}`,
+      );
+    } catch {
+      // An address that does not keep up is not worth losing the tab over.
+    }
+  };
 
   const tabs = [
     { id: "upcoming", label: "Upcoming", count: upcoming.length },
@@ -365,7 +390,7 @@ export default function TripBoard({
               type="button"
               role="tab"
               aria-selected={on}
-              onClick={() => setView(t.id)}
+              onClick={() => show(t.id)}
               className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                 on
                   ? "bg-teal text-on-accent shadow-sm"

@@ -82,7 +82,7 @@ const LANDING_PATH = {
   update_template_item: ["/packing", "the packing templates"],
   delete_template_item: ["/packing", "the packing templates"],
   propagate_templates: ["/packing", "the packing templates"],
-  update_review: ["/preferences", "the reviews"],
+  update_review: ["/reviews", "the reviews"],
 };
 
 // Three is enough to cover a trip, its itinerary and its packing list without

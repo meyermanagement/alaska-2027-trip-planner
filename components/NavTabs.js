@@ -71,79 +71,153 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * as you scroll, so it ends up sitting in the middle of the page over the form
  * you are filling in. It slides back as soon as the keyboard closes.
  */
-const TABS = [
+// Two levels, because seven equal doors never said which of them were about a
+// trip and which were about the family. Three groups now, each named for the
+// question it answers, and a group opens in place rather than going anywhere:
+//
+//   Travel Journal   the trips themselves -- one screen, three groups of trip
+//   Travel Checklist what has to be packed and done before you go
+//   Travel File      how this family travels, kept between trips
+//
+// Settings stays a door of its own, off the bottom of the column, because it is
+// not travel at all.
+//
+// The three trip rows are the same screen with a different group showing. That
+// is deliberate: a draft, a booked trip and a finished one are the same object at
+// three ages, and the board already sorted them into three tabs. The address
+// carries the group -- /trips?view=drafts -- so a row can point straight at one.
+const TRIP_ROWS = [
+  {
+    href: "/trips?view=drafts",
+    view: "drafts",
+    label: "Trip Builder",
+    sub: "Still being worked out",
+    Icon: PencilIcon,
+  },
+  {
+    href: "/trips?view=upcoming",
+    view: "upcoming",
+    label: "Planned Trips",
+    sub: "Booked and coming up",
+    Icon: SuitcaseIcon,
+  },
+  {
+    href: "/trips?view=past",
+    view: "past",
+    label: "Trip Log",
+    sub: "Trips already taken",
+    Icon: ClockIcon,
+  },
+];
+
+const GROUPS = [
+  {
+    key: "journal",
+    label: "Travel Journal",
+    sub: "Where you've been and where you want to go next",
+    Icon: JournalIcon,
+    kids: TRIP_ROWS,
+  },
+  {
+    key: "checklist",
+    label: "Travel Checklist",
+    sub: "What to pack and what to do before you go",
+    Icon: ChecklistIcon,
+    // The one number in this menu worth interrupting somebody for lives on
+    // Reminders, one level down -- so while the group is shut it shows on the
+    // group. A count nobody can see until they open the right door is not a
+    // count.
+    badge: true,
+    kids: [
+      {
+        href: "/packing",
+        label: "Packing",
+        sub: "The lists every trip starts from",
+        Icon: ShirtIcon,
+      },
+      {
+        href: "/reminders",
+        label: "Reminders",
+        sub: "Everything due before you leave",
+        Icon: BellIcon,
+        badge: true,
+      },
+    ],
+  },
+  {
+    key: "file",
+    label: "Travel File",
+    sub: "How you and your family travel",
+    Icon: FolderIcon,
+    kids: [
+      {
+        href: "/preferences",
+        label: "Travel preferences",
+        sub: "How you like to travel",
+        Icon: StarIcon,
+      },
+      {
+        href: "/reviews",
+        label: "Past reviews",
+        sub: "What you thought of it",
+        Icon: ReviewIcon,
+      },
+      {
+        href: "/family",
+        label: "Family & pets",
+        sub: "People and animals",
+        Icon: PeopleIcon,
+      },
+      {
+        href: "/wallet",
+        // Not "Points, miles & cards", which named the contents and not the
+        // job. The screen keeps track of every rewards program the family
+        // belongs to, what each one is worth to them, and what is newly on
+        // offer that they could use.
+        label: "Wallet",
+        sub: "Rewards, perks and new offers",
+        Icon: RewardsIcon,
+      },
+    ],
+  },
+];
+
+const SETTINGS = {
+  href: "/settings",
+  label: "Settings",
+  sub: "About you, your look, sign-in",
+  Icon: GearIcon,
+};
+
+// A secondary traveler -- a minor, or a friend along for one trip -- gets three
+// doors and no groups: the trips they are on, their own share of the checklist,
+// and themselves. Their packing items live inside a trip, on its packing tab,
+// which is why there is no fourth one, and grouping three rows would be a
+// structure with nothing in it. The rest is not merely hidden: the database
+// refuses those reads, so drawing those rows would offer four empty rooms.
+//
+// Settings is in that list on purpose. It is the screen About you, your look and
+// the sign-in address now live on, and for a secondary traveler About you is the
+// one thing about themselves the database will let them change at all -- every
+// other column on their own row is refused. A single thing you are permitted to
+// edit should not be unreachable.
+const SECONDARY_ROWS = [
   {
     href: "/trips",
     label: "Trips",
-    sub: "Itineraries & plans",
+    sub: "The trips you are on",
     Icon: SuitcaseIcon,
   },
   {
     href: "/reminders",
     label: "Reminders",
-    sub: "Pre-travel checklist",
+    sub: "Everything due before you leave",
     Icon: BellIcon,
     badge: true,
   },
-  {
-    href: "/packing",
-    label: "Packing",
-    sub: "Packing templates",
-    Icon: ShirtIcon,
-  },
-  {
-    href: "/wallet",
-    label: "Wallet",
-    // Not "Points, miles & cards", which named the contents and not the job.
-    // The screen keeps track of every rewards program the family belongs to,
-    // what each one is actually worth to them, and what is newly on offer that
-    // they could use.
-    sub: "Rewards programs, perks & new offers",
-    Icon: RewardsIcon,
-  },
-  {
-    href: "/preferences",
-    label: "Travel preferences",
-    // Not "And what you thought", which only made sense as a trailing clause on
-    // the label and told nobody what the screen is for. Half of it is reviews of
-    // places and activities the family has already been to, and that is the half
-    // people come back for.
-    sub: "Reviews of places and activities",
-    Icon: StarIcon,
-  },
-  {
-    href: "/family",
-    label: "Family",
-    sub: "People & pets",
-    Icon: PeopleIcon,
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    sub: "About you, your look, sign-in",
-    Icon: GearIcon,
-  },
+  SETTINGS,
 ];
 
-// A secondary traveler -- a minor, or a friend along for one trip -- gets two
-// doors: the trips they are on, and their own share of the checklist. Their
-// packing items live inside a trip, on its packing tab, which is why there is no
-// third one. The rest is not merely hidden: the database refuses those reads, so
-// drawing those rows would offer four empty rooms.
-const SECONDARY_TABS = new Set(["/trips", "/reminders", "/settings"]);
-
-// Settings is in that set on purpose. It is the screen About you, your look and
-// the sign-in address now live on, and for a secondary traveler About you is the
-// one thing about themselves the database will let them change at all -- every
-// other column on their own row is refused. A single thing you are permitted to
-// edit should not be unreachable.
-
-// The loading skeleton draws this bar too, and it has no database of its own to
-// ask -- that is the whole point of a skeleton. Without help it falls back to the
-// full menu, which is why a secondary traveler saw doors they cannot open flicker
-// past on every navigation. So the answer is remembered in the browser the first
-// time a real screen supplies it, and the skeleton reads it back. It only ever
-// decides what to draw for a moment; the database is what actually refuses.
 const REMEMBERED = "alyeska.level";
 
 function remember(level) {
@@ -161,6 +235,15 @@ function recall() {
   } catch {
     return null;
   }
+}
+
+// Whether a row points at the screen you are standing on. The trip rows carry a
+// query on the end of the address, and one of them -- /trips -- is also the
+// prefix of every single trip's own screen, so those ask for an exact match.
+function onScreen(href, pathname, exact = false) {
+  const path = String(href).split("?")[0];
+  if (exact) return pathname === path;
+  return pathname === path || pathname.startsWith(`${path}/`);
 }
 
 export default function NavTabs({
@@ -204,10 +287,37 @@ export default function NavTabs({
   const openTripKey = insideTrip
     ? parseTripRef(pathname.split("/")[2] || "").key
     : "";
-  const tabs =
-    effective === SECONDARY
-      ? TABS.filter((t) => SECONDARY_TABS.has(t.href))
-      : TABS;
+  const secondary = effective === SECONDARY;
+
+  // Which group is open, and only ever one. The menu is thrown from a disc in
+  // the bottom corner and has a phone's height to live in; two groups open at
+  // once ran off the top of the screen. It opens on the group holding the screen
+  // you are on, so the menu answers "where am I" before you touch anything.
+  const holding = GROUPS.find((g) =>
+    g.kids.some((k) => onScreen(k.href, pathname)),
+  );
+  const [group, setGroup] = useState(holding ? holding.key : null);
+  useEffect(() => {
+    const held = GROUPS.find((g) =>
+      g.kids.some((k) => onScreen(k.href, pathname)),
+    );
+    setGroup(held ? held.key : null);
+  }, [pathname]);
+
+  // Which of the three trip groups the board is showing, so the row that asked
+  // for it can be the one filled in. It is in the address rather than the path,
+  // and the board writes it there itself as you press its tabs -- so it is read
+  // off the window each time the menu opens rather than through a hook that
+  // would only tell us about the first render.
+  const [view, setView] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    try {
+      setView(new URLSearchParams(window.location.search).get("view") || "");
+    } catch {
+      setView("");
+    }
+  }, [open, pathname]);
 
   // Shut the sheet the moment you arrive somewhere, and on Escape.
   useEffect(() => {
@@ -237,51 +347,116 @@ export default function NavTabs({
   // a card that says the same thing on both days is only right on one of them.
   //
   // Not shown while you are on that trip's own screen: there it is an offer to
-  // go where you already are, and it pushes the seven doors -- the only thing
-  // the menu can still do for you -- a plate's height further from your thumb.
+  // go where you already are, and it pushes the doors -- the only thing the menu
+  // can still do for you -- a plate's height further from your thumb.
   const onThisTrip = Boolean(
     trip?.public_id && openTripKey && trip.public_id === openTripKey,
   );
   const where = trip && today ? tripDayNumber(trip, today) : null;
   const soon = trip && !where ? countdownSaid(daysUntil(trip.start_date)) : "";
-  const hero = trip && !onThisTrip ? (
-    <Link
-      href={tripPath(trip, where ? "itinerary" : "overview")}
-      onPointerEnter={() => router.prefetch(tripPath(trip, "itinerary"))}
-      onClick={() => setOpen(false)}
-      className="arc-hero"
-      /* The trip's own color, the one its cover is printed in, rather than the
+  const hero =
+    trip && !onThisTrip ? (
+      <Link
+        href={tripPath(trip, where ? "itinerary" : "overview")}
+        onPointerEnter={() => router.prefetch(tripPath(trip, "itinerary"))}
+        onClick={() => setOpen(false)}
+        className="arc-hero"
+        /* The trip's own color, the one its cover is printed in, rather than the
          accent. Painted in the accent the plate was the same green as the pill
          for the screen you were already on, so the menu appeared to have two
          things selected and neither of them said which. Only one thing in this
          shape is allowed to be the accent, and it is the one that means "you
          are here". */
-      style={{ "--arc-hero-hue": coverToken(trip), "--arc-i": 0 }}
-    >
-      <span aria-hidden="true" className="arc-hero-mark">
-        {trip.cover_emoji || "🧭"}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="arc-hero-when block text-[0.58rem] font-bold uppercase tracking-[0.12em]">
-          {where ? "Happening now" : "Next trip"}
+        style={{ "--arc-hero-hue": coverToken(trip), "--arc-i": 0 }}
+      >
+        <span aria-hidden="true" className="arc-hero-mark">
+          {trip.cover_emoji || "🧭"}
         </span>
-        <span className="block truncate font-display text-[0.95rem] font-semibold leading-tight">
-          {trip.name}
+        <span className="min-w-0 flex-1">
+          <span className="arc-hero-when block text-[0.58rem] font-bold uppercase tracking-[0.12em]">
+            {where ? "Happening now" : "Next trip"}
+          </span>
+          <span className="block truncate font-display text-[0.95rem] font-semibold leading-tight">
+            {trip.name}
+          </span>
+          <span className="arc-sub block truncate text-[0.72rem] leading-tight">
+            {where
+              ? `Day ${where.day} of ${where.of} · back to today`
+              : [soon, formatRange(trip.start_date, lastDayOf(trip))]
+                  .filter(Boolean)
+                  .join(" · ")}
+          </span>
         </span>
-        <span className="arc-sub block truncate text-[0.72rem] leading-tight">
-          {where
-            ? `Day ${where.day} of ${where.of} · back to today`
-            : [soon, formatRange(trip.start_date, lastDayOf(trip))]
-                .filter(Boolean)
-                .join(" · ")}
+        <span aria-hidden="true" className="arc-hero-go">
+          <ArrowIcon className="h-[15px] w-[15px] shrink-0" />
         </span>
-      </span>
-      <span aria-hidden="true" className="arc-hero-go">
-        <ArrowIcon className="h-[15px] w-[15px] shrink-0" />
-      </span>
-    </Link>
-  ) : null;
+      </Link>
+    ) : null;
 
+  // The column, top to bottom, flattened out of the groups so that one map can
+  // draw it and the stagger can be counted straight down the shape. Inside a
+  // trip the first row is the way out of it, and it takes the larger size the
+  // Travel Journal door has everywhere else: leaving is the thing you came for.
+  const rows = [];
+  let seat = 1;
+  if (insideTrip) {
+    rows.push({
+      kind: "wayout",
+      key: "wayout",
+      href: "/trips",
+      Icon: BackIcon,
+      lead: true,
+      i: seat++,
+    });
+  }
+  if (secondary) {
+    for (const row of SECONDARY_ROWS) {
+      rows.push({
+        kind: "link",
+        key: row.href,
+        ...row,
+        active: onScreen(row.href, pathname),
+        i: seat++,
+      });
+    }
+  } else {
+    for (const g of GROUPS) {
+      rows.push({
+        kind: "group",
+        key: g.key,
+        label: g.label,
+        sub: g.sub,
+        Icon: g.Icon,
+        badge: g.badge,
+        lead: !insideTrip && g.key === "journal",
+        i: seat++,
+      });
+      if (group !== g.key) continue;
+      g.kids.forEach((kid, n) => {
+        rows.push({
+          kind: "link",
+          kid: true,
+          last: n === g.kids.length - 1,
+          key: kid.href,
+          ...kid,
+          // A trip row is only the row you are on when the board is showing its
+          // group. Upcoming is what the board opens on with nothing asked for,
+          // so an address with no view in it is Planned Trips.
+          active:
+            onScreen(kid.href, pathname, Boolean(kid.view)) &&
+            (!kid.view || (view || "upcoming") === kid.view),
+          i: seat++,
+        });
+      });
+    }
+    rows.push({
+      kind: "link",
+      key: SETTINGS.href,
+      ...SETTINGS,
+      active: onScreen(SETTINGS.href, pathname),
+      i: seat++,
+    });
+  }
 
   return (
     <>
@@ -289,33 +464,35 @@ export default function NavTabs({
           from the bottom edge.
 
           A sheet is a second screen: it takes the whole width, covers what you
-          were looking at, and has to be dismissed. This is seven objects thrown
-          out from the disc you just pressed, along a shallow curve, with the
+          were looking at, and has to be dismissed. This is a handful of objects
+          thrown up out of the disc you just pressed, with the
           page still visible everywhere around them — so the menu belongs
           visibly to the button that opened it and to the corner it came from,
           and the screen underneath is never fully taken away.
 
           The column reads downward, the way every other list in the app does,
-          with Trips first and Settings last. Running it the other way -- outward
-          from the thumb -- was a nice idea about where a hand is and a bad one
-          about where the eye starts: it put the least-used door directly beneath
-          the trip plate, at the top of the shape, where the reading begins.
+          with the Travel Journal first and Settings last. Running it the other
+          way -- outward from the thumb -- was a nice idea about where a hand is
+          and a bad one about where the eye starts: it put the least-used door
+          directly beneath the trip plate, at the top of the shape, where the
+          reading begins.
 
           Each node is a frosted pill and not a bare circle because the second
           line survives — the explanation of what each screen is for, which the
           desktop dock used to get and the phone never could. Two lines of small
           text cannot be read off a photograph, so they need something behind
           them; a pill carrying both is about 250 of the 312 pixels a phone
-          gives you, which leaves roughly forty for the sweep. The bow is
-          therefore real but shallow, a lean rather than a fan, and it is set in
-          one custom property so a 320px phone can spend less on it.
+          gives you, and there is no width left over to bow the column out into a
+          curve. That is no loss: a curve reads as one list of equals, and these
+          rows are no longer equals -- three of them are doors to a group, and
+          what is behind an opened one is set in underneath it.
 
           Above the arc, on its own full-width plate, the trip the family is
           actually pointed at: the one they are on, or the next one they are
           going on. It is a card rather than another node because it is a
           different kind of thing from a destination in the app — it is where
           most presses of this menu were heading anyway, and answering that
-          before the seven doors is the point of putting it there.
+          before any of the doors is the point of putting it there.
 
           It sits above the bar it rose from, and below the Ask Aly drawer, so
           that if both ever open the conversation is in front. */}
@@ -349,28 +526,70 @@ export default function NavTabs({
             <div className="mx-auto max-w-5xl px-4">
               <div className="flex max-w-[23rem] flex-col items-start gap-1.5">
                 {hero}
-                {/* Read downward, in the order the tabs are written: the trip
-                    plate, then Trips under it, then the rest, with Settings
-                    last. The arc used to run the other way, outward from the
-                    thumb, which put the least-used door directly under the
-                    plate and made the column read bottom-up against every other
-                    list in the app. */}
-                {tabs.map((tab, index) => {
-                  const isWayOut = tab.href === "/trips" && insideTrip;
-                  const active = isActive(tab.href) && !isWayOut;
-                  const count = tab.badge ? attention : 0;
-                  const Icon = isWayOut ? BackIcon : tab.Icon;
-                  // Zero at both ends, widest in the middle: one half-period of
-                  // a sine, which is what makes the column read as a curve
-                  // rather than a staircase.
-                  const bow =
-                    tabs.length > 1
-                      ? Math.sin((Math.PI * index) / (tabs.length - 1))
-                      : 0;
+                {/* Read downward, in the order the rows are written: the trip
+                    plate, then the Travel Journal under it, then the other two
+                    groups, with Settings last. The arc used to run the other
+                    way, outward from the thumb, which put the least-used door
+                    directly under the plate and made the column read bottom-up
+                    against every other list in the app. */}
+                {rows.map((row) => {
+                  if (row.kind === "group") {
+                    const isOpen = group === row.key;
+                    const count = row.badge && !isOpen ? attention : 0;
+                    return (
+                      <button
+                        key={row.key}
+                        type="button"
+                        aria-expanded={isOpen}
+                        onClick={() =>
+                          setGroup((held) =>
+                            held === row.key ? null : row.key,
+                          )
+                        }
+                        style={{ "--arc-i": row.i }}
+                        className={`arc-pill group ${row.lead ? "lead " : ""}${
+                          isOpen ? "open" : ""
+                        }`}
+                      >
+                        <span className="arc-disc">
+                          <row.Icon className="h-[18px] w-[18px] shrink-0" />
+                          {count > 0 && (
+                            <span className="arc-dot">
+                              {count}
+                              <span className="sr-only">
+                                {" "}
+                                needing attention
+                              </span>
+                            </span>
+                          )}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="arc-label block font-display text-[0.95rem] font-semibold leading-tight">
+                            {row.label}
+                          </span>
+                          {/* The two lines a group carries are a sentence about
+                              what is behind the door, and the doors are three
+                              rather than seven now -- so this one is allowed to
+                              wrap rather than be cut off mid-word. */}
+                          <span className="arc-sub block text-[0.72rem] leading-[1.25]">
+                            {row.sub}
+                          </span>
+                        </span>
+                        <span aria-hidden="true" className="arc-chev">
+                          <ChevronIcon className="h-[15px] w-[15px] shrink-0" />
+                        </span>
+                      </button>
+                    );
+                  }
+
+                  const isWayOut = row.kind === "wayout";
+                  const active = row.active;
+                  const count = row.badge ? attention : 0;
+                  const Icon = row.Icon;
                   return (
                     <Link
-                      key={tab.href}
-                      href={tab.href}
+                      key={row.key}
+                      href={row.href}
                       aria-current={active ? "page" : undefined}
                       /* A link on a page like these prefetches only as far as
                          the loading skeleton: enough to draw the frame
@@ -378,28 +597,37 @@ export default function NavTabs({
                          made of, so the wait is still the whole server render
                          after the tap. router.prefetch asks for the render
                          itself. Fired on the row being touched or pointed at
-                         rather than on all seven when the menu opens, because
+                         rather than on every row when the menu opens, because
                          warming six screens nobody asked for is how a phone on
                          mobile data ends up slower than it started. */
-                      onPointerEnter={() => router.prefetch(tab.href)}
-                      onPointerDown={() => router.prefetch(tab.href)}
-                      onFocus={() => router.prefetch(tab.href)}
+                      onPointerEnter={() => router.prefetch(row.href)}
+                      onPointerDown={() => router.prefetch(row.href)}
+                      onFocus={() => router.prefetch(row.href)}
                       onClick={() => setOpen(false)}
                       style={{
-                        marginLeft: `calc(var(--arc-span) * ${bow.toFixed(3)})`,
                         // Its place in the stagger, counted from the plate.
-                        "--arc-i": index + 1,
+                        "--arc-i": row.i,
                       }}
-                      /* Trips is drawn larger than the six below it. It is the
-                         door most presses of this menu are looking for, and on a
-                         trip screen it is the way back out -- so it gets the
-                         size that says so rather than being one of seven equal
-                         rows in a curve. */
-                      className={`arc-pill ${index === 0 ? "lead " : ""}${active ? "on" : ""}`}
+                      className={`arc-pill ${row.kid ? "kid " : ""}${
+                        row.lead ? "lead " : ""
+                      }${active ? "on" : ""}`}
                     >
                       <span className="arc-disc">
-                        <PendingSwap href={tab.href} className="h-[18px] w-[18px] shrink-0">
-                          <Icon className="h-[18px] w-[18px] shrink-0" />
+                        <PendingSwap
+                          href={row.href}
+                          className={
+                            row.kid
+                              ? "h-[15px] w-[15px] shrink-0"
+                              : "h-[18px] w-[18px] shrink-0"
+                          }
+                        >
+                          <Icon
+                            className={
+                              row.kid
+                                ? "h-[15px] w-[15px] shrink-0"
+                                : "h-[18px] w-[18px] shrink-0"
+                            }
+                          />
                         </PendingSwap>
                         {count > 0 && (
                           <span className="arc-dot">
@@ -410,10 +638,10 @@ export default function NavTabs({
                       </span>
                       <span className="min-w-0">
                         <span className="arc-label block truncate font-display text-[0.95rem] font-semibold leading-tight">
-                          {isWayOut ? "All trips" : tab.label}
+                          {isWayOut ? "All trips" : row.label}
                         </span>
                         <span className="arc-sub block truncate text-[0.72rem] leading-tight">
-                          {isWayOut ? "Back out of this trip" : tab.sub}
+                          {isWayOut ? "Back out of this trip" : row.sub}
                         </span>
                       </span>
                     </Link>
@@ -530,6 +758,80 @@ function iconProps(className) {
     strokeLinejoin: "round",
     "aria-hidden": "true",
   };
+}
+
+// An open book: the record of where this family has been and where they are
+// going. Not a suitcase -- that is one trip -- and not a calendar, which the
+// itinerary already uses.
+function JournalIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M10 5.4C8.6 4.3 6.7 3.8 4 3.9v10.4c2.7-.1 4.6.4 6 1.5 1.4-1.1 3.3-1.6 6-1.5V3.9c-2.7-.1-4.6.4-6 1.5Z" />
+      <path d="M10 5.4v10.4" />
+    </svg>
+  );
+}
+
+// A board with a tick on it: the things that have to be packed and done. The
+// tick is what separates it from the folder below.
+function ChecklistIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <rect x="4.2" y="4" width="11.6" height="13" rx="2" />
+      <path d="M7.6 4V3.2h4.8V4" />
+      <path d="M7.6 10.2l1.7 1.7 3.4-3.6" />
+    </svg>
+  );
+}
+
+// A folder: what the family keeps between trips rather than for one of them.
+function FolderIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M3 6.6c0-1 .8-1.8 1.8-1.8h2.6l1.6 1.9h5.2c1 0 1.8.8 1.8 1.8v5.1c0 1-.8 1.8-1.8 1.8H4.8c-1 0-1.8-.8-1.8-1.8V6.6Z" />
+    </svg>
+  );
+}
+
+// A pencil: a trip still being written.
+function PencilIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M13.4 3.9l2.7 2.7-8.2 8.2-3.4.7.7-3.4 8.2-8.2Z" />
+      <path d="M11.7 5.6l2.7 2.7" />
+    </svg>
+  );
+}
+
+// A clock with its hands set back: trips already taken.
+function ClockIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <circle cx="10" cy="10" r="6.8" />
+      <path d="M10 6.2V10l2.8 1.7" />
+    </svg>
+  );
+}
+
+// A speech bubble with a line in it: what somebody said about a place. The Ask
+// Aly bubble is filled and this one is not, and this one carries a rule, so the
+// two do not read as the same control.
+function ReviewIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M16.4 9.6c0 3-2.9 5.4-6.4 5.4-.8 0-1.6-.1-2.3-.4L4.3 16l1-2.8A5.1 5.1 0 0 1 3.6 9.6C3.6 6.6 6.5 4.2 10 4.2s6.4 2.4 6.4 5.4Z" />
+      <path d="M7.4 9.6h5.2" />
+    </svg>
+  );
+}
+
+// The chevron on a group, which turns over when the group opens.
+function ChevronIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M5.6 8.2 10 12.4l4.4-4.2" />
+    </svg>
+  );
 }
 
 function SuitcaseIcon({ className }) {

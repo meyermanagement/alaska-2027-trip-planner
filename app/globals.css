@@ -2300,16 +2300,17 @@ html[data-skin="sodium"] #boot-veil {
 /* -----------------------------------------------------------------------
    The menu arc.
 
-   Seven frosted pills thrown out from the compass disc along a shallow curve,
-   with a plate above them carrying the trip the family is pointed at. Written
+   Frosted pills thrown up out of the compass disc, with a plate above them
+   carrying the trip the family is pointed at. Three of the pills are doors to a
+   group and the rest are doors to a screen, one group open at a time. Written
    here rather than in class strings because it is one shape made of three
    surfaces that all have to agree per skin -- and because the frosted-glass
    pill needs a face, an edge and a shadow that a dark skin can replace whole,
    for the same reason the two floating discs do.
 
-   --arc-span is how far the middle of the arc leans out. Two lines of small
-   text need about 250 of the 312 pixels a phone gives you, so there is not much
-   left to spend; on the narrowest phones there is less again.
+   Two lines of small text need about 250 of the 312 pixels a phone gives you,
+   which is why the rows no longer bow out into a curve and why the second level
+   is set in by a little over thirty of them and no more.
  * ----------------------------------------------------------------------- */
 /* The panel takes focus when it opens, so that a keyboard and a screen reader
    land inside the menu rather than back on the page behind it. Safari paints a
@@ -2327,17 +2328,10 @@ html[data-skin="sodium"] #boot-veil {
 }
 
 .menu-arc {
-  --arc-span: 40px;
   --arc-face: rgba(251, 253, 253, 0.78);
   --arc-edge: rgba(251, 253, 253, 0.8);
   --arc-shadow:
     0 1px 3px rgba(16, 38, 43, 0.16), 0 10px 24px rgba(16, 38, 43, 0.26);
-}
-
-@media (max-width: 359px) {
-  .menu-arc {
-    --arc-span: 24px;
-  }
 }
 
 /* A dark skin gets a lifted panel rather than frost: a translucent near-white
@@ -2364,11 +2358,9 @@ html[data-skin="sodium"] .menu-arc {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  /* The whole travel of the arc comes off the ceiling, not just this row's
-     share of it. A pill allowed to fill the column and then be pushed right by
-     its own bow runs off the edge of the screen the day somebody writes a
-     longer subtitle; this way the widest row truncates instead. */
-  max-width: calc(100% - var(--arc-span));
+  position: relative;
+  text-align: left;
+  max-width: 100%;
   padding: 0.3rem 0.9rem 0.3rem 0.3rem;
   border-radius: 999px;
   color: var(--color-ink);
@@ -2377,9 +2369,7 @@ html[data-skin="sodium"] .menu-arc {
   box-shadow: var(--arc-shadow);
   backdrop-filter: blur(20px) saturate(1.3);
   -webkit-backdrop-filter: blur(20px) saturate(1.3);
-  transition:
-    transform 0.18s ease,
-    margin-left 0.18s ease;
+  transition: transform 0.18s ease;
 }
 
 /* Opening and closing. Seven objects thrown from a disc should be seen to be
@@ -2535,6 +2525,84 @@ html[data-skin="sodium"] .menu-arc {
   display: grid;
   place-items: center;
   box-shadow: 0 0 0 2px var(--arc-face);
+}
+
+/* Two levels. Three of these rows are doors to a group rather than to a screen,
+   and pressing one opens two to four rows underneath it, drawn smaller, set in,
+   and hung off a hairline so that the nesting is visible without inventing a
+   second surface to put them on. The arc that used to bow these rows out into a
+   curve is gone with them: a curve reads as one list of equals, and the point of
+   this shape now is that some rows are inside others. */
+.arc-pill.group {
+  align-items: flex-start;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.arc-pill.group .arc-disc {
+  margin-top: 1px;
+}
+
+.arc-chev {
+  margin-left: 0.35rem;
+  align-self: center;
+  opacity: 0.5;
+  transition: transform 0.18s ease;
+}
+
+.arc-pill.group.open .arc-chev {
+  transform: rotate(180deg);
+}
+
+.arc-pill.kid {
+  margin-left: 34px;
+  padding: 0.22rem 0.85rem 0.22rem 0.24rem;
+  gap: 0.5rem;
+}
+
+.arc-pill.kid .arc-disc {
+  width: 28px;
+  height: 28px;
+}
+
+.arc-pill.kid .arc-label {
+  font-size: 0.86rem;
+}
+
+.arc-pill.kid .arc-sub {
+  font-size: 0.68rem;
+}
+
+/* The hairline the children hang off. Drawn per row and overlapping, so a group
+   of two and a group of four both come out as one unbroken line, and stopped
+   halfway down the last child so the line ends at the last thing on it rather
+   than running on into the row below. */
+.arc-pill.kid::before {
+  content: "";
+  position: absolute;
+  left: -19px;
+  top: -8px;
+  bottom: -8px;
+  width: 1px;
+  background: color-mix(in srgb, var(--color-ink) 22%, transparent);
+}
+
+.arc-pill.kid.last::before {
+  bottom: 50%;
+}
+
+html[data-skin="aurora"] .arc-pill.kid::before,
+html[data-skin="sodium"] .arc-pill.kid::before {
+  background: color-mix(in srgb, var(--arc-edge) 70%, transparent);
+}
+
+@media (max-width: 359px) {
+  .arc-pill.kid {
+    margin-left: 24px;
+  }
+  .arc-pill.kid::before {
+    left: -14px;
+  }
 }
 
 /* The plate. Full width and squarer corners, because the trip is a different
