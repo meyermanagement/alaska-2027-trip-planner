@@ -60,6 +60,37 @@ export default function Budget({
   );
   const [open, setOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState(false);
+  // Pricing the blanks. Only ever the blanks: a line with a figure on it was
+  // priced by a person or a confirmation, and an estimate is not an improvement
+  // on either.
+  const [pricing, setPricing] = useState(false);
+  const [priced, setPriced] = useState(null);
+  const [priceError, setPriceError] = useState("");
+
+  async function fillBlanks() {
+    if (pricing) return;
+    setPricing(true);
+    setPriceError("");
+    setPriced(null);
+    try {
+      const res = await fetch("/api/budget/estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId: trip?.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(data?.error || "Could not price the trip just now.");
+      setPriced(data);
+      // Only refresh when something actually landed, so a run that priced
+      // nothing does not blink the whole screen for no reason.
+      if (data?.applied) onChange?.();
+    } catch (error) {
+      setPriceError(error?.message || "Could not price the trip just now.");
+    } finally {
+      setPricing(false);
+    }
+  }
 
   const past = trip?.status === "complete" || trip?.status === "archived";
 
@@ -77,6 +108,10 @@ export default function Budget({
         onTripChange={onTripChange}
         open={open}
         onToggle={() => setOpen((v) => !v)}
+        pricing={pricing}
+        priced={priced}
+        priceError={priceError}
+        onFillBlanks={fillBlanks}
       />
 
       {budget.lines.length === 0 ? (
@@ -105,21 +140,6 @@ export default function Budget({
 
       {!readOnly && budget.lines.length > 0 && (
         <div className="no-print flex flex-wrap gap-2">
-          {budget.unpriced > 0 && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() =>
-                askAly(
-                  `${budget.unpriced} thing${
-                    budget.unpriced === 1 ? "" : "s"
-                  } on this trip have no cost against them yet. What would you estimate for each one?`,
-                )
-              }
-            >
-              Estimate what is missing
-            </button>
-          )}
           {budget.over !== null && budget.over > 0 && (
             <button
               type="button"
@@ -157,6 +177,10 @@ function Headline({
   onTripChange,
   open,
   onToggle,
+  pricing,
+  priced,
+  priceError,
+  onFillBlanks,
 }) {
   return (
     <div className="card p-4 sm:p-5">
@@ -183,7 +207,48 @@ function Headline({
       {budget.unpriced > 0 && (
         <p className="mt-1 text-sm text-ink-faint">
           {budget.unpriced} thing{budget.unpriced === 1 ? "" : "s"} on this trip
-          still carry no figure, so the total is lower than the trip will be.
+          still {budget.unpriced === 1 ? "carries" : "carry"} no figure, so the
+          total is lower than the trip will be.
+        </p>
+      )}
+
+      {!readOnly && budget.unpriced > 0 && (
+        <div className="no-print mt-3">
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={onFillBlanks}
+            disabled={pricing}
+          >
+            {pricing
+              ? "Looking up prices…"
+              : `Estimate the ${budget.unpriced} missing ${
+                  budget.unpriced === 1 ? "price" : "prices"
+                }`}
+          </button>
+          {pricing && (
+            <p className="mt-2 text-sm text-ink-soft">
+              Looking each one up for these dates and this party. Up to a minute
+              — the figures appear as estimates, and every one says what it was
+              priced as.
+            </p>
+          )}
+        </div>
+      )}
+
+      {priceError && <p className="mt-2 text-sm text-rose">{priceError}</p>}
+      {priced && !pricing && (
+        <p className="mt-2 text-sm text-ink-soft">
+          {priced.applied === 0
+            ? priced.message ||
+              "Nothing here could be priced honestly, so nothing was filled in."
+            : `Priced ${priced.applied} of ${priced.blank}, adding ${money(
+                priced.added,
+              )}.${
+                priced.skipped > 0
+                  ? ` ${priced.skipped} left blank rather than guessed at.`
+                  : ""
+              } Every figure is an estimate — change any of them below.`}
         </p>
       )}
 
