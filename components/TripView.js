@@ -218,7 +218,16 @@ export default function TripView({
   useEffect(() => {
     const bar = tabBarRef.current;
     const btn = bar?.querySelector(`[data-tab="${tab}"]`);
-    if (btn) btn.scrollIntoView({ block: "nearest", inline: "nearest" });
+    if (!bar || !btn) return;
+    // Moved by hand rather than with scrollIntoView, which walks every ancestor
+    // and is entitled to scroll the page itself to satisfy the request. Pressing
+    // a tab should never move the page under the reader, so only this bar's
+    // horizontal offset is touched, and only when the tab is actually outside it.
+    const left = btn.offsetLeft;
+    const right = left + btn.offsetWidth;
+    if (left < bar.scrollLeft) bar.scrollLeft = Math.max(0, left - 12);
+    else if (right > bar.scrollLeft + bar.clientWidth)
+      bar.scrollLeft = right - bar.clientWidth + 12;
   }, [tab]);
 
   // Reminders links straight at a trip's task list, so honour ?tab= on arrival.
