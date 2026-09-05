@@ -160,11 +160,9 @@ export default function PetTemplates({
       <div className="mb-4">
         <h2 className="font-display text-2xl font-semibold">Pets</h2>
         <p className="mt-1 max-w-3xl text-sm text-ink-soft">
-          One list per animal, because a cat&rsquo;s things and a
-          Labrador&rsquo;s things overlap by about two lines. These are not
-          add-ons you pick between: a pet&rsquo;s list goes onto a trip whenever
-          that pet is coming, and its lines are set aside when it is not. Which
-          trips a pet is on is set on the trip itself.
+          A pet&rsquo;s list goes onto a trip whenever that pet is coming, and
+          its lines are set aside when it is not. Which trips a pet is on is set
+          on the trip itself.
         </p>
       </div>
 
