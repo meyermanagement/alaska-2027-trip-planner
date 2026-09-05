@@ -192,6 +192,15 @@ export default function Reminders({
             ...PRIORITY_ORDER.map((p) => ({
               id: p,
               label: PRIORITY_LABELS[p],
+              // The same bars the rows carry, so the chip and the thing it
+              // filters for are recognisably each other.
+              icon: (
+                <PriorityMeter
+                  task={{ priority: p }}
+                  className="mt-0"
+                  invert={priority === p}
+                />
+              ),
             })),
           ]}
           value={priority}

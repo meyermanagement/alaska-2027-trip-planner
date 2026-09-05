@@ -6,7 +6,15 @@ import { priorityMeter } from "@/lib/format";
 // `className` is for the places the bars are not sitting in front of a row of
 // text -- inside a filter chip, where the default top margin would push them off
 // the baseline of the label beside them.
-export default function PriorityMeter({ task, dim = false, className = "" }) {
+// `invert` is for a meter sitting on a filled accent chip -- the priority filter
+// when that priority is the one chosen. Teal bars on a teal chip are no bars at
+// all, so the lit ones go white and the rest go to a wash of it.
+export default function PriorityMeter({
+  task,
+  dim = false,
+  className = "",
+  invert = false,
+}) {
   const meter = priorityMeter(task);
   const heights = ["h-2", "h-3", "h-4"];
   return (
@@ -22,7 +30,13 @@ export default function PriorityMeter({ task, dim = false, className = "" }) {
           key={h}
           aria-hidden="true"
           className={`w-[4px] rounded-sm ${h} ${
-            i < meter.lit ? meter.on : meter.off
+            i < meter.lit
+              ? invert
+                ? "bg-white"
+                : meter.on
+              : invert
+                ? "bg-white/30"
+                : meter.off
           }`}
         />
       ))}

@@ -314,7 +314,13 @@ export default function Tasks({
             ...PRIORITY_ORDER.map((p) => ({
               id: p,
               label: PRIORITY_LABELS[p],
-              icon: <PriorityMeter task={{ priority: p }} className="mt-0" />,
+              icon: (
+                <PriorityMeter
+                  task={{ priority: p }}
+                  className="mt-0"
+                  invert={priority === p}
+                />
+              ),
             })),
           ]}
         />
