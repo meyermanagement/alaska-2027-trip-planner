@@ -52,7 +52,7 @@ export default function CurrentTripBanner({ trip, today }) {
       <Link
         href={tripPath(trip, "itinerary")}
         aria-label={`${trip.name} is happening now — open today's plan`}
-        className="mx-auto flex max-w-5xl items-center gap-2.5 py-1.5 pl-5 pr-2 transition hover:bg-on-accent/10"
+        className="mx-auto flex max-w-5xl items-center gap-2.5 py-2 pl-5 pr-4 transition hover:bg-on-accent/10"
       >
         <span aria-hidden="true" className="shrink-0 text-base leading-none">
           {trip.cover_emoji || "🧭"}
@@ -70,17 +70,18 @@ export default function CurrentTripBanner({ trip, today }) {
         {/* Spelled out where there is room, and an arrow where there is not —
             but never nothing, because a band that is a link has to look like one.
 
-            The whole band has always been the link, so nothing here was ever
-            unreachable, but the thing that looks pressable was an arrow a few
-            pixels wide and people aim at what looks pressable. So the arrow is
-            drawn large, and carries eleven units of clear space around it, which
-            is a thumb-sized target without a circle drawn round it to say so. */}
-        <span className="hidden shrink-0 whitespace-nowrap pr-3 text-[0.85rem] font-semibold text-on-accent sm:inline">
+            The whole band is the link, so the arrow does not have to be a target
+            of its own and does not carry a box to make itself one -- a box that
+            only pushed the band taller than the day and the name needed it to be.
+            It is drawn large and allowed to overhang the row instead: negative
+            vertical margin, so the glyph can be bigger than the line it sits on
+            without the band growing round it. */}
+        <span className="hidden shrink-0 whitespace-nowrap text-[0.85rem] font-semibold text-on-accent sm:inline">
           Today’s plan →
         </span>
         <span
           aria-hidden="true"
-          className="flex h-11 w-11 shrink-0 items-center justify-center text-[1.75rem] leading-none text-on-accent sm:hidden"
+          className="-my-2 flex shrink-0 items-center justify-center pl-1 text-[1.7rem] leading-none text-on-accent sm:hidden"
         >
           →
         </span>
