@@ -85,6 +85,10 @@ export default function Pets({
     [upcoming, links, rows, todayISO],
   );
 
+  const shownWarnings = bare
+    ? warnings.filter((w) => w.petId === only)
+    : warnings;
+
   async function savePet(id, patch) {
     setBusy(id || "new");
     setNote("");
@@ -166,13 +170,17 @@ export default function Pets({
         </p>
       </div>
 
-      {warnings.length > 0 && (
+      {/* The same rule as the people panel: on a screen showing one animal, this
+          is that animal's paperwork rather than the whole menagerie's. */}
+      {shownWarnings.length > 0 && (
         <div className="mb-4 rounded-xl border border-amber/40 bg-amber/10 p-4">
           <h3 className="text-sm font-semibold text-amber">
-            Paperwork worth sorting
+            {bare && shownWarnings[0]?.petName
+              ? `Paperwork worth sorting for ${shownWarnings[0].petName}`
+              : "Paperwork worth sorting"}
           </h3>
           <ul className="mt-2 space-y-1.5">
-            {warnings.map((w, i) => (
+            {shownWarnings.map((w, i) => (
               <li key={i} className="text-sm leading-relaxed text-ink">
                 {w.text}
               </li>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
+import { headlineFor } from "@/lib/tips/warnings";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
@@ -154,7 +155,55 @@ export default function People({
   }
 
   // Anything expiring in the next year, so it is impossible to miss.
-  const expiring = documents
+  // Both amber panels used to list the whole family, which made them read as
+  // page furniture that happened to sit above whoever was open. With one person
+  // on screen they say that person's paperwork and nothing else -- and the trip
+  // headline is rewritten for them, since "Mark and Veda's passports" is the
+  // wrong sentence on Veda's card.
+  const openPerson = controlled
+    ? travelers.find((t) => t.id === only) || null
+    : null;
+  const shownWarnings = useMemo(() => {
+    if (!controlled) return warnings;
+    if (!openPerson) return [];
+    const mine = (group) =>
+      (group || []).filter(
+        (p) => p.id === openPerson.id || p.name === openPerson.name,
+      );
+    return (warnings || [])
+      .map((w) => {
+        const expired = mine(w.expired);
+        const short = mine(w.short);
+        const missing = mine(w.missing);
+        if (!expired.length && !short.length && !missing.length) return null;
+        return {
+          ...w,
+          expired,
+          short,
+          missing,
+          severity: expired.length
+            ? "expired"
+            : short.length
+              ? "short"
+              : "missing",
+          headline: headlineFor({
+            trip: { name: w.tripName },
+            expired,
+            short,
+            missing,
+            back: w.returnDate,
+            mustLastUntil: w.mustLastUntil,
+          }),
+        };
+      })
+      .filter(Boolean);
+  }, [controlled, openPerson, warnings]);
+
+  const expiring = (
+    controlled
+      ? documents.filter((d) => openPerson && d.traveler_id === openPerson.id)
+      : documents
+  )
     .filter((d) => {
       const m = monthsUntil(d.expiration_date);
       return m !== null && m <= 12;
@@ -319,10 +368,16 @@ export default function People({
 
   return (
     <div className="space-y-5">
-      <PassportWarningPanel warnings={warnings} />
+      {picker}
+
+      <PassportWarningPanel warnings={shownWarnings} />
       {expiring.length > 0 && (
         <div className="rounded-xl border border-amber/40 bg-amber/[0.07] p-4 shadow-[0_1px_2px_rgba(22,33,31,0.04)]">
-          <h2 className="text-sm font-semibold">Worth renewing soon</h2>
+          <h2 className="text-sm font-semibold">
+            {openPerson
+              ? `Worth renewing soon for ${openPerson.name}`
+              : "Worth renewing soon"}
+          </h2>
           <ul className="mt-2 space-y-1 text-sm text-ink-soft">
             {expiring.map((d) => {
               const m = monthsUntil(d.expiration_date);
@@ -348,8 +403,6 @@ export default function People({
           </ul>
         </div>
       )}
-
-      {picker}
 
       {shown.map((person) => {
         const docs = docsFor(person.id);
