@@ -7,6 +7,7 @@ import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import { coverQueuePatch } from "@/lib/covers/queue";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { FIRST_NAME, templateRequest } from "@/lib/packing/newTemplate";
+import { houseListOnto } from "@/lib/tasks/onto";
 
 /**
  * Moves a finished draft into Upcoming trips, and builds its packing list on the
@@ -284,6 +285,16 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
 
     // The trip has moved. Anything else has to happen before the refresh, which
     // takes this button off the screen along with the rest of the draft.
+
+    // The household's own departure list -- bins, thermostat, mail -- which is
+    // held back from drafts and so has never been written onto this trip. This is
+    // the moment it becomes eligible, and it is not offered as a choice: it is a
+    // handful of lines the family does on every single departure, and the whole
+    // point of writing them down once is never having to remember to attach
+    // them. See lib/tasks/onto.js.
+    setBusy("Adding the house list\u2026");
+    await houseListOnto(trip.id);
+
     if (build) {
       setBusy(
         rebuild

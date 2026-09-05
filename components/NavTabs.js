@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   countdownSaid,
   daysUntil,
@@ -306,18 +306,16 @@ export default function NavTabs({
 
   // Which of the three trip groups the board is showing, so the row that asked
   // for it can be the one filled in. It is in the address rather than the path,
-  // and the board writes it there itself as you press its tabs -- so it is read
-  // off the window each time the menu opens rather than through a hook that
-  // would only tell us about the first render.
-  const [view, setView] = useState("");
-  useEffect(() => {
-    if (!open) return;
-    try {
-      setView(new URLSearchParams(window.location.search).get("view") || "");
-    } catch {
-      setView("");
-    }
-  }, [open, pathname]);
+  // and the board writes it there itself as you press its tabs.
+  //
+  // Read through useSearchParams rather than off the window when the menu opens.
+  // The window read looked equivalent and was not: pressing Drafts on the board
+  // changes the address without any navigation, so nothing here re-rendered, and
+  // the menu went on showing Planned Trips filled in until the next real page
+  // load. This hook is told about a replaceState as well as a navigation, which
+  // is the only way the highlight can keep up with a tab press.
+  const params = useSearchParams();
+  const view = String(params.get("view") || "").toLowerCase();
 
   // Shut the sheet the moment you arrive somewhere, and on Escape.
   useEffect(() => {

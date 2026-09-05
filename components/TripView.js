@@ -16,6 +16,7 @@ import TripBackdrop from "./TripBackdrop";
 import { PencilIcon } from "./Icons";
 import TripOverview from "./TripOverview";
 import TripForm from "./TripForm";
+import { houseListOnto } from "@/lib/tasks/onto";
 import Itinerary from "./Itinerary";
 import Packing from "./Packing";
 import Tasks from "./Tasks";
@@ -383,6 +384,14 @@ export default function TripView({
     if (error) return error.message;
     if (data) setInfo(data);
     setEditing(false);
+    // And the second of the three ways is also the second place the house list
+    // has to be attached: a trip whose status field was changed from Draft by
+    // hand is out of Drafts just as surely as one moved with the button, and
+    // until now only the button's route ever put the bins on it.
+    if (isDraftTrip(info) && data && !isDraftTrip(data)) {
+      await houseListOnto(trip.id);
+      refetch("predeparture_tasks");
+    }
     return null;
   }
 
