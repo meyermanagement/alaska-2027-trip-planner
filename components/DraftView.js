@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { sortItinerary } from "@/lib/day/order";
 import { formatRange, formatFullDay } from "@/lib/format";
 import {
+  basicFocus,
   BASICS,
   basicValue,
   basicsProgress,
@@ -113,13 +114,22 @@ export default function DraftView({
     [trip, itinerary, tasks, packing],
   );
 
-  function ask(seed) {
+  // `basic` is which of the seven cards was pressed, when one was. It travels
+  // with the question so Aly knows the conversation is supposed to END with that
+  // answer saved on the trip -- without it she gave a fine budget answer on the
+  // Portugal draft, never asked what the family had in mind, saved nothing, and
+  // the card asked the same question again the next day.
+  function ask(seed, basic) {
     const text = String(seed || "").trim();
     if (!text) return;
     setAsked(text);
     window.dispatchEvent(
       new CustomEvent(ASK_ALY_EVENT, {
-        detail: { seed: text, autoSend: true },
+        detail: {
+          seed: text,
+          autoSend: true,
+          focus: basic ? basicFocus(basic) : undefined,
+        },
       }),
     );
   }
@@ -351,6 +361,7 @@ export default function DraftView({
                             // sentence away.
                             `On this trip, ${basic.label.toLowerCase()} is currently "${value}". I am thinking of changing it — what are my options, and which would you recommend?`
                           : basic.ask,
+                        basic.id,
                       )
                     }
                   >
