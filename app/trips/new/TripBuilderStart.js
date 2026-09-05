@@ -23,15 +23,16 @@ import {
  * not hear the two most useful things anybody says first: why they want to go,
  * and what they want to do there.
  *
- * A trip is six questions -- where, when, how you get there, where you sleep,
- * what you do, how you get around. A sentence typed here usually answers two or
+ * A trip is seven questions -- where, when, how you get there, where you sleep,
+ * what you do, how you get around, and roughly what you would like it to cost. A
+ * sentence typed here usually answers two or
  * three of them at once, Aly asks about the rest, and the answer to each is
  * allowed to be vague. The screen's whole job is to get a real sentence rather
  * than a keyword, which is why the examples are shown at full length and why the
- * six light up as you type: seeing "that already covers where, when and what you
+ * seven light up as you type: seeing "that already covers where, when and what you
  * do" is what makes somebody add the manta rays.
  *
- * The one question that is not one of the six -- is this booked, decided on, or
+ * The one question that is not one of the seven -- is this booked, decided on, or
  * still an idea -- was asked here, as three buttons, and it had to come out. They
  * sat immediately above the start button, and when the box is empty that button
  * says "ask me", so it read as a fourth answer to the question above it rather
@@ -112,7 +113,7 @@ export default function TripBuilderStart() {
           void, and so somebody can see that mentioning the manta rays counted. */}
       <div className="mt-9 border-t border-[var(--line)] pt-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
-          A trip is six things
+          A trip is seven things
         </p>
         <p className="mt-1 text-xs text-ink-soft">
           Aly will work through these with you. Rough answers are fine — the

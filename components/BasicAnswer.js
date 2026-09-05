@@ -4,9 +4,9 @@ import { useState } from "react";
 import { adoptRequest, settledDisagreement } from "@/lib/trips/settled";
 
 /**
- * One of the six answers, shown against what the trip has actually become.
+ * One of the seven answers, shown against what the trip has actually become.
  *
- * The six are text somebody typed before anything existed, and a text column
+ * The seven are text somebody typed before anything existed, and a text column
  * remembers only its latest value. So Portugal Spring 2027 went on saying "One
  * apartment in Lisbon for the whole stay" after two hotels had gone onto its
  * days -- Herdade da Malhadinha Nova in the Alentejo, then Vila Vita Parc in the

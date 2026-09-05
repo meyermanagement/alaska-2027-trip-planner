@@ -953,6 +953,7 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     insights,
     tripTemplates,
     households,
+    costs,
   ] = await Promise.all([
     // Who is asking. One more query in a batch of seventeen costs nothing; on
     // its own, in front of them, it cost a whole round trip.
@@ -1048,6 +1049,15 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     // Where they leave from. RLS keeps this to the households they belong to,
     // and the first one is the one every other query here is already about.
     supabase.from("families").select("name, home_address, home_lat, home_lon"),
+    // The money a trip spends that is not an event on any day. The itinerary
+    // already carries its own costs, so this is the other half of a budget:
+    // groceries, gas, bags, the dog sitter.
+    supabase
+      .from("trip_costs")
+      .select(
+        "id, trip_id, label, category, cost_estimate, cost_actual, cost_note",
+      )
+      .order("created_at", { ascending: true }),
   ]);
 
   return buildContext({
@@ -1070,6 +1080,7 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     pets: pets.data || [],
     tripPets: tripPets.data || [],
     insights: insights.data || [],
+    costs: costs.data || [],
     message: said,
     userName: profile?.data?.display_name,
     home: households?.data?.[0] || null,

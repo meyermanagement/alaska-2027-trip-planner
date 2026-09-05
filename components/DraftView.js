@@ -155,7 +155,7 @@ export default function DraftView({
           </p>
         )}
 
-        {/* How far along the baseline is. A bar, not a score: six of six is not a
+        {/* How far along the baseline is. A bar, not a score: seven of seven is not a
             requirement, it is just the point at which nothing is missing. */}
         <div className="mt-5">
           <div className="flex items-baseline justify-between gap-3">
@@ -237,8 +237,8 @@ export default function DraftView({
           What this trip is made of
         </h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Six rough answers make a trip. Press one and Aly will work it out with
-          you — details come later.
+          Seven rough answers make a trip. Press one and Aly will work it out
+          with you — details come later.
         </p>
 
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">

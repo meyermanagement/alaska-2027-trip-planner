@@ -27,7 +27,7 @@ import { applyPropagation } from "@/lib/packing/propagateRun";
 import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 import { REFUSAL, SECONDARY, resolveAccess } from "@/lib/travelers/access";
 import { tripPath, tripRef, freeTripSlug } from "@/lib/trips/route";
-import { BASIC_IDS } from "@/lib/trips/basics";
+import { BASIC_IDS, basicColumn } from "@/lib/trips/basics";
 
 export const runtime = "nodejs";
 // Writing eighty rows one at a time can outlast the default budget, and so can
@@ -53,6 +53,9 @@ const LANDING_TAB = {
   update_task: "tasks",
   delete_task: "tasks",
   add_note: "notes",
+  add_trip_cost: "budget",
+  update_trip_cost: "budget",
+  delete_trip_cost: "budget",
   update_note: "notes",
   delete_note: "notes",
 };
@@ -1024,17 +1027,20 @@ async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
     if (row.name)
       row.slug = await freeTripSlug(supabase, familyId, row.name, id);
 
-    // What the six said before this change, read before the write rather than
-    // after it, because after it there is nothing left to read. Only the six:
+    // What the seven said before this change, read before the write rather than
+    // after it, because after it there is nothing left to read. Only the seven:
     // a rename or a new emoji is not one of the things a trip is made of.
-    const touched = BASIC_IDS.filter(
-      (b) => b !== "where" && b !== "when" && row[b] !== undefined,
-    );
+    // Keyed by the answer rather than the column, because the budget is stored
+    // under a different name and its history should still read as "budget".
+    const touched = BASIC_IDS.filter((b) => {
+      const col = basicColumn(b);
+      return b !== "where" && col && row[col] !== undefined;
+    });
     // The status is read in the same breath, and only when it is being changed,
     // because Aly moving a draft into Upcoming is the third of the three ways a
     // trip stops being a draft -- and it is the one where nobody is necessarily
     // looking at the trip afterwards. See lib/covers/queue.js.
-    const columns = [...touched];
+    const columns = touched.map((b) => basicColumn(b));
     if (row.status !== undefined)
       columns.push("status", "cover_image_url", "cover_image_status");
     let before = null;
@@ -1060,14 +1066,26 @@ async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
     // row that could break a trip edit would be a worse feature than no history.
     if (before) {
       const rows = touched
-        .filter((b) => String(before[b] ?? "") !== String(row[b] ?? ""))
-        .map((b) => ({
-          trip_id: id,
-          basic: b,
-          previous_value: before[b] ?? null,
-          new_value: row[b] ?? null,
-          changed_by: userId || null,
-        }));
+        .filter((b) => {
+          const col = basicColumn(b);
+          return String(before[col] ?? "") !== String(row[col] ?? "");
+        })
+        .map((b) => {
+          const col = basicColumn(b);
+          return {
+            trip_id: id,
+            basic: b,
+            previous_value:
+              before[col] === null || before[col] === undefined
+                ? null
+                : String(before[col]),
+            new_value:
+              row[col] === null || row[col] === undefined
+                ? null
+                : String(row[col]),
+            changed_by: userId || null,
+          };
+        });
       if (rows.length) await supabase.from("trip_basic_history").insert(rows);
     }
 
@@ -1080,20 +1098,20 @@ async function writeTrip({ supabase, tool, id, patch, familyId, userId }) {
       try {
         const [{ data: trip }, { data: roster }, { data: people }] =
           await Promise.all([
-          supabase
-            .from("trips")
-            .select("id, status, start_date")
-            .eq("id", id)
-            .maybeSingle(),
-          supabase
-            .from("trip_travelers")
-            .select("travelers (name, is_person)")
-            .eq("trip_id", id),
-          supabase
-            .from("travelers")
-            .select("name, is_person")
-            .eq("family_id", familyId),
-        ]);
+            supabase
+              .from("trips")
+              .select("id, status, start_date")
+              .eq("id", id)
+              .maybeSingle(),
+            supabase
+              .from("trip_travelers")
+              .select("travelers (name, is_person)")
+              .eq("trip_id", id),
+            supabase
+              .from("travelers")
+              .select("name, is_person")
+              .eq("family_id", familyId),
+          ]);
         if (trip) {
           await pushHouseTasks({
             supabase,

@@ -108,6 +108,7 @@ export default async function TripPage({ params, searchParams }) {
     packing,
     tasks,
     notes,
+    costs,
     travelers,
     roster,
     tips,
@@ -146,6 +147,13 @@ export default async function TripPage({ params, searchParams }) {
       .eq("trip_id", trip.id)
       .order("pinned", { ascending: false })
       .order("created_at", { ascending: false }),
+    // The money that is not an event on any day. Everything else the Budget tab
+    // adds up is already on the itinerary above.
+    supabase
+      .from("trip_costs")
+      .select("*")
+      .eq("trip_id", trip.id)
+      .order("created_at", { ascending: true }),
     supabase
       .from("travelers")
       .select("id, name, color, is_person, sort_order")
@@ -262,6 +270,7 @@ export default async function TripPage({ params, searchParams }) {
         initialPacking={packing.data || []}
         initialTasks={tasks.data || []}
         initialNotes={notes.data || []}
+        initialCosts={costs.data || []}
         travelers={(travelers.data || []).map((t) => t.name)}
         people={(travelers.data || []).filter((t) => t.is_person)}
         initialGoing={(roster.data || []).map((r) => r.traveler_id)}

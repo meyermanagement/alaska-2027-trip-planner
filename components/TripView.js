@@ -22,6 +22,7 @@ import Itinerary from "./Itinerary";
 import Packing from "./Packing";
 import Tasks from "./Tasks";
 import Notes from "./Notes";
+import Budget from "./Budget";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
@@ -109,6 +110,9 @@ const TABS = [
   { id: "packing", label: "Packing" },
   { id: "tips", label: "Tips" },
   { id: "tasks", label: "Tasks" },
+  // Money comes after the two lists it is worked out from and after the tasks,
+  // because it is the tab you go to on purpose rather than the one you live on.
+  { id: "budget", label: "Budget" },
   { id: "notes", label: "Notes" },
 ];
 
@@ -118,6 +122,7 @@ export default function TripView({
   initialPacking,
   initialTasks,
   initialNotes,
+  initialCosts = [],
   travelers,
   people = [],
   initialGoing = [],
@@ -151,7 +156,13 @@ export default function TripView({
   // this is our choice, not the database's, and it stands only because Notes.js
   // has no read-only mode: showing the tab today would show a compose box that
   // saves nothing.
-  const tabs = readOnly ? TABS.filter((t) => t.id !== "notes") : TABS;
+  // Money goes with the notes for a secondary traveler, and this one is the
+  // database's choice as well as ours: trip_costs is readable only by a full
+  // member of the family, so a minor or a friend along for the ride would open
+  // the tab onto half a budget. What the trip costs is not their business.
+  const tabs = readOnly
+    ? TABS.filter((t) => t.id !== "notes" && t.id !== "budget")
+    : TABS;
   const [tab, setTab] = useState("overview");
   // What the last look filed, and where. Held here rather than inside the tips
   // card so the Tips tab can keep saying it after somebody has been off to
@@ -247,6 +258,7 @@ export default function TripView({
   const [packing, setPacking] = useState(initialPacking);
   const [tasks, setTasks] = useState(initialTasks);
   const [notes, setNotes] = useState(initialNotes);
+  const [costs, setCosts] = useState(initialCosts);
   const [going, setGoing] = useState(initialGoing);
   // Which animals are on this trip, and under what arrangement. Decided here
   // rather than on the Family tab: "is the dog coming to Curaçao" is a fact
@@ -321,6 +333,13 @@ export default function TripView({
           .select("traveler_id")
           .eq("trip_id", trip.id);
         if (data) setGoing(data.map((r) => r.traveler_id));
+      } else if (table === "trip_costs") {
+        const { data } = await supabase
+          .from("trip_costs")
+          .select("*")
+          .eq("trip_id", trip.id)
+          .order("created_at", { ascending: true });
+        if (data) setCosts(data);
       } else if (table === "trip_notes") {
         const { data } = await supabase
           .from("trip_notes")
@@ -722,6 +741,16 @@ export default function TripView({
             readOnly={readOnly}
           />
         )}
+        {tab === "budget" && (
+          <Budget
+            trip={info}
+            itinerary={itinerary}
+            costs={costs}
+            onChange={() => refetch("trip_costs")}
+            onTripChange={() => refetch("itinerary_items")}
+            readOnly={readOnly}
+          />
+        )}
         {tab === "notes" && (
           <Notes
             items={notes}
@@ -743,6 +772,7 @@ export default function TripView({
           refetch("packing_items");
           refetch("predeparture_tasks");
           refetch("trip_notes");
+          refetch("trip_costs");
         }}
         // Aly can change the trip itself, or another trip entirely, and only the
         // server can redraw those. Held until the drawer closes.
