@@ -116,6 +116,31 @@ const TABS = [
   { id: "notes", label: "Notes" },
 ];
 
+/**
+ * The seven, gathered into four doors.
+ *
+ * Seven equal tabs told you nothing about which one was worth opening, and they
+ * did not fit on a phone: the last two lived off the right edge, so Budget and
+ * Notes existed only for somebody who thought to drag the bar. And the seven are
+ * not seven kinds of thing. They are four -- what the trip is, what the days
+ * hold, what has to be done before anybody leaves, and what it costs -- with
+ * three of them happening to be stored in different tables.
+ *
+ * So the bar carries the four, and a lighter second row appears only inside a
+ * door that has more than one thing behind it. Nothing is hidden, nothing
+ * scrolls out of sight, and the grouping is about what you came to do rather
+ * than which table the rows came from.
+ *
+ * The selected leaf remains the unit of state, so ?tab=tasks, the change card's
+ * landing tab and Aly's focus all keep working untouched.
+ */
+const TAB_GROUPS = [
+  { id: "g-trip", label: "Trip", tabs: ["overview", "notes"] },
+  { id: "g-days", label: "Days", tabs: ["itinerary"] },
+  { id: "g-ready", label: "Getting ready", tabs: ["packing", "tasks", "tips"] },
+  { id: "g-money", label: "Money", tabs: ["budget"] },
+];
+
 export default function TripView({
   trip,
   initialItinerary,
@@ -164,6 +189,36 @@ export default function TripView({
     ? TABS.filter((t) => t.id !== "notes" && t.id !== "budget")
     : TABS;
   const [tab, setTab] = useState("overview");
+  // The four doors, holding only the leaves this reader is allowed to see: a
+  // secondary traveler loses Notes and Budget, which empties Money entirely.
+  const groups = useMemo(
+    () =>
+      TAB_GROUPS.map((g) => ({
+        ...g,
+        leaves: g.tabs
+          .map((id) => tabs.find((t) => t.id === id))
+          .filter(Boolean),
+      })).filter((g) => g.leaves.length),
+    [tabs],
+  );
+  const group =
+    groups.find((g) => g.leaves.some((t) => t.id === tab)) || groups[0];
+  // Where you were inside each door. Coming back to Getting ready should return
+  // to the tasks you were working through, not start again at Packing.
+  const [lastLeaf, setLastLeaf] = useState({});
+  useEffect(() => {
+    if (!group) return;
+    setLastLeaf((prev) =>
+      prev[group.id] === tab ? prev : { ...prev, [group.id]: tab },
+    );
+  }, [group, tab]);
+  const openGroup = useCallback(
+    (g) => {
+      const wanted = lastLeaf[g.id];
+      setTab(g.leaves.some((t) => t.id === wanted) ? wanted : g.leaves[0].id);
+    },
+    [lastLeaf],
+  );
   // What the last look filed, and where. Held here rather than inside the tips
   // card so the Tips tab can keep saying it after somebody has been off to
   // read the tips on another tab and come back.
@@ -217,7 +272,7 @@ export default function TripView({
   // leaving the bar looking as though nothing happened.
   useEffect(() => {
     const bar = tabBarRef.current;
-    const btn = bar?.querySelector(`[data-tab="${tab}"]`);
+    const btn = bar?.querySelector(`[data-tab="${group?.id}"]`);
     if (!bar || !btn) return;
     // Moved by hand rather than with scrollIntoView, which walks every ancestor
     // and is entitled to scroll the page itself to satisfy the request. Pressing
@@ -228,7 +283,7 @@ export default function TripView({
     if (left < bar.scrollLeft) bar.scrollLeft = Math.max(0, left - 12);
     else if (right > bar.scrollLeft + bar.clientWidth)
       bar.scrollLeft = right - bar.clientWidth + 12;
-  }, [tab]);
+  }, [group?.id]);
 
   // Reminders links straight at a trip's task list, so honour ?tab= on arrival.
   // It is read after mount rather than during render so the server and the
@@ -595,9 +650,11 @@ export default function TripView({
         )}
       </section>
 
-      {/* Six tabs do not fit on a narrow phone, so the bar scrolls sideways. The
-          mask fades the last few pixels so the bar looks like it continues
-          rather than like it failed.
+      {/* Four doors, and a second row only where a door has more than one thing
+          behind it. The bar can still scroll sideways -- a long trip name does
+          not change its width, but a translation or a large font could -- and the
+          mask fades the last few pixels so it looks like it continues rather than
+          like it failed.
 
           Out of the card and onto the page. It was a strip of deeper sand
           inside the header card with the selected tab drawn as a white pill,
@@ -607,33 +664,36 @@ export default function TripView({
           sitting on it, so the tab and the panel below it are visibly one
           surface and the rest are behind it. */}
       <div className="relative mt-4 min-w-0">
-        <nav ref={tabBarRef} className="tabbar no-print">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              data-tab={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              aria-current={tab === t.id ? "page" : undefined}
-              onClick={() => setTab(t.id)}
-              className="tab"
-            >
-              {t.label}
-              {/* The same red count the menu bar puts on Reminders, for the
-                  same reason: a tab worth opening should say so from the
-                  outside. Tips are the one thing on a trip that arrive
-                  without anybody asking -- a look files them while you are
-                  reading something else -- so the tab is the only place that
-                  can mention them. */}
-              {t.id === "tips" && tipCount > 0 && (
-                <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] leading-[1.15rem] font-bold text-on-accent">
-                  {tipCount}
-                  <span className="sr-only"> tips to read</span>
-                </span>
-              )}
-            </button>
-          ))}
+        <nav ref={tabBarRef} className="tabbar no-print" role="tablist">
+          {groups.map((g) => {
+            const here = group?.id === g.id;
+            // The red count belongs on the door while it is shut. Tips are the
+            // one thing on a trip that arrive without anybody asking, so if they
+            // are now one level down, the level above has to say so -- otherwise
+            // grouping the tabs would have hidden the only badge in the app that
+            // exists to be noticed.
+            const badge = g.leaves.some((t) => t.id === "tips") && tipCount > 0;
+            return (
+              <button
+                key={g.id}
+                data-tab={g.id}
+                type="button"
+                role="tab"
+                aria-selected={here}
+                aria-current={here ? "page" : undefined}
+                onClick={() => openGroup(g)}
+                className="tab"
+              >
+                {g.label}
+                {badge && (!here || tab !== "tips") && (
+                  <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] leading-[1.15rem] font-bold text-on-accent">
+                    {tipCount}
+                    <span className="sr-only"> tips to read</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
         {/* Pointer-events off: a gradient that eats taps on the last tab would
             be a worse fault than the one it is fixing. */}
@@ -644,6 +704,39 @@ export default function TripView({
           />
         ) : null}
       </div>
+
+      {/* Lighter than the bar above it on purpose: these are the same door, not
+          four more of them. A door with one thing behind it draws nothing, so
+          Days and Money stay silent. */}
+      {group && group.leaves.length > 1 && (
+        <div
+          className="no-print mt-3 flex flex-wrap gap-2"
+          role="tablist"
+          aria-label={`Inside ${group.label}`}
+        >
+          {group.leaves.map((t) => {
+            const here = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={here}
+                onClick={() => setTab(t.id)}
+                className={here ? "chip chip-shade font-semibold" : "chip"}
+              >
+                {t.label}
+                {t.id === "tips" && tipCount > 0 && (
+                  <span className="ml-1.5 inline-block min-w-[1.05rem] rounded-full bg-rose px-1 text-[0.65rem] leading-[1.05rem] font-bold text-on-accent">
+                    {tipCount}
+                    <span className="sr-only"> tips to read</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-6">
         {/* The Tips tab holds the advice about the trip as a whole, and now only

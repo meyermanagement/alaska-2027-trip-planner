@@ -1708,6 +1708,18 @@ input[type="month"]::-webkit-date-and-time-value {
     background 0.15s ease;
 }
 
+/* Four doors fit a 360-pixel phone only just, and not at all once Getting ready
+   is carrying a red count. The bar still scrolls, but a door you have to drag
+   into view is the fault this grouping exists to remove, so the labels tighten
+   instead. */
+@media (max-width: 420px) {
+  .tab {
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+    font-size: 0.85rem;
+  }
+}
+
 @media (min-width: 640px) {
   .tab {
     padding: 0.55rem 1rem;
