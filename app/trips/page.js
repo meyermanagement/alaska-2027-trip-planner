@@ -17,16 +17,11 @@ import { ABOUT_SKIP_COOKIE } from "@/lib/travelers/profile";
 
 export const metadata = { title: "Trips · Alyeska" };
 
-// Which of the three groups to open on. The menu now has a row per group -- Trip
-// Builder, Planned Trips, Trip Log -- and they are all this one screen, so the
-// group has to be sayable in the address. Read on the server rather than with
-// useSearchParams so the first frame is already the right list instead of
-// Upcoming for a moment.
-const VIEWS = ["upcoming", "drafts", "past"];
-
-export default async function TripsPage({ searchParams }) {
-  const asked = String((await searchParams)?.view || "").toLowerCase();
-  const wanted = VIEWS.includes(asked) ? asked : null;
+// Which of the three groups to open on is read by the board itself, off the
+// query -- the menu's three trip rows are this one screen with a different group
+// showing, and arriving from one of them while already on this page changes only
+// the address, without unmounting anything. See TripBoard.
+export default async function TripsPage() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
   if (!user) redirect("/login");
@@ -165,7 +160,6 @@ export default async function TripsPage({ searchParams }) {
           drafts={drafts}
           past={past}
           today={today}
-          view={wanted}
           // The same line the database draws: a secondary traveler cannot delete
           // a trip, so they are not shown a control that would refuse them.
           canRemove={!access?.can.isSecondary}
