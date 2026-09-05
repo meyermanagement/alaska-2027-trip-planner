@@ -233,8 +233,12 @@ html[data-booted] #boot-veil {
 }
 
 .boot-mark svg {
-  width: 3.25rem;
-  height: 3.25rem;
+  /* Up from 3.25rem when the mark gained sixteen graduations. At the old size a
+     tick was two pixels of hairline and the card read as a smudge; the needle
+     also has to swing far enough to be seen doing it. This is the one place in
+     the app where the mark is the whole screen, so it can afford the room. */
+  width: 4.5rem;
+  height: 4.5rem;
 }
 
 .boot-ghost {
@@ -344,24 +348,50 @@ html[data-booted] #boot-veil {
   }
 }
 
-/* The compass settles: the four cardinal marks are drawn from the rim inward,
-   one after another, and the needle grows into place as the last one closes.
-   Each mark carries its own delay inline, so the stagger lives next to the
-   geometry it belongs to rather than as four near-identical rules here. */
+/* The compass builds itself and then finds north. The rim draws round from the
+   top, the sixteen marks drop in clockwise behind it, and the needle swings in
+   off-heading and settles. Each mark carries its own delay inline, so the
+   stagger lives next to the geometry rather than as sixteen rules here. */
 .boot-mark .boot-stroke {
   stroke-dasharray: var(--len);
   stroke-dashoffset: var(--len);
-  animation: boot-draw 0.42s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: boot-draw 0.78s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* Not drawn, because it is a filled outline rather than a stroke -- that is what
-   keeps its three points sharp, and there is no dash offset to run down. It
-   arrives instead: up from 88 percent, which is small enough to read as landing
-   and large enough that it never looks like it flew in. */
-.boot-mark .boot-needle {
-  opacity: 0;
+.boot-mark .boot-tick {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: boot-draw 0.26s ease-out both;
+}
+
+/* The needle cannot be drawn the way a stroke can -- it is a filled outline,
+   which is the whole reason its three points are sharp, and there is no dash
+   offset to run down. So it is animated the way the real thing moves instead: in
+   a long way off, past north, back short of it, and in on a shortening arc until
+   it stops. ease-in-out applies to every segment rather than the whole run,
+   which is what gives each end of the swing its own slowing down -- a single
+   easing across the lot would have it whipping through the middle overshoots.
+
+   Two and a half seconds of a five-and-a-half-second hold. That is the trade:
+   the splash is up either way, and this is the part of it that reads as the app
+   working rather than the app waiting. */
+.boot-mark .boot-ghost-needle {
+  animation: boot-ghost-out 0.3s ease 0.44s both;
+}
+
+.boot-mark .boot-swing {
   transform-origin: 50% 50%;
-  animation: boot-land 0.5s cubic-bezier(0.34, 1.3, 0.64, 1) 0.42s forwards;
+  animation: boot-swing 2.5s ease-in-out 0.4s both;
+}
+
+/* And then it never quite stops. A degree and a bit, on a six-second loop, on
+   its own group so the two rotations compose instead of the second overwriting
+   the first. A compass at rest is not still, and a mark that freezes stops
+   reading as an instrument -- this is the difference between a splash that is
+   animating and one that has finished. */
+.boot-mark .boot-drift {
+  transform-origin: 50% 50%;
+  animation: boot-drift 6s ease-in-out 2.9s infinite;
 }
 
 @keyframes boot-draw {
@@ -376,15 +406,64 @@ html[data-booted] #boot-veil {
   }
 }
 
-@keyframes boot-land {
-  from {
+@keyframes boot-ghost-out {
+  to {
     opacity: 0;
-    transform: scale(0.88);
+  }
+}
+
+@keyframes boot-swing {
+  0% {
+    opacity: 0;
+    transform: rotate(-142deg);
   }
 
-  to {
+  9% {
     opacity: 1;
-    transform: scale(1);
+  }
+
+  46% {
+    transform: rotate(37deg);
+  }
+
+  64% {
+    transform: rotate(-15deg);
+  }
+
+  78% {
+    transform: rotate(7deg);
+  }
+
+  89% {
+    transform: rotate(-2.6deg);
+  }
+
+  96% {
+    transform: rotate(0.9deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes boot-drift {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  28% {
+    transform: rotate(1.2deg);
+  }
+
+  62% {
+    transform: rotate(-0.9deg);
+  }
+
+  84% {
+    transform: rotate(0.4deg);
   }
 }
 
@@ -401,13 +480,19 @@ html[data-booted] #boot-veil {
     transform: none;
   }
 
-  .boot-mark .boot-stroke {
+  .boot-mark .boot-stroke,
+  .boot-mark .boot-tick {
     stroke-dasharray: none;
     stroke-dashoffset: 0;
     animation: none;
   }
 
-  .boot-mark .boot-needle {
+  /* The needle is already on north and stays there. The swing is the one piece
+     of this that is genuinely movement rather than arrival, so it is the one
+     piece that goes entirely. */
+  .boot-mark .boot-ghost-needle,
+  .boot-mark .boot-swing,
+  .boot-mark .boot-drift {
     opacity: 1;
     transform: none;
     animation: none;
