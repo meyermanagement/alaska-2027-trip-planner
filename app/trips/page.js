@@ -16,6 +16,7 @@ import TripBoard from "./TripBoard";
 import BoardSkeleton from "./BoardSkeleton";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { ABOUT_SKIP_COOKIE } from "@/lib/travelers/profile";
+import { BASIC_SELECT } from "@/lib/trips/basics";
 
 export const metadata = { title: "Trips · Alyeska" };
 
@@ -130,13 +131,16 @@ async function Board({ familyId, people, canRemove }) {
     supabase
       .from("trips")
       .select(
-        // The six baseline components come with, because the Drafts view shows how
-        // far along each draft is -- and a card that reads "0 of 6" on a trip
-        // that has five answers is worse than no card at all.
+        // Every baseline component comes with, because the Drafts view shows how
+        // far along each draft is -- and a card that reads "6 of 7" on a trip
+        // whose budget is sitting right there is worse than no card at all. The
+        // list is BASIC_SELECT rather than seven column names typed out here,
+        // which is what went wrong: budget was added as the seventh baseline and
+        // its column was never added to this string.
         // The cover columns and the trip's own point come with too: every card on
         // this screen is a picture with words over it, and both the illustration
         // and the coastline behind it are per trip.
-        "id, name, slug, public_id, destination, start_date, end_date, cover_emoji, summary, status, getting_there, staying, doing, getting_around, date_note, dates_approximate, cover_image_url, cover_image_alt, cover_image_status, lat, lon",
+        `id, name, slug, public_id, cover_emoji, summary, status, dates_approximate, cover_image_url, cover_image_alt, cover_image_status, lat, lon, ${BASIC_SELECT}`,
       )
       // Scoped to the household this screen is showing. Row-level security
       // already keeps other people's trips out; this keeps the reader's *other*
