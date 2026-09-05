@@ -75,13 +75,19 @@ export default function CurrentTripBanner({ trip, today }) {
             only pushed the band taller than the day and the name needed it to be.
             It is drawn large and allowed to overhang the row instead: negative
             vertical margin, so the glyph can be bigger than the line it sits on
-            without the band growing round it. */}
+            without the band growing round it.
+
+            The last two adjustments are optical, not arithmetic: this glyph's own
+            side bearings are uneven and its ink sits low in its line box, so
+            centring the box leaves the arrow looking pushed right and dropped. A
+            little padding on its right and two units up puts it where the eye
+            expects it. */}
         <span className="hidden shrink-0 whitespace-nowrap text-[0.85rem] font-semibold text-on-accent sm:inline">
           Today’s plan →
         </span>
         <span
           aria-hidden="true"
-          className="-my-2 flex shrink-0 items-center justify-center pl-1 text-[1.7rem] leading-none text-on-accent sm:hidden"
+          className="-my-2 flex shrink-0 -translate-y-[2px] items-center justify-center pl-1 pr-1.5 text-[1.7rem] leading-none text-on-accent sm:hidden"
         >
           →
         </span>
