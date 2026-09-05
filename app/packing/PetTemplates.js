@@ -34,6 +34,9 @@ export default function PetTemplates({
   // so a trip it is not on is a trip the list does not reach however the list is
   // built.
   tripsByPet = {},
+  // One animal, chosen by the index down the side of the screen, so the heading
+  // that named the section is not repeated over a single card.
+  solo = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -156,15 +159,16 @@ export default function PetTemplates({
   }
 
   return (
-    <section className="mt-10">
-      <div className="mb-4">
-        <h2 className="font-display text-2xl font-semibold">Pets</h2>
-        <p className="mt-1 max-w-3xl text-sm text-ink-soft">
-          A pet&rsquo;s list goes onto a trip whenever that pet is coming, and
-          its lines are set aside when it is not. Which trips a pet is on is set
-          on the trip itself.
-        </p>
-      </div>
+    <section className={solo ? "" : "mt-10"}>
+      {!solo && (
+        <div className="mb-4">
+          <h2 className="font-display text-2xl font-semibold">Pets</h2>
+          <p className="mt-1 max-w-3xl text-sm text-ink-soft">
+            A pet&rsquo;s list goes onto a trip whenever that pet is coming, and
+            its lines are set aside when it is not.
+          </p>
+        </div>
+      )}
 
       {error && (
         <p className="mb-4 rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">

@@ -10,9 +10,7 @@ import { loadPropagation, CLOSED } from "@/lib/packing/propagateRun";
 import { tripPath } from "@/lib/trips/route";
 import { homeToday } from "@/lib/format";
 import TripPackingLinks from "@/components/TripPackingLinks";
-import Templates from "./Templates";
-import PetTemplates from "./PetTemplates";
-import HouseTasks from "./HouseTasks";
+import PackingScreen from "./PackingScreen";
 
 export const metadata = { title: "Packing templates · Alyeska" };
 
@@ -40,34 +38,34 @@ export default async function PackingTemplatesPage() {
     { data: pets },
     { data: houseTasks },
   ] = await Promise.all([
-      supabase
-        .from("travelers")
-        .select("id, name, sort_order, is_person")
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("packing_templates")
-        .select("id, name, description, is_base, pet_id")
-        .eq("family_id", familyId)
-        .order("is_base", { ascending: false })
-        .order("name", { ascending: true }),
-      // The animals, so each one's list can be shown under its own name rather
-      // than as another add-on with a person's chip on it.
-      supabase
-        .from("pets")
-        .select("id, name, species, color, sort_order")
-        .eq("family_id", familyId)
-        .order("sort_order", { ascending: true })
-        .order("name", { ascending: true }),
-      // The household's own departure list -- the task-shaped counterpart to the
-      // base template. It lives on this screen because this is the one people
-      // have open the night before, with the cases half packed.
-      supabase
-        .from("house_tasks")
-        .select(
-          "id, title, detail, timing, assignee, only_when_empty, sort_order",
-        )
-        .eq("family_id", familyId)
-        .order("sort_order", { ascending: true }),
+    supabase
+      .from("travelers")
+      .select("id, name, sort_order, is_person")
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("packing_templates")
+      .select("id, name, description, is_base, pet_id")
+      .eq("family_id", familyId)
+      .order("is_base", { ascending: false })
+      .order("name", { ascending: true }),
+    // The animals, so each one's list can be shown under its own name rather
+    // than as another add-on with a person's chip on it.
+    supabase
+      .from("pets")
+      .select("id, name, species, color, sort_order")
+      .eq("family_id", familyId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    // The household's own departure list -- the task-shaped counterpart to the
+    // base template. It lives on this screen because this is the one people
+    // have open the night before, with the cases half packed.
+    supabase
+      .from("house_tasks")
+      .select(
+        "id, title, detail, timing, assignee, only_when_empty, sort_order",
+      )
+      .eq("family_id", familyId)
+      .order("sort_order", { ascending: true }),
   ]);
 
   // The items for every template at once: there are a few hundred at most, and
@@ -215,44 +213,34 @@ export default async function PackingTemplatesPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-28 pt-7">
+      <main className="mx-auto max-w-6xl px-5 pb-28 pt-7">
         <TripPackingLinks trips={upcoming} />
         <div className="mb-6">
           <h1 className="font-display text-3xl font-semibold">
             Packing templates
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            The packing templates every trip starts from, sorted by who packs
-            what. Change something here and it applies to the next trip you
-            create — trips already on the board keep the lists they have, so
-            nothing you have already ticked off gets rewritten underneath you.
+            Change a list here and it applies to the next trip you create.
           </p>
         </div>
-        <HouseTasks
-          tasks={houseTasks || []}
-          people={(travelers || [])
-            .filter((t) => t.is_person)
-            .map((t) => t.name)}
-        />
-        <Templates
+        <PackingScreen
           travelers={(travelers || [])
             .filter((t) => t.is_person)
             .map((t) => t.name)}
-          templates={familyTemplates}
-          items={items || []}
-          tripsByTemplate={tripsByTemplate}
-          packedTrips={packedTrips}
-        />
-        <PetTemplates
-          pets={pets || []}
-          templates={petTemplates}
-          items={(items || []).filter((i) =>
-            petTemplates.some((t) => t.id === i.template_id),
-          )}
           people={(travelers || [])
             .filter((t) => t.is_person)
             .map((t) => t.name)}
+          familyTemplates={familyTemplates}
+          items={items || []}
+          tripsByTemplate={tripsByTemplate}
+          packedTrips={packedTrips}
+          pets={pets || []}
+          petTemplates={petTemplates}
+          petItems={(items || []).filter((i) =>
+            petTemplates.some((t) => t.id === i.template_id),
+          )}
           tripsByPet={tripsByPet}
+          houseTasks={houseTasks || []}
         />
       </main>
       <AskAlyGeneral focus={TEMPLATES_FOCUS} />

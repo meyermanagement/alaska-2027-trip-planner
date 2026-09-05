@@ -48,12 +48,18 @@ export default function Templates({
   // Trips with a packing list of their own, offered as the source for a first
   // template. Only read when there are no templates at all.
   packedTrips = [],
+  // When the screen around this component owns the choice of list (the index
+  // down the side does), the id arrives as a prop and the row of chips below is
+  // not drawn -- two switchers for one choice is one too many.
+  selectedId = null,
+  controlled = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   const base = templates.find((t) => t.is_base) || templates[0] || null;
-  const [templateId, setTemplateId] = useState(base?.id || null);
+  const [innerId, setTemplateId] = useState(base?.id || null);
+  const templateId = controlled ? selectedId : innerId;
   const [who, setWho] = useState("all");
   // The same two ways of looking the trip's own list now has. A base template
   // of seventy-four lines has exactly the trip list's problem: the fastest way
@@ -424,7 +430,8 @@ export default function Templates({
       <PropagatePanel />
 
       <div className="no-print mb-4 flex flex-wrap items-stretch gap-2">
-        {templates.length > 1 &&
+        {!controlled &&
+          templates.length > 1 &&
           templates.map((t) => {
             const on = t.id === templateId;
             return (
