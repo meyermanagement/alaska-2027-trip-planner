@@ -40,7 +40,6 @@ const SPENDS = [
 ];
 
 /** The filter value meaning "the ones nobody in particular holds". */
-const FAMILY = "_family";
 
 /**
  * The question this screen exists to answer, written out so nobody has to type
@@ -188,9 +187,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return rows.filter((row) => {
       if (kindFilter !== "all" && row.kind !== kindFilter) return false;
-      if (whose === FAMILY && row.traveler_id) return false;
-      if (whose !== "all" && whose !== FAMILY && row.traveler_id !== whose)
-        return false;
+      if (whose !== "all" && row.traveler_id !== whose) return false;
       if (!words.length) return true;
       const text = haystack(row);
       return words.every((word) => text.includes(word));
@@ -222,19 +219,22 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
     [rows],
   );
 
-  const whoseTally = useMemo(() => {
-    const list = travelers
-      .map((t) => ({
-        value: t.id,
-        label: t.name,
-        count: rows.filter((r) => r.traveler_id === t.id).length,
-      }))
-      .filter((t) => t.count);
-    const family = rows.filter((r) => !r.traveler_id).length;
-    if (family)
-      list.push({ value: FAMILY, label: "Whole family", count: family });
-    return list;
-  }, [rows, travelers]);
+  // Named people only. A program with nobody on it is the normal case rather
+  // than a category -- a Bonvoy account is the household's -- so "Whole family"
+  // was a chip that narrowed to almost everything, which is what "Anyone"
+  // already does.
+  const whoseTally = useMemo(
+    () =>
+      travelers
+        .filter((t) => t.is_person !== false)
+        .map((t) => ({
+          value: t.id,
+          label: t.name,
+          count: rows.filter((r) => r.traveler_id === t.id).length,
+        }))
+        .filter((t) => t.count),
+    [rows, travelers],
+  );
 
   function askHowToPay() {
     window.dispatchEvent(
@@ -361,6 +361,107 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
         </div>
       </div>
 
+      {/* Shut on arrival, and above the search box.
+          This is the one panel on the screen that is worked out rather than
+          entered, and open by default it stood between the wallet and the search
+          box -- so the answer to "what did I write down about the Bonvoy card"
+          began with scrolling past advice nobody asked for in that moment. Closed
+          it is one line saying how many kinds of spending it has an answer for,
+          which is enough to decide whether to open it. */}
+      {payWith.length > 0 && (
+        <details className="no-print rounded-2xl border border-[var(--line)] bg-white/60 px-5 py-4">
+          <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-1">
+            <h2 className="font-display text-lg font-semibold">
+              What to pay with
+            </h2>
+            <span className="text-sm text-ink-soft">
+              {payWith.length} {payWith.length === 1 ? "kind" : "kinds"} of
+              spending
+              {creditTotal > 0
+                ? `, and ${formatMoney(creditTotal)} of statement credits`
+                : ""}
+            </span>
+            <span
+              aria-hidden="true"
+              className="ml-auto text-xs font-semibold uppercase tracking-[0.09em] text-teal"
+            >
+              Show
+            </span>
+          </summary>
+          <p className="mt-3 text-sm text-ink-soft">
+            Worked out from the earning rules on your own cards. Where it
+            matters how you book, each way is listed separately.
+            {creditTotal > 0 && (
+              <>
+                {" "}
+                Statement credits are shown too — up to{" "}
+                <span className="font-semibold text-ink">
+                  {formatMoney(creditTotal)}
+                </span>{" "}
+                a year across your cards, if you use all of them.
+              </>
+            )}
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {payWith.map((spend) => (
+              <div
+                key={spend.key}
+                className="rounded-xl border border-[var(--line)] bg-white/70 px-4 py-3"
+              >
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                  {spend.label}
+                </p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {spend.options.map((option, i) => (
+                    <li key={`${option.card.id}-${i}`}>
+                      <p className="text-sm font-semibold leading-snug">
+                        {option.card.brand}
+                        {spend.options.length > 1 && (
+                          <span className="font-normal text-ink-soft">
+                            {" "}
+                            · {routeShort(option.route)}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-ink-soft">
+                        {formatRule(option.rule)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                {spend.credits.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-[var(--line)] pt-2">
+                    {spend.credits.slice(0, 3).map((entry, i) => (
+                      <li
+                        key={`${entry.card.id}-credit-${i}`}
+                        className="text-xs text-ink-soft"
+                      >
+                        <span className="font-semibold text-teal">
+                          {formatMoney(entry.credit.amount)} credit
+                        </span>{" "}
+                        on {entry.card.brand}
+                        {entry.credit.note ? ` — ${entry.credit.note}` : ""}
+                      </li>
+                    ))}
+                    {spend.credits.length > 3 && (
+                      <li className="text-xs text-ink-faint">
+                        and {spend.credits.length - 3} more credit
+                        {spend.credits.length - 3 === 1 ? "" : "s"} that could
+                        apply
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-ink-faint">
+            Credits are listed, not counted down: the app does not know what you
+            have already put against one this year.
+          </p>
+        </details>
+      )}
+
       {/* The wallet is a reference book, not a list to read through, so once it
           is long enough to scroll it gets the same three controls the places
           record has: a search across everything written on a program, and chips
@@ -448,85 +549,6 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
             onSave={save}
           />
         </div>
-      )}
-
-      {payWith.length > 0 && (
-        <section>
-          <h2 className="font-display text-lg font-semibold">
-            What to pay with
-          </h2>
-          <p className="mt-1 text-sm text-ink-soft">
-            Worked out from the earning rules on your own cards. Where it
-            matters how you book, each way is listed separately.
-            {creditTotal > 0 && (
-              <>
-                {" "}
-                Statement credits are shown too — up to{" "}
-                <span className="font-semibold text-ink">
-                  {formatMoney(creditTotal)}
-                </span>{" "}
-                a year across your cards, if you use all of them.
-              </>
-            )}
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {payWith.map((spend) => (
-              <div
-                key={spend.key}
-                className="rounded-xl border border-[var(--line)] bg-white/70 px-4 py-3"
-              >
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                  {spend.label}
-                </p>
-                <ul className="mt-1.5 space-y-1.5">
-                  {spend.options.map((option, i) => (
-                    <li key={`${option.card.id}-${i}`}>
-                      <p className="text-sm font-semibold leading-snug">
-                        {option.card.brand}
-                        {spend.options.length > 1 && (
-                          <span className="font-normal text-ink-soft">
-                            {" "}
-                            · {routeShort(option.route)}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-ink-soft">
-                        {formatRule(option.rule)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-                {spend.credits.length > 0 && (
-                  <ul className="mt-2 space-y-1 border-t border-[var(--line)] pt-2">
-                    {spend.credits.slice(0, 3).map((entry, i) => (
-                      <li
-                        key={`${entry.card.id}-credit-${i}`}
-                        className="text-xs text-ink-soft"
-                      >
-                        <span className="font-semibold text-teal">
-                          {formatMoney(entry.credit.amount)} credit
-                        </span>{" "}
-                        on {entry.card.brand}
-                        {entry.credit.note ? ` — ${entry.credit.note}` : ""}
-                      </li>
-                    ))}
-                    {spend.credits.length > 3 && (
-                      <li className="text-xs text-ink-faint">
-                        and {spend.credits.length - 3} more credit
-                        {spend.credits.length - 3 === 1 ? "" : "s"} that could
-                        apply
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-ink-faint">
-            Credits are listed, not counted down: the app does not know what you
-            have already put against one this year.
-          </p>
-        </section>
       )}
 
       {groups.length === 0 && !form && (
