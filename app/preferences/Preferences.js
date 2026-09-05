@@ -91,10 +91,6 @@ export default function Preferences({
   // Which button is running, so the one that was pressed is the one that says so.
   const [asking, setAsking] = useState("");
   const [askError, setAskError] = useState("");
-  // The three filter rows, folded away until somebody wants them. Open when a
-  // filter is already on, so a list narrowed by a filter never hides the control
-  // that narrowed it.
-  const [filtersOpen, setFiltersOpen] = useState(false);
   // Topic headings folded shut, by group key. Kept in the browser so a family who
   // collapses Accommodations finds it collapsed tomorrow: a fold somebody chose
   // is a preference, and forgetting it every reload would make the control a toy.
@@ -326,13 +322,11 @@ export default function Preferences({
   // that looks like it found nothing. Folds are for reading the whole list.
   const isShut = (key) => !filtered && shut.has(key);
 
-  // What the list is showing, in a sentence, because the filters that caused it
-  // are folded away and a count with no explanation is how you get somebody
-  // wondering where their preferences went.
+  // What the list is showing, in a sentence, said only when something is on. The
+  // chips are on screen now, so "All 34 of them" underneath them was a caption
+  // for a thing nobody had done.
   const filterSaid = useMemo(() => {
-    if (!filtered) {
-      return `All ${prefs.length} of them.`;
-    }
+    if (!filtered) return "";
     const parts = [];
     if (whose)
       parts.push(
@@ -609,17 +603,75 @@ export default function Preferences({
 
       {prefs.length > 0 && (
         <div className="no-print mt-4 space-y-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <button
-              type="button"
-              className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-              aria-expanded={filtersOpen}
-              onClick={() => setFiltersOpen((open) => !open)}
-            >
-              {filtersOpen ? "Hide filters" : "Filter"}
-            </button>
-            <span className="text-sm text-ink-soft">{filterSaid}</span>
-            {filtered && (
+          {/* On screen, not behind a Filter link. Two questions people actually
+              ask of this list -- whose is it, and what is it about -- are chips
+              you can see, and the third, which trip it gets used on, is a picker
+              rather than a row of twenty-one trip names. Hiding all three meant
+              the answer to "why am I only seeing four" was one tap away instead
+              of in front of you. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="section-label">Whose</span>
+            <Chip on={!whose} onClick={() => setWhose("")}>
+              Everyone · {prefs.length}
+            </Chip>
+            {counts.map((row) => (
+              <Chip
+                key={row.id || "_shared"}
+                on={whose === (row.id || SHARED_LABEL)}
+                onClick={() => setWhose(row.id || SHARED_LABEL)}
+              >
+                {row.name} · {row.count}
+              </Chip>
+            ))}
+            {trips.length > 0 && (
+              <label className="ml-auto">
+                <span className="sr-only">Which trip these get used on</span>
+                <select
+                  className="min-h-8 rounded-full border border-[var(--line)] bg-white px-3 py-1 text-xs font-semibold text-ink-soft"
+                  value={tripId}
+                  onChange={(e) => setTripId(e.target.value)}
+                >
+                  <option value="">Used on any trip</option>
+                  {trips.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.cover_emoji ? `${t.cover_emoji} ` : ""}
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+          {(topicChips.length > 1 || topicKey) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="section-label">About</span>
+              <Chip on={!topicKey} onClick={() => setTopicKey("")}>
+                Anything
+              </Chip>
+              {topicChips.map((row) => (
+                <Chip
+                  key={row.key}
+                  on={topicKey === row.key}
+                  onClick={() => setTopicKey(row.key)}
+                >
+                  {row.label} · {row.count}
+                </Chip>
+              ))}
+              {untopiced > 0 && (
+                <Chip
+                  on={topicKey === NO_TOPIC_KEY}
+                  onClick={() => setTopicKey(NO_TOPIC_KEY)}
+                >
+                  {NO_TOPIC_LABEL} · {untopiced}
+                </Chip>
+              )}
+            </div>
+          )}
+          {/* One line under the chips: what a filter did and how to undo it, or
+              the fold control when nothing is filtered. Never both. */}
+          {filtered ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-sm text-ink-soft">{filterSaid}</span>
               <button
                 type="button"
                 className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
@@ -627,8 +679,9 @@ export default function Preferences({
               >
                 Clear
               </button>
-            )}
-            {!filtered && groups.length > 1 && (
+            </div>
+          ) : (
+            groups.length > 1 && (
               <button
                 type="button"
                 className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
@@ -638,75 +691,15 @@ export default function Preferences({
               >
                 {allShut ? "Open all" : "Collapse all"}
               </button>
-            )}
-          </div>
-          <div className={filtersOpen ? "space-y-2" : "hidden"}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="section-label">Show</span>
-              <Chip on={!whose} onClick={() => setWhose("")}>
-                Everyone · {prefs.length}
-              </Chip>
-              {counts.map((row) => (
-                <Chip
-                  key={row.id || "_shared"}
-                  on={whose === (row.id || SHARED_LABEL)}
-                  onClick={() => setWhose(row.id || SHARED_LABEL)}
-                >
-                  {row.name} · {row.count}
-                </Chip>
-              ))}
-            </div>
-            {trips.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="section-label">Used on</span>
-                <Chip on={!tripId} onClick={() => setTripId("")}>
-                  Every trip
-                </Chip>
-                {trips.map((t) => (
-                  <Chip
-                    key={t.id}
-                    on={tripId === t.id}
-                    onClick={() => setTripId(t.id)}
-                  >
-                    {t.cover_emoji ? `${t.cover_emoji} ` : ""}
-                    {t.name}
-                  </Chip>
-                ))}
-              </div>
-            )}
-            {(topicChips.length > 1 || topicKey) && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="section-label">About</span>
-                <Chip on={!topicKey} onClick={() => setTopicKey("")}>
-                  Anything
-                </Chip>
-                {topicChips.map((row) => (
-                  <Chip
-                    key={row.key}
-                    on={topicKey === row.key}
-                    onClick={() => setTopicKey(row.key)}
-                  >
-                    {row.label} · {row.count}
-                  </Chip>
-                ))}
-                {untopiced > 0 && (
-                  <Chip
-                    on={topicKey === NO_TOPIC_KEY}
-                    onClick={() => setTopicKey(NO_TOPIC_KEY)}
-                  >
-                    {NO_TOPIC_LABEL} · {untopiced}
-                  </Chip>
-                )}
-              </div>
-            )}
-            {tripId && (
-              <p className="text-sm text-ink-soft">
-                {aside
-                  ? `What ${tripName} is planned with: everything shared, plus the people going. ${aside}`
-                  : `Everyone who has a preference saved is going on ${tripName}, so all of them apply.`}
-              </p>
-            )}
-          </div>
+            )
+          )}
+          {tripId && (
+            <p className="text-sm text-ink-soft">
+              {aside
+                ? `What ${tripName} is planned with: everything shared, plus the people going. ${aside}`
+                : `Everyone who has a preference saved is going on ${tripName}, so all of them apply.`}
+            </p>
+          )}
           {tidy.length > 0 && (
             <div className="space-y-2 rounded-xl border border-amber/30 bg-amber/5 p-3">
               <span className="section-label">Topics worth tidying</span>
