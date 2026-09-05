@@ -29,7 +29,19 @@ const CHIP_COLORS = [
   "#4d7c0f",
 ];
 
-export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
+export default function Pets({
+  familyId,
+  pets,
+  trips = [],
+  tripPets = [],
+  // Chosen by the band at the top of the Family screen, which points at people
+  // and animals from one row -- so which animal is open, and whether the add form
+  // is up, are decided out there rather than here.
+  only = null,
+  addOpen = false,
+  onAddDone = null,
+  bare = false,
+}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const todayISO = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
@@ -37,7 +49,9 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
   const [rows, setRows] = useState(pets);
   const [links, setLinks] = useState(tripPets);
   const [editing, setEditing] = useState(null); // pet id
-  const [adding, setAdding] = useState(false);
+  const [addingInner, setAdding] = useState(false);
+  const adding = bare ? addOpen : addingInner;
+  const closeAdd = () => (onAddDone ? onAddDone() : setAdding(false));
   const [busy, setBusy] = useState(null);
   const [note, setNote] = useState("");
 
@@ -140,8 +154,8 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
   }
 
   return (
-    <section className="mt-10">
-      <div className="mb-4">
+    <section className={bare ? "" : "mt-10"}>
+      <div className={bare ? "hidden" : "mb-4"}>
         <h2 className="font-display text-2xl font-semibold">Pets</h2>
         <p className="mt-1 text-sm text-ink-soft">
           Who else is in the family, and what happens to them when we go away.
@@ -170,14 +184,14 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
       {note && <p className="mb-3 text-sm text-ink-soft">{note}</p>}
 
       <div className="space-y-4">
-        {rows.length === 0 && !adding && (
+        {!bare && rows.length === 0 && !adding && (
           <p className="text-sm text-ink-soft">
             No pets yet. Add one and Aly will start taking them into account
             when she looks for somewhere to stay.
           </p>
         )}
 
-        {rows.map((pet) => {
+        {(bare ? rows.filter((pet) => pet.id === only) : rows).map((pet) => {
           const age = petAge(pet.date_of_birth, todayISO);
           const outlook = cabinOutlook(pet);
           return (
@@ -264,18 +278,24 @@ export default function Pets({ familyId, pets, trips = [], tripPets = [] }) {
             <PetForm
               pet={null}
               busy={busy === "new"}
-              onCancel={() => setAdding(false)}
-              onSave={(patch) => savePet(null, patch)}
+              onCancel={closeAdd}
+              onSave={async (patch) => {
+                const out = await savePet(null, patch);
+                if (bare && !out) closeAdd();
+                return out;
+              }}
             />
           </div>
         ) : (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setAdding(true)}
-          >
-            Add a pet
-          </button>
+          !bare && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setAdding(true)}
+            >
+              Add a pet
+            </button>
+          )
         )}
       </div>
     </section>

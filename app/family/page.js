@@ -6,8 +6,7 @@ import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
-import People from "./People";
-import Pets from "./Pets";
+import FamilyScreen from "./FamilyScreen";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 
@@ -108,9 +107,7 @@ export default async function PeoplePage() {
           <h1 className="font-display text-3xl font-semibold">Family</h1>
           <p className="mt-1 text-sm text-ink-soft">
             Everyone who travels, and every animal that does or does not — with
-            the passports, licenses, Known Traveler and Global Entry numbers
-            kept in one place so nobody is digging through a drawer at booking
-            time.
+            the documents kept in one place.
           </p>
           <HouseholdName familyId={familyId} name={household?.name || ""} />
           <HouseholdHome
@@ -121,7 +118,7 @@ export default async function PeoplePage() {
             precise={household?.home_precise === true}
           />
         </div>
-        <People
+        <FamilyScreen
           familyId={familyId}
           userId={user.id}
           userEmail={user.email}
@@ -130,11 +127,7 @@ export default async function PeoplePage() {
           trips={trips || []}
           rosters={rosters || []}
           warnings={warnings}
-        />
-        <Pets
-          familyId={familyId}
           pets={pets || []}
-          trips={trips || []}
           tripPets={tripPets || []}
         />
       </main>

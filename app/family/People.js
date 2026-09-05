@@ -42,6 +42,13 @@ export default function People({
   trips = [],
   rosters = [],
   warnings = [],
+  // The screen around this component owns which person is open and whether the
+  // add form is up: the band of chips at the top of the page points at people and
+  // animals alike, so it cannot live inside either list.
+  only = null,
+  picker = null,
+  addOpen = false,
+  onAddDone = null,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -52,7 +59,14 @@ export default function People({
   const [addingFor, setAddingFor] = useState(null); // traveler id
   const [editingDoc, setEditingDoc] = useState(null); // document id
   const [editingPerson, setEditingPerson] = useState(null); // traveler id
-  const [addingPerson, setAddingPerson] = useState(false);
+  const [addingPersonInner, setAddingPerson] = useState(false);
+  const controlled = picker !== null;
+  const addingPerson = controlled ? addOpen : addingPersonInner;
+  const closeAdd = () => (onAddDone ? onAddDone() : setAddingPerson(false));
+  // Which cards are drawn. `only` is a traveler id when one person is open, and
+  // an empty string when the band is pointing somewhere else entirely -- at an
+  // animal, or at the add form.
+  const shown = controlled ? travelers.filter((t) => t.id === only) : travelers;
   const [revealed, setRevealed] = useState({});
   const [rosterBusy, setRosterBusy] = useState(null);
   // What the trip's packing list did about the tap, kept per trip so the line
@@ -335,7 +349,9 @@ export default function People({
         </div>
       )}
 
-      {travelers.map((person) => {
+      {picker}
+
+      {shown.map((person) => {
         const docs = docsFor(person.id);
         return (
           <section key={person.id} className="card p-5">
@@ -595,18 +611,24 @@ export default function People({
         <div className="card p-5">
           <h2 className="font-display text-lg font-semibold">Add someone</h2>
           <PersonForm
-            onCancel={() => setAddingPerson(false)}
-            onSave={(values) => savePerson(null, values)}
+            onCancel={closeAdd}
+            onSave={async (values) => {
+              const out = await savePerson(null, values);
+              if (controlled) closeAdd();
+              return out;
+            }}
           />
         </div>
       ) : (
-        <button
-          type="button"
-          className="btn btn-ghost no-print"
-          onClick={() => setAddingPerson(true)}
-        >
-          Add someone
-        </button>
+        !controlled && (
+          <button
+            type="button"
+            className="btn btn-ghost no-print"
+            onClick={() => setAddingPerson(true)}
+          >
+            Add someone
+          </button>
+        )
       )}
     </div>
   );
