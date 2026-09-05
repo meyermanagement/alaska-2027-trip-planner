@@ -152,16 +152,31 @@ export default function PropagatePanel() {
   const everything = allKeys.length;
 
   return (
-    <div className="no-print card mb-4 p-4">
-      <h2 className="text-sm font-semibold tracking-wide text-ink">
-        Push these lists onto upcoming trips
-      </h2>
-      <p className="mt-1 text-sm text-ink-soft">
-        A trip&rsquo;s packing list is a copy taken when the trip was built, so
-        editing a template here does not change trips you already have. This
-        looks at every trip that has not started yet and tells you exactly what
-        it would change before it changes anything. Then you choose how much of
-        it to do &mdash; one item, one trip, or all of it.
+    /* Shut on arrival, like What to pay with on the Wallet. Nothing here happens
+       until somebody presses Check, and open by default it put a heading, a
+       four-line paragraph and a button above the templates themselves -- so
+       editing one list began by scrolling past an offer to copy it onto trips you
+       had not thought about yet. Closed it is one line saying why the panel
+       exists, which is enough to decide whether to open it. Uncontrolled on
+       purpose: every control that produces a plan lives inside, so it cannot be
+       shut over a proposal somebody is still reading. */
+    <details className="no-print card mb-4 px-4 py-3.5">
+      <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h2 className="font-display text-lg font-semibold text-ink">
+          Push these lists onto upcoming trips
+        </h2>
+        <span className="text-sm text-ink-soft">
+          Editing a template does not change trips you already have
+        </span>
+        <span className="ml-auto text-xs font-semibold uppercase tracking-[0.09em] text-teal">
+          Show
+        </span>
+      </summary>
+      <p className="mt-2 text-sm text-ink-soft">
+        A trip&rsquo;s packing list is a copy taken when the trip was built.
+        This looks at every trip that has not started yet and tells you exactly
+        what it would change before it changes anything. Then you choose how
+        much of it to do &mdash; one item, one trip, or all of it.
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -351,7 +366,7 @@ export default function PropagatePanel() {
           })}
         </div>
       )}
-    </div>
+    </details>
   );
 }
 
