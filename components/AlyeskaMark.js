@@ -8,12 +8,14 @@
 // one already draws a circle around it (the round menu button), and two circles
 // a few pixels apart read as a mistake.
 //
-// The one subtlety is `strokeMiterlimit`. The join at north is a real point --
-// its miter is about 2.5x the line width, so it survives the limit -- while the
-// two tail corners are far sharper and their miters would spike several units
-// past the viewBox. A limit of 2.9 keeps the point at north and quietly bevels
-// the tails, which is the behavior you want anyway: a compass needle is pointed
-// at one end. Round caps, which the mark used before, rounded off all three.
+// It is drawn as a filled outline rather than a stroked path: an outer contour,
+// an inner counter, and `fill-rule="evenodd"` to hollow it out. That is the only
+// way to get all three points -- north and both tails -- genuinely sharp. A
+// stroke rounds them (round joins) or spikes several units past the viewBox
+// (miter joins), because the tail corners are far sharper angles than the apex
+// and a single stroke cannot treat them differently. The counter is a 2.5-unit
+// inward mitered offset of the outer contour, so the line weight stays even all
+// the way around. The whole mark sits inside x 3.9-28.1, y 2.9-29.0.
 export default function AlyeskaMark({ className = "h-7 w-7" }) {
   return (
     <svg
@@ -22,13 +24,15 @@ export default function AlyeskaMark({ className = "h-7 w-7" }) {
       fill="none"
       aria-hidden="true"
     >
-      <path d="M16 5.8 16 21.2 5.6 28.8Z" fill="currentColor" opacity="0.28" />
       <path
-        d="M16 5.8 26.4 28.8 16 21.2 5.6 28.8Z"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinejoin="miter"
-        strokeMiterlimit="2.9"
+        fillRule="evenodd"
+        fill="currentColor"
+        d="M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z"
+      />
+      <path
+        d="M9.92 21.96 16 17.89 16 8.84Z"
+        fill="currentColor"
+        opacity="0.28"
       />
     </svg>
   );
