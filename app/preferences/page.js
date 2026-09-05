@@ -5,10 +5,14 @@ import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import Preferences from "./Preferences";
-import { isDraftTrip, isPastTrip } from "@/lib/format";
 
 export const metadata = { title: "Travel preferences · Alyeska" };
 
+// The trip filter is gone, and with it the two queries that fed it -- the trips
+// and every trip's roster. A preference is a standing answer about how this family
+// travels, so "used on any trip" is true of nearly all of them, and a filter whose
+// default answer covers the whole list is a control for a question nobody had.
+//
 // Reviews used to be the bottom half of this screen. They have their own page
 // again -- /reviews -- because how the family likes to travel and what they
 // thought of one hotel are two different questions, and the second half was
@@ -45,26 +49,6 @@ export default async function PreferencesPage() {
       .order("sort_order", { ascending: true }),
   ]);
 
-  const [{ data: trips }, { data: rosters }] = await Promise.all([
-    supabase
-      .from("trips")
-      .select(
-        "id, name, slug, public_id, start_date, end_date, cover_emoji, status",
-      )
-      // Scoped to the household this screen is showing. Row-level security
-      // already keeps other people's trips out; this keeps the reader's *other*
-      // household out, which matters as soon as anybody belongs to two.
-      .eq("family_id", familyId),
-    supabase.from("trip_travelers").select("trip_id, traveler_id"),
-  ]);
-
-  // The trips worth filtering preferences by are the ones still to come, soonest
-  // first: the question this answers is "what will Aly plan Alaska with", and a
-  // trip already taken cannot be planned.
-  const prefTrips = (trips || [])
-    .filter((t) => !isPastTrip(t) && !isDraftTrip(t))
-    .sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
-
   return (
     <>
       <TopBar />
@@ -77,8 +61,6 @@ export default async function PreferencesPage() {
           familyId={familyId}
           travelers={people || []}
           preferences={preferences || []}
-          trips={prefTrips}
-          rosters={rosters || []}
         />
       </main>
       <AskAlyGeneral />

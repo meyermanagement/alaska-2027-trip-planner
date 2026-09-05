@@ -131,6 +131,9 @@ function maskNumber(value) {
 export default function RewardsBoard({ familyId, travelers, programs }) {
   const supabase = createClient();
   const router = useRouter();
+  // Whether What to pay with is open. Held rather than left to the browser so the
+  // word in the corner is the opposite of what you are looking at.
+  const [payWithOpen, setPayWithOpen] = useState(false);
   const [rows, setRows] = useState(programs);
   const [form, setForm] = useState(null); // null | { id | null, values }
   const [busy, setBusy] = useState(false);
@@ -327,7 +330,11 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           spending it has an answer for, which is enough to decide whether to
           open it. */}
       {payWith.length > 0 && (
-        <details className="no-print rounded-2xl border border-[var(--line)] bg-white/60 px-5 py-4">
+        <details
+          className="no-print rounded-2xl border border-[var(--line)] bg-white/60 px-5 py-4"
+          open={payWithOpen}
+          onToggle={(e) => setPayWithOpen(e.currentTarget.open)}
+        >
           <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-1">
             <h2 className="font-display text-lg font-semibold">
               What to pay with
@@ -343,7 +350,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
               aria-hidden="true"
               className="ml-auto text-xs font-semibold uppercase tracking-[0.09em] text-teal"
             >
-              Show
+              {payWithOpen ? "Hide" : "Show"}
             </span>
           </summary>
           <p className="mt-3 text-sm text-ink-soft">

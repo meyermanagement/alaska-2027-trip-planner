@@ -22,6 +22,10 @@ import { formatDayYear } from "@/lib/format";
  */
 export default function PropagatePanel() {
   const router = useRouter();
+  // Whether the section is open. A native details tells nobody its state, so the
+  // word in the corner said "Show" while the thing was already showing. Held here
+  // so the word can be the opposite of what you are looking at.
+  const [showing, setShowing] = useState(false);
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -157,10 +161,16 @@ export default function PropagatePanel() {
        four-line paragraph and a button above the templates themselves -- so
        editing one list began by scrolling past an offer to copy it onto trips you
        had not thought about yet. Closed it is one line saying why the panel
-       exists, which is enough to decide whether to open it. Uncontrolled on
-       purpose: every control that produces a plan lives inside, so it cannot be
-       shut over a proposal somebody is still reading. */
-    <details className="no-print card mb-4 px-4 py-3.5">
+       exists, which is enough to decide whether to open it. The open state is
+       held rather than left to the browser, so the word in the corner can say
+       Hide once you are looking at it. Nothing closes it but that word: every
+       control that produces a plan lives inside, so it cannot be shut out from
+       under a proposal somebody is still reading. */
+    <details
+      className="no-print card mb-4 px-4 py-3.5"
+      open={showing}
+      onToggle={(e) => setShowing(e.currentTarget.open)}
+    >
       <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-1">
         <h2 className="font-display text-lg font-semibold text-ink">
           Push these lists onto upcoming trips
@@ -169,7 +179,7 @@ export default function PropagatePanel() {
           Editing a template does not change trips you already have
         </span>
         <span className="ml-auto text-xs font-semibold uppercase tracking-[0.09em] text-teal">
-          Show
+          {showing ? "Hide" : "Show"}
         </span>
       </summary>
       <p className="mt-2 text-sm text-ink-soft">

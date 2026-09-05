@@ -10,9 +10,6 @@ import {
   ownedBy,
   ownerIds,
   whoseNames,
-  goingIds,
-  prefsForTrip,
-  setAsideSentence,
   whoseCounts,
   whoseName,
 } from "@/lib/preferences/scope";
@@ -58,8 +55,6 @@ export default function Preferences({
   familyId,
   travelers,
   preferences: initial,
-  trips = [],
-  rosters = [],
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -69,7 +64,6 @@ export default function Preferences({
   const [busy, setBusy] = useState(false);
   // "" is everyone; otherwise a traveler id, or SHARED for the family's own.
   const [whose, setWhose] = useState("");
-  const [tripId, setTripId] = useState("");
   // A topic's comparable form, or "" for all of them, or NO_TOPIC_KEY for the
   // ones filed under nothing.
   const [topicKey, setTopicKey] = useState("");
@@ -101,19 +95,15 @@ export default function Preferences({
     [prefs, travelers],
   );
 
-  // The people going on the trip being filtered by, if any.
-  const going = useMemo(
-    () => (tripId ? goingIds(rosters, tripId) : null),
-    [rosters, tripId],
-  );
-
-  // Three filters, applied in the order they read on the screen: whose it is,
-  // whether the trip in question carries it at all, then what it is about.
+  // Two filters, applied in the order they read on the screen: whose it is, then
+  // what it is about. There used to be a third, which trip a preference gets used
+  // on -- but a preference is a standing answer about how this family travels, so
+  // the honest answer for nearly all of them is every trip, and a filter whose
+  // default is "all of them" was a control for a question nobody had.
   const shown = useMemo(() => {
     let list = prefs;
     if (whose === SHARED_LABEL) list = list.filter((p) => isShared(p));
     else if (whose) list = list.filter((p) => ownedBy(p, whose));
-    if (going) list = prefsForTrip(list, going);
     if (topicKey === NO_TOPIC_KEY)
       list = list.filter((p) => topicsOf(p).length === 0);
     else if (topicKey)
@@ -121,30 +111,22 @@ export default function Preferences({
         topicsOf(p).some((t) => normalizeTopic(t) === topicKey),
       );
     return list;
-  }, [prefs, whose, going, topicKey]);
-
-  const aside = useMemo(
-    () => (going ? setAsideSentence(prefs, going, travelers) : ""),
-    [going, prefs, travelers],
-  );
-
-  const tripName = trips.find((t) => t.id === tripId)?.name || "";
+  }, [prefs, whose, topicKey]);
 
   // Grouped in planning order, the same every time it is drawn. A preference
   // about two things appears under both, and says so.
   const groups = useMemo(() => groupPreferences(shown), [shown]);
 
   // The filter row counts every preference, not the filtered ones: a chip that
-  // reads "Food · 2" and then shows nothing because a different filter is also on
+  // reads "Food · 2" and then shows nothing because the other filter is also on
   // is a chip that lied about what pressing it would do. So these are counted
-  // against what the other two filters have already left.
+  // against what the other filter has already left.
   const beforeTopic = useMemo(() => {
     let list = prefs;
     if (whose === SHARED_LABEL) list = list.filter((p) => isShared(p));
     else if (whose) list = list.filter((p) => ownedBy(p, whose));
-    if (going) list = prefsForTrip(list, going);
     return list;
-  }, [prefs, whose, going]);
+  }, [prefs, whose]);
 
   const topicChips = useMemo(() => topicsInUse(beforeTopic), [beforeTopic]);
   const untopiced = useMemo(
@@ -314,7 +296,7 @@ export default function Preferences({
   // not a remembered fold for a topic that no longer exists.
   const allShut = groups.length > 0 && groups.every((g) => shut.has(g.key));
 
-  const filtered = Boolean(whose || tripId || topicKey);
+  const filtered = Boolean(whose || topicKey);
 
   // A filtered list ignores the folds. Somebody who asks for Food has asked for
   // those three preferences by name, and honouring a fold set while browsing the
@@ -334,7 +316,6 @@ export default function Preferences({
           ? "shared"
           : `${travelers.find((t) => t.id === whose)?.name || "one person"}\u2019s`,
       );
-    if (tripName) parts.push(`used on ${tripName}`);
     if (topicKey === NO_TOPIC_KEY) parts.push(`filed under nothing`);
     else if (topicKey)
       parts.push(
@@ -346,7 +327,6 @@ export default function Preferences({
     prefs.length,
     shown.length,
     whose,
-    tripName,
     topicKey,
     topicChips,
     travelers,
@@ -354,7 +334,6 @@ export default function Preferences({
 
   function clearFilters() {
     setWhose("");
-    setTripId("");
     setTopicKey("");
   }
 
@@ -463,7 +442,7 @@ export default function Preferences({
       const res = await fetch("/api/preferences/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, whose: whoseName, tripId }),
+        body: JSON.stringify({ mode, whose: whoseName }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Aly could not answer.");
@@ -623,24 +602,6 @@ export default function Preferences({
                 {row.name} · {row.count}
               </Chip>
             ))}
-            {trips.length > 0 && (
-              <label className="ml-auto">
-                <span className="sr-only">Which trip these get used on</span>
-                <select
-                  className="min-h-8 rounded-full border border-[var(--line)] bg-white px-3 py-1 text-xs font-semibold text-ink-soft"
-                  value={tripId}
-                  onChange={(e) => setTripId(e.target.value)}
-                >
-                  <option value="">Used on any trip</option>
-                  {trips.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.cover_emoji ? `${t.cover_emoji} ` : ""}
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
           </div>
           {(topicChips.length > 1 || topicKey) && (
             <div className="flex flex-wrap items-center gap-2">
@@ -692,13 +653,6 @@ export default function Preferences({
                 {allShut ? "Open all" : "Collapse all"}
               </button>
             )
-          )}
-          {tripId && (
-            <p className="text-sm text-ink-soft">
-              {aside
-                ? `What ${tripName} is planned with: everything shared, plus the people going. ${aside}`
-                : `Everyone who has a preference saved is going on ${tripName}, so all of them apply.`}
-            </p>
           )}
           {tidy.length > 0 && (
             <div className="space-y-2 rounded-xl border border-amber/30 bg-amber/5 p-3">
