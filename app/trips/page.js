@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -12,6 +13,7 @@ import {
 } from "@/lib/format";
 import NewTripButton from "./NewTripButton";
 import TripBoard from "./TripBoard";
+import BoardSkeleton from "./BoardSkeleton";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { ABOUT_SKIP_COOKIE } from "@/lib/travelers/profile";
 
@@ -21,7 +23,20 @@ export const metadata = { title: "Trips · Alyeska" };
 // query -- the menu's three trip rows are this one screen with a different group
 // showing, and arriving from one of them while already on this page changes only
 // the address, without unmounting anything. See TripBoard.
-export default async function TripsPage() {
+//
+// That last part is why the board sits behind a Suspense boundary keyed on the
+// group rather than being awaited here. A segment that does not unmount never
+// shows its loading.js again, so pressing Trip Builder, Planned Trips or Trip Log
+// gave you a spinner in the menu disc and then nothing at all for as long as the
+// six queries below took -- on the third press it looked like the menu had
+// swallowed it. Keyed on the view, each of those presses resets the boundary and
+// gets the board skeleton back, while the heading and the Trip builder button,
+// which do not depend on any of it, stay where they are.
+export default async function TripsPage({ searchParams }) {
+  // Only used as the boundary's key -- the board reads the group itself, on the
+  // client, so the two never disagree about which tab is open.
+  const view = String((await searchParams)?.view || "");
+
   const supabase = await createClient();
   const user = await whoIs(supabase);
   if (!user) redirect("/login");
@@ -36,15 +51,75 @@ export default async function TripsPage() {
   const access = await resolveAccess(supabase, user);
   const familyId = memberships[0].family_id;
 
+  // The one query the page itself needs: the About You redirect below is decided
+  // on it, and a redirect has to be decided before anything is streamed.
+  const { data: people } = await supabase
+    .from("travelers")
+    .select("id, name, sort_order, is_person, user_id, about_me")
+    .eq("is_person", true)
+    .order("sort_order", { ascending: true });
+
+  // The About You question used to be a card at the top of this page. It is a
+  // screen of its own now: an account with nothing in it needs that paragraph
+  // more than it needs anything else here, and a box six lines tall wedged
+  // between a heading and a list of trips does not get a paragraph written in it.
+  //
+  // Matched on the account rather than on the name, because a name is not an
+  // identity and two Marks would both be handed the same row. No row at all means
+  // an unclaimed seat, and nowhere to save the answer, so the question is not
+  // asked.
+  const me = (people || []).find((p) => p.user_id === user.id) || null;
+  const skipped = (await cookies()).get(ABOUT_SKIP_COOKIE);
+  if (me && !String(me.about_me || "").trim() && !skipped) {
+    redirect("/about-you?first=1");
+  }
+
+  return (
+    <>
+      {/* No askHref: the button opens the drawer here, in general context. */}
+      <TopBar />
+      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            {/* The heading used to say "Our trips" over a single list. The
+                three groups below are each named now, so the page keeps the
+                plain name and "Upcoming trips" labels the list it belongs to. */}
+            <h1 className="font-display text-3xl font-semibold">Trips</h1>
+          </div>
+          {!access?.can.isSecondary && <NewTripButton />}
+        </div>
+
+        {/* Keyed on the group, so each of the menu's three trip rows resets the
+            boundary and shows the skeleton on its way in. */}
+        <Suspense key={view} fallback={<BoardSkeleton />}>
+          <Board
+            familyId={familyId}
+            people={people || []}
+            canRemove={!access?.can.isSecondary}
+          />
+        </Suspense>
+      </main>
+      <AskAlyGeneral />
+    </>
+  );
+}
+
+/**
+ * Everything on this screen that comes out of the database. Awaited inside the
+ * boundary above rather than in the page, so the frame paints and the skeleton
+ * stands in for the cards while these run.
+ */
+async function Board({ familyId, people, canRemove }) {
+  const supabase = await createClient();
+
   // None of these depend on each other, so they go together rather than one
-  // after another: seven round trips to the database stacked end to end is
+  // after another: five round trips to the database stacked end to end is
   // most of the wait people notice when this screen opens.
   const [
     { data: trips },
     { data: counts },
     { data: taskRows },
     { data: itineraryRows },
-    { data: people },
     { data: rosters },
   ] = await Promise.all([
     supabase
@@ -69,11 +144,6 @@ export default async function TripsPage() {
       .is("stashed_at", null),
     supabase.from("predeparture_tasks").select("trip_id, is_done"),
     supabase.from("itinerary_items").select("trip_id"),
-    supabase
-      .from("travelers")
-      .select("id, name, sort_order, is_person, user_id, about_me")
-      .eq("is_person", true)
-      .order("sort_order", { ascending: true }),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
   ]);
 
@@ -124,48 +194,14 @@ export default async function TripsPage() {
     .filter((t) => isPastTrip(t, today))
     .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
 
-  // The About You question used to be a card at the top of this page. It is a
-  // screen of its own now: an account with nothing in it needs that paragraph
-  // more than it needs anything else here, and a box six lines tall wedged
-  // between a heading and a list of trips does not get a paragraph written in it.
-  //
-  // Matched on the account rather than on the name, because a name is not an
-  // identity and two Marks would both be handed the same row. No row at all means
-  // an unclaimed seat, and nowhere to save the answer, so the question is not
-  // asked.
-  const me = (people || []).find((p) => p.user_id === user.id) || null;
-  const skipped = (await cookies()).get(ABOUT_SKIP_COOKIE);
-  if (me && !String(me.about_me || "").trim() && !skipped) {
-    redirect("/about-you?first=1");
-  }
-
   return (
-    <>
-      {/* No askHref: the button opens the drawer here, in general context. */}
-      <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            {/* The heading used to say "Our trips" over a single list. The
-                three groups below are each named now, so the page keeps the
-                plain name and "Upcoming trips" labels the list it belongs to. */}
-            <h1 className="font-display text-3xl font-semibold">Trips</h1>
-          </div>
-          {!access?.can.isSecondary && <NewTripButton />}
-        </div>
-
-        <TripBoard
-          current={current}
-          upcoming={upcoming}
-          drafts={drafts}
-          past={past}
-          today={today}
-          // The same line the database draws: a secondary traveler cannot delete
-          // a trip, so they are not shown a control that would refuse them.
-          canRemove={!access?.can.isSecondary}
-        />
-      </main>
-      <AskAlyGeneral />
-    </>
+    <TripBoard
+      current={current}
+      upcoming={upcoming}
+      drafts={drafts}
+      past={past}
+      today={today}
+      canRemove={canRemove}
+    />
   );
 }
