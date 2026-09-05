@@ -70,17 +70,17 @@ export default function CurrentTripBanner({ trip, today }) {
         {/* Spelled out where there is room, and an arrow where there is not —
             but never nothing, because a band that is a link has to look like one.
 
-            Both wear a filled pill rather than sitting bare on the teal. The whole
-            band has always been the link, so nothing here was ever unreachable,
-            but the thing that looks pressable was an arrow a few pixels wide and
-            people aim at what looks pressable. On a phone that pill is a
-            thumb-sized disc, which is the least a target should be. */}
-        <span className="hidden shrink-0 whitespace-nowrap rounded-full bg-on-accent/15 px-3 py-1.5 text-[0.8rem] font-semibold text-on-accent sm:inline">
+            The whole band has always been the link, so nothing here was ever
+            unreachable, but the thing that looks pressable was an arrow a few
+            pixels wide and people aim at what looks pressable. So the arrow is
+            drawn large, and carries eleven units of clear space around it, which
+            is a thumb-sized target without a circle drawn round it to say so. */}
+        <span className="hidden shrink-0 whitespace-nowrap pr-3 text-[0.85rem] font-semibold text-on-accent sm:inline">
           Today’s plan →
         </span>
         <span
           aria-hidden="true"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-on-accent/15 text-[1.05rem] font-semibold leading-none text-on-accent sm:hidden"
+          className="flex h-11 w-11 shrink-0 items-center justify-center text-[1.75rem] leading-none text-on-accent sm:hidden"
         >
           →
         </span>
