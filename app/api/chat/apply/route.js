@@ -677,7 +677,7 @@ export async function POST(request) {
         const slotTraveler = patch.traveler_id || null;
         const finder = supabase
           .from("traveler_slots")
-          .select("id, asked_count")
+          .select("id, asked_count, status")
           .eq("family_id", familyId)
           .eq("slot", patch.slot);
         const { data: existing } = await (
@@ -686,6 +686,20 @@ export async function POST(request) {
             : finder.is("traveler_id", null)
         ).maybeSingle();
         const nowIso = new Date().toISOString();
+        // A question can only be retired by the person it was put to. Skipping one
+        // nobody was asked writes down an answer that was never given: in the run
+        // that found this, one "both, honestly" about a beach was filed as a
+        // decision to stop asking about crowds, a question that had never been
+        // raised. So the skip is refused unless this is the question outstanding.
+        if (patch.status === "skipped" && existing?.status !== "asking") {
+          results.push({
+            ok: false,
+            summary: action.summary,
+            error:
+              "I have not asked that one yet, so there was nothing to stop asking about.",
+          });
+          continue;
+        }
         if (existing) {
           const { error: e } = await supabase
             .from("traveler_slots")

@@ -17,6 +17,7 @@ import {
 } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
 import { resolveAccess } from "@/lib/travelers/access";
+import { noteAsked } from "@/lib/travelers/ledger";
 import {
   asksToSave,
   heldBackNote,
@@ -277,6 +278,9 @@ export async function POST(request) {
     // Whose blanks are being filled in, when that is what this screen is for.
     intervieweeName: ctx.intervieweeName,
   });
+  // Whether this turn is one question of an interview. Set when the screen asked
+  // for a person's blanks and there is still a blank to fill.
+  const interviewing = Boolean(ctx.interviewSlot && ctx.intervieweeId);
   // Not all 28 of them: the ones this screen and these words could plausibly
   // need. See lib/agent/toolset.js for why fewer is more accurate as well as
   // cheaper.
@@ -544,7 +548,12 @@ export async function POST(request) {
     // the silent one because "Updated for you." passes any test for having
     // spoken while saying nothing a person could weigh.
     needsReasons(result.text, changeCalls) &&
-    asksSomething(said) &&
+    // An interview turn is the other kind of reply that cannot be a card on its
+    // own. Nobody asked a question -- they answered one -- so asksSomething is
+    // false, and the ladder used to walk straight past the turn that most needs
+    // words: five answers in a row were saved silently and Veda was never asked
+    // anything again. Whichever it is, the turn owes a sentence.
+    (asksSomething(said) || interviewing) &&
     clock(REWORD_TURN_MS)
   ) {
     // Searching again is only worth waiting for if the first turn never got to
@@ -563,7 +572,15 @@ export async function POST(request) {
           // being told "you already proposed something" without being told
           // what -- which is a hard thing to write two paragraphs about.
           answerAsWell(said, gistOf(changeCalls), { advice: wantsAdvice }),
-        ].join("\n\n"),
+          // The interview's own version of the same debt: what she saved is on a
+          // card, and the person is still sitting there waiting to be asked
+          // something. The slot to ask about is in the context above.
+          interviewing
+            ? "You are getting to know somebody, and you have just saved what they told you. Say in one line what you took from it, then put the one question the context hands you next, in words. Do not describe the card."
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
         messages,
         // Only show_places, and only when there is no shortlist yet. Asked the
         // same trip twice, a model does not repeat itself exactly -- it offers
@@ -852,7 +869,8 @@ export async function POST(request) {
   // now, but it has to say something: a proposal sitting alone under a question
   // reads as an answer that was never given, and there is no way for the family
   // to tell a considered call from a failure.
-  if (!reply && actions.length && asksSomething(said)) reply = wordlessLine();
+  if (!reply && actions.length && (asksSomething(said) || interviewing))
+    reply = wordlessLine();
   if (!reply && actions.length === 0 && places.length === 0) {
     reply = problems.length ? Array.from(new Set(problems)).join(" ") : LOST_IT;
   }
@@ -877,6 +895,26 @@ export async function POST(request) {
         .filter(Boolean)
         .join("\n\n")
     : spoken;
+  // The interview's own bookkeeping, and the app's rather than hers. She was
+  // handed one blank at the top of this turn; if she came back with words, that
+  // question was put, and the count and the wording are written here so a later
+  // conversation neither repeats it nor asks it in the same sentence. Doing it
+  // from the reply is what stopped the question disappearing into a tool
+  // argument and leaving the family a card with nothing to answer.
+  // A question mark rather than merely words: some turns save an answer and say
+  // only "so the afternoon is yours", which is a sentence but not a question, and
+  // writing it down as the question asked would retire a blank nobody was asked
+  // about.
+  if (ctx.interviewSlot && ctx.intervieweeId && (reply || "").includes("?")) {
+    await noteAsked(supabase, {
+      familyId: access.familyId,
+      travelerId: ctx.intervieweeId,
+      slot: ctx.interviewSlot,
+      question: reply,
+      userId: user.id,
+    }).catch(() => null);
+  }
+
   if (record) {
     // The question first, always: a transcript that reads answer-then-question
     // is worse than a slow one.
