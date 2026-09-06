@@ -358,7 +358,7 @@ function ReasonChips({ choice, question, onPick }) {
   if (list.length === 0) return null;
   return (
     <div className="mt-2">
-      <p className="section-label text-ink-soft">Or tap one of these</p>
+      <p className="section-label text-ink-soft">Suggestions</p>
       <div className="mt-1 flex flex-wrap gap-2">
         {list.map((chip) => (
           <button
@@ -548,7 +548,7 @@ function MomentsPanel({
 
       {examples.length > 0 && (
         <div className="mt-1">
-          <p className="section-label text-ink-soft">Or tap one of these</p>
+          <p className="section-label text-ink-soft">Suggestions</p>
           <div className="mt-1 flex flex-wrap gap-2">
             {examples.map((line) => (
               <button
