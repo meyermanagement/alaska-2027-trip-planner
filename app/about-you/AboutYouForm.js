@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ABOUT_ME_EXAMPLES, ABOUT_ME_PROMPTS } from "@/lib/travelers/profile";
+import {
+  ABOUT_ME_EXAMPLES,
+  ABOUT_ME_PLACEHOLDER,
+  ABOUT_ME_PROMPTS,
+} from "@/lib/travelers/profile";
 import DictationHint from "@/components/DictationHint";
 
 /**
@@ -105,11 +109,12 @@ export default function AboutYouForm({
           : "About you"}
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        This is what shapes the recommendations, the pro tips and the
-        suggestions you get. Aly reads it before she answers, so a few sentences
-        here are the difference between advice that fits you and advice that
-        would fit anybody. It works before you have booked a thing, and you can
-        change it any time.
+        This is where you tell Aly who you are — what you do, what you&rsquo;re
+        into, the places and subjects that pull at you. She reads it before she
+        answers, so a few sentences here are the difference between advice that
+        fits you and advice that would fit anybody. How you travel — pace, food,
+        early or late, where to spend the money — is asked separately in the
+        interview, so you don&rsquo;t have to say all of that here.
       </p>
 
       {secondary && (
@@ -124,7 +129,7 @@ export default function AboutYouForm({
       <textarea
         className="field mt-5 text-base leading-relaxed"
         rows={9}
-        placeholder="Write it the way you would say it to a friend who was planning the trip for you."
+        placeholder={ABOUT_ME_PLACEHOLDER}
         value={text}
         onChange={(e) => setText(e.target.value)}
         autoFocus={first}
@@ -213,8 +218,9 @@ export default function AboutYouForm({
           Some examples
         </p>
         <p className="mt-1 text-xs text-ink-soft">
-          There is no right answer here. These four people would want completely
-          different trips.
+          There is no right answer here. These four are meant to show a range of
+          what people put in — who they are, what they care about, what shapes
+          what a good trip looks like to them.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {ABOUT_ME_EXAMPLES.map((example) => (

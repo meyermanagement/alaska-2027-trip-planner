@@ -1377,11 +1377,12 @@ function PersonForm({ person, onCancel, onSave }) {
             onChange={set("about_me")}
           />
           <span className="mt-1 block font-normal text-ink-soft">
-            This is what shapes the recommendations, the pro tips and the
-            suggestions Aly makes — she reads it before she answers, so the more
-            it sounds like {form.name.trim() || "this person"}, the better the
-            advice fits. Say what you enjoy, the pace you want, and what you
-            would rather skip. You can change it any time.
+            This is where {form.name.trim() || "this person"} is described as a
+            person — what they do, what they&rsquo;re into, the places and
+            subjects that pull at them. Aly reads it before she answers, so the
+            more it sounds like them, the better the advice fits. How they
+            travel — pace, food, early or late — is asked separately in the
+            interview.
           </span>
         </label>
       </div>
