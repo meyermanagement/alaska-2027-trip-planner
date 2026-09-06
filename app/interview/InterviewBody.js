@@ -43,23 +43,21 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   const [answers, setAnswers] = useState([]); // practice mode only
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
-  // Focus the H1 as each new question arrives so a screen reader announces the
-  // new prompt, and so the visible focus ring lands somewhere neutral rather
-  // than on the first option button -- where the ring reads as a pre-selection
-  // even though the button was only focused, not chosen.
-  const headingRef = useRef(null);
-
-  // Focus the H1 -- not the first option -- when a new question arrives.
-  // Focusing an option makes the button look chosen before the primary has
-  // touched anything; focusing the heading lands the ring on the prompt
-  // itself, which reads as "here is the new question" rather than "here is
-  // your answer". Keyboard users can Tab from the heading to the options.
-  useEffect(() => {
-    if (loading || done) return;
-    headingRef.current?.focus?.();
-  }, [slot, loading, done]);
+  // A screen-reader-only live region that announces the new prompt as each
+  // question arrives, so keyboard and assistive-tech users hear the change of
+  // question without visible focus moving anywhere on the page. Nothing on
+  // the screen accepts programmatic focus on question change: focusing the
+  // heading drew a ring around the prompt that read as "this line is
+  // selected", and focusing the first option read as "the first choice is
+  // selected". The prompt is announced instead of shown as focused.
+  const [announced, setAnnounced] = useState("");
 
   const question = questionFor(slot);
+
+  useEffect(() => {
+    if (loading || done) return;
+    setAnnounced(question?.prompt || "");
+  }, [slot, loading, done, question]);
 
   const advance = useCallback(
     (nextSlot) => {
@@ -314,13 +312,12 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         </div>
       ) : (
         <div className="w-full">
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="font-display text-2xl leading-snug text-ink outline-none sm:text-3xl"
-          >
+          <h1 className="font-display text-2xl leading-snug text-ink sm:text-3xl">
             {question.prompt}
           </h1>
+          <span aria-live="polite" className="sr-only">
+            {announced}
+          </span>
 
           {question.help && (
             <p className="mt-3 text-sm text-ink-soft">{question.help}</p>
