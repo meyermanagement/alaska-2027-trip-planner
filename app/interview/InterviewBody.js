@@ -807,6 +807,10 @@ function WhyPanel({ choice, question, text, setText, cache }) {
 
   function Chip({ chip }) {
     const on = activeSet.has(chip.toLowerCase());
+    // text-left because a browser button centers its text by default, and a
+    // reason long enough to wrap to a second line inside the chip would then
+    // be centered while the same reason on one line was flush left. The chip
+    // is the same reason either way and should read the same way either way.
     return (
       <button
         type="button"
@@ -814,8 +818,8 @@ function WhyPanel({ choice, question, text, setText, cache }) {
         aria-pressed={on}
         className={
           on
-            ? "rounded-full border border-teal bg-teal-soft/60 px-3 py-1.5 text-sm text-ink shadow-sm"
-            : "rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
+            ? "rounded-full border border-teal bg-teal-soft/60 px-3 py-1.5 text-left text-sm text-ink shadow-sm"
+            : "rounded-full border border-sand-deep bg-white px-3 py-1.5 text-left text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
         }
       >
         {chip}
