@@ -91,18 +91,126 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     [index],
   );
 
+  // Whether the current form has something worth saving before leaving the
+  // question. Options questions need a choice (either one of the two, or
+  // Something else with text); moments questions need at least one non-empty
+  // row; text questions need any non-whitespace typed. If nothing is filled
+  // in, going Back is treated as a bare navigation -- no save, no error, no
+  // wasted round trip.
+  const hasAnswer = (() => {
+    if (question?.kind === "options") {
+      if (!choice) return false;
+      if (choice === "other") return text.trim().length > 0;
+      return true;
+    }
+    if (question?.kind === "moments") {
+      return moments.some((m) => (m || "").trim().length > 0);
+    }
+    if (question?.kind === "text") {
+      return text.trim().length > 0;
+    }
+    return false;
+  })();
+
+  // Save the current form as the answer to the current question. Reused by
+  // Save-and-continue (advance=true) and by Back (advance=false, called only
+  // when the primary typed or picked something before hitting Back). Returns
+  // true on a successful save, false on validation or network failure so the
+  // caller can decide whether to still navigate.
+  const saveCurrent = useCallback(async () => {
+    if (!hasAnswer) return false;
+    const isMoments = question.kind === "moments";
+    const cleanedMoments = isMoments
+      ? moments.map((m) => m.trim()).filter(Boolean)
+      : [];
+    if (mode === "practice") {
+      // Practice mode records to local state; the recap reads it.
+      const opt = (question.options || []).find((o) => o.value === choice);
+      const record = {
+        slot,
+        label: question.label,
+        kind: question.kind,
+        action: "answer",
+        picked: isMoments
+          ? cleanedMoments.length > 0
+            ? cleanedMoments
+            : null
+          : question.kind === "text"
+            ? text.trim() || null
+            : choice === "other"
+              ? text.trim() || null
+              : opt
+                ? opt.label
+                : null,
+        reason:
+          question.kind === "options" && choice !== "other" && text.trim()
+            ? text.trim()
+            : null,
+      };
+      // Replace any previous record for this slot rather than double-stack,
+      // so back-then-forward does not leave two rows for the same question.
+      setAnswers((prior) => {
+        const kept = prior.filter((a) => a.slot !== slot);
+        return [...kept, record];
+      });
+      return true;
+    }
+    // Real mode writes to the same endpoints as Save and continue.
+    try {
+      const res = isMoments
+        ? await fetch("/api/interview/moments", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              action: "answer",
+              moments: cleanedMoments,
+            }),
+          })
+        : await fetch("/api/interview/answer", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              slot,
+              action: "answer",
+              choice,
+              text,
+            }),
+          });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, [choice, hasAnswer, mode, moments, question, slot, text]);
+
   // Go back one question. On the very first question this leaves the
   // interview entirely -- to the practice hub in practice mode, to Family in
   // real mode -- because there is no earlier question to revise.
   //
-  // In practice mode a step back also pops the last answer off the local
-  // record and restores whatever the primary had picked, so "back" reads as
-  // "take that back" rather than "start that question again from scratch".
-  // In real mode the previous answer was already saved server-side; the
-  // primary sees the question with fresh fields and any new answer overwrites
-  // the old one through the same upsert path that wrote it the first time.
-  const back = useCallback(() => {
+  // If the primary has typed or picked something on the current question, it
+  // is saved first through the same path Save-and-continue uses, so going
+  // Back never throws away work. If the save fails on the network, the error
+  // shows and the step-back is cancelled -- the primary can retry or edit.
+  //
+  // In practice mode a step back also pre-fills the previous question's
+  // fields with what was picked, so "back" reads as "take that back" rather
+  // than "start that question again from scratch". In real mode the previous
+  // answer was already saved server-side; the primary sees the question with
+  // fresh fields and any new answer overwrites the old one through the same
+  // upsert path that wrote it the first time.
+  const back = useCallback(async () => {
     if (loading) return;
+    // Save first if there's anything on the form. Failures halt the step-back
+    // so the primary sees the same familiar error surface as Save-and-continue.
+    if (hasAnswer) {
+      setLoading(true);
+      setError(null);
+      const ok = await saveCurrent();
+      setLoading(false);
+      if (!ok) {
+        setError("That answer could not be saved. Try again.");
+        return;
+      }
+    }
     if (index <= 0) {
       router.push(mode === "practice" ? "/interview-check" : "/family");
       return;
@@ -113,34 +221,40 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     setIndex(previousIndex);
     setError(null);
     if (mode === "practice") {
-      // Pop the last recorded answer and, if it was for the question we are
-      // stepping back to, pre-fill the fields with what was picked so the
-      // primary can revise rather than retype.
+      // In practice mode, look up the previous question's recorded answer
+      // (which may have been just saved a moment ago from this same click)
+      // and pre-fill the fields with what was picked so the primary can
+      // revise rather than retype.
       setAnswers((prior) => {
-        if (prior.length === 0) return prior;
-        const last = prior[prior.length - 1];
-        if (last.slot === previous.slot) {
+        const previousAnswer = prior.find((a) => a.slot === previous.slot);
+        if (previousAnswer) {
           if (previous.kind === "options") {
             const opt = (previous.options || []).find(
-              (o) => o.label === last.picked,
+              (o) => o.label === previousAnswer.picked,
             );
-            setChoice(opt ? opt.value : last.picked ? "other" : "");
+            setChoice(opt ? opt.value : previousAnswer.picked ? "other" : "");
             setText(
               opt
-                ? last.reason || ""
-                : typeof last.picked === "string"
-                  ? last.picked
+                ? previousAnswer.reason || ""
+                : typeof previousAnswer.picked === "string"
+                  ? previousAnswer.picked
                   : "",
             );
             setMoments([""]);
           } else if (previous.kind === "moments") {
-            const list = Array.isArray(last.picked) ? last.picked : [];
+            const list = Array.isArray(previousAnswer.picked)
+              ? previousAnswer.picked
+              : [];
             setMoments(list.length ? [...list, ""] : [""]);
             setChoice("");
             setText("");
           } else {
             setChoice("");
-            setText(typeof last.picked === "string" ? last.picked : "");
+            setText(
+              typeof previousAnswer.picked === "string"
+                ? previousAnswer.picked
+                : "",
+            );
             setMoments([""]);
           }
         } else {
@@ -148,14 +262,14 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
           setText("");
           setMoments([""]);
         }
-        return prior.slice(0, -1);
+        return prior;
       });
     } else {
       setChoice("");
       setText("");
       setMoments([""]);
     }
-  }, [index, loading, mode, router]);
+  }, [hasAnswer, index, loading, mode, router, saveCurrent]);
 
   const submit = useCallback(
     async (action) => {
