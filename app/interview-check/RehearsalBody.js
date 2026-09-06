@@ -59,20 +59,46 @@ function Standing({ standing, count }) {
   );
 }
 
+// What a call would have written, said the way the family would say it. An
+// interview does not only write preferences: it fills in the travel file, and a
+// card reading "set_person_details" tells nobody anything.
+const TITLES = {
+  add_preference: "Would save a preference",
+  record_household_fact: "Would save a fact",
+  set_person_details: "Would fill in their own page",
+  add_pet: "Would add an animal",
+  update_pet: "Would update an animal",
+  set_pet_trip: "Would say whether the animal travels",
+  add_rewards_program: "Would add a program to the Wallet",
+  update_rewards_program: "Would update a program in the Wallet",
+};
+
+/** The arguments of a file write, in plain words rather than as JSON. */
+function fileLines(a) {
+  const skip = new Set(["whose", "name", "slot", "body", "reason", "note"]);
+  return Object.entries(a)
+    .filter(
+      ([k, v]) => !skip.has(k) && v !== null && v !== undefined && v !== "",
+    )
+    .map(([k, v]) => [
+      k.replace(/_/g, " "),
+      Array.isArray(v) ? v.join(", ") : String(v),
+    ])
+    .filter(([, v]) => v.length > 0)
+    .slice(0, 8);
+}
+
 /** One save, in the words the family would understand it by. */
 function Call({ call }) {
   const a = call.args || {};
   const refused = Boolean(call.refused);
   const title =
-    call.name === "add_preference"
-      ? "Would save a preference"
-      : call.name === "record_household_fact"
-        ? "Would save a fact"
-        : call.name === "set_slot_status"
-          ? a.status === "skipped"
-            ? "Would stop asking this"
-            : "Would mark this answered"
-          : call.name;
+    TITLES[call.name] ||
+    (call.name === "set_slot_status"
+      ? a.status === "skipped"
+        ? "Would stop asking this"
+        : "Would mark this answered"
+      : call.name);
   return (
     <div
       className={`rounded-lg border p-2.5 text-xs ${
@@ -83,7 +109,19 @@ function Call({ call }) {
         {title}
         {a.slot ? ` · ${slotLabel(a.slot)}` : ""}
       </p>
+      {(a.whose || a.name) && !a.body && (
+        <p className="mt-1 text-ink">{a.whose || a.name}</p>
+      )}
       {a.body && <p className="mt-1 text-ink">{a.body}</p>}
+      {TITLES[call.name] &&
+        call.name !== "add_preference" &&
+        call.name !== "record_household_fact" &&
+        fileLines(a).map(([k, v]) => (
+          <p className="mt-1 text-ink" key={k}>
+            <span className="text-ink-soft">{k}: </span>
+            {v}
+          </p>
+        ))}
       {a.reason && <p className="mt-1 text-ink-soft">Because: {a.reason}</p>}
       {a.note && <p className="mt-1 text-ink-soft">Note: {a.note}</p>}
       {refused && (

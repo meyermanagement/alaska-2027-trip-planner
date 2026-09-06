@@ -99,6 +99,9 @@ export default async function PeoplePage() {
     preferences: preferences || [],
     facts: facts || [],
     slots: slots || [],
+    // One question only applies to a family with an animal, so the standing on
+    // each card has to know whether there is one.
+    pets: pets || [],
   };
   const ledgers = Object.fromEntries(
     (travelers || []).map((person) => {

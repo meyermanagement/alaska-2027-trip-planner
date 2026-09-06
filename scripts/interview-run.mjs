@@ -53,6 +53,9 @@ const context = await jiti.import(`${ROOT}/lib/agent/context.js`);
 const toolset = await jiti.import(`${ROOT}/lib/agent/toolset.js`);
 const llm = await jiti.import(`${ROOT}/lib/agent/llm.js`);
 const rehearse = await jiti.import(`${ROOT}/lib/travelers/rehearse.js`);
+// The app's own idea of silence, so the harness cannot report a printed tool call
+// as though it were a question.
+const { saidNothing } = await jiti.import(`${ROOT}/lib/agent/asked.js`);
 
 const data = JSON.parse(
   await (await import("node:fs/promises")).readFile("/tmp/family.json", "utf8"),
@@ -61,6 +64,9 @@ const VEDA = "9ef2580f-d697-47f9-9879-11f0311351d1";
 const travelers = data.travelers;
 const preferences = data.prefs;
 const facts = [];
+// The animals, because one blank only exists when the family has one and because
+// an interview that cannot see Storm tries to add him again.
+const pets = data.pets || [];
 
 const FOCUS = `interview:${VEDA}`;
 const messages = [];
@@ -88,6 +94,7 @@ function build(said) {
     preferences: run.state.preferences,
     facts: run.state.facts,
     slots: run.state.slots,
+    pets,
     focus: FOCUS,
     message: said,
     userName: "Mark",
@@ -114,7 +121,7 @@ function show() {
 // in-memory apply, the same refusal to retire an unasked question, the same rule
 // about what counts as a question. Shared rather than reimplemented, so a run
 // here and a run in the browser cannot disagree about what would be saved.
-const run = rehearse.rehearsal(VEDA, { preferences, facts });
+const run = rehearse.rehearsal(VEDA, { preferences, facts, pets });
 
 let said = await ask("You (as Veda) > ");
 while (said && said.trim() && said.trim() !== "quit") {
@@ -138,7 +145,10 @@ while (said && said.trim() && said.trim() !== "quit") {
   // The route's own second pass: a turn that saved something and said nothing
   // owes the person a sentence and the next question. Tools taken away, or it
   // answers by calling one again.
-  if (!(out.text || "").trim() && (out.calls || []).length) {
+  // saidNothing, the same helper the route uses: a reply that is really a tool
+  // call typed out as prose counts as silence here too, or the harness prints
+  // add_pet(name='Storm') as if it were a question and the run looks fine.
+  if (saidNothing(out.text)) {
     const again = await llm.generate({
       system: [
         system,

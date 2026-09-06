@@ -16,7 +16,8 @@ import {
 } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
 import { resolveAccess } from "@/lib/travelers/access";
-import { noteAsked } from "@/lib/travelers/ledger";
+import { markSettled, noteAsked } from "@/lib/travelers/ledger";
+import { slotFromWords } from "@/lib/travelers/slots";
 import {
   asksToSave,
   heldBackNote,
@@ -773,6 +774,26 @@ export async function POST(request) {
     fallback: rentalFallback(ctx.preferences || []),
   });
 
+  // A save made in an interview with no blank named on it. The model is told to
+  // name one and leaves it off often enough that four answers in a row settled
+  // nothing: the rows were written, the ledger stayed at 11%, and Aly asked the
+  // same things again. The handed blank is not the answer -- the question she
+  // actually asked is not always the blank she was handed -- so the words of the
+  // save decide, and a save whose words are unclear is left alone.
+  if (interviewing) {
+    for (const call of changeCalls) {
+      const a = call?.args;
+      if (!a || a.slot) continue;
+      if (
+        call.name !== "add_preference" &&
+        call.name !== "record_household_fact"
+      )
+        continue;
+      const guess = slotFromWords(`${a.body || ""} ${a.reason || ""}`);
+      if (guess) a.slot = guess;
+    }
+  }
+
   const proposed = [];
   const problems = [];
   // Refusals the family has to hear even when the rest of the reply worked.
@@ -935,6 +956,26 @@ export async function POST(request) {
       question: reply,
       userId: user.id,
     }).catch(() => null);
+  }
+
+  // An interview answer about the animals lands on the animal, not in a fact, so
+  // the ledger would read the blank as never asked and Aly would ask about the
+  // horse again on the very next turn.
+  if (interviewing && ctx.intervieweeId) {
+    const aboutAnimals = (proposed || []).some(
+      (a) =>
+        a?.tool === "add_pet" ||
+        a?.tool === "update_pet" ||
+        a?.tool === "set_pet_trip",
+    );
+    if (aboutAnimals) {
+      await markSettled(supabase, {
+        familyId: access.familyId,
+        travelerId: ctx.intervieweeId,
+        slot: "animals",
+        userId: user.id,
+      }).catch(() => null);
+    }
   }
 
   if (record) {
