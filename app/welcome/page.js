@@ -92,6 +92,7 @@ export default async function WelcomePage() {
         </p>
         <WelcomeForm
           familyId={access.familyId}
+          familyName={family?.name || ""}
           myName={access.travelerName || ""}
           myUserId={user.id}
           myEmail={user.email || ""}

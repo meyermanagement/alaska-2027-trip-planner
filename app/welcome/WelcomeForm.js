@@ -22,19 +22,25 @@ import HomePicker, { locateHome } from "@/components/HomePicker";
  */
 export default function WelcomeForm({
   familyId,
+  // Family name as it exists in the database now. The signup trigger tries
+  // to derive one from the caller's full name (Rivera Family) and falls back
+  // to a placeholder if it cannot. Either way this screen surfaces it as an
+  // editable field so the family can choose what they call themselves.
+  familyName = "",
   myName,
   myUserId = null,
   myEmail = "",
   // When true, Save writes nothing and does not navigate. Instead the same
-  // three rows -- home, people, pets -- are shown back as a recap of what the
-  // real Save would have written. Used from the practice hub so somebody with
-  // a family already set up can walk through the welcome form without
-  // clobbering it.
+  // rows -- family name, home, people, pets -- are shown back as a recap of
+  // what the real Save would have written. Used from the practice hub so
+  // somebody with a family already set up can walk through the welcome form
+  // without clobbering it.
   practice = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  const [name, setName] = useState(familyName);
   const [address, setAddress] = useState("");
   // What the suggestion box handed back, if one was chosen. Saves us a second
   // lookup for a point we already have.
@@ -89,9 +95,16 @@ export default function WelcomeForm({
     setError("");
     setPreview(null);
 
-    // Practice: work out the same three rows the real Save would write, but
-    // do not touch the database and do not navigate. The recap lives on the
-    // page under the button.
+    // The family name always goes back with the home update, so what the user
+    // typed is what the row says, whether or not they changed it. Trimmed and
+    // capped at 60; blanks fall back to the original name so somebody who
+    // cleared the field does not end up with an empty family row.
+    const cleanFamilyName = (name || "").trim().slice(0, 60);
+    const nextFamilyName = cleanFamilyName || familyName || "New Family";
+
+    // Practice: work out the same rows the real Save would write, but do not
+    // touch the database and do not navigate. The recap lives on the page
+    // under the button.
     if (practice) {
       const typed = address.trim().replace(/\s+/g, " ");
       const cleanPeople = people
@@ -114,6 +127,7 @@ export default function WelcomeForm({
         .filter((r) => r.name.length > 0);
       setBusy(false);
       setPreview({
+        familyName: nextFamilyName,
         home: typed || null,
         people: cleanPeople,
         pets: cleanPets,
@@ -123,7 +137,8 @@ export default function WelcomeForm({
 
     // Home: if the family typed an address, geocode it (only when they did not
     // pick a suggestion). Address writes even if the point cannot be found --
-    // the words are what the family recognises.
+    // the words are what the family recognises. Family name always writes; the
+    // rest of the columns only change when there is an address.
     const typed = address.trim().replace(/\s+/g, " ");
     if (typed) {
       const chosen =
@@ -134,6 +149,7 @@ export default function WelcomeForm({
       const { error: homeErr } = await supabase
         .from("families")
         .update({
+          name: nextFamilyName,
           home_address: written,
           home_lat: chosen?.lat ?? null,
           home_lon: chosen?.lon ?? null,
@@ -144,6 +160,16 @@ export default function WelcomeForm({
       if (homeErr) {
         setBusy(false);
         setError(homeErr.message);
+        return;
+      }
+    } else if (nextFamilyName !== familyName) {
+      const { error: nameErr } = await supabase
+        .from("families")
+        .update({ name: nextFamilyName })
+        .eq("id", familyId);
+      if (nameErr) {
+        setBusy(false);
+        setError(nameErr.message);
         return;
       }
     }
@@ -226,6 +252,24 @@ export default function WelcomeForm({
 
   return (
     <div className="mt-6 space-y-6">
+      <section className="card p-4">
+        <label className="section-label block" htmlFor="welcome-family-name">
+          What should we call this family?
+        </label>
+        <p className="mt-1 text-xs text-ink-soft">
+          The name Aly and the app use when they talk about your family. You can
+          change it later on the Family screen.
+        </p>
+        <input
+          id="welcome-family-name"
+          className="field mt-2"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Rivera Family"
+          maxLength={60}
+        />
+      </section>
+
       <section className="card p-4">
         <label className="section-label block" htmlFor="welcome-home">
           Where the family lives
@@ -415,6 +459,13 @@ function WelcomePreview({ preview }) {
       <p className="section-label text-teal">What would have been saved</p>
 
       <div className="mt-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+          Family name
+        </p>
+        <p className="mt-1 text-sm text-ink">{preview.familyName}</p>
+      </div>
+
+      <div className="mt-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
           Home
         </p>
