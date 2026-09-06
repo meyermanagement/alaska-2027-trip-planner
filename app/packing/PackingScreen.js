@@ -5,6 +5,53 @@ import PackIndex from "./PackIndex";
 import Templates from "./Templates";
 import PetTemplates from "./PetTemplates";
 import HouseTasks from "./HouseTasks";
+import PropagatePanel from "@/components/PropagatePanel";
+import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
+import { TEMPLATES_FOCUS } from "@/lib/agent/context";
+import { blankRequest } from "@/lib/packing/newTemplate";
+
+/**
+ * Two things that used to live inside a picked template, and belong above the
+ * whole index instead: pushing the templates onto upcoming trips, and making a
+ * new template.
+ *
+ * They are about the templates, not about whichever one is on. Inside a card
+ * they moved with the selection, so Push was hidden when a pet was picked and
+ * Create was hidden when the picker was on the left. Above the index they are
+ * present whichever list is on.
+ *
+ * Create is family-only -- the pet lists are made once when the animal is added,
+ * and the house list is one thing -- so the button seeds the same conversation
+ * that the in-Templates version did.
+ */
+function TemplatesHeader({ hasFamily, hasBase }) {
+  function newTemplate() {
+    window.dispatchEvent(
+      new CustomEvent(ASK_ALY_EVENT, {
+        detail: {
+          seed: blankRequest({ hasBase }),
+          focus: TEMPLATES_FOCUS,
+        },
+      }),
+    );
+  }
+
+  return (
+    <div className="mb-4">
+      {hasFamily && <PropagatePanel />}
+      <button
+        type="button"
+        onClick={newTemplate}
+        className="inline-flex flex-col items-start rounded-xl border border-dashed border-teal/50 px-3 py-2 text-left text-sm text-teal transition hover:border-teal hover:bg-teal-soft/30"
+      >
+        <span className="font-semibold">+ Create packing template</span>
+        <span className="mt-0.5 text-xs text-ink-soft">
+          Aly builds it with you
+        </span>
+      </button>
+    </div>
+  );
+}
 
 /**
  * The packing screen, arranged as an index and one panel.
@@ -86,12 +133,15 @@ export default function PackingScreen({
     return out;
   }, [familyTemplates, items, pets, petTemplates, petItems, houseTasks]);
 
+  const hasBase = familyTemplates.some((t) => t.is_base);
+
   // With no family templates at all, Templates is the screen: it offers to build
   // the first one out of a trip the family has already packed for, and an index
   // pointing at one animal and the house would bury that offer.
   if (!familyTemplates.length && !pets.length) {
     return (
       <>
+        <TemplatesHeader hasFamily={false} hasBase={hasBase} />
         <Templates
           travelers={travelers}
           templates={familyTemplates}
@@ -108,34 +158,40 @@ export default function PackingScreen({
   const id = picked.slice(2);
 
   return (
-    <div className="lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <PackIndex groups={groups} picked={picked} onPick={setPicked} />
-      <div className="min-w-0">
-        {picked === "house" ? (
-          <HouseTasks tasks={houseTasks} people={people} />
-        ) : kind === "p" ? (
-          <PetTemplates
-            key={picked}
-            pets={pets.filter((p) => p.id === id)}
-            templates={petTemplates}
-            items={petItems}
-            people={people}
-            tripsByPet={tripsByPet}
-            solo
-          />
-        ) : (
-          <Templates
-            key={picked}
-            travelers={travelers}
-            templates={familyTemplates}
-            items={items}
-            tripsByTemplate={tripsByTemplate}
-            packedTrips={packedTrips}
-            selectedId={id}
-            controlled
-          />
-        )}
+    <>
+      <TemplatesHeader
+        hasFamily={familyTemplates.length > 0}
+        hasBase={hasBase}
+      />
+      <div className="lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <PackIndex groups={groups} picked={picked} onPick={setPicked} />
+        <div className="min-w-0">
+          {picked === "house" ? (
+            <HouseTasks tasks={houseTasks} people={people} />
+          ) : kind === "p" ? (
+            <PetTemplates
+              key={picked}
+              pets={pets.filter((p) => p.id === id)}
+              templates={petTemplates}
+              items={petItems}
+              people={people}
+              tripsByPet={tripsByPet}
+              solo
+            />
+          ) : (
+            <Templates
+              key={picked}
+              travelers={travelers}
+              templates={familyTemplates}
+              items={items}
+              tripsByTemplate={tripsByTemplate}
+              packedTrips={packedTrips}
+              selectedId={id}
+              controlled
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

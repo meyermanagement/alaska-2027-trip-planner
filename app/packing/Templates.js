@@ -6,12 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
 import { matchesQuery } from "@/lib/packing/find";
 import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
-import PropagatePanel from "@/components/PropagatePanel";
 import TripsUsing from "@/components/TripsUsing";
 import FirstTemplate from "@/components/FirstTemplate";
 import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
-import { blankRequest, proposeRequest } from "@/lib/packing/newTemplate";
+import { proposeRequest } from "@/lib/packing/newTemplate";
 
 const SHARED = "Shared";
 
@@ -339,17 +338,6 @@ export default function Templates({
     );
   }
 
-  function newTemplate() {
-    window.dispatchEvent(
-      new CustomEvent(ASK_ALY_EVENT, {
-        detail: {
-          seed: blankRequest({ hasBase: templates.some((t) => t.is_base) }),
-          focus: TEMPLATES_FOCUS,
-        },
-      }),
-    );
-  }
-
   /**
    * The form for a new template line, opened on a person or on one of their
    * categories. One function rather than one per place, so both agree about
@@ -427,33 +415,12 @@ export default function Templates({
 
   return (
     <section>
-      <PropagatePanel />
-
-      {/* The Create button sits above the templates rather than at the end of
-          the row. It was the last card in a wrapping strip of templates, which
-          meant it landed in a different place on every account (after the last
-          template) and read as one more list somebody had already made rather
-          than as the thing that makes a new one. Above the row it is the same
-          place every time, and it is the answer to the same question the row
-          is about -- which list to work on, or start another.
-
-          Rendered in both the uncontrolled shape (this is the whole screen)
-          and the controlled one (a family template picked from the left-hand
-          index), because it is the only way in the app to make a new family
-          template and the picker on the left does not offer one. */}
-      <div className="no-print mb-3">
-        <button
-          type="button"
-          onClick={newTemplate}
-          className="inline-flex flex-col items-start rounded-xl border border-dashed border-teal/50 px-3 py-2 text-left text-sm text-teal transition hover:border-teal hover:bg-teal-soft/30"
-        >
-          <span className="font-semibold">+ Create packing template</span>
-          <span className="mt-0.5 text-xs text-ink-soft">
-            Aly builds it with you
-          </span>
-        </button>
-      </div>
-
+      {/* The picker of templates. In the controlled shape (a template picked
+          from the left-hand index on the packing screen) this is hidden, since
+          the left-hand index is doing the same job. The Push panel and the
+          Create button that used to sit above it now live on the packing
+          screen itself, above the index, because they are about the templates
+          as a whole and not about whichever list is on. */}
       {!controlled && templates.length > 1 && (
         <div className="no-print mb-4 flex flex-wrap items-stretch gap-2">
           {templates.map((t) => {
