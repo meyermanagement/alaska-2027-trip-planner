@@ -52,7 +52,7 @@ const jiti = createJiti(import.meta.url, { alias: { "@": ROOT } });
 const context = await jiti.import(`${ROOT}/lib/agent/context.js`);
 const toolset = await jiti.import(`${ROOT}/lib/agent/toolset.js`);
 const llm = await jiti.import(`${ROOT}/lib/agent/llm.js`);
-const ledger = await jiti.import(`${ROOT}/lib/travelers/ledger.js`);
+const rehearse = await jiti.import(`${ROOT}/lib/travelers/rehearse.js`);
 
 const data = JSON.parse(
   await (await import("node:fs/promises")).readFile("/tmp/family.json", "utf8"),
@@ -61,7 +61,6 @@ const VEDA = "9ef2580f-d697-47f9-9879-11f0311351d1";
 const travelers = data.travelers;
 const preferences = data.prefs;
 const facts = [];
-const slots = [];
 
 const FOCUS = `interview:${VEDA}`;
 const messages = [];
@@ -86,9 +85,9 @@ function build(said) {
   const ctx = context.buildContext({
     trips: data.trips || [],
     travelers,
-    preferences,
-    facts,
-    slots,
+    preferences: run.state.preferences,
+    facts: run.state.facts,
+    slots: run.state.slots,
     focus: FOCUS,
     message: said,
     userName: "Mark",
@@ -102,94 +101,25 @@ function build(said) {
   return { ctx, system };
 }
 
-function show(entries) {
-  const by = (s) => entries.filter((e) => e.status === s).map((e) => e.slot);
+function show() {
+  const at = run.standing();
   console.log(
-    `  ledger: ${Math.round(ledger.coverage(entries) * 100)}% known | settled ${
-      by("settled").join(",") || "-"
-    } | asking ${by("asking").join(",") || "-"} | skipped ${
-      by("skipped").join(",") || "-"
-    }`,
+    `  ledger: ${at.known}% known | settled ${at.settled.join(",") || "-"} | asking ${
+      at.asking.join(",") || "-"
+    } | skipped ${at.skipped.join(",") || "-"}`,
   );
 }
 
-// What the apply route would write, applied to the arrays this script holds, so
-// the next turn's context reflects the last turn's answer the way the app does.
-let n = 0;
-function apply(call) {
-  const a = call.args || {};
-  if (call.name === "add_preference") {
-    preferences.push({
-      id: `local-${++n}`,
-      traveler_id: VEDA,
-      traveler_ids: [VEDA],
-      topic: a.topic || "Who we are",
-      topics: [a.topic || "Who we are"],
-      body: a.body,
-      source: a.source || "said",
-      slot: a.slot || null,
-      reason: a.reason || null,
-    });
-  } else if (call.name === "record_household_fact") {
-    facts.push({
-      id: `local-${++n}`,
-      traveler_id: VEDA,
-      kind: a.kind,
-      slot: a.slot || null,
-      body: a.body,
-      source: a.source || "said",
-    });
-  } else if (call.name === "set_slot_status") {
-    const row = slots.find((s) => s.slot === a.slot && s.traveler_id === VEDA);
-    // The same refusal the apply route makes: a question nobody was asked cannot
-    // be retired, because doing so files an answer that was never given.
-    if (a.status === "skipped" && row?.status !== "asking") {
-      console.log(
-        `    (refused: ${a.slot} has not been asked, so there is nothing to stop asking)`,
-      );
-      return;
-    }
-    if (row) {
-      row.status = a.status;
-      if (a.note) row.note = a.note;
-    } else {
-      slots.push({
-        traveler_id: VEDA,
-        slot: a.slot,
-        status: a.status,
-        asked_count: 0,
-        last_question: null,
-        note: a.note || null,
-      });
-    }
-  }
-}
-
-// What the chat route writes once a reply has words in it: the blank it handed
-// over has now been put as a question, in these words.
-function noteAsked(slot, question) {
-  if (!slot) return;
-  const row = slots.find((s) => s.slot === slot && s.traveler_id === VEDA);
-  if (row) {
-    row.status = "asking";
-    row.asked_count = (row.asked_count || 0) + 1;
-    row.last_question = question.slice(0, 300);
-  } else {
-    slots.push({
-      traveler_id: VEDA,
-      slot,
-      status: "asking",
-      asked_count: 1,
-      last_question: question.slice(0, 300),
-      note: null,
-    });
-  }
-}
+// The rehearsal engine the app's own /interview-check page runs on: the same
+// in-memory apply, the same refusal to retire an unasked question, the same rule
+// about what counts as a question. Shared rather than reimplemented, so a run
+// here and a run in the browser cannot disagree about what would be saved.
+const run = rehearse.rehearsal(VEDA, { preferences, facts });
 
 let said = await ask("You (as Veda) > ");
 while (said && said.trim() && said.trim() !== "quit") {
   const { ctx, system } = build(said);
-  show(ledger.ledgerFor(VEDA, { preferences, facts, slots }));
+  show();
   messages.push({ role: "user", text: said });
   const tools = toolset.toolsForRequest({ focus: FOCUS, message: said });
   const started = Date.now();
@@ -228,26 +158,16 @@ while (said && said.trim() && said.trim() !== "quit") {
   console.log(`\nAly: ${out.text}\n`);
   for (const call of out.calls || []) {
     console.log(`  → ${call.name} ${JSON.stringify(call.args)}`);
-    apply(call);
+    const result = run.apply(call);
+    if (result?.refused) console.log(`    (refused: ${result.refused})`);
   }
   // The adapter takes user/assistant only, and the app stores the reply's words
   // rather than its calls, so the transcript here matches what the route keeps.
   messages.push({ role: "assistant", text: out.text });
-  if ((out.text || "").includes("?"))
-    noteAsked(ctx.interviewSlot, out.text.trim());
+  run.noteAsked(ctx.interviewSlot, out.text || "");
   said = await ask("\nYou (as Veda) > ");
 }
 if (rl) rl.close();
 console.log("\nFinal ledger:");
-show(ledger.ledgerFor(VEDA, { preferences, facts, slots }));
-console.log(
-  JSON.stringify(
-    {
-      facts,
-      slots,
-      added: preferences.filter((p) => String(p.id).startsWith("local-")),
-    },
-    null,
-    2,
-  ),
-);
+show();
+console.log(JSON.stringify(run.written(), null, 2));

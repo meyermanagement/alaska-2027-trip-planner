@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import { headlineFor } from "@/lib/tips/warnings";
 import { useRouter } from "next/navigation";
+import GetToKnow from "@/components/GetToKnow";
 import { createClient } from "@/lib/supabase/client";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
 import { ageToday } from "@/lib/travelers/ages";
@@ -43,6 +44,9 @@ export default function People({
   trips = [],
   rosters = [],
   warnings = [],
+  // What Aly still does not know about each person, by traveler id, worked out
+  // on the server from the same rows she reads.
+  ledgers = {},
   // The screen around this component owns which person is open and whether the
   // add form is up: the band of chips at the top of the page points at people and
   // animals alike, so it cannot live inside either list.
@@ -591,6 +595,19 @@ export default function People({
                   {person.about_me}
                 </p>
               </div>
+            )}
+
+            {editingPerson !== person.id && (
+              <GetToKnow
+                person={person}
+                ledger={ledgers?.[person.id] || null}
+                self={
+                  person.user_id === userId ||
+                  (!!person.email &&
+                    !!userEmail &&
+                    person.email.toLowerCase() === userEmail.toLowerCase())
+                }
+              />
             )}
 
             <AccessRow

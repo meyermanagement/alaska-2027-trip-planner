@@ -9,6 +9,7 @@ import HouseholdHome from "./HouseholdHome";
 import FamilyScreen from "./FamilyScreen";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
+import { coverage, ledgerFor } from "@/lib/travelers/ledger";
 
 export const metadata = { title: "Family · Alyeska" };
 
@@ -33,7 +34,7 @@ export default async function PeoplePage() {
   const familyId = memberships[0].family_id;
   const household = memberships[0].families;
 
-  // Six independent reads, asked for at once rather than in a queue.
+  // Nine independent reads, asked for at once rather than in a queue.
   const [
     { data: travelers },
     { data: trips },
@@ -41,6 +42,9 @@ export default async function PeoplePage() {
     { data: documents },
     { data: pets },
     { data: tripPets },
+    { data: preferences },
+    { data: facts },
+    { data: slots },
   ] = await Promise.all([
     supabase
       .from("travelers")
@@ -75,7 +79,44 @@ export default async function PeoplePage() {
     supabase
       .from("trip_pets")
       .select("trip_id, pet_id, arrangement, arrangement_notes"),
+    // The three tables the interview writes to, read here so each card can say
+    // how much of that person Aly is still guessing at. Cheap: the same rows the
+    // Preferences tab already draws.
+    supabase
+      .from("travel_preferences")
+      .select("id, traveler_id, traveler_ids, slot, body, reason, source"),
+    supabase
+      .from("household_facts")
+      .select("id, traveler_id, kind, slot, body, source"),
+    supabase
+      .from("traveler_slots")
+      .select("traveler_id, slot, status, asked_count, last_question, note"),
   ]);
+
+  // One standing per person, worked out on the server so the card does not have
+  // to hold the slot definitions or the rules about what counts as answered.
+  const rows = {
+    preferences: preferences || [],
+    facts: facts || [],
+    slots: slots || [],
+  };
+  const ledgers = Object.fromEntries(
+    (travelers || []).map((person) => {
+      const entries = ledgerFor(person.id, rows);
+      const by = (status) =>
+        entries.filter((e) => e.status === status).map((e) => e.slot);
+      return [
+        person.id,
+        {
+          known: Math.round(coverage(entries) * 100),
+          settled: by("settled"),
+          asking: by("asking"),
+          skipped: by("skipped"),
+          open: by("open"),
+        },
+      ];
+    }),
+  );
 
   // The passport warning is worked out here rather than fetched, from the trips,
   // the roster and the documents this page has already read. Nothing extra to
@@ -129,6 +170,7 @@ export default async function PeoplePage() {
           warnings={warnings}
           pets={pets || []}
           tripPets={tripPets || []}
+          ledgers={ledgers}
         />
       </main>
       <AskAlyGeneral />

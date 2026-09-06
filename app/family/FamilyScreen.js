@@ -29,6 +29,7 @@ export default function FamilyScreen({
   warnings = [],
   pets = [],
   tripPets = [],
+  ledgers = {},
 }) {
   const first = travelers.length
     ? `p:${travelers[0].id}`
@@ -80,6 +81,7 @@ export default function FamilyScreen({
         trips={trips}
         rosters={rosters}
         warnings={warnings}
+        ledgers={ledgers}
         picker={band}
         only={onPerson ? id : ""}
         addOpen={picked === "new-person"}
