@@ -435,21 +435,24 @@ export default function Templates({
           template) and read as one more list somebody had already made rather
           than as the thing that makes a new one. Above the row it is the same
           place every time, and it is the answer to the same question the row
-          is about -- which list to work on, or start another. */}
-      {!controlled && (
-        <div className="no-print mb-3">
-          <button
-            type="button"
-            onClick={newTemplate}
-            className="inline-flex flex-col items-start rounded-xl border border-dashed border-teal/50 px-3 py-2 text-left text-sm text-teal transition hover:border-teal hover:bg-teal-soft/30"
-          >
-            <span className="font-semibold">+ Create packing template</span>
-            <span className="mt-0.5 text-xs text-ink-soft">
-              Aly builds it with you
-            </span>
-          </button>
-        </div>
-      )}
+          is about -- which list to work on, or start another.
+
+          Rendered in both the uncontrolled shape (this is the whole screen)
+          and the controlled one (a family template picked from the left-hand
+          index), because it is the only way in the app to make a new family
+          template and the picker on the left does not offer one. */}
+      <div className="no-print mb-3">
+        <button
+          type="button"
+          onClick={newTemplate}
+          className="inline-flex flex-col items-start rounded-xl border border-dashed border-teal/50 px-3 py-2 text-left text-sm text-teal transition hover:border-teal hover:bg-teal-soft/30"
+        >
+          <span className="font-semibold">+ Create packing template</span>
+          <span className="mt-0.5 text-xs text-ink-soft">
+            Aly builds it with you
+          </span>
+        </button>
+      </div>
 
       {!controlled && templates.length > 1 && (
         <div className="no-print mb-4 flex flex-wrap items-stretch gap-2">
