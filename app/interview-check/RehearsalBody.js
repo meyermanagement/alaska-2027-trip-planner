@@ -1,21 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { slotLabel } from "@/lib/travelers/slots";
 
-// The answers the first real run used, so the page opens on something worth
-// pressing rather than an empty box. They are deliberately awkward: one is a
-// refusal, one is "both, honestly", and one answers a question that was not
-// asked -- which is how the faults were found in the first place.
-const SUGGESTED = [
-  "Aly, get to know me. Ask me something.",
-  "I like one big thing in the morning and then nothing. Because if we do three things I stop caring about the third one and I just want to go back to the room.",
-  "Definitely the water. Snorkeling, or anything where I can see fish. I would rather do that than look at a building.",
-  "Both honestly. An empty beach early is the best, but I also like it when there are people around later.",
-  "I get seasick on small boats unless I take the medicine before. No allergies.",
-  "Pizza, obviously. And ice cream. I do not want to try weird food on vacation.",
-  "Skip this one, I don't care.",
-];
+// How the interview is opened. The same words the Get to know button sends, so
+// what happens here is what happens there.
+function opener(name, self) {
+  return self
+    ? "Get to know me. Ask me the next thing you need."
+    : `Get to know ${name}. Ask the next thing you need, and I will answer for ${name} or hand her the phone.`;
+}
 
 function Chips({ label, slots, tone }) {
   if (!slots || slots.length === 0) return null;
@@ -35,7 +29,8 @@ function Chips({ label, slots, tone }) {
   );
 }
 
-function Standing({ standing }) {
+/** Where the person stands after everything answered so far. */
+function Standing({ standing, count }) {
   if (!standing) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
@@ -51,79 +46,82 @@ function Standing({ standing }) {
         tone="var(--color-sand-deep)"
       />
       <Chips
-        label="stopped asking"
+        label="left alone"
         slots={standing.skipped}
-        tone="color-mix(in srgb, var(--color-rose) 14%, white)"
+        tone="var(--color-sand-deep)"
       />
+      {typeof count === "number" && count > 0 && (
+        <span className="text-ink-soft">
+          {count} {count === 1 ? "answer" : "answers"} so far
+        </span>
+      )}
     </div>
   );
 }
 
+/** One save, in the words the family would understand it by. */
 function Call({ call }) {
-  const args = call.args || {};
+  const a = call.args || {};
+  const refused = Boolean(call.refused);
+  const title =
+    call.name === "add_preference"
+      ? "Would save a preference"
+      : call.name === "record_household_fact"
+        ? "Would save a fact"
+        : call.name === "set_slot_status"
+          ? a.status === "skipped"
+            ? "Would stop asking this"
+            : "Would mark this answered"
+          : call.name;
   return (
     <div
       className={`rounded-lg border p-2.5 text-xs ${
-        call.refused
-          ? "border-rose/40 bg-rose/5"
-          : "border-teal/30 bg-teal/[0.04]"
+        refused ? "border-rose/40 bg-rose/5" : "border-teal/30 bg-teal/[0.04]"
       }`}
     >
       <p className="font-semibold text-ink">
-        {call.name === "add_preference"
-          ? "Saved a preference"
-          : call.name === "record_household_fact"
-            ? "Saved a fact about the person"
-            : call.name === "set_slot_status"
-              ? "Stopped asking a question"
-              : call.name}
-        {args.slot ? ` · ${slotLabel(args.slot)}` : ""}
+        {title}
+        {a.slot ? ` · ${slotLabel(a.slot)}` : ""}
       </p>
-      {args.body && <p className="mt-1 text-ink">{args.body}</p>}
-      {args.reason && (
-        <p className="mt-1 text-ink-soft">Because: {args.reason}</p>
-      )}
-      {args.note && <p className="mt-1 text-ink-soft">Note: {args.note}</p>}
-      {call.refused && (
+      {a.body && <p className="mt-1 text-ink">{a.body}</p>}
+      {a.reason && <p className="mt-1 text-ink-soft">Because: {a.reason}</p>}
+      {a.note && <p className="mt-1 text-ink-soft">Note: {a.note}</p>}
+      {refused && (
         <p className="mt-1 font-semibold text-rose">Refused. {call.refused}</p>
       )}
     </div>
   );
 }
 
-function Turn({ turn, n }) {
+/** One question and the answer given to it. */
+function Turn({ turn, index, showSaid }) {
   return (
-    <section className="card p-4">
+    <section className="card mt-4 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="section-label">Turn {n}</p>
+        <p className="section-label">Question {index}</p>
         <p className="text-[11px] text-ink-soft">
-          {turn.model || "no model"} · {turn.seconds}s · {turn.contextChars}{" "}
-          characters of context · {turn.toolCount} tools
-          {turn.handed ? ` · handed ${slotLabel(turn.handed)}` : ""}
+          {[
+            turn.model,
+            turn.seconds ? `${turn.seconds}s` : null,
+            turn.handed
+              ? `about ${slotLabel(turn.handed).toLowerCase()}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       </div>
-      <p className="mt-2 rounded-lg bg-sand/60 p-2.5 text-sm text-ink">
-        {turn.said}
+      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
+        {turn.reply || "Came back with no words at all."}
       </p>
-      {turn.failed ? (
-        <p className="mt-2 rounded-lg border border-rose/40 bg-rose/5 p-2.5 text-sm text-rose">
-          {turn.failed}
-        </p>
-      ) : turn.reply ? (
-        <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
-          {turn.reply}
-        </p>
-      ) : (
-        // The fault worth shouting about: cards with nothing said above them is
-        // a child being shown a form and asked nothing.
-        <p className="mt-2 rounded-lg border border-rose/40 bg-rose/5 p-2.5 text-sm font-semibold text-rose">
-          Said nothing at all. Whoever is answering would see cards and no
-          question.
+      {!turn.reply && (
+        <p className="mt-1.5 text-xs text-rose">
+          Nothing was said. In the app the family would see an empty reply here.
         </p>
       )}
       {turn.reply && !turn.reply.includes("?") && (
         <p className="mt-1.5 text-xs text-amber">
-          No question in that reply, so nothing was written down as asked.
+          No question in it, so nothing was marked as asked.
         </p>
       )}
       {turn.askedAgain && (
@@ -131,148 +129,247 @@ function Turn({ turn, n }) {
           Came back as cards alone; the words above are the second attempt.
         </p>
       )}
-      {turn.calls.length > 0 && (
+      {showSaid && (
+        <p className="mt-2.5 rounded-lg bg-sand/60 p-2.5 text-sm text-ink">
+          <span className="section-label">Your answer</span>
+          <span className="mt-0.5 block">{turn.said}</span>
+        </p>
+      )}
+      {turn.calls?.length > 0 && (
         <div className="mt-2.5 space-y-2">
           {turn.calls.map((call, i) => (
-            <Call key={i} call={call} />
+            <Call call={call} key={i} />
           ))}
         </div>
       )}
-      <div className="mt-3 border-t border-sand-deep/50 pt-2">
-        <Standing standing={turn.after} />
-      </div>
+      {turn.failed && <p className="mt-2 text-xs text-rose">{turn.failed}</p>}
     </section>
   );
 }
 
-export default function RehearsalBody({ travelers }) {
-  const [who, setWho] = useState(travelers[0]?.id || "");
-  const [text, setText] = useState(SUGGESTED.join("\n"));
+/**
+ * An interview you answer yourself, that saves nothing.
+ *
+ * Aly asks with the real prompt, the real context and the real model, and every
+ * save she attempts is shown where it happens instead of being written down. So
+ * the questions can be read as questions -- are they the right ones, in the right
+ * order, in words a twelve-year-old would answer -- and the saves can be read as
+ * saves, without spending anybody's real file to find out.
+ */
+export default function RehearsalBody({ people = [], me = null }) {
+  const [travelerId, setTravelerId] = useState(people[0]?.id || "");
+  const [turns, setTurns] = useState([]);
+  const [carried, setCarried] = useState(null);
+  const [standing, setStanding] = useState(null);
+  const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
+  const [done, setDone] = useState(false);
+  const box = useRef(null);
 
-  const answers = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const person = people.find((p) => p.id === travelerId) || null;
+  const first = person ? person.name.split(" ")[0] : "";
+  const self = Boolean(person && me && person.id === me);
+  const started = turns.length > 0;
+  const waiting = started && !done;
 
-  async function run() {
+  useEffect(() => {
+    if (waiting && !busy) box.current?.focus();
+  }, [waiting, busy, turns.length]);
+
+  async function send(said) {
     setBusy(true);
     setError(null);
-    setResult(null);
     try {
       const res = await fetch("/api/interview/rehearse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ travelerId: who, answers }),
+        body: JSON.stringify({
+          travelerId,
+          said,
+          history: turns.flatMap((t) => [
+            { role: "user", text: t.said },
+            { role: "assistant", text: t.reply },
+          ]),
+          carried: carried || {},
+        }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.error || "The run did not finish.");
-      setResult(body);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "That did not work.");
+      setTurns((all) => [...all, data.turn]);
+      setCarried(data.carried);
+      setStanding(data.standing);
+      setAnswer("");
     } catch (e) {
-      setError(e.message || "The run did not finish.");
+      setError(e.message);
     } finally {
       setBusy(false);
     }
   }
 
+  function restart() {
+    setTurns([]);
+    setCarried(null);
+    setStanding(null);
+    setAnswer("");
+    setError(null);
+    setDone(false);
+  }
+
+  const wrote = carried || { preferences: [], facts: [] };
+  const savedCount =
+    (wrote.preferences?.length || 0) + (wrote.facts?.length || 0);
+
   return (
     <>
-      <div className="card mt-5 p-4">
-        <label className="block text-sm font-semibold text-ink" htmlFor="who">
-          Who is answering
-        </label>
-        <select
-          id="who"
-          className="field mt-1.5"
-          value={who}
-          onChange={(e) => setWho(e.target.value)}
-        >
-          {travelers.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-        <label
-          className="mt-4 block text-sm font-semibold text-ink"
-          htmlFor="answers"
-        >
-          Their answers, one per line
-        </label>
-        <p className="mt-0.5 text-xs text-ink-soft">
-          Each line is one turn. Aly sees the previous turns, so an answer can
-          contradict the one above it.
-        </p>
-        <textarea
-          id="answers"
-          className="field mt-1.5 min-h-[220px] font-mono text-xs leading-relaxed"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={run}
-            disabled={busy || !who || answers.length === 0}
+      {!started && (
+        <div className="card mt-5 p-4">
+          <label
+            className="block text-sm font-semibold text-ink"
+            htmlFor="who-answers"
           >
-            {busy
-              ? `Running ${answers.length} turns…`
-              : `Run ${answers.length} turns`}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => setText(SUGGESTED.join("\n"))}
-            disabled={busy}
+            Who is answering
+          </label>
+          <select
+            id="who-answers"
+            className="field mt-1.5"
+            value={travelerId}
+            onChange={(e) => setTravelerId(e.target.value)}
           >
-            Put the suggested answers back
-          </button>
-        </div>
-        {busy && (
-          <p className="mt-2 text-xs text-ink-soft">
-            Each turn is a real model call against the whole family&apos;s
-            record, so this takes about {answers.length * 6} seconds. Nothing is
-            saved.
-          </p>
-        )}
-        {error && (
-          <p className="mt-2 rounded-lg border border-rose/40 bg-rose/5 p-2.5 text-sm text-rose">
-            {error}
-          </p>
-        )}
-      </div>
-
-      {result && (
-        <>
-          <div className="card mt-5 p-4">
-            <p className="section-label">Where {result.person.name} ended up</p>
-            <div className="mt-1.5">
-              <Standing standing={result.standing} />
-            </div>
-            <p className="mt-2 text-sm text-ink-soft">
-              {result.written.preferences.length} preferences and{" "}
-              {result.written.facts.length} facts would have been written,
-              across {result.turns.length} turns.{" "}
-              {result.standing.open.length > 0
-                ? `Still nothing on ${result.standing.open
-                    .map((s) => slotLabel(s).toLowerCase())
-                    .join(", ")}.`
-                : "Nothing left open."}
-            </p>
-            <p className="mt-2 text-xs text-ink-soft">
-              None of it was saved. To conduct this for real, press Get to know
-              somebody on their card on the Family screen.
-            </p>
-          </div>
-          <div className="mt-4 space-y-4">
-            {result.turns.map((turn, i) => (
-              <Turn key={i} turn={turn} n={i + 1} />
+            {people.map((p) => (
+              <option value={p.id} key={p.id}>
+                {p.name}
+              </option>
             ))}
+          </select>
+          <p className="mt-3 text-sm text-ink-soft">
+            Aly will ask one question at a time, starting from what she already
+            knows about {self ? "you" : first}. Answer in your own words.
+            Nothing you say here is saved.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary mt-3"
+            disabled={busy || !travelerId}
+            onClick={() => send(opener(first, self))}
+          >
+            {busy ? "Aly is thinking…" : "Ask me the first question"}
+          </button>
+          {error && <p className="mt-2 text-sm text-rose">{error}</p>}
+        </div>
+      )}
+
+      {started && (
+        <div className="card mt-5 p-4">
+          <p className="section-label">
+            {self ? "Where you stand" : `Where ${first} stands`}
+          </p>
+          <div className="mt-1.5">
+            <Standing standing={standing} count={turns.length - 1} />
           </div>
-        </>
+          <p className="mt-2 text-sm text-ink-soft">
+            {savedCount === 0
+              ? "Nothing would have been written yet."
+              : `${savedCount} ${
+                  savedCount === 1 ? "thing" : "things"
+                } would have been written. None of it was.`}
+            {standing?.open?.length > 0 && (
+              <>
+                {" "}
+                Still nothing on{" "}
+                {standing.open
+                  .slice(0, 5)
+                  .map((slot) => slotLabel(slot).toLowerCase())
+                  .join(", ")}
+                {standing.open.length > 5
+                  ? `, and ${standing.open.length - 5} more`
+                  : ""}
+                .
+              </>
+            )}
+          </p>
+          {done && (
+            <p className="mt-2 text-sm text-ink-soft">
+              To do this for real, press Get to know {self ? "me" : first} on
+              the Family screen.
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!done && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setDone(true)}
+                disabled={busy}
+              >
+                That is enough
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={restart}
+              disabled={busy}
+            >
+              Start again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {turns.map((turn, i) => (
+        <Turn
+          key={i}
+          turn={turn}
+          index={i + 1}
+          showSaid={i < turns.length - 1}
+        />
+      ))}
+
+      {waiting && (
+        <div className="card mt-4 p-4">
+          <label
+            className="block text-sm font-semibold text-ink"
+            htmlFor="your-answer"
+          >
+            Your answer
+          </label>
+          <textarea
+            id="your-answer"
+            ref={box}
+            className="field mt-1.5 min-h-[90px]"
+            value={answer}
+            placeholder="Say it the way you would say it out loud."
+            onChange={(e) => setAnswer(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                (e.metaKey || e.ctrlKey) &&
+                answer.trim()
+              )
+                send(answer.trim());
+            }}
+          />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || !answer.trim()}
+              onClick={() => send(answer.trim())}
+            >
+              {busy ? "Aly is thinking…" : "Answer"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => send("Skip this one, I don't care.")}
+            >
+              Skip this one
+            </button>
+          </div>
+          {error && <p className="mt-2 text-sm text-rose">{error}</p>}
+        </div>
       )}
     </>
   );

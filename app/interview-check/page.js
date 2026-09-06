@@ -5,17 +5,17 @@ import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import RehearsalBody from "./RehearsalBody";
 
-export const metadata = { title: "Interview rehearsal · Alyeska" };
+export const metadata = { title: "Practice interview · Alyeska" };
 
 /**
- * Run the whole interview, on the record, and write none of it down.
+ * The interview, answered by hand, saving nothing.
  *
- * The first interview was conducted from a script outside the app, which is how
- * three separate faults were found in it -- a reply that saved an answer and
- * asked nothing, a question retired that had never been put, one answer filed
- * under three blanks -- and none of them were visible from a single turn. This
- * puts that run inside the app, where it can be re-run after any change to the
- * prompt and read as a page instead of a terminal.
+ * Aly asks one real question at a time -- real context, real prompt, real model
+ * -- and whoever is sitting here answers it in their own words, exactly as they
+ * would in the drawer. Every save she attempts is drawn under the question that
+ * prompted it instead of being written down, so the questions can be judged as
+ * questions and the saves as saves without spending anybody's real file to find
+ * out that the third one was wrong.
  */
 export default async function InterviewCheckPage() {
   const supabase = await createClient();
@@ -26,24 +26,36 @@ export default async function InterviewCheckPage() {
 
   const { data: travelers } = await supabase
     .from("travelers")
-    .select("id, name, color")
+    .select("id, name, color, user_id, email")
     .eq("is_person", true)
     .order("sort_order", { ascending: true });
+
+  // Which of these people is the person reading the page, so the interview can
+  // say "me" rather than talking about them in the third person.
+  const mine = (travelers || []).find(
+    (t) =>
+      t.user_id === user.id ||
+      (t.email &&
+        user.email &&
+        t.email.toLowerCase() === user.email.toLowerCase()),
+  );
 
   return (
     <>
       <TopBar />
       <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
         <h1 className="font-display text-3xl font-semibold">
-          Interview rehearsal
+          Practice interview
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
-          A whole interview against the real record, the real prompt and the
-          real model — with every save diverted into memory, so nothing here
-          reaches anybody&apos;s file. Write the answers you want to test, one
-          per line, and read what Aly would have written down.
+          Aly asks the questions she would really ask, and you answer them here.
+          Under each question you can see what she would have written down — and
+          none of it is written down.
         </p>
-        <RehearsalBody travelers={travelers || []} />
+        <RehearsalBody
+          people={(travelers || []).map((t) => ({ id: t.id, name: t.name }))}
+          me={mine?.id || null}
+        />
       </main>
     </>
   );
