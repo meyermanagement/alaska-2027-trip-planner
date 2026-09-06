@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import { headlineFor } from "@/lib/tips/warnings";
 import { useRouter } from "next/navigation";
-import GetToKnow from "@/components/GetToKnow";
 import { createClient } from "@/lib/supabase/client";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
 import { ageToday } from "@/lib/travelers/ages";
@@ -595,19 +594,6 @@ export default function People({
                   {person.about_me}
                 </p>
               </div>
-            )}
-
-            {editingPerson !== person.id && (
-              <GetToKnow
-                person={person}
-                ledger={ledgers?.[person.id] || null}
-                self={
-                  person.user_id === userId ||
-                  (!!person.email &&
-                    !!userEmail &&
-                    person.email.toLowerCase() === userEmail.toLowerCase())
-                }
-              />
             )}
 
             <AccessRow

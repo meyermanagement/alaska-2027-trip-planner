@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SPECIES, speciesLabel } from "@/lib/pets/pets";
+import { GENDERS } from "@/lib/travelers/profile";
 import HomePicker, { locateHome } from "@/components/HomePicker";
 
 /**
@@ -19,7 +20,12 @@ import HomePicker, { locateHome } from "@/components/HomePicker";
  * question at a time -- so that the shape of the family is obvious before the
  * first question about how they travel.
  */
-export default function WelcomeForm({ familyId, myName }) {
+export default function WelcomeForm({
+  familyId,
+  myName,
+  myUserId = null,
+  myEmail = "",
+}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -27,11 +33,23 @@ export default function WelcomeForm({ familyId, myName }) {
   // What the suggestion box handed back, if one was chosen. Saves us a second
   // lookup for a point we already have.
   const [located, setLocated] = useState(null);
-  // People. The first row is the user themselves, prefilled with their display
-  // name so it is obvious the row is theirs; they can rename it. Empty rows
-  // beyond are for whoever else they want to add now.
-  const [people, setPeople] = useState([{ name: myName || "" }, { name: "" }]);
-  const [pets, setPets] = useState([{ name: "", species: "dog" }]);
+  // People. One row -- the user themselves, prefilled with their display name
+  // so it is obvious the row is theirs; they can rename it. Adding a partner or
+  // a child is one press of the button below, and a family of one should not
+  // have to remove a blank row that made an assumption on their behalf.
+  //
+  // Each row also carries date of birth and gender -- both optional, both
+  // things Aly leans on for the ordinary parts of planning (age tells her a
+  // ten-year-old is on the trip; gender helps with what to pack and who
+  // shares a room). Free-text "another term" lives on the Family screen; the
+  // welcome form keeps to the four common values plus a blank so nobody has
+  // to click through a picker they do not care about.
+  const [people, setPeople] = useState([
+    { name: myName || "", dob: "", gender: "" },
+  ]);
+  // No animals by default. A press of the button starts a row for anyone who
+  // has one; a family without one should not have to clear a placeholder dog.
+  const [pets, setPets] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,7 +57,7 @@ export default function WelcomeForm({ familyId, myName }) {
     setPeople((all) => all.map((r, n) => (n === i ? { ...r, ...patch } : r)));
   }
   function addPerson() {
-    setPeople((all) => [...all, { name: "" }]);
+    setPeople((all) => [...all, { name: "", dob: "", gender: "" }]);
   }
   function removePerson(i) {
     setPeople((all) => all.filter((_, n) => n !== i));
@@ -90,23 +108,44 @@ export default function WelcomeForm({ familyId, myName }) {
 
     // People. Any row with a name becomes a traveler; empty rows are ignored.
     // Sort order runs from the top of the form so the primary is first on the
-    // Family screen.
+    // Family screen. The first non-empty row is the person filling this in --
+    // primary, linked to the auth user, tagged with their email. Every other
+    // row is a secondary traveler: they belong to the family, they show up on
+    // trips, they can be given a seat later on the Family screen, but this
+    // form does not create logins for them.
     const clean = people
-      .map((r, i) => ({ name: r.name.trim(), sort_order: i + 1 }))
+      .map((r, i) => ({
+        name: (r.name || "").trim(),
+        // The <input type="date"> hands back an ISO date or ""; a blank stays
+        // blank so nothing is written.
+        dob: (r.dob || "").trim() || null,
+        // Only the four canonical values reach here; "Another term" is a
+        // Family-screen feature.
+        gender: (r.gender || "").trim() || null,
+        sort_order: i + 1,
+      }))
       .filter((r) => r.name.length > 0);
     if (clean.length === 0) {
       setBusy(false);
       setError("At least one name.");
       return;
     }
-    const { error: peopleErr } = await supabase.from("travelers").insert(
-      clean.map((r) => ({
-        family_id: familyId,
-        name: r.name.slice(0, 60),
-        is_person: true,
-        sort_order: r.sort_order,
-      })),
-    );
+    const rows = clean.map((r, idx) => ({
+      family_id: familyId,
+      name: r.name.slice(0, 60),
+      is_person: true,
+      sort_order: r.sort_order,
+      date_of_birth: r.dob,
+      gender: r.gender,
+      access_level: idx === 0 ? "primary" : "secondary",
+      // The primary row is the person signing in, so it carries the auth
+      // identity. Secondaries have no login yet.
+      user_id: idx === 0 ? myUserId : null,
+      email: idx === 0 ? myEmail || null : null,
+    }));
+    const { error: peopleErr } = await supabase
+      .from("travelers")
+      .insert(rows);
     if (peopleErr) {
       setBusy(false);
       setError(peopleErr.message);
@@ -166,30 +205,67 @@ export default function WelcomeForm({ familyId, myName }) {
       <section className="card p-4">
         <p className="section-label">Who else is in the family</p>
         <p className="mt-1 text-xs text-ink-soft">
-          The first row is you. Add anyone else who might come on a trip. You
-          can rename or add more later on the Family screen.
+          The first row is you. Everyone else is added as a secondary
+          traveler: they can see trips they are on and check off their own
+          packing and tasks, and can be given a full login later. Date of
+          birth and gender are both optional -- Aly uses them for the
+          ordinary things (age tells her a ten-year-old is on the trip,
+          gender helps with what to pack and who shares a room). You can add
+          more people or edit these later on the Family screen.
         </p>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-4">
           {people.map((row, i) => (
-            <div className="flex items-center gap-2" key={i}>
-              <input
-                className="field flex-1"
-                value={row.name}
-                onChange={(e) => setPerson(i, { name: e.target.value })}
-                placeholder={i === 0 ? "Your name" : "Their name"}
-                maxLength={60}
-              />
-              {i > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => removePerson(i)}
-                  disabled={busy}
-                  aria-label={`Remove person ${i + 1}`}
-                >
-                  Remove
-                </button>
-              )}
+            <div
+              className="rounded-lg border border-line/60 p-3 space-y-2"
+              key={i}
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  className="field flex-1"
+                  value={row.name}
+                  onChange={(e) => setPerson(i, { name: e.target.value })}
+                  placeholder={i === 0 ? "Your name" : "Their name"}
+                  maxLength={60}
+                />
+                {i > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => removePerson(i)}
+                    disabled={busy}
+                    aria-label={`Remove person ${i + 1}`}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="block text-xs font-semibold text-ink-soft">
+                  Date of birth (optional)
+                  <input
+                    type="date"
+                    className="field mt-1 text-sm"
+                    value={row.dob || ""}
+                    onChange={(e) => setPerson(i, { dob: e.target.value })}
+                    max={new Date().toISOString().slice(0, 10)}
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-ink-soft">
+                  Gender (optional)
+                  <select
+                    className="field mt-1 text-sm"
+                    value={row.gender || ""}
+                    onChange={(e) => setPerson(i, { gender: e.target.value })}
+                  >
+                    <option value="">Not recorded</option>
+                    {GENDERS.map((g) => (
+                      <option key={g.value} value={g.value}>
+                        {g.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
           ))}
         </div>
@@ -199,17 +275,18 @@ export default function WelcomeForm({ familyId, myName }) {
           onClick={addPerson}
           disabled={busy}
         >
-          Add another person
+          {people.length === 1 ? "Add somebody else" : "Add another person"}
         </button>
       </section>
 
       <section className="card p-4">
         <p className="section-label">Animals in the family</p>
         <p className="mt-1 text-xs text-ink-soft">
-          Even the ones that always stay home. It helps Aly know when to ask
-          about a sitter and when not to.
+          Add one row per animal, with a name and what kind. Even the ones that
+          always stay home -- it helps Aly know when to ask about a sitter and
+          when not to. You can add more later on the Family screen.
         </p>
-        <div className="mt-3 space-y-2">
+        {pets.length > 0 && <div className="mt-3 space-y-2">
           {pets.map((row, i) => (
             <div className="flex items-center gap-2" key={i}>
               <input
@@ -231,27 +308,25 @@ export default function WelcomeForm({ familyId, myName }) {
                   </option>
                 ))}
               </select>
-              {i > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => removePet(i)}
-                  disabled={busy}
-                  aria-label={`Remove animal ${i + 1}`}
-                >
-                  Remove
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => removePet(i)}
+                disabled={busy}
+                aria-label={`Remove animal ${i + 1}`}
+              >
+                Remove
+              </button>
             </div>
           ))}
-        </div>
+        </div>}
         <button
           type="button"
           className="btn btn-ghost btn-sm mt-3"
           onClick={addPet}
           disabled={busy}
         >
-          Add another animal
+          {pets.length === 0 ? "Add an animal" : "Add another animal"}
         </button>
       </section>
 

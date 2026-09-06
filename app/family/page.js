@@ -7,9 +7,11 @@ import AskAlyGeneral from "@/components/AskAlyGeneral";
 import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
 import FamilyScreen from "./FamilyScreen";
+import InterviewLauncher from "./InterviewLauncher";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 import { coverage, ledgerFor } from "@/lib/travelers/ledger";
+import { interviewProgress } from "@/lib/travelers/interview";
 
 export const metadata = { title: "Family · Alyeska" };
 
@@ -166,6 +168,19 @@ export default async function PeoplePage() {
             precise={household?.home_precise === true}
           />
         </div>
+        <InterviewLauncher
+          progress={interviewProgress({
+            settled: (slots || [])
+              .filter((s) => !s.traveler_id && s.status === "settled")
+              .map((s) => s.slot),
+            skipped: (slots || [])
+              .filter((s) => !s.traveler_id && s.status === "skipped")
+              .map((s) => s.slot),
+            asking: (slots || [])
+              .filter((s) => !s.traveler_id && s.status === "asking")
+              .map((s) => s.slot),
+          })}
+        />
         <FamilyScreen
           familyId={familyId}
           userId={user.id}

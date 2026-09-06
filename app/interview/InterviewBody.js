@@ -1,0 +1,341 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import CompassLoader from "@/components/CompassLoader";
+import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
+
+// The minimum a Compass loader is on screen between questions. The write and
+// the next-question calculation take a few hundred milliseconds; anything
+// shorter than this reads as instant-jarring rather than as a beat of thought,
+// so the wait is held to at least this long even when the network is faster.
+const HOLD_MS = 520;
+
+/**
+ * The interview screen, in either of two modes:
+ *
+ *   real       Each answer POSTs to /api/interview/answer and writes to the
+ *              database. After the last question the primary is redirected to
+ *              the trip builder with a seeded opener.
+ *
+ *   practice   Nothing writes. Answers accumulate in local state and after the
+ *              last question the recap replaces the card so somebody
+ *              rehearsing can see what would have been saved.
+ *
+ * The two modes share the same UI so the practice interview does not lie about
+ * what the real one feels like.
+ */
+export default function InterviewBody({ mode, startSlot, startIndex, total }) {
+  const router = useRouter();
+  const [slot, setSlot] = useState(startSlot);
+  const [index, setIndex] = useState(startIndex);
+  const [choice, setChoice] = useState("");
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [answers, setAnswers] = useState([]); // practice mode only
+  const [done, setDone] = useState(false);
+  const focusRef = useRef(null);
+
+  // Focus the first option (or the text field) as each new question arrives,
+  // so somebody who wants to answer with the keyboard can tab straight in.
+  useEffect(() => {
+    if (loading || done) return;
+    focusRef.current?.focus?.();
+  }, [slot, loading, done]);
+
+  const question = questionFor(slot);
+
+  const advance = useCallback(
+    (nextSlot) => {
+      if (!nextSlot) {
+        setDone(true);
+        return;
+      }
+      const nextIndex = INTERVIEW_QUESTIONS.findIndex(
+        (q) => q.slot === nextSlot,
+      );
+      setSlot(nextSlot);
+      setIndex(nextIndex >= 0 ? nextIndex : index + 1);
+      setChoice("");
+      setText("");
+      setError(null);
+    },
+    [index],
+  );
+
+  const submit = useCallback(
+    async (action) => {
+      if (loading) return;
+      setLoading(true);
+      setError(null);
+
+      const started = Date.now();
+
+      // Practice mode: record locally, wait the same beat, advance.
+      if (mode === "practice") {
+        const opt = (question.options || []).find((o) => o.value === choice);
+        const record = {
+          slot,
+          label: question.label,
+          kind: question.kind,
+          action,
+          picked:
+            action === "skip"
+              ? null
+              : question.kind === "text"
+                ? text.trim() || null
+                : choice === "other"
+                  ? text.trim() || null
+                  : opt
+                    ? opt.label
+                    : null,
+          reason:
+            action === "skip"
+              ? null
+              : question.kind === "options" && choice !== "other" && text.trim()
+                ? text.trim()
+                : null,
+        };
+        if (action !== "skip" && !record.picked && question.kind !== "text") {
+          setLoading(false);
+          setError("Pick one of the two, or type what fits better.");
+          return;
+        }
+        setAnswers((a) => [...a, record]);
+        const nextIndex = index + 1;
+        const nextSlot =
+          nextIndex < INTERVIEW_QUESTIONS.length
+            ? INTERVIEW_QUESTIONS[nextIndex].slot
+            : null;
+        const wait = Math.max(0, HOLD_MS - (Date.now() - started));
+        setTimeout(() => {
+          setLoading(false);
+          advance(nextSlot);
+        }, wait);
+        return;
+      }
+
+      // Real mode: write, then advance to the server-returned next slot.
+      try {
+        const res = await fetch("/api/interview/answer", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            slot,
+            action,
+            choice: action === "skip" ? null : choice,
+            text: action === "skip" ? null : text,
+          }),
+        });
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          const wait = Math.max(0, HOLD_MS - (Date.now() - started));
+          setTimeout(() => {
+            setLoading(false);
+            setError(
+              payload?.error || "That answer could not be saved. Try again.",
+            );
+          }, wait);
+          return;
+        }
+        const wait = Math.max(0, HOLD_MS - (Date.now() - started));
+        setTimeout(() => {
+          setLoading(false);
+          if (payload?.complete) {
+            setDone(true);
+            // The whole reason the family answers this is to plan a trip. Land
+            // them at the trip builder rather than back on Family, so the
+            // momentum of the interview earns itself a next step.
+            router.push("/trips/new");
+            return;
+          }
+          advance(payload?.nextSlot || null);
+        }, wait);
+      } catch {
+        const wait = Math.max(0, HOLD_MS - (Date.now() - started));
+        setTimeout(() => {
+          setLoading(false);
+          setError("Something on our end got in the way. Try again.");
+        }, wait);
+      }
+    },
+    [advance, choice, index, loading, mode, question, router, slot, text],
+  );
+
+  // Practice-mode recap: shown after the last question in place of the card.
+  if (done && mode === "practice") {
+    return <Recap answers={answers} />;
+  }
+
+  return (
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-2xl flex-col items-center justify-center px-4 py-10">
+      <p className="section-label mb-2 self-start text-ink-soft">
+        Question {index + 1} of {total}
+        {mode === "practice" && " · Practice"}
+      </p>
+
+      {loading ? (
+        <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-teal">
+          <CompassLoader size={72} label="Working on the next question." />
+          <p className="text-sm text-ink-soft">One moment.</p>
+        </div>
+      ) : (
+        <div className="w-full">
+          <h1 className="font-display text-2xl leading-snug text-ink sm:text-3xl">
+            {question.prompt}
+          </h1>
+
+          {question.kind === "options" ? (
+            <div className="mt-6 flex flex-col gap-3">
+              {question.options.map((opt, i) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  ref={i === 0 ? focusRef : null}
+                  onClick={() => setChoice(opt.value)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    choice === opt.value
+                      ? "border-teal bg-teal-soft/50 shadow-sm"
+                      : "border-sand-deep bg-white hover:border-teal/50"
+                  }`}
+                >
+                  <p className="font-display text-lg text-ink">{opt.label}</p>
+                  {opt.detail && (
+                    <p className="mt-1 text-sm text-ink-soft">{opt.detail}</p>
+                  )}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setChoice("other")}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  choice === "other"
+                    ? "border-teal bg-teal-soft/50 shadow-sm"
+                    : "border-sand-deep bg-white hover:border-teal/50"
+                }`}
+              >
+                <p className="font-display text-lg text-ink">Something else</p>
+                <p className="mt-1 text-sm text-ink-soft">In your own words.</p>
+              </button>
+              <textarea
+                rows={3}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={
+                  choice === "other"
+                    ? "What fits better?"
+                    : "Anything to add about why? (Optional.)"
+                }
+                className="mt-1 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+              />
+            </div>
+          ) : (
+            <div className="mt-6">
+              <textarea
+                ref={focusRef}
+                rows={5}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={question.placeholder || ""}
+                className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+              />
+            </div>
+          )}
+
+          {error && (
+            <p className="mt-3 text-sm text-rose" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => submit("skip")}
+              className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
+            >
+              Skip this one
+            </button>
+            <button
+              type="button"
+              onClick={() => submit("answer")}
+              disabled={
+                question.kind === "options"
+                  ? !choice || (choice === "other" && !text.trim())
+                  : false
+              }
+              className="btn btn-primary"
+            >
+              {index + 1 === total ? "Save and finish" : "Save and continue"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Recap({ answers }) {
+  const answered = answers.filter((a) => a.action !== "skip");
+  const skipped = answers.filter((a) => a.action === "skip");
+
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 py-10">
+      <p className="section-label text-ink-soft">Practice interview</p>
+      <h1 className="mt-1 font-display text-3xl text-ink">
+        What Aly would have learned
+      </h1>
+      <p className="mt-2 text-ink-soft">
+        Nothing was saved. This is what would have been written down if this had
+        been the real interview.
+      </p>
+
+      <section className="mt-8">
+        <h2 className="font-display text-xl text-ink">
+          Answered ({answered.length})
+        </h2>
+        {answered.length === 0 ? (
+          <p className="mt-2 text-ink-soft">Nothing answered.</p>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {answered.map((a) => (
+              <li
+                key={a.slot}
+                className="rounded-2xl border border-sand-deep bg-white p-4"
+              >
+                <p className="section-label text-ink-soft">{a.label}</p>
+                <p className="mt-1 text-ink">{a.picked}</p>
+                {a.reason && (
+                  <p className="mt-1 text-sm text-ink-soft">
+                    Reason: {a.reason}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {skipped.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-display text-xl text-ink">
+            Skipped ({skipped.length})
+          </h2>
+          <ul className="mt-3 space-y-2 text-ink-soft">
+            {skipped.map((a) => (
+              <li key={a.slot}>{a.label}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="mt-10">
+        <a href="/family" className="btn btn-ghost">
+          Back to Family
+        </a>
+      </div>
+    </div>
+  );
+}
