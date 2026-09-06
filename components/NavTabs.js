@@ -278,6 +278,17 @@ export default function NavTabs({
   const [present, setPresent] = useState(false);
   const sheetRef = useRef(null);
 
+  // A search field along the bottom of the menu, appearing whenever the menu
+  // is open. Typing filters the rows above it in place; the field itself is
+  // the entire scope of the search -- it does not go anywhere on its own, it
+  // just narrows what the menu is showing. When the menu closes the query is
+  // cleared, because a filter meant for one glance at the menu is not meant
+  // for the next glance at it. Kept as a separate state from the menu open
+  // state itself so the filter can update the rows without the arc having to
+  // re-open every keystroke.
+  const [query, setQuery] = useState("");
+  const queryInputRef = useRef(null);
+
   const isActive = (href) =>
     pathname === href || pathname.startsWith(`${href}/`);
   // Inside one trip, as opposed to the list of them.
@@ -318,10 +329,22 @@ export default function NavTabs({
   const params = useSearchParams();
   const view = String(params.get("view") || "").toLowerCase();
 
-  // Shut the sheet the moment you arrive somewhere, and on Escape.
+  // Shut the sheet the moment you arrive somewhere, and on Escape. Clear the
+  // filter with it: a query typed on one screen is not the right filter on
+  // the next, and the menu reopening with a stale filter would look empty
+  // for a reason the user cannot see from the outside.
   useEffect(() => {
     setOpen(false);
+    setQuery("");
   }, [pathname]);
+
+  // On close, drop the query so the next open starts on the full menu. Kept
+  // separate from the pathname effect above so a manual close (Escape, the
+  // scrim tap) also clears it -- staying on the same screen does not save the
+  // filter, because the filter is a way of looking at this one menu opening.
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
   useEffect(() => {
     if (open) {
       setPresent(true);
@@ -353,8 +376,33 @@ export default function NavTabs({
   );
   const where = trip && today ? tripDayNumber(trip, today) : null;
   const soon = trip && !where ? countdownSaid(daysUntil(trip.start_date)) : "";
+
+  // Whether the user has typed a filter, and the normalized query used to
+  // match rows against it. Declared here so both the current-trip plate and
+  // the rows below can be gated on the same string. Non-empty query means
+  // every kid inside every group is a candidate regardless of which group
+  // happened to be open at the time the menu was raised -- searching is how
+  // you find something you did not remember was inside a folded group -- and
+  // the group headers only survive if they or something under them matches.
+  const q = query.trim().toLowerCase();
+  const filtering = q.length > 0;
+  const matches = (row) =>
+    !filtering ||
+    (row.label && row.label.toLowerCase().includes(q)) ||
+    (row.sub && row.sub.toLowerCase().includes(q));
+
+  // The current-trip plate. It is filtered by the same query as the rows -- a
+  // person typing an active trip's name should still see this plate come
+  // through, otherwise the search would look like it dropped the one row
+  // above the column. When the plate does not match the query it hides, the
+  // same as any non-matching row.
+  const heroName = trip?.name || "";
+  const heroMatches =
+    !filtering ||
+    heroName.toLowerCase().includes(q) ||
+    (where ? "happening now" : "next trip").includes(q);
   const hero =
-    trip && !onThisTrip ? (
+    trip && !onThisTrip && heroMatches ? (
       <Link
         href={tripPath(trip, where ? "itinerary" : "overview")}
         onPointerEnter={() => router.prefetch(tripPath(trip, "itinerary"))}
@@ -399,28 +447,52 @@ export default function NavTabs({
   const rows = [];
   let seat = 1;
   if (insideTrip) {
-    rows.push({
+    const wayout = {
       kind: "wayout",
       key: "wayout",
       href: "/trips",
+      label: "All trips",
       Icon: BackIcon,
       lead: true,
-      i: seat++,
-    });
+      i: seat,
+    };
+    if (matches(wayout)) {
+      rows.push(wayout);
+      seat++;
+    }
   }
   if (secondary) {
     for (const row of SECONDARY_ROWS) {
-      rows.push({
+      const entry = {
         kind: "link",
         key: row.href,
         ...row,
         active: onScreen(row.href, pathname),
-        i: seat++,
-      });
+        i: seat,
+      };
+      if (matches(entry)) {
+        rows.push(entry);
+        seat++;
+      }
     }
   } else {
     for (const g of GROUPS) {
-      rows.push({
+      // A group's kids all belong to it whether it is open or not while a
+      // filter is running; only the current open group's kids show without a
+      // filter. That way a query typed into the box surfaces the thing the
+      // user is trying to find without them having to open the group first --
+      // which is what a search into a menu is for.
+      const kidEntries = g.kids.map((kid, n) => ({
+        kind: "link",
+        kid: true,
+        last: n === g.kids.length - 1,
+        key: kid.href,
+        ...kid,
+        active:
+          onScreen(kid.href, pathname, Boolean(kid.view)) &&
+          (!kid.view || (view || "upcoming") === kid.view),
+      }));
+      const header = {
         kind: "group",
         key: g.key,
         label: g.label,
@@ -428,33 +500,43 @@ export default function NavTabs({
         Icon: g.Icon,
         badge: g.badge,
         lead: !insideTrip && g.key === "journal",
-        i: seat++,
-      });
-      if (group !== g.key) continue;
-      g.kids.forEach((kid, n) => {
-        rows.push({
-          kind: "link",
-          kid: true,
-          last: n === g.kids.length - 1,
-          key: kid.href,
-          ...kid,
-          // A trip row is only the row you are on when the board is showing its
-          // group. Upcoming is what the board opens on with nothing asked for,
-          // so an address with no view in it is Planned Trips.
-          active:
-            onScreen(kid.href, pathname, Boolean(kid.view)) &&
-            (!kid.view || (view || "upcoming") === kid.view),
-          i: seat++,
-        });
+      };
+      const headerMatches = matches(header);
+      const matchingKids = kidEntries.filter((k) => matches(k));
+      // Group header shows if it itself matches, or a kid under it matches;
+      // the kids shown are all its kids when the header itself matched, and
+      // only the matching kids when the query found the kid rather than the
+      // group. Without a filter we fall back to the previous rule of showing
+      // kids only for the open group. If nothing under it matches and the
+      // header itself does not, the whole group drops out.
+      const showHeader = headerMatches || matchingKids.length > 0;
+      if (!showHeader) continue;
+      rows.push({ ...header, i: seat });
+      seat++;
+      let kidsToShow;
+      if (filtering) {
+        kidsToShow = headerMatches ? kidEntries : matchingKids;
+      } else if (group === g.key) {
+        kidsToShow = kidEntries;
+      } else {
+        kidsToShow = [];
+      }
+      kidsToShow.forEach((kid) => {
+        rows.push({ ...kid, i: seat });
+        seat++;
       });
     }
-    rows.push({
+    const settings = {
       kind: "link",
       key: SETTINGS.href,
       ...SETTINGS,
       active: onScreen(SETTINGS.href, pathname),
-      i: seat++,
-    });
+      i: seat,
+    };
+    if (matches(settings)) {
+      rows.push(settings);
+      seat++;
+    }
   }
 
   return (
@@ -670,6 +752,51 @@ export default function NavTabs({
                     </Link>
                   );
                 })}
+                {/* When the filter is a match for nothing the column looks
+                    empty for a reason the user cannot see from the outside;
+                    say so, in one small line the same width as the pills, so
+                    the field they typed into does not look broken. */}
+                {filtering && rows.length === 0 && !hero && (
+                  <p className="px-1 py-2 text-[0.78rem] text-ink/60">
+                    Nothing in the menu matches
+                    {" \u201C"}
+                    {query.trim()}
+                    {"\u201D"}.
+                  </p>
+                )}
+                {/* The search field. Along the bottom of the column, so it
+                    reads as a way of filtering what is above it rather than as
+                    a control on the page beneath. Typing narrows the pills in
+                    place; Escape closes the menu the same way it always did.
+                    The field takes the full width of the pill column so it
+                    sits under them without a jog to the left or the right. */}
+                <div className="mt-1.5 w-full">
+                  <div className="flex items-center gap-2 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] px-4 py-2 shadow-[var(--disc-shadow)]">
+                    <SearchIcon className="h-4 w-4 shrink-0 text-ink/50" />
+                    <input
+                      ref={queryInputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="What would you like to do?"
+                      aria-label="Filter the menu"
+                      className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink/50 focus:outline-none"
+                    />
+                    {query && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuery("");
+                          queryInputRef.current?.focus();
+                        }}
+                        aria-label="Clear the filter"
+                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink/50 transition hover:bg-ink/5 hover:text-ink"
+                      >
+                        <CloseIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -738,7 +865,13 @@ export default function NavTabs({
               </span>
             )}
           </button>
+          {/* Ask Aly hides while the menu is open, because the search field
+              along the bottom of the menu is now the way to reach Aly from a
+              typed question -- two teal discs on top of each other with the
+              same purpose would read as a two-button choice for something
+              that is really one. It returns the moment the menu closes. */}
           {showAsk &&
+            !open &&
             (askLive ? (
               <span className="pointer-events-auto">
                 <AskAlyTrigger href={askHref} round />
@@ -803,6 +936,29 @@ function ChecklistIcon({ className }) {
       <rect x="4.2" y="4" width="11.6" height="13" rx="2" />
       <path d="M7.6 4V3.2h4.8V4" />
       <path d="M7.6 10.2l1.7 1.7 3.4-3.6" />
+    </svg>
+  );
+}
+
+// The magnifier for the filter field at the bottom of the menu. Drawn in the
+// same weight as the bar's other line icons so the field belongs to the same
+// visual set as the discs on either side of it.
+function SearchIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <circle cx="8.6" cy="8.6" r="4.6" />
+      <path d="m12.5 12.5 3.4 3.4" />
+    </svg>
+  );
+}
+
+// A small ex for the clear button on the filter field. The same weight and
+// joins as everything else in the bar so the field's controls read as one set.
+function CloseIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M5 5l10 10" />
+      <path d="M15 5L5 15" />
     </svg>
   );
 }
