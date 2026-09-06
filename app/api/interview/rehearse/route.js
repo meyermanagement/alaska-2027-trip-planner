@@ -49,6 +49,7 @@ function blankAccount(name, home) {
     costs: [],
     facts: [],
     slots: [],
+    moments: [],
     userName: name,
     home: home ? { home_address: home } : null,
   };
@@ -144,6 +145,7 @@ export async function POST(request) {
     slots: carriedSlots,
     pets: real.pets || [],
     people: real.travelers || [],
+    moments: real.moments || [],
   });
   const before = run.standing();
 
@@ -152,6 +154,8 @@ export async function POST(request) {
     preferences: run.state.preferences,
     facts: run.state.facts,
     slots: run.state.slots,
+    moments: run.state.moments,
+    travelers: run.state.people,
     focus,
     message: said,
   });

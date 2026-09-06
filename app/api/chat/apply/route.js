@@ -68,6 +68,7 @@ const TAB_WORDS = {
 };
 
 const LANDING_PATH = {
+  add_person: ["/family", "the Family tab"],
   add_pet: ["/family", "the Family tab"],
   update_pet: ["/family", "the Family tab"],
   delete_pet: ["/family", "the Family tab"],
@@ -725,6 +726,43 @@ export async function POST(request) {
           });
           dbError = e;
         }
+      } else if (tool === "add_person") {
+        // Next in the family's own order, so the new person shows up at the end
+        // of the People list rather than sliding above whoever the family has
+        // already arranged themselves against. Read fresh right here rather than
+        // trusting the batch's earlier snapshot, because a first-login interview
+        // often adds two or three people in the same reply and each of them has
+        // to sit after the one before it.
+        const { data: existing } = await supabase
+          .from("travelers")
+          .select("sort_order")
+          .eq("family_id", familyId);
+        const next =
+          (existing || []).reduce(
+            (max, row) =>
+              Math.max(
+                max,
+                Number.isFinite(row?.sort_order) ? row.sort_order : 0,
+              ),
+            0,
+          ) + 1;
+        const { data: inserted, error: e } = await supabase
+          .from("travelers")
+          .insert({
+            ...patch,
+            family_id: familyId,
+            sort_order: next,
+          })
+          .select("id, name")
+          .maybeSingle();
+        dbError = e;
+        if (!e && inserted?.id) {
+          // Anything later in the same batch that names the new person -- a
+          // preference, an about_me paragraph, an animal they own -- resolves
+          // against a list that now includes them.
+          travelerNames.push(inserted.name);
+          travelerIds.set(inserted.name, inserted.id);
+        }
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.
         if (tool.startsWith("delete_")) {
@@ -742,7 +780,9 @@ export async function POST(request) {
             family_id: familyId,
             // Who pressed the card. On her own notes this is the only record of
             // the fact that a person read it before it was kept.
-            ...(table === "lessons" ? { created_by: user.id } : {}),
+            ...(table === "lessons" || table === "favorite_moments"
+              ? { created_by: user.id }
+              : {}),
           });
           dbError = e;
         }
