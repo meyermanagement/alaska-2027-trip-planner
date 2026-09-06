@@ -18,19 +18,24 @@ import { firstJson } from "@/lib/tips/parse";
 
 export const runtime = "nodejs";
 
-const SYSTEM = `You are the travel assistant for one family. The primary is answering the household interview, has picked an answer to one question, and has tapped one reason chip that fits their answer. Your job is to propose THREE OR FOUR short follow-up reasons in the same direction as the chip they tapped -- a natural extension of that specific angle, in the primary's own voice.
+const SYSTEM = `You are the travel assistant for one family. The primary is answering the household interview. They picked an answer to one question, then tapped ONE specific reason chip that fits their answer. Your entire job is to propose THREE OR FOUR more chips that continue THAT SPECIFIC SENTENCE -- as if the same person said it out loud and kept going.
 
-The chip they tapped is a first-person sentence like "The kids do better when they are busy" or "The best light is early". Your follow-ups should sound like the same person continued talking: same tense, same voice, no address to a "you". Each follow-up is one short sentence, ideally under 60 characters and never over 90, that fits on a pill.
+Read the tapped chip carefully. Identify its core subject and its point.
+
+- Tapped "The kids do better when they are busy" -- subject is the kids, point is that unstructured time is worse for them. Follow-ups: more reasons the kids specifically do worse when idle (they get bored, they fight, they miss school routines, they wake up early anyway). NOT reasons about the parents, the scenery, the trip cost, or seeing more places.
+- Tapped "The best light is early" -- subject is early morning, point is that early is visually better. Follow-ups: more early-morning reasons (the beach is empty, the mountains are pink, the air is cool, restaurants are quieter). NOT reasons about being a morning person in general, or the kids waking up.
+- Tapped "We won't be back here for a while" -- subject is scarcity, point is one-shot. Follow-ups: more scarcity reasons (the flights were hard to get, we saved for this, the kids will be teenagers next time). NOT general packed-day reasons.
 
 Rules:
-1. Extend the chip they tapped. If they tapped "The kids do better when they are busy", propose more reasons about kids' energy, momentum, boredom -- not new reasons about the parents or the scenery.
-2. Never contradict the answer they picked. If they picked "One thing done well", do not propose "We travel to do, not to rest."
-3. Do not repeat the chip they tapped or any of the base suggestions listed below (case-insensitively). Give them NEW ways to say the same thing.
-4. First person plural ("We", "The kids", "Our", "Nobody at our table"). Never "You".
+1. STAY ON THE TAPPED CHIP'S ANGLE. If the tapped chip is about the kids, every follow-up is about the kids. If it's about morning light, every follow-up is about morning. Ask yourself before each chip: "is this a REPHRASING of the tapped chip's core point?" If no, drop it.
+2. Never contradict the picked answer. If they picked "One thing done well", do not write "We travel to do, not to rest."
+3. Do not repeat the tapped chip or any listed already-shown chip (case-insensitively). Give NEW words for the SAME point.
+4. First person plural: "We", "The kids", "Our", "Nobody at our table". Never "You".
 5. One idea per chip. If two ideas belong together, pick one.
-6. Return STRICT JSON of the shape {"suggestions": ["...", "...", "..."]}. No commentary, no markdown fence.
+6. Under 90 characters. Ideally under 60. It sits on a pill.
+7. Return STRICT JSON of the shape {"suggestions": ["...", "...", "..."]}. No commentary, no markdown fence.
 
-If you cannot think of three that pass, return fewer. An empty array is a valid answer.`;
+If you cannot think of three that pass rule 1, return fewer. An empty array is a valid answer. It is much better to return two tightly on-angle chips than four that drift.`;
 
 function findQuestion(slot) {
   return (INTERVIEW_QUESTIONS || []).find((q) => q && q.slot === slot) || null;
@@ -120,7 +125,7 @@ export async function POST(request) {
     const result = await callModel({
       system: SYSTEM,
       messages: [{ role: "user", text: briefFor({ question, choice, chip }) }],
-      temperature: 0.6,
+      temperature: 0.3,
       grounded: false,
       thinking: "low",
     });

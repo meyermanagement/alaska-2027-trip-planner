@@ -503,8 +503,11 @@ function WhyPanel({ choice, question, text, setText, cache }) {
   const [pool, setPool] = useState(() => ({}));
   const [pendingKeys, setPendingKeys] = useState(() => new Set());
 
+  // v2 keys start with a version tag so old cached entries generated before
+  // the prompt was tightened don't survive across page loads or refreshes.
+  // Bump when the /api/interview/suggest prompt changes materially.
   const keyFor = useCallback(
-    (chip) => `${question.slot}::${choice}::${chip.toLowerCase()}`,
+    (chip) => `v2::${question.slot}::${choice}::${chip.toLowerCase()}`,
     [question.slot, choice],
   );
 
