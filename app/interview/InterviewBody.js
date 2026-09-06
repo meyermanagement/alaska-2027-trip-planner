@@ -40,7 +40,13 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   const [moments, setMoments] = useState([""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [answers, setAnswers] = useState([]); // practice mode only
+  // In-session record of what has been answered this run. Practice mode
+  // reads it to build the recap; real mode reads it to pre-fill fields when
+  // the primary steps back to a question they already answered, so an
+  // answered question never looks empty. Real mode does not read the server
+  // for prior answers between questions, so this is the memory that lets
+  // Back-then-Save-and-continue keep the current question's answer visible.
+  const [answers, setAnswers] = useState([]);
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
   // Session cache for Aly-generated follow-up chips. Keyed by
@@ -123,39 +129,45 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     const cleanedMoments = isMoments
       ? moments.map((m) => m.trim()).filter(Boolean)
       : [];
-    if (mode === "practice") {
-      // Practice mode records to local state; the recap reads it.
-      const opt = (question.options || []).find((o) => o.value === choice);
-      const record = {
-        slot,
-        label: question.label,
-        kind: question.kind,
-        action: "answer",
-        picked: isMoments
-          ? cleanedMoments.length > 0
-            ? cleanedMoments
-            : null
-          : question.kind === "text"
+    // Build the local-memory record once so both modes update `answers` the
+    // same way. Real mode also uses it to pre-fill the fields when the
+    // primary steps back to this question later in the session.
+    const opt = (question.options || []).find((o) => o.value === choice);
+    const record = {
+      slot,
+      label: question.label,
+      kind: question.kind,
+      action: "answer",
+      picked: isMoments
+        ? cleanedMoments.length > 0
+          ? cleanedMoments
+          : null
+        : question.kind === "text"
+          ? text.trim() || null
+          : choice === "other"
             ? text.trim() || null
-            : choice === "other"
-              ? text.trim() || null
-              : opt
-                ? opt.label
-                : null,
-        reason:
-          question.kind === "options" && choice !== "other" && text.trim()
-            ? text.trim()
-            : null,
-      };
-      // Replace any previous record for this slot rather than double-stack,
-      // so back-then-forward does not leave two rows for the same question.
+            : opt
+              ? opt.label
+              : null,
+      reason:
+        question.kind === "options" && choice !== "other" && text.trim()
+          ? text.trim()
+          : null,
+    };
+    // Replace any previous record for this slot rather than double-stack,
+    // so back-then-forward does not leave two rows for the same question.
+    const remember = () =>
       setAnswers((prior) => {
         const kept = prior.filter((a) => a.slot !== slot);
         return [...kept, record];
       });
+    if (mode === "practice") {
+      // Practice mode writes only to local memory; the recap reads it.
+      remember();
       return true;
     }
-    // Real mode writes to the same endpoints as Save and continue.
+    // Real mode writes to the same endpoints as Save and continue, then
+    // records the same shape locally so a later Back finds the answer.
     try {
       const res = isMoments
         ? await fetch("/api/interview/moments", {
@@ -176,6 +188,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
               text,
             }),
           });
+      if (res.ok) remember();
       return res.ok;
     } catch {
       return false;
@@ -220,55 +233,50 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     setSlot(previous.slot);
     setIndex(previousIndex);
     setError(null);
-    if (mode === "practice") {
-      // In practice mode, look up the previous question's recorded answer
-      // (which may have been just saved a moment ago from this same click)
-      // and pre-fill the fields with what was picked so the primary can
-      // revise rather than retype.
-      setAnswers((prior) => {
-        const previousAnswer = prior.find((a) => a.slot === previous.slot);
-        if (previousAnswer) {
-          if (previous.kind === "options") {
-            const opt = (previous.options || []).find(
-              (o) => o.label === previousAnswer.picked,
-            );
-            setChoice(opt ? opt.value : previousAnswer.picked ? "other" : "");
-            setText(
-              opt
-                ? previousAnswer.reason || ""
-                : typeof previousAnswer.picked === "string"
-                  ? previousAnswer.picked
-                  : "",
-            );
-            setMoments([""]);
-          } else if (previous.kind === "moments") {
-            const list = Array.isArray(previousAnswer.picked)
-              ? previousAnswer.picked
-              : [];
-            setMoments(list.length ? [...list, ""] : [""]);
-            setChoice("");
-            setText("");
-          } else {
-            setChoice("");
-            setText(
-              typeof previousAnswer.picked === "string"
+    // Look up the previous question's recorded answer -- which may have been
+    // just saved a moment ago from this same click -- and pre-fill the
+    // fields with what was picked, so the primary can revise rather than
+    // retype. The same read applies to both modes so an answered question
+    // never looks empty on Back.
+    setAnswers((prior) => {
+      const previousAnswer = prior.find((a) => a.slot === previous.slot);
+      if (previousAnswer) {
+        if (previous.kind === "options") {
+          const opt = (previous.options || []).find(
+            (o) => o.label === previousAnswer.picked,
+          );
+          setChoice(opt ? opt.value : previousAnswer.picked ? "other" : "");
+          setText(
+            opt
+              ? previousAnswer.reason || ""
+              : typeof previousAnswer.picked === "string"
                 ? previousAnswer.picked
                 : "",
-            );
-            setMoments([""]);
-          }
-        } else {
+          );
+          setMoments([""]);
+        } else if (previous.kind === "moments") {
+          const list = Array.isArray(previousAnswer.picked)
+            ? previousAnswer.picked
+            : [];
+          setMoments(list.length ? [...list, ""] : [""]);
           setChoice("");
           setText("");
+        } else {
+          setChoice("");
+          setText(
+            typeof previousAnswer.picked === "string"
+              ? previousAnswer.picked
+              : "",
+          );
           setMoments([""]);
         }
-        return prior;
-      });
-    } else {
-      setChoice("");
-      setText("");
-      setMoments([""]);
-    }
+      } else {
+        setChoice("");
+        setText("");
+        setMoments([""]);
+      }
+      return prior;
+    });
   }, [hasAnswer, index, loading, mode, router, saveCurrent]);
 
   const submit = useCallback(
@@ -581,6 +589,13 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 // row) that appear under a "More" heading. Pending fetches show a small dot
 // placeholder in the same layout so the row is a wait rather than a jump.
 //
+// Within the More row, the hand-written otherReasons (the neutral third-way
+// suggestions that ship with the question) come first, and Aly's tailored
+// follow-ups append after them in pick order. That way a chip that just
+// arrived from the network does not shove the hand-written suggestions off
+// the top of the row -- the anchor stays put, the new material lands at the
+// end.
+//
 // A session-lifetime cache (keyed by slot::choice::chip) means tapping the
 // same base chip twice -- or toggling one off and back on -- never re-hits
 // the model. The cache lives on the parent InterviewBody's suggestionCache
@@ -669,22 +684,27 @@ function WhyPanel({ choice, question, text, setText, cache }) {
         });
       })();
     }
-  }, [
-    pickedPrimary,
-    pendingKeys,
-    cache,
-    choice,
-    isOther,
-    keyFor,
-    question.slot,
-  ]);
+  }, [pickedPrimary, pendingKeys, cache, choice, keyFor, question.slot]);
 
-  // Assemble the "More" pool from cached and freshly fetched follow-ups, in
-  // pick order, deduped case-insensitively against the primary list and each
-  // other, and capped at MORE_CAP so the row does not run away.
+  // Assemble the "More" pool. Hand-written otherReasons come first because
+  // they are steady, ship with the question, and act as the anchor of the
+  // row -- something to look at while Aly's follow-ups are still being
+  // fetched, and something that stays in the same place across taps.
+  // Aly's tailored follow-ups (in pick order) append after them, so a chip
+  // that just arrived does not shove the hand-written suggestions off the
+  // top of the row. Everything is deduped case-insensitively against the
+  // primary list and each other, and capped at MORE_CAP so the row does
+  // not run away.
   const more = (() => {
     const seen = new Set(primary.map((s) => s.toLowerCase()));
     const out = [];
+    for (const r of question.otherReasons || []) {
+      if (out.length >= MORE_CAP) return out;
+      const kk = r.toLowerCase();
+      if (seen.has(kk)) continue;
+      seen.add(kk);
+      out.push(r);
+    }
     for (const chip of pickedPrimary) {
       const k = keyFor(chip);
       const generated = cache.current.get(k) || pool[k] || [];
@@ -696,15 +716,6 @@ function WhyPanel({ choice, question, text, setText, cache }) {
         out.push(g);
         if (out.length >= MORE_CAP) return out;
       }
-    }
-    // otherReasons still slot in as neutral, all-answers-work suggestions,
-    // after the tailored follow-ups, and only up to the cap.
-    for (const r of question.otherReasons || []) {
-      if (out.length >= MORE_CAP) break;
-      const kk = r.toLowerCase();
-      if (seen.has(kk)) continue;
-      seen.add(kk);
-      out.push(r);
     }
     return out;
   })();
