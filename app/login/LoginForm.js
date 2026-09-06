@@ -175,17 +175,18 @@ export default function LoginForm() {
         {mode === "signup" && (
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-              Family invite code
+              Signup or invite code
             </span>
             <input
               className="field font-mono uppercase"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
-              placeholder="MEYER2027"
+              placeholder="ALY-XXXX-XXXX"
               required
             />
             <span className="mt-1 block text-xs text-ink-soft">
-              This links your account to the family&apos;s shared trips.
+              A signup code opens a new family. A family invite code joins an
+              existing one.
             </span>
           </label>
         )}
