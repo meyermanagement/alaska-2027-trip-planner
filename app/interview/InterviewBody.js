@@ -43,6 +43,14 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   const [answers, setAnswers] = useState([]); // practice mode only
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
+  // Session cache for Aly-generated follow-up chips. Keyed by
+  // `${slot}::${choice}::${chip}` (all lowercase); value is the array of
+  // suggestion strings returned by /api/interview/suggest. Held in a ref so
+  // repeated taps on the same chip -- including tapping OFF and back ON --
+  // never re-hit the model within one session. A refresh of the interview
+  // clears the cache, which is fine: the primary answers 10 questions and
+  // moves on, so the cache lifetime maps to a real session.
+  const suggestionCache = useRef(new Map());
   // A screen-reader-only live region that announces the new prompt as each
   // question arrives, so keyboard and assistive-tech users hear the change of
   // question without visible focus moving anywhere on the page. Nothing on
@@ -365,6 +373,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                   question={question}
                   text={text}
                   setText={setText}
+                  cache={suggestionCache}
                 />
               )}
             </div>
@@ -443,33 +452,32 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 // text to the reason on its own line; tapping again removes just that line,
 // so several suggestions can stack into a fuller answer without retyping.
 //
-// Once the primary has picked at least one suggestion, a second row headed
-// "More" appears underneath with the question's otherReasons -- the neutral,
-// depends-on-the-trip lines that fit whichever option was chosen. The
-// opposing option's reasons are NOT surfaced; those are reasons for picking
-// the other choice, and adding them to a reason for THIS choice contradicts
-// the answer above. The More row is tailored to what was picked, not just
-// what is left in the file.
-function WhyPanel({ choice, question, text, setText }) {
+// The base suggestions are hand-written and ship with the question. Beyond
+// them, the panel asks Aly on the fly for follow-up chips that extend the
+// specific base chip the primary just tapped -- "The kids do better when
+// they are busy" leads to more kid-energy chips, "We won't be back here for
+// a while" leads to more scarcity chips, and so on. Each fetch runs in the
+// background against /api/interview/suggest; the results merge into a growing
+// pool of extra chips (deduplicated, capped around ten total in the second
+// row) that appear under a "More" heading. Pending fetches show a small dot
+// placeholder in the same layout so the row is a wait rather than a jump.
+//
+// A session-lifetime cache (keyed by slot::choice::chip) means tapping the
+// same base chip twice -- or toggling one off and back on -- never re-hits
+// the model. The cache lives on the parent InterviewBody's suggestionCache
+// ref.
+//
+// The opposing option's hand-written reasons are still NOT surfaced: they
+// argue against the answer just picked, and stacking them into the reason
+// would contradict it.
+const MORE_CAP = 10;
+
+function WhyPanel({ choice, question, text, setText, cache }) {
   const isOther = choice === "other";
   const primary = (() => {
     if (isOther) return question.otherReasons || [];
     const opt = (question.options || []).find((o) => o.value === choice);
     return (opt && opt.reasons) || [];
-  })();
-  // "More" holds only otherReasons -- the depends-on-the-trip lines that
-  // extend whichever answer was picked. The opposing option's reasons are
-  // deliberately left out because they argue against the choice above.
-  const rest = (() => {
-    const seen = new Set(primary.map((s) => s.toLowerCase()));
-    const bag = [];
-    for (const r of question.otherReasons || []) {
-      if (!seen.has(r.toLowerCase())) {
-        seen.add(r.toLowerCase());
-        bag.push(r);
-      }
-    }
-    return bag;
   })();
 
   const lines = text
@@ -477,7 +485,113 @@ function WhyPanel({ choice, question, text, setText }) {
     .map((s) => s.trim())
     .filter(Boolean);
   const activeSet = new Set(lines.map((s) => s.toLowerCase()));
-  const anyPicked = primary.some((c) => activeSet.has(c.toLowerCase()));
+  // Which primary chips are actually picked, in the order they were picked --
+  // so "More" starts with follow-ups to the FIRST pick and appends the next
+  // pick's follow-ups below, rather than shuffling the order on each re-render.
+  const pickedPrimary = lines.filter((l) =>
+    primary.some((p) => p.toLowerCase() === l.toLowerCase()),
+  );
+
+  // Track pending fetches and generated pools by cache key. State is used
+  // rather than a plain ref for the visible pool so the panel re-renders
+  // when a fetch resolves; the ref is the durable session cache.
+  const [pool, setPool] = useState(() => ({}));
+  const [pendingKeys, setPendingKeys] = useState(() => new Set());
+
+  const keyFor = useCallback(
+    (chip) => `${question.slot}::${choice}::${chip.toLowerCase()}`,
+    [question.slot, choice],
+  );
+
+  // When a base chip is picked, ensure we have follow-ups for it. Read from
+  // the session cache first; only fetch when it is genuinely absent.
+  useEffect(() => {
+    if (isOther) return; // Something else has no follow-up model call.
+    const missing = pickedPrimary.filter((chip) => {
+      const k = keyFor(chip);
+      return !cache.current.has(k) && !pendingKeys.has(k);
+    });
+    if (missing.length === 0) return;
+    // Mark all as pending atomically before firing any request so a burst of
+    // taps does not double-fire the same key.
+    setPendingKeys((prev) => {
+      const next = new Set(prev);
+      for (const chip of missing) next.add(keyFor(chip));
+      return next;
+    });
+    for (const chip of missing) {
+      const k = keyFor(chip);
+      (async () => {
+        let suggestions = [];
+        try {
+          const res = await fetch("/api/interview/suggest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              slot: question.slot,
+              choice,
+              chip,
+            }),
+          });
+          const data = await res.json();
+          if (Array.isArray(data?.suggestions)) suggestions = data.suggestions;
+        } catch {
+          suggestions = [];
+        }
+        cache.current.set(k, suggestions);
+        setPool((prev) => ({ ...prev, [k]: suggestions }));
+        setPendingKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(k);
+          return next;
+        });
+      })();
+    }
+  }, [
+    pickedPrimary,
+    pendingKeys,
+    cache,
+    choice,
+    isOther,
+    keyFor,
+    question.slot,
+  ]);
+
+  // Assemble the "More" pool from cached and freshly fetched follow-ups, in
+  // pick order, deduped case-insensitively against the primary list and each
+  // other, and capped at MORE_CAP so the row does not run away.
+  const more = (() => {
+    const seen = new Set(primary.map((s) => s.toLowerCase()));
+    const out = [];
+    for (const chip of pickedPrimary) {
+      const k = keyFor(chip);
+      const generated = cache.current.get(k) || pool[k] || [];
+      for (const g of generated) {
+        if (!g) continue;
+        const kk = g.toLowerCase();
+        if (seen.has(kk)) continue;
+        seen.add(kk);
+        out.push(g);
+        if (out.length >= MORE_CAP) return out;
+      }
+    }
+    // otherReasons still slot in as neutral, all-answers-work suggestions,
+    // after the tailored follow-ups, and only up to the cap.
+    for (const r of question.otherReasons || []) {
+      if (out.length >= MORE_CAP) break;
+      const kk = r.toLowerCase();
+      if (seen.has(kk)) continue;
+      seen.add(kk);
+      out.push(r);
+    }
+    return out;
+  })();
+
+  const anyPickedPrimary = pickedPrimary.length > 0;
+  const anyPending = pickedPrimary.some((chip) =>
+    pendingKeys.has(keyFor(chip)),
+  );
+  const showMoreSection = anyPickedPrimary && (more.length > 0 || anyPending);
 
   function toggle(chip) {
     const has = activeSet.has(chip.toLowerCase());
@@ -523,13 +637,24 @@ function WhyPanel({ choice, question, text, setText }) {
           </div>
         </div>
       )}
-      {anyPicked && rest.length > 0 && (
+      {showMoreSection && (
         <div className="mt-3">
           <p className="section-label text-ink-soft">More</p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {rest.map((chip) => (
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            {more.map((chip) => (
               <Chip key={chip} chip={chip} />
             ))}
+            {anyPending && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-sand-deep bg-white/60 px-3 py-1.5 text-sm text-ink-soft"
+                aria-live="polite"
+                aria-label="Loading more suggestions"
+              >
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink-soft"></span>
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink-soft [animation-delay:150ms]"></span>
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink-soft [animation-delay:300ms]"></span>
+              </span>
+            )}
           </div>
         </div>
       )}
