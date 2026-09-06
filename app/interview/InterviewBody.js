@@ -12,6 +12,68 @@ import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
 // so the wait is held to at least this long even when the network is faster.
 const HOLD_MS = 520;
 
+// The blank fields for a question with no prior answer.
+const BLANK_FIELDS = { choice: "", text: "", moments: [""] };
+
+/**
+ * The three form fields (choice, text, moments) that should paint onto the
+ * screen for `question`, given the primary's `priorAnswer` for it (or null if
+ * they have never answered this question).
+ *
+ * Both back() and advance() call this so an already-answered question looks
+ * the same whether the primary arrived by stepping back to revise or by
+ * stepping forward after Save-and-continue. Two paths, one shape.
+ *
+ * For options questions the recorded pick is the option's label (that is
+ * what the answer endpoint stores in the body), so the option value is
+ * looked up by matching the label back. A pick with no matching label is
+ * treated as a Something-else answer -- the label lookup failed because the
+ * primary typed their own words rather than picking a card. The typed words
+ * live in `picked` for Something-else answers and in `reason` for reason-
+ * chip answers, and are pulled into the text field accordingly.
+ *
+ * For moments questions the recorded pick is the array of moment strings.
+ * One extra blank slot is kept at the end so there is always somewhere to
+ * type without hunting for an add button, matching the shape MomentsPanel
+ * expects.
+ *
+ * For text questions the recorded pick is a single string that goes back
+ * into the text field.
+ *
+ * A missing `priorAnswer` yields the blank fields the form starts with.
+ */
+function fieldsForAnswer(question, priorAnswer) {
+  if (!priorAnswer || !question) return BLANK_FIELDS;
+  if (question.kind === "options") {
+    const opt = (question.options || []).find(
+      (o) => o.label === priorAnswer.picked,
+    );
+    return {
+      choice: opt ? opt.value : priorAnswer.picked ? "other" : "",
+      text: opt
+        ? priorAnswer.reason || ""
+        : typeof priorAnswer.picked === "string"
+          ? priorAnswer.picked
+          : "",
+      moments: [""],
+    };
+  }
+  if (question.kind === "moments") {
+    const list = Array.isArray(priorAnswer.picked) ? priorAnswer.picked : [];
+    return {
+      choice: "",
+      text: "",
+      moments: list.length ? [...list, ""] : [""],
+    };
+  }
+  // text
+  return {
+    choice: "",
+    text: typeof priorAnswer.picked === "string" ? priorAnswer.picked : "",
+    moments: [""],
+  };
+}
+
 /**
  * The interview screen, in either of two modes:
  *
@@ -99,41 +161,16 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
       const nextQuestion = INTERVIEW_QUESTIONS[nextIndex] || null;
       setSlot(nextSlot);
       setIndex(nextIndex >= 0 ? nextIndex : index + 1);
+      // Read the local answers map with a functional updater so a record just
+      // written by submit() in the same click is visible, then paint the
+      // fields for the incoming slot. Blank when nothing is on file; the
+      // prior pick, otherwise.
       setAnswers((prior) => {
         const priorAnswer = prior.find((a) => a.slot === nextSlot);
-        if (priorAnswer && nextQuestion) {
-          if (nextQuestion.kind === "options") {
-            const opt = (nextQuestion.options || []).find(
-              (o) => o.label === priorAnswer.picked,
-            );
-            setChoice(opt ? opt.value : priorAnswer.picked ? "other" : "");
-            setText(
-              opt
-                ? priorAnswer.reason || ""
-                : typeof priorAnswer.picked === "string"
-                  ? priorAnswer.picked
-                  : "",
-            );
-            setMoments([""]);
-          } else if (nextQuestion.kind === "moments") {
-            const list = Array.isArray(priorAnswer.picked)
-              ? priorAnswer.picked
-              : [];
-            setMoments(list.length ? [...list, ""] : [""]);
-            setChoice("");
-            setText("");
-          } else {
-            setChoice("");
-            setText(
-              typeof priorAnswer.picked === "string" ? priorAnswer.picked : "",
-            );
-            setMoments([""]);
-          }
-        } else {
-          setChoice("");
-          setText("");
-          setMoments([""]);
-        }
+        const fields = fieldsForAnswer(nextQuestion, priorAnswer);
+        setChoice(fields.choice);
+        setText(fields.text);
+        setMoments(fields.moments);
         return prior;
       });
       setError(null);
@@ -284,41 +321,10 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     // never looks empty on Back.
     setAnswers((prior) => {
       const previousAnswer = prior.find((a) => a.slot === previous.slot);
-      if (previousAnswer) {
-        if (previous.kind === "options") {
-          const opt = (previous.options || []).find(
-            (o) => o.label === previousAnswer.picked,
-          );
-          setChoice(opt ? opt.value : previousAnswer.picked ? "other" : "");
-          setText(
-            opt
-              ? previousAnswer.reason || ""
-              : typeof previousAnswer.picked === "string"
-                ? previousAnswer.picked
-                : "",
-          );
-          setMoments([""]);
-        } else if (previous.kind === "moments") {
-          const list = Array.isArray(previousAnswer.picked)
-            ? previousAnswer.picked
-            : [];
-          setMoments(list.length ? [...list, ""] : [""]);
-          setChoice("");
-          setText("");
-        } else {
-          setChoice("");
-          setText(
-            typeof previousAnswer.picked === "string"
-              ? previousAnswer.picked
-              : "",
-          );
-          setMoments([""]);
-        }
-      } else {
-        setChoice("");
-        setText("");
-        setMoments([""]);
-      }
+      const fields = fieldsForAnswer(previous, previousAnswer);
+      setChoice(fields.choice);
+      setText(fields.text);
+      setMoments(fields.moments);
       return prior;
     });
   }, [hasAnswer, index, loading, mode, router, saveCurrent]);
