@@ -442,10 +442,14 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 // to "What fits better?". Suggestions are togglable pills that append their
 // text to the reason on its own line; tapping again removes just that line,
 // so several suggestions can stack into a fuller answer without retyping.
-// Once the primary has picked at least one suggestion, a second "More" row
-// appears with the rest of the question's suggestions (the other options'
-// reasons and the otherReasons fallbacks), because somebody who wanted to say
-// more is probably also willing to say more precisely.
+//
+// Once the primary has picked at least one suggestion, a second row headed
+// "More" appears underneath with the question's otherReasons -- the neutral,
+// depends-on-the-trip lines that fit whichever option was chosen. The
+// opposing option's reasons are NOT surfaced; those are reasons for picking
+// the other choice, and adding them to a reason for THIS choice contradicts
+// the answer above. The More row is tailored to what was picked, not just
+// what is left in the file.
 function WhyPanel({ choice, question, text, setText }) {
   const isOther = choice === "other";
   const primary = (() => {
@@ -453,20 +457,12 @@ function WhyPanel({ choice, question, text, setText }) {
     const opt = (question.options || []).find((o) => o.value === choice);
     return (opt && opt.reasons) || [];
   })();
+  // "More" holds only otherReasons -- the depends-on-the-trip lines that
+  // extend whichever answer was picked. The opposing option's reasons are
+  // deliberately left out because they argue against the choice above.
   const rest = (() => {
     const seen = new Set(primary.map((s) => s.toLowerCase()));
     const bag = [];
-    if (!isOther) {
-      for (const opt of question.options || []) {
-        if (opt.value === choice) continue;
-        for (const r of opt.reasons || []) {
-          if (!seen.has(r.toLowerCase())) {
-            seen.add(r.toLowerCase());
-            bag.push(r);
-          }
-        }
-      }
-    }
     for (const r of question.otherReasons || []) {
       if (!seen.has(r.toLowerCase())) {
         seen.add(r.toLowerCase());
