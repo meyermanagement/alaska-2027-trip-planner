@@ -43,12 +43,20 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   const [answers, setAnswers] = useState([]); // practice mode only
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
+  // Focus the H1 as each new question arrives so a screen reader announces the
+  // new prompt, and so the visible focus ring lands somewhere neutral rather
+  // than on the first option button -- where the ring reads as a pre-selection
+  // even though the button was only focused, not chosen.
+  const headingRef = useRef(null);
 
-  // Focus the first option (or the text field) as each new question arrives,
-  // so somebody who wants to answer with the keyboard can tab straight in.
+  // Focus the H1 -- not the first option -- when a new question arrives.
+  // Focusing an option makes the button look chosen before the primary has
+  // touched anything; focusing the heading lands the ring on the prompt
+  // itself, which reads as "here is the new question" rather than "here is
+  // your answer". Keyboard users can Tab from the heading to the options.
   useEffect(() => {
     if (loading || done) return;
-    focusRef.current?.focus?.();
+    headingRef.current?.focus?.();
   }, [slot, loading, done]);
 
   const question = questionFor(slot);
@@ -71,6 +79,72 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     },
     [index],
   );
+
+  // Go back one question. On the very first question this leaves the
+  // interview entirely -- to the practice hub in practice mode, to Family in
+  // real mode -- because there is no earlier question to revise.
+  //
+  // In practice mode a step back also pops the last answer off the local
+  // record and restores whatever the primary had picked, so "back" reads as
+  // "take that back" rather than "start that question again from scratch".
+  // In real mode the previous answer was already saved server-side; the
+  // primary sees the question with fresh fields and any new answer overwrites
+  // the old one through the same upsert path that wrote it the first time.
+  const back = useCallback(() => {
+    if (loading) return;
+    if (index <= 0) {
+      router.push(mode === "practice" ? "/interview-check" : "/family");
+      return;
+    }
+    const previousIndex = index - 1;
+    const previous = INTERVIEW_QUESTIONS[previousIndex];
+    setSlot(previous.slot);
+    setIndex(previousIndex);
+    setError(null);
+    if (mode === "practice") {
+      // Pop the last recorded answer and, if it was for the question we are
+      // stepping back to, pre-fill the fields with what was picked so the
+      // primary can revise rather than retype.
+      setAnswers((prior) => {
+        if (prior.length === 0) return prior;
+        const last = prior[prior.length - 1];
+        if (last.slot === previous.slot) {
+          if (previous.kind === "options") {
+            const opt = (previous.options || []).find(
+              (o) => o.label === last.picked,
+            );
+            setChoice(opt ? opt.value : last.picked ? "other" : "");
+            setText(
+              opt
+                ? last.reason || ""
+                : typeof last.picked === "string"
+                  ? last.picked
+                  : "",
+            );
+            setMoments([""]);
+          } else if (previous.kind === "moments") {
+            const list = Array.isArray(last.picked) ? last.picked : [];
+            setMoments(list.length ? [...list, ""] : [""]);
+            setChoice("");
+            setText("");
+          } else {
+            setChoice("");
+            setText(typeof last.picked === "string" ? last.picked : "");
+            setMoments([""]);
+          }
+        } else {
+          setChoice("");
+          setText("");
+          setMoments([""]);
+        }
+        return prior.slice(0, -1);
+      });
+    } else {
+      setChoice("");
+      setText("");
+      setMoments([""]);
+    }
+  }, [index, loading, mode, router]);
 
   const submit = useCallback(
     async (action) => {
@@ -187,7 +261,17 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
             router.push("/trips/new");
             return;
           }
-          advance(payload?.nextSlot || null);
+          // If the primary went back and revised an already-answered
+          // question, the server's next-unanswered slot would jump past the
+          // questions between here and the end -- turning "revise question
+          // five" into "skip six through nine". Walk the interview in index
+          // order instead: the next question is always the one after the one
+          // just answered, regardless of what else is already saved.
+          const nextByIndex = INTERVIEW_QUESTIONS[index + 1];
+          const nextSlot = nextByIndex
+            ? nextByIndex.slot
+            : payload?.nextSlot || null;
+          advance(nextSlot);
         }, wait);
       } catch {
         const wait = Math.max(0, HOLD_MS - (Date.now() - started));
@@ -230,7 +314,11 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         </div>
       ) : (
         <div className="w-full">
-          <h1 className="font-display text-2xl leading-snug text-ink sm:text-3xl">
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-display text-2xl leading-snug text-ink outline-none sm:text-3xl"
+          >
             {question.prompt}
           </h1>
 
@@ -240,12 +328,12 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 
           {question.kind === "options" ? (
             <div className="mt-6 flex flex-col gap-3">
-              {question.options.map((opt, i) => (
+              {question.options.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
-                  ref={i === 0 ? focusRef : null}
                   onClick={() => setChoice(opt.value)}
+                  aria-pressed={choice === opt.value}
                   className={`rounded-2xl border p-4 text-left transition ${
                     choice === opt.value
                       ? "border-teal bg-teal-soft/50 shadow-sm"
@@ -261,6 +349,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
               <button
                 type="button"
                 onClick={() => setChoice("other")}
+                aria-pressed={choice === "other"}
                 className={`rounded-2xl border p-4 text-left transition ${
                   choice === "other"
                     ? "border-teal bg-teal-soft/50 shadow-sm"
@@ -271,23 +360,13 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                 <p className="mt-1 text-sm text-ink-soft">In your own words.</p>
               </button>
               {choice && (
-                <ReasonChips
+                <WhyPanel
                   choice={choice}
                   question={question}
-                  onPick={(chip) => setText(chip)}
+                  text={text}
+                  setText={setText}
                 />
               )}
-              <textarea
-                rows={3}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={
-                  choice === "other"
-                    ? "What fits better?"
-                    : "Anything to add about why? (Optional.)"
-                }
-                className="mt-1 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
-              />
             </div>
           ) : question.kind === "moments" ? (
             <MomentsPanel
@@ -300,7 +379,6 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
           ) : (
             <div className="mt-6">
               <textarea
-                ref={focusRef}
                 rows={5}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -317,13 +395,27 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
           )}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => submit("skip")}
-              className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
-            >
-              {question.kind === "moments" ? "None to add" : "Skip this one"}
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={back}
+                className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
+                aria-label={
+                  index === 0
+                    ? "Leave the interview"
+                    : "Go back to the previous question"
+                }
+              >
+                ← Back
+              </button>
+              <button
+                type="button"
+                onClick={() => submit("skip")}
+                className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
+              >
+                {question.kind === "moments" ? "None to add" : "Skip this one"}
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => submit("answer")}
@@ -343,34 +435,54 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   );
 }
 
-// A small row of reason chips under the option buttons. Each chip is a short
-// plausible sentence the primary might have typed themselves; tapping one drops
-// it into the reason box, where it can be sent as-is or edited. Which chips
-// show depends on which option is picked -- the reasons for "packed" are not
-// the reasons for "one thing" -- and picking Something else swaps in a
-// separate set that fits the trade-off the whole question is about.
-function ReasonChips({ choice, question, onPick }) {
+// The "why" panel appears only after the primary has picked an option, so the
+// screen before a choice reads as "answer this question" rather than as a wall
+// of controls. Once an answer is picked, the panel slides in as a tinted card
+// with a friendly heading -- "Why? (Optional.)" -- a row of suggestion chips
+// (which chips depend on which option was picked; "Something else" swaps in a
+// separate set), and the reason textarea underneath. The tint and the heading
+// are the invitation to say a little more, without pretending the field is
+// required.
+function WhyPanel({ choice, question, text, setText }) {
   const list = (() => {
     if (choice === "other") return question.otherReasons || [];
     const opt = (question.options || []).find((o) => o.value === choice);
     return (opt && opt.reasons) || [];
   })();
-  if (list.length === 0) return null;
+  const isOther = choice === "other";
   return (
-    <div className="mt-2">
-      <p className="section-label text-ink-soft">Suggestions</p>
-      <div className="mt-1 flex flex-wrap gap-2">
-        {list.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            onClick={() => onPick(chip)}
-            className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
+    <div className="mt-4 rounded-2xl border border-teal/30 bg-teal-soft/25 p-4">
+      <p className="font-display text-lg text-ink">
+        {isOther ? "What fits better?" : "Why? (Optional.)"}
+      </p>
+      {list.length > 0 && (
+        <div className="mt-3">
+          <p className="section-label text-ink-soft">Suggestions</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {list.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setText(chip)}
+                className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <textarea
+        rows={3}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={
+          isOther
+            ? "In your own words."
+            : "A sentence about why, or tap a suggestion above."
+        }
+        className="mt-3 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+      />
     </div>
   );
 }
