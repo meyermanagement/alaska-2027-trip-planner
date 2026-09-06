@@ -36,6 +36,38 @@ export async function GET(request) {
   // anyone already linked, and returns null for an email nobody has listed.
   await supabase.rpc("claim_traveler_seat");
 
+  // A brand-new account -- has a family, but nothing in it -- goes to the
+  // welcome screen before the Trips page. Somebody who came in through an
+  // invite already has a family with people in it, so this leaves them alone.
+  // A secondary traveler never gets welcomed either: /welcome redirects them
+  // straight back to /trips.
+  const {
+    data: { user: signedIn },
+  } = await supabase.auth.getUser();
+  if (signedIn && next === "/trips") {
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", signedIn.id)
+      .maybeSingle();
+    if (membership?.family_id) {
+      const [{ data: fam }, { count: peopleCount }] = await Promise.all([
+        supabase
+          .from("families")
+          .select("home_address")
+          .eq("id", membership.family_id)
+          .maybeSingle(),
+        supabase
+          .from("travelers")
+          .select("id", { count: "exact", head: true })
+          .eq("family_id", membership.family_id)
+          .eq("is_person", true),
+      ]);
+      const empty = !fam?.home_address && (peopleCount || 0) === 0;
+      if (empty) return NextResponse.redirect(`${origin}/welcome`);
+    }
+  }
+
   const safeNext = next.startsWith("/") ? next : "/trips";
   return NextResponse.redirect(`${origin}${safeNext}`);
 }

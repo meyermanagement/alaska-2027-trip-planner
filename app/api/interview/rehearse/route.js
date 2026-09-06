@@ -25,17 +25,41 @@ const NEW_PERSON = "00000000-0000-4000-8000-000000000001";
 /**
  * The whole record of an account nobody has used yet.
  *
- * Everything empty, one person in it, and the two things a signup actually
- * collects: a name and, if they typed one, an address.
+ * Everything empty, and the parts the welcome screen collects before the first
+ * question: the household's home, every named traveler, every named animal.
+ * The primary is the first name in `people`; the other names read exactly as
+ * they would on a real family, so Aly opens on turn one knowing who is here
+ * and does not have to ask.
  */
-function blankAccount(name, home) {
+function blankAccount({ home, people, pets }) {
+  const travelers = people.length
+    ? people.map((p, i) => ({
+        id: p.id,
+        name: p.name,
+        is_person: true,
+        sort_order: i,
+      }))
+    : [
+        {
+          id: NEW_PERSON,
+          name: "Sam",
+          is_person: true,
+          sort_order: 0,
+        },
+      ];
+  const animals = (pets || []).map((a, i) => ({
+    id: a.id,
+    name: a.name,
+    species: a.species || "other",
+    sort_order: i,
+  }));
   return {
     trips: [],
     itinerary: [],
     packing: [],
     tasks: [],
     notes: [],
-    travelers: [{ id: NEW_PERSON, name, is_person: true, sort_order: 0 }],
+    travelers,
     rosters: [],
     preferences: [],
     rewards: [],
@@ -43,15 +67,22 @@ function blankAccount(name, home) {
     templateItems: [],
     tripTemplates: [],
     lessons: [],
-    pets: [],
+    pets: animals,
     tripPets: [],
     insights: [],
     costs: [],
     facts: [],
     slots: [],
     moments: [],
-    userName: name,
-    home: home ? { home_address: home } : null,
+    userName: travelers[0]?.name || "Sam",
+    home: home?.address
+      ? {
+          home_address: home.address,
+          home_lat: Number.isFinite(home.lat) ? home.lat : null,
+          home_lon: Number.isFinite(home.lon) ? home.lon : null,
+          home_precise: home.precise === true,
+        }
+      : null,
   };
 }
 const MAX_HISTORY = 40;
@@ -92,13 +123,48 @@ export async function POST(request) {
   // than the one that matters, because Aly opens that one already knowing what
   // she likes.
   const blank = payload?.blank === true;
-  const newName =
-    String(payload?.name || "")
-      .trim()
-      .slice(0, 60) || "Sam";
-  const newHome = String(payload?.home || "")
-    .trim()
-    .slice(0, 200);
+  // A brand-new account carries the parts the welcome screen collected --
+  // where the family lives, everybody's name, every animal -- so Aly does not
+  // spend her first two questions asking who is here. The primary traveler is
+  // the first name in the list.
+  const seededPeople = Array.isArray(payload?.people)
+    ? payload.people
+        .map((p, i) => ({
+          id:
+            typeof p?.id === "string" && p.id
+              ? p.id
+              : `${NEW_PERSON.slice(0, -1)}${(i + 1).toString(16)}`,
+          name: String(p?.name || "")
+            .trim()
+            .slice(0, 60),
+        }))
+        .filter((p) => p.name)
+    : [];
+  const seededPets = Array.isArray(payload?.pets)
+    ? payload.pets
+        .map((p, i) => ({
+          id:
+            typeof p?.id === "string" && p.id ? p.id : `rehearsal-pet-${i + 1}`,
+          name: String(p?.name || "")
+            .trim()
+            .slice(0, 60),
+          species: String(p?.species || "other")
+            .trim()
+            .slice(0, 40),
+        }))
+        .filter((p) => p.name)
+    : [];
+  const seededHome =
+    payload?.home && typeof payload.home === "object"
+      ? {
+          address: String(payload.home.address || "")
+            .trim()
+            .slice(0, 200),
+          lat: Number.isFinite(payload.home.lat) ? payload.home.lat : null,
+          lon: Number.isFinite(payload.home.lon) ? payload.home.lon : null,
+          precise: payload.home.precise === true,
+        }
+      : { address: "", lat: null, lon: null, precise: false };
   const travelerId =
     typeof payload?.travelerId === "string" ? payload.travelerId : null;
   const said = String(payload?.said || "").trim();
@@ -117,12 +183,6 @@ export async function POST(request) {
   const carriedFacts = Array.isArray(carried.facts) ? carried.facts : [];
   const carriedSlots = Array.isArray(carried.slots) ? carried.slots : [];
 
-  if (blank && travelerId !== NEW_PERSON) {
-    return NextResponse.json(
-      { error: "A brand-new account has one person in it." },
-      { status: 400 },
-    );
-  }
   if (!travelerId || !said) {
     return NextResponse.json(
       { error: "Pick somebody and write an answer." },
@@ -131,7 +191,11 @@ export async function POST(request) {
   }
 
   const real = blank
-    ? blankAccount(newName, newHome)
+    ? blankAccount({
+        home: seededHome,
+        people: seededPeople,
+        pets: seededPets,
+      })
     : await readEverything(supabase, user.id);
   const person = (real.travelers || []).find((t) => t.id === travelerId);
   if (!person) {

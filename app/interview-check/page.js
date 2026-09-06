@@ -24,38 +24,29 @@ export default async function InterviewCheckPage() {
   const access = await resolveAccess(supabase, user);
   if (access?.can?.isSecondary) redirect("/trips");
 
-  const { data: travelers } = await supabase
-    .from("travelers")
-    .select("id, name, color, user_id, email")
-    .eq("is_person", true)
-    .order("sort_order", { ascending: true });
-
-  // Which of these people is the person reading the page, so the interview can
-  // say "me" rather than talking about them in the third person.
-  const mine = (travelers || []).find(
-    (t) =>
-      t.user_id === user.id ||
-      (t.email &&
-        user.email &&
-        t.email.toLowerCase() === user.email.toLowerCase()),
-  );
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const myName =
+    profile?.display_name ||
+    (profile?.full_name ? profile.full_name.split(" ")[0] : "") ||
+    (user.email ? user.email.split("@")[0] : "");
 
   return (
     <>
       <TopBar />
       <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
         <h1 className="font-display text-3xl font-semibold">
-          Practice interview
+          Practice the first login
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Aly asks the questions she would really ask, and you answer them here.
-          Under each question you can see what she would have written down — and
-          none of it is written down.
+          The same three questions the welcome screen asks a brand-new account,
+          followed by the interview Aly would run against it. Answer everything
+          in your own words. Nothing here is written down.
         </p>
-        <RehearsalBody
-          people={(travelers || []).map((t) => ({ id: t.id, name: t.name }))}
-          me={mine?.id || null}
-        />
+        <RehearsalBody myName={myName || ""} />
       </main>
     </>
   );

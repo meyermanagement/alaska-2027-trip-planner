@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { slotLabel } from "@/lib/travelers/slots";
+import { SPECIES, speciesLabel } from "@/lib/pets/pets";
+import HomePicker from "@/components/HomePicker";
+
+// Every id below is invented by the client and never leaves the rehearsal. They
+// look like real uuids so the model does not treat them as placeholder text and
+// try to swap them out for something "proper".
+const NEW_PERSON = "00000000-0000-4000-8000-000000000001";
+const rehearsalPersonId = (i) =>
+  `00000000-0000-4000-8000-00000000000${(i + 1).toString(16)}`;
+const rehearsalPetId = (i) => `00000000-0000-4000-8000-0000000000${10 + i}`;
 
 // How the interview is opened. The same words the Get to know button sends, so
 // what happens here is what happens there.
 function opener(name, self) {
   return self
     ? "Get to know me. Ask me the next thing you need."
-    : `Get to know ${name}. Ask the next thing you need, and I will answer for ${name} or hand her the phone.`;
+    : `Get to know ${name}. Ask the next thing you need, and I will answer for ${name} or hand them the phone.`;
 }
 
 function Chips({ label, slots, tone }) {
@@ -29,7 +39,6 @@ function Chips({ label, slots, tone }) {
   );
 }
 
-/** Where the person stands after everything answered so far. */
 function Standing({ standing, count }) {
   if (!standing) return null;
   return (
@@ -64,13 +73,12 @@ function Standing({ standing, count }) {
   );
 }
 
-// What a call would have written, said the way the family would say it. An
-// interview does not only write preferences: it fills in the travel file, and a
-// card reading "set_person_details" tells nobody anything.
 const TITLES = {
   add_preference: "Would save a preference",
+  add_favorite_moment: "Would save a favorite moment",
   record_household_fact: "Would save a fact",
   set_person_details: "Would fill in their own page",
+  add_person: "Would add a person",
   add_pet: "Would add an animal",
   update_pet: "Would update an animal",
   set_pet_trip: "Would say whether the animal travels",
@@ -78,7 +86,6 @@ const TITLES = {
   update_rewards_program: "Would update a program in the Wallet",
 };
 
-/** The arguments of a file write, in plain words rather than as JSON. */
 function fileLines(a) {
   const skip = new Set(["whose", "name", "slot", "body", "reason", "note"]);
   return Object.entries(a)
@@ -93,7 +100,6 @@ function fileLines(a) {
     .slice(0, 8);
 }
 
-/** One save, in the words the family would understand it by. */
 function Call({ call }) {
   const a = call.args || {};
   const refused = Boolean(call.refused);
@@ -136,16 +142,6 @@ function Call({ call }) {
   );
 }
 
-/**
- * One question, with the answer given to it and what that answer would have
- * written down -- all in the same box.
- *
- * A turn from the route is not a box: it carries the answer to the LAST question
- * and then the next question. Laying that out as it arrives puts one question's
- * answer in the same card as the next question, which is how this page read at
- * first and it made no sense to anybody. So a box is built from two turns: the
- * question from one, the answer and the saves from the one after it.
- */
 function Exchange({ index, asked, answer, calls, pending }) {
   return (
     <section className="card mt-4 p-4">
@@ -168,7 +164,7 @@ function Exchange({ index, asked, answer, calls, pending }) {
       </p>
       {asked.wordless && (
         <p className="mt-1.5 text-xs text-rose">
-          Those are not her words. The model came back with nothing at all,
+          Those are not their words. The model came back with nothing at all,
           twice, and the line above is what the app says when it has lost a
           turn.
         </p>
@@ -215,24 +211,27 @@ function Exchange({ index, asked, answer, calls, pending }) {
 }
 
 /**
- * An interview you answer yourself, that saves nothing.
+ * The practice screen, run end to end as a brand-new user would live it.
  *
- * Aly asks with the real prompt, the real context and the real model, and every
- * save she attempts is shown where it happens instead of being written down. So
- * the questions can be read as questions -- are they the right ones, in the right
- * order, in words a twelve-year-old would answer -- and the saves can be read as
- * saves, without spending anybody's real file to find out.
+ * Two phases. In the first, the family fills out the welcome form: where they
+ * live, who is in the family, any animals -- exactly the same three questions
+ * that run on a real first login. In the second, Aly opens the interview
+ * against what they just typed, so her first question is not "who else is
+ * here" but the first real question of the interview: about them.
+ *
+ * Nothing is written down. The typed form is held in memory and sent along on
+ * every turn as a synthetic family; the answers Aly would save show under the
+ * question that prompted them.
  */
-// The one person in an account nobody has used yet. Matches the id the rehearsal
-// route makes up for a blank account, and exists nowhere else.
-const NEW_PERSON = "00000000-0000-4000-8000-000000000001";
+export default function RehearsalBody({ myName = "" }) {
+  const [phase, setPhase] = useState("setup"); // "setup" | "interview"
 
-export default function RehearsalBody({ people = [], me = null }) {
-  // Default to the empty account, because that is where this interview will
-  // actually be met: on a first login, before there is anything to read.
-  const [travelerId, setTravelerId] = useState(NEW_PERSON);
-  const [newName, setNewName] = useState("Sam");
-  const [newHome, setNewHome] = useState("");
+  const [address, setAddress] = useState("");
+  const [located, setLocated] = useState(null);
+  const [people, setPeople] = useState([{ name: myName || "" }, { name: "" }]);
+  const [pets, setPets] = useState([{ name: "", species: "dog" }]);
+
+  // Interview state
   const [turns, setTurns] = useState([]);
   const [carried, setCarried] = useState(null);
   const [standing, setStanding] = useState(null);
@@ -242,22 +241,70 @@ export default function RehearsalBody({ people = [], me = null }) {
   const [done, setDone] = useState(false);
   const box = useRef(null);
 
-  const blank = travelerId === NEW_PERSON;
-  const person = people.find((p) => p.id === travelerId) || null;
-  const first = blank
-    ? newName.trim().split(" ")[0] || "Sam"
-    : person
-      ? person.name.split(" ")[0]
-      : "";
-  // A new account is answered by whoever just signed up, so Aly talks to them
-  // rather than about them.
-  const self = blank || Boolean(person && me && person.id === me);
+  const cleanPeople = useMemo(
+    () =>
+      people
+        .map((p, i) => ({
+          id: i === 0 ? NEW_PERSON : rehearsalPersonId(i),
+          name: (p.name || "").trim(),
+        }))
+        .filter((p) => p.name),
+    [people],
+  );
+  const cleanPets = useMemo(
+    () =>
+      pets
+        .map((p, i) => ({
+          id: rehearsalPetId(i),
+          name: (p.name || "").trim(),
+          species: p.species || "other",
+        }))
+        .filter((p) => p.name),
+    [pets],
+  );
+  const home = useMemo(() => {
+    const typed = (address || "").trim();
+    if (!typed) return null;
+    if (located && located.address === typed) {
+      return {
+        address: typed,
+        lat: located.lat,
+        lon: located.lon,
+        precise: located.precise === true,
+      };
+    }
+    return { address: typed, lat: null, lon: null, precise: false };
+  }, [address, located]);
+
+  const first = cleanPeople[0]?.name?.split(" ")[0] || "";
+  // On practice, the person answering is always the account holder.
+  const self = true;
+  const primaryId = cleanPeople[0]?.id || NEW_PERSON;
   const started = turns.length > 0;
   const waiting = started && !done;
 
   useEffect(() => {
     if (waiting && !busy) box.current?.focus();
   }, [waiting, busy, turns.length]);
+
+  function setPerson(i, patch) {
+    setPeople((all) => all.map((r, n) => (n === i ? { ...r, ...patch } : r)));
+  }
+  function addPerson() {
+    setPeople((all) => [...all, { name: "" }]);
+  }
+  function removePerson(i) {
+    setPeople((all) => all.filter((_, n) => n !== i));
+  }
+  function setPet(i, patch) {
+    setPets((all) => all.map((r, n) => (n === i ? { ...r, ...patch } : r)));
+  }
+  function addPet() {
+    setPets((all) => [...all, { name: "", species: "dog" }]);
+  }
+  function removePet(i) {
+    setPets((all) => all.filter((_, n) => n !== i));
+  }
 
   async function send(said) {
     setBusy(true);
@@ -267,16 +314,17 @@ export default function RehearsalBody({ people = [], me = null }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          travelerId,
+          travelerId: primaryId,
           said,
           history: turns.flatMap((t) => [
             { role: "user", text: t.said },
             { role: "assistant", text: t.reply },
           ]),
           carried: carried || {},
-          blank,
-          name: newName,
-          home: newHome,
+          blank: true,
+          people: cleanPeople,
+          pets: cleanPets,
+          home,
         }),
       });
       const data = await res.json();
@@ -292,6 +340,16 @@ export default function RehearsalBody({ people = [], me = null }) {
     }
   }
 
+  function startInterview() {
+    if (!first) {
+      setError("At least one name.");
+      return;
+    }
+    setError(null);
+    setPhase("interview");
+    send(opener(first, self));
+  }
+
   function restart() {
     setTurns([]);
     setCarried(null);
@@ -299,6 +357,7 @@ export default function RehearsalBody({ people = [], me = null }) {
     setAnswer("");
     setError(null);
     setDone(false);
+    setPhase("setup");
   }
 
   const wrote = carried || { preferences: [], facts: [] };
@@ -307,88 +366,133 @@ export default function RehearsalBody({ people = [], me = null }) {
 
   return (
     <>
-      {!started && (
-        <div className="card mt-5 p-4">
-          <label
-            className="block text-sm font-semibold text-ink"
-            htmlFor="who-answers"
-          >
-            Who is answering
-          </label>
-          <select
-            id="who-answers"
-            className="field mt-1.5"
-            value={travelerId}
-            onChange={(e) => setTravelerId(e.target.value)}
-          >
-            <option value={NEW_PERSON}>
-              Somebody who just signed up (nothing on file)
-            </option>
-            {people.map((p) => (
-              <option value={p.id} key={p.id}>
-                {p.name} (their real record)
-              </option>
-            ))}
-          </select>
-          {blank && (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label
-                  className="block text-sm font-semibold text-ink"
-                  htmlFor="new-name"
-                >
-                  Their name
-                </label>
-                <input
-                  id="new-name"
-                  className="field mt-1.5"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Sam"
-                />
-              </div>
-              <div>
-                <label
-                  className="block text-sm font-semibold text-ink"
-                  htmlFor="new-home"
-                >
-                  Where they live (optional)
-                </label>
-                <input
-                  id="new-home"
-                  className="field mt-1.5"
-                  value={newHome}
-                  onChange={(e) => setNewHome(e.target.value)}
-                  placeholder="St. Louis, MO"
-                />
-              </div>
+      {phase === "setup" && (
+        <div className="mt-5 space-y-4">
+          <section className="card p-4">
+            <p className="section-label">Where the family lives</p>
+            <p className="mt-1 text-xs text-ink-soft">
+              Start typing and pick from the list. If it is not there, whatever
+              you type is what Aly will see.
+            </p>
+            <div className="mt-2">
+              <HomePicker
+                value={address}
+                onChange={setAddress}
+                onLocated={(place) => {
+                  setLocated(place);
+                  setAddress(place.address);
+                }}
+              />
             </div>
-          )}
-          <p className="mt-3 text-sm text-ink-soft">
-            {blank
-              ? `A name and an address is all this account holds, which is what Aly has to work with on somebody's first day. No trips, no preferences, no animals, and nothing ${first} has written about themselves.`
-              : `Aly will ask one question at a time, starting from what she already knows about ${
-                  self ? "you" : first
-                }.`}{" "}
-            Answer in your own words. Nothing you say here is saved.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary mt-3"
-            disabled={busy || !travelerId || (blank && !newName.trim())}
-            onClick={() => send(opener(first, self))}
-          >
-            {busy ? "Aly is thinking…" : "Ask me the first question"}
-          </button>
-          {error && <p className="mt-2 text-sm text-rose">{error}</p>}
+          </section>
+
+          <section className="card p-4">
+            <p className="section-label">Who is in the family</p>
+            <p className="mt-1 text-xs text-ink-soft">
+              The first row is you. Add anyone else who might come on a trip.
+            </p>
+            <div className="mt-3 space-y-2">
+              {people.map((row, i) => (
+                <div className="flex items-center gap-2" key={i}>
+                  <input
+                    className="field flex-1"
+                    value={row.name}
+                    onChange={(e) => setPerson(i, { name: e.target.value })}
+                    placeholder={i === 0 ? "Your name" : "Their name"}
+                    maxLength={60}
+                  />
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => removePerson(i)}
+                      aria-label={`Remove person ${i + 1}`}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm mt-3"
+              onClick={addPerson}
+            >
+              Add another person
+            </button>
+          </section>
+
+          <section className="card p-4">
+            <p className="section-label">Animals in the family</p>
+            <p className="mt-1 text-xs text-ink-soft">
+              Even the ones that always stay home. It helps Aly know when to ask
+              about a sitter.
+            </p>
+            <div className="mt-3 space-y-2">
+              {pets.map((row, i) => (
+                <div className="flex items-center gap-2" key={i}>
+                  <input
+                    className="field flex-1"
+                    value={row.name}
+                    onChange={(e) => setPet(i, { name: e.target.value })}
+                    placeholder="Their name"
+                    maxLength={60}
+                  />
+                  <select
+                    className="field"
+                    value={row.species}
+                    onChange={(e) => setPet(i, { species: e.target.value })}
+                    aria-label="Species"
+                  >
+                    {SPECIES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {speciesLabel(s.id)}
+                      </option>
+                    ))}
+                  </select>
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => removePet(i)}
+                      aria-label={`Remove animal ${i + 1}`}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm mt-3"
+              onClick={addPet}
+            >
+              Add another animal
+            </button>
+          </section>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || !first}
+              onClick={startInterview}
+            >
+              {busy ? "Aly is thinking…" : "Start the interview"}
+            </button>
+            <p className="text-xs text-ink-soft">
+              Nothing here is written down.
+            </p>
+          </div>
+          {error && <p className="text-sm text-rose">{error}</p>}
         </div>
       )}
 
-      {started && (
+      {phase === "interview" && (
         <div className="card mt-5 p-4">
-          <p className="section-label">
-            {self ? "Where you stand" : `Where ${first} stands`}
-          </p>
+          <p className="section-label">Where you stand</p>
           <div className="mt-1.5">
             <Standing standing={standing} count={turns.length - 1} />
           </div>
@@ -415,8 +519,8 @@ export default function RehearsalBody({ people = [], me = null }) {
           </p>
           {done && (
             <p className="mt-2 text-sm text-ink-soft">
-              To do this for real, press Get to know {self ? "me" : first} on
-              the Family screen.
+              To do this for real, sign out and back in with a new account, or
+              press Get to know me on the Family screen.
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
@@ -442,20 +546,19 @@ export default function RehearsalBody({ people = [], me = null }) {
         </div>
       )}
 
-      {/* A box per question: the question from this turn, and the answer and the
-          saves from the turn that followed it. */}
-      {turns.map((turn, i) => (
-        <Exchange
-          key={i}
-          index={i + 1}
-          asked={turn}
-          answer={i + 1 < turns.length ? turns[i + 1].said : null}
-          calls={i + 1 < turns.length ? turns[i + 1].calls : null}
-          pending={i + 1 === turns.length && !done}
-        />
-      ))}
+      {phase === "interview" &&
+        turns.map((turn, i) => (
+          <Exchange
+            key={i}
+            index={i + 1}
+            asked={turn}
+            answer={i + 1 < turns.length ? turns[i + 1].said : null}
+            calls={i + 1 < turns.length ? turns[i + 1].calls : null}
+            pending={i + 1 === turns.length && !done}
+          />
+        ))}
 
-      {waiting && (
+      {phase === "interview" && waiting && (
         <div className="card mt-4 p-4">
           <label
             className="block text-sm font-semibold text-ink"
