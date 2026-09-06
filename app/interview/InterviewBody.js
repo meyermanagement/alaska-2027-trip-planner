@@ -78,6 +78,15 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     }
   }, [slot, loading, done, question]);
 
+  // Move to a specific next slot and repaint the form for it. If the primary
+  // has already answered that slot earlier this session (which happens after
+  // a Back-then-Save-and-continue revision), pre-fill the fields from the
+  // recorded answer so the question does not read as "start over". If it has
+  // not been answered yet, the fields land blank the way they always did.
+  //
+  // The pre-fill mirrors what back() does for the previous question, on
+  // purpose: an answered question should look answered no matter which
+  // direction the primary arrived from.
   const advance = useCallback(
     (nextSlot) => {
       if (!nextSlot) {
@@ -87,11 +96,46 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
       const nextIndex = INTERVIEW_QUESTIONS.findIndex(
         (q) => q.slot === nextSlot,
       );
+      const nextQuestion = INTERVIEW_QUESTIONS[nextIndex] || null;
       setSlot(nextSlot);
       setIndex(nextIndex >= 0 ? nextIndex : index + 1);
-      setChoice("");
-      setText("");
-      setMoments([""]);
+      setAnswers((prior) => {
+        const priorAnswer = prior.find((a) => a.slot === nextSlot);
+        if (priorAnswer && nextQuestion) {
+          if (nextQuestion.kind === "options") {
+            const opt = (nextQuestion.options || []).find(
+              (o) => o.label === priorAnswer.picked,
+            );
+            setChoice(opt ? opt.value : priorAnswer.picked ? "other" : "");
+            setText(
+              opt
+                ? priorAnswer.reason || ""
+                : typeof priorAnswer.picked === "string"
+                  ? priorAnswer.picked
+                  : "",
+            );
+            setMoments([""]);
+          } else if (nextQuestion.kind === "moments") {
+            const list = Array.isArray(priorAnswer.picked)
+              ? priorAnswer.picked
+              : [];
+            setMoments(list.length ? [...list, ""] : [""]);
+            setChoice("");
+            setText("");
+          } else {
+            setChoice("");
+            setText(
+              typeof priorAnswer.picked === "string" ? priorAnswer.picked : "",
+            );
+            setMoments([""]);
+          }
+        } else {
+          setChoice("");
+          setText("");
+          setMoments([""]);
+        }
+        return prior;
+      });
       setError(null);
     },
     [index],
