@@ -217,7 +217,11 @@ export default function WelcomeForm({
     }
 
     setBusy(false);
-    router.push("/family?welcomed=1");
+    // First-login chain: Welcome (this form) hands off to About-you with the
+    // interview as its next stop, so the primary answers the paragraph about
+    // themselves and then walks straight into the ten-question interview
+    // without having to find either screen from the Family tab.
+    router.push("/about-you?first=1&next=/interview");
   }
 
   return (

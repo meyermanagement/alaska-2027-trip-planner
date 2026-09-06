@@ -26,6 +26,13 @@ export const metadata = { title: "About you · Alyeska" };
 export default async function AboutYouPage({ searchParams }) {
   const params = await searchParams;
   const first = params?.first === "1";
+  // Where the first-run chain wants to go next. Defaults to /trips (the
+  // original behaviour) so nothing on the Settings-driven visit changes. The
+  // first-login chain from /welcome hands us `next=/interview` so the
+  // paragraph flows straight into the interview.
+  const rawNext = String(params?.next || "").trim();
+  const nextHref =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/trips";
 
   const supabase = await createClient();
   const user = await whoIs(supabase);
@@ -54,6 +61,7 @@ export default async function AboutYouPage({ searchParams }) {
           about={mine.about_me || ""}
           first={first}
           secondary={mine.access_level === "secondary"}
+          nextHref={nextHref}
         />
       </main>
       {/* Aly is good at drafting the paragraph this screen is for, which makes

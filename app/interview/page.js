@@ -71,6 +71,18 @@ export default async function InterviewPage() {
     open: entries.filter((e) => e.status === "open").map((e) => e.slot),
   };
 
+  // The moments question is part of the interview but does not live in the
+  // slot dictionary that ledgerFor iterates -- its evidence is a list of
+  // favorite_moments rows on the primary, not a preference or a fact -- so the
+  // status has to be read off the traveler_slots row directly. Without this
+  // the interview would land on moments forever after the primary answers it.
+  const momentsRow = (slots || []).find(
+    (s) => s.slot === "moments" && !s.traveler_id,
+  );
+  if (momentsRow?.status === "settled") ledger.settled.push("moments");
+  else if (momentsRow?.status === "skipped") ledger.skipped.push("moments");
+  else if (momentsRow?.status === "asking") ledger.asking.push("moments");
+
   const { question, index } = nextQuestion(ledger);
   // Every question already answered: send the primary back to Family. That is
   // the "complete → gone" state -- the top-of-family launcher will already be

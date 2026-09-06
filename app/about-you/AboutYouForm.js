@@ -38,6 +38,11 @@ export default function AboutYouForm({
   // written to their own page. Used from the practice hub so somebody can
   // rehearse the question without spending their real paragraph.
   practice = false,
+  // Where a first-run user lands after Save or Skip. Defaults to /trips --
+  // the original behaviour -- but the first-login chain hands us /interview
+  // so the paragraph flows straight into the interview instead of a Trips
+  // page with nothing on it. Ignored on the ordinary Settings-driven visit.
+  nextHref = "/trips",
 }) {
   const saved = String(about || "").trim();
   const [text, setText] = useState(practice ? "" : saved);
@@ -81,10 +86,12 @@ export default function AboutYouForm({
       return;
     }
     setDone(true);
-    // Straight on to the trips on a first run, because the question was in the
-    // way of what they came for. On a later visit they came here on purpose, so
-    // they stay and get told it saved.
-    if (first) router.replace("/trips");
+    // On a first run we get out of the way -- somebody signing up did not come
+    // here on purpose, they were pushed. The parent page decides where the
+    // chain goes next (Trips originally, /interview from the first-login
+    // chain). On a later visit they came here on purpose, so they stay and
+    // get told it saved.
+    if (first) router.replace(nextHref);
     else router.refresh();
   }
 
@@ -184,8 +191,11 @@ export default function AboutYouForm({
         {first && !practice && (
           // A plain link rather than a button, and a form post rather than a
           // fetch: the cookie has to be set by the server, and the only thing
-          // this does is get out of the way.
+          // this does is get out of the way. The hidden next field tells the
+          // server-side skip handler where to send them after the cookie is
+          // set -- so a first-login skip still lands on the interview.
           <form action="/api/about-you/skip" method="post">
+            <input type="hidden" name="next" value={nextHref} />
             <button className="btn btn-ghost" type="submit">
               Skip for now
             </button>

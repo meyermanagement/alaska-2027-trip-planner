@@ -78,6 +78,15 @@ export async function POST(request) {
       { status: 400 },
     );
   }
+  // The moments panel is a different shape -- a list of favorite moments, not
+  // a single answer -- and has its own route. If it ever posts here by
+  // mistake, refuse rather than mis-file the words as a preference.
+  if (question.kind === "moments") {
+    return NextResponse.json(
+      { error: "That question is saved somewhere else." },
+      { status: 400 },
+    );
+  }
 
   const action = body?.action === "skip" ? "skip" : "answer";
   const rawChoice = String(body?.choice || "").trim();

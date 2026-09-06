@@ -32,6 +32,12 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   const [index, setIndex] = useState(startIndex);
   const [choice, setChoice] = useState("");
   const [text, setText] = useState("");
+  // The moments panel keeps its own list rather than reusing `text`, because
+  // the shape is different: several rows the primary can add and remove
+  // rather than a single field. One blank slot is kept at the end at all
+  // times so there is always somewhere to type without hunting for an add
+  // button.
+  const [moments, setMoments] = useState([""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [answers, setAnswers] = useState([]); // practice mode only
@@ -60,6 +66,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
       setIndex(nextIndex >= 0 ? nextIndex : index + 1);
       setChoice("");
       setText("");
+      setMoments([""]);
       setError(null);
     },
     [index],
@@ -73,6 +80,16 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 
       const started = Date.now();
 
+      // The moments panel is a different shape from the other questions -- a
+      // list of favorite moments, not a single choice -- and writes through a
+      // different route. Cleaning the list here (empty rows dropped, order
+      // preserved) is done once and reused for both practice recording and
+      // the real POST.
+      const isMoments = question.kind === "moments";
+      const cleanedMoments = isMoments
+        ? moments.map((m) => m.trim()).filter(Boolean)
+        : [];
+
       // Practice mode: record locally, wait the same beat, advance.
       if (mode === "practice") {
         const opt = (question.options || []).find((o) => o.value === choice);
@@ -84,13 +101,17 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
           picked:
             action === "skip"
               ? null
-              : question.kind === "text"
-                ? text.trim() || null
-                : choice === "other"
+              : isMoments
+                ? cleanedMoments.length > 0
+                  ? cleanedMoments
+                  : null
+                : question.kind === "text"
                   ? text.trim() || null
-                  : opt
-                    ? opt.label
-                    : null,
+                  : choice === "other"
+                    ? text.trim() || null
+                    : opt
+                      ? opt.label
+                      : null,
           reason:
             action === "skip"
               ? null
@@ -98,7 +119,13 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                 ? text.trim()
                 : null,
         };
-        if (action !== "skip" && !record.picked && question.kind !== "text") {
+        // Options questions still need a real pick before Save; moments and
+        // text panels can save blank (both are treated as "asked and passed").
+        if (
+          action !== "skip" &&
+          !record.picked &&
+          question.kind === "options"
+        ) {
           setLoading(false);
           setError("Pick one of the two, or type what fits better.");
           return;
@@ -119,16 +146,25 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 
       // Real mode: write, then advance to the server-returned next slot.
       try {
-        const res = await fetch("/api/interview/answer", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            slot,
-            action,
-            choice: action === "skip" ? null : choice,
-            text: action === "skip" ? null : text,
-          }),
-        });
+        const res = isMoments
+          ? await fetch("/api/interview/moments", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                action,
+                moments: action === "skip" ? [] : cleanedMoments,
+              }),
+            })
+          : await fetch("/api/interview/answer", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                slot,
+                action,
+                choice: action === "skip" ? null : choice,
+                text: action === "skip" ? null : text,
+              }),
+            });
         const payload = await res.json().catch(() => null);
         if (!res.ok) {
           const wait = Math.max(0, HOLD_MS - (Date.now() - started));
@@ -161,7 +197,18 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         }, wait);
       }
     },
-    [advance, choice, index, loading, mode, question, router, slot, text],
+    [
+      advance,
+      choice,
+      index,
+      loading,
+      mode,
+      moments,
+      question,
+      router,
+      slot,
+      text,
+    ],
   );
 
   // Practice-mode recap: shown after the last question in place of the card.
@@ -186,6 +233,10 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
           <h1 className="font-display text-2xl leading-snug text-ink sm:text-3xl">
             {question.prompt}
           </h1>
+
+          {question.help && (
+            <p className="mt-3 text-sm text-ink-soft">{question.help}</p>
+          )}
 
           {question.kind === "options" ? (
             <div className="mt-6 flex flex-col gap-3">
@@ -238,6 +289,14 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                 className="mt-1 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
               />
             </div>
+          ) : question.kind === "moments" ? (
+            <MomentsPanel
+              moments={moments}
+              setMoments={setMoments}
+              examples={question.examples || []}
+              placeholder={question.placeholder || ""}
+              focusRef={focusRef}
+            />
           ) : (
             <div className="mt-6">
               <textarea
@@ -263,7 +322,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
               onClick={() => submit("skip")}
               className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
             >
-              Skip this one
+              {question.kind === "moments" ? "None to add" : "Skip this one"}
             </button>
             <button
               type="button"
@@ -345,7 +404,17 @@ function Recap({ answers }) {
                 className="rounded-2xl border border-sand-deep bg-white p-4"
               >
                 <p className="section-label text-ink-soft">{a.label}</p>
-                <p className="mt-1 text-ink">{a.picked}</p>
+                {Array.isArray(a.picked) ? (
+                  <ul className="mt-1 space-y-1 text-ink">
+                    {a.picked.map((line, i) => (
+                      <li key={i} className="before:mr-2 before:content-['•']">
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-ink">{a.picked}</p>
+                )}
                 {a.reason && (
                   <p className="mt-1 text-sm text-ink-soft">
                     Reason: {a.reason}
@@ -383,6 +452,117 @@ function Recap({ answers }) {
         for a paragraph on each person on About you. Both can be rehearsed from
         the practice hub.
       </p>
+    </div>
+  );
+}
+
+// The moments panel is a short vertical list of textareas the primary can fill
+// in in any order. A blank row is always kept at the bottom so there is always
+// somewhere to type without hunting for an add button, and each non-empty row
+// gets a small remove control so a stray line does not have to be saved. A
+// short strip of example chips seeds the box for somebody who freezes at the
+// question -- tapping one appends it to the first empty row rather than
+// overwriting whatever the primary has already typed.
+//
+// The panel keeps its state at the parent level (`moments` on InterviewBody),
+// which is why setMoments is passed in rather than kept here. That way the
+// cleaned list is available to the submit function without needing a ref, and
+// advancing to the next question (which resets moments to [""]) does not leave
+// stale rows behind if the primary comes back to a fresh interview.
+function MomentsPanel({
+  moments,
+  setMoments,
+  examples,
+  placeholder,
+  focusRef,
+}) {
+  const updateRow = (i, value) => {
+    setMoments((rows) => {
+      const next = rows.slice();
+      next[i] = value;
+      // Keep one blank row at the end so there is always somewhere to type.
+      // A user who fills in the last row should see an empty one appear.
+      if (i === next.length - 1 && value.trim()) {
+        next.push("");
+      }
+      return next;
+    });
+  };
+
+  const removeRow = (i) => {
+    setMoments((rows) => {
+      const next = rows.filter((_, idx) => idx !== i);
+      // Never let the list go empty; keep one blank row so the panel does not
+      // collapse to a heading with no field under it.
+      if (next.length === 0 || next[next.length - 1].trim()) {
+        next.push("");
+      }
+      return next;
+    });
+  };
+
+  const addExample = (line) => {
+    setMoments((rows) => {
+      const next = rows.slice();
+      // Find the first empty row and drop the example there. If every row is
+      // full, append a new one with the example so nothing already typed gets
+      // stomped.
+      const emptyAt = next.findIndex((r) => !r.trim());
+      if (emptyAt === -1) {
+        next.push(line);
+        next.push("");
+      } else {
+        next[emptyAt] = line;
+        // If that was the trailing blank row, add a fresh blank after it.
+        if (emptyAt === next.length - 1) next.push("");
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="mt-6 flex flex-col gap-3">
+      {moments.map((row, i) => (
+        <div key={i} className="flex items-start gap-2">
+          <textarea
+            ref={i === 0 ? focusRef : null}
+            rows={2}
+            value={row}
+            onChange={(e) => updateRow(i, e.target.value)}
+            placeholder={i === 0 ? placeholder : "Another moment. (Optional.)"}
+            className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+            aria-label={`Favorite moment ${i + 1}`}
+          />
+          {row.trim() && (
+            <button
+              type="button"
+              onClick={() => removeRow(i)}
+              className="mt-2 shrink-0 text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
+              aria-label={`Remove favorite moment ${i + 1}`}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      ))}
+
+      {examples.length > 0 && (
+        <div className="mt-1">
+          <p className="section-label text-ink-soft">Or tap one of these</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {examples.map((line) => (
+              <button
+                key={line}
+                type="button"
+                onClick={() => addExample(line)}
+                className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
+              >
+                {line}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
