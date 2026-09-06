@@ -102,6 +102,9 @@ export default async function PeoplePage() {
     // One question only applies to a family with an animal, so the standing on
     // each card has to know whether there is one.
     pets: pets || [],
+    // The paragraphs people have written about themselves, because a question
+    // their own page already answers is not one of their blanks.
+    people: travelers || [],
   };
   const ledgers = Object.fromEntries(
     (travelers || []).map((person) => {
@@ -116,6 +119,7 @@ export default async function PeoplePage() {
           asking: by("asking"),
           skipped: by("skipped"),
           open: by("open"),
+          told: by("told"),
         },
       ];
     }),

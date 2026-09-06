@@ -40,7 +40,8 @@ export async function GET() {
     .select("id, title, detail, timing, assignee, only_when_empty, sort_order")
     .eq("family_id", who.familyId)
     .order("sort_order", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ tasks: data || [] });
 }
 
@@ -58,7 +59,10 @@ export async function POST(request) {
   }
   const title = clean(body.title, 200);
   if (!title) {
-    return NextResponse.json({ error: "A task needs a name." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A task needs a name." },
+      { status: 400 },
+    );
   }
 
   const { count } = await supabase
@@ -90,7 +94,8 @@ export async function POST(request) {
     })
     .select("id, title, detail, timing, assignee, only_when_empty, sort_order")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ task: data });
 }
 
@@ -109,7 +114,10 @@ export async function PATCH(request) {
   const id = clean(body.id, 60);
   if (!id) return NextResponse.json({ error: "Which task?" }, { status: 400 });
 
-  const patch = { updated_at: new Date().toISOString(), updated_by: who.user.id };
+  const patch = {
+    updated_at: new Date().toISOString(),
+    updated_by: who.user.id,
+  };
   if (body.title !== undefined) {
     const title = clean(body.title, 200);
     if (!title) {
@@ -130,7 +138,10 @@ export async function PATCH(request) {
   if (body.only_when_empty !== undefined) {
     patch.only_when_empty = body.only_when_empty === true;
   }
-  if (body.sort_order !== undefined && Number.isFinite(Number(body.sort_order))) {
+  if (
+    body.sort_order !== undefined &&
+    Number.isFinite(Number(body.sort_order))
+  ) {
     patch.sort_order = Number(body.sort_order);
   }
 
@@ -141,7 +152,8 @@ export async function PATCH(request) {
     .eq("family_id", who.familyId)
     .select("id, title, detail, timing, assignee, only_when_empty, sort_order")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ task: data });
 }
 
@@ -168,6 +180,7 @@ export async function DELETE(request) {
     .delete()
     .eq("id", id)
     .eq("family_id", who.familyId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ deleted: id });
 }

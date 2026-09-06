@@ -32,7 +32,10 @@ export async function POST(request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Please sign in again." },
+      { status: 401 },
+    );
   }
 
   const conversationId = id(payload?.conversationId);
@@ -68,7 +71,10 @@ export async function POST(request) {
     askId: id(payload?.askId),
   });
   if (error) {
-    return NextResponse.json({ error: "Could not save that." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not save that." },
+      { status: 500 },
+    );
   }
   return NextResponse.json({ ok: true });
 }

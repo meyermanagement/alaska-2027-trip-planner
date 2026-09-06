@@ -17,7 +17,7 @@ import {
 import { toolsForRequest } from "@/lib/agent/toolset";
 import { resolveAccess } from "@/lib/travelers/access";
 import { markSettled, noteAsked } from "@/lib/travelers/ledger";
-import { slotFromWords } from "@/lib/travelers/slots";
+import { SLOT_BY_ID, slotFromWords } from "@/lib/travelers/slots";
 import {
   asksToSave,
   heldBackNote,
@@ -783,7 +783,12 @@ export async function POST(request) {
   if (interviewing) {
     for (const call of changeCalls) {
       const a = call?.args;
-      if (!a || a.slot) continue;
+      // A slot id that is not on the list counts as missing. The model handed back
+      // "comfort" -- a blank retired when the list was cut to ten -- which the
+      // cleaner drops, so the row was written with no blank on it and nothing
+      // settled.
+      if (!a) continue;
+      if (a.slot && SLOT_BY_ID.has(a.slot)) continue;
       if (
         call.name !== "add_preference" &&
         call.name !== "record_household_fact"

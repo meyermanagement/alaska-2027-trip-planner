@@ -121,7 +121,12 @@ function show() {
 // in-memory apply, the same refusal to retire an unasked question, the same rule
 // about what counts as a question. Shared rather than reimplemented, so a run
 // here and a run in the browser cannot disagree about what would be saved.
-const run = rehearse.rehearsal(VEDA, { preferences, facts, pets });
+const run = rehearse.rehearsal(VEDA, {
+  preferences,
+  facts,
+  pets,
+  people: travelers,
+});
 
 let said = await ask("You (as Veda) > ");
 while (said && said.trim() && said.trim() !== "quit") {

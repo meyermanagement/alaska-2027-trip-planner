@@ -46,6 +46,11 @@ function Standing({ standing, count }) {
         tone="var(--color-sand-deep)"
       />
       <Chips
+        label="in their own words"
+        slots={standing.told}
+        tone="var(--color-teal-soft)"
+      />
+      <Chips
         label="left alone"
         slots={standing.skipped}
         tone="var(--color-sand-deep)"

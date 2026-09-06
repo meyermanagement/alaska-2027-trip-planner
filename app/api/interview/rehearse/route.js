@@ -86,6 +86,7 @@ export async function POST(request) {
     facts: [...(real.facts || []), ...carriedFacts],
     slots: carriedSlots,
     pets: real.pets || [],
+    people: real.travelers || [],
   });
   const before = run.standing();
 

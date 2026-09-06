@@ -45,7 +45,9 @@ export async function POST(request) {
   const [{ data: tasks }, { data: people }] = await Promise.all([
     supabase
       .from("house_tasks")
-      .select("id, title, detail, timing, assignee, only_when_empty, sort_order")
+      .select(
+        "id, title, detail, timing, assignee, only_when_empty, sort_order",
+      )
       .eq("family_id", familyId)
       .order("sort_order", { ascending: true }),
     supabase
@@ -103,7 +105,11 @@ export async function POST(request) {
       .map((r) => r.travelers)
       .filter((t) => t?.is_person)
       .map((t) => t.name);
-    const { apply: applies, skipped, staying } = houseTasksFor({
+    const {
+      apply: applies,
+      skipped,
+      staying,
+    } = houseTasksFor({
       tasks,
       going,
       household,
@@ -111,12 +117,20 @@ export async function POST(request) {
     const have = byTrip.get(trip.id) || [];
     const haveId = new Set(have.map((r) => r.house_task_id).filter(Boolean));
     const haveTitle = new Set(
-      have.map((r) => String(r.title || "").trim().toLowerCase()),
+      have.map((r) =>
+        String(r.title || "")
+          .trim()
+          .toLowerCase(),
+      ),
     );
     const fresh = applies.filter(
       (t) =>
         !haveId.has(t.id) &&
-        !haveTitle.has(String(t.title || "").trim().toLowerCase()),
+        !haveTitle.has(
+          String(t.title || "")
+            .trim()
+            .toLowerCase(),
+        ),
     );
     plan.push({
       id: trip.id,

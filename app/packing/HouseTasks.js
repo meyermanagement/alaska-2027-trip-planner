@@ -124,9 +124,9 @@ export default function HouseTasks({ tasks: initial = [], people = [] }) {
 
       {tasks.length === 0 ? (
         <p className="p-4 text-sm text-ink-soft">
-          Nothing here yet. Take the bins out, leave the dishwasher open, arm the
-          alarm &mdash; the things you would kick yourself for forgetting from a
-          hundred miles away.
+          Nothing here yet. Take the bins out, leave the dishwasher open, arm
+          the alarm &mdash; the things you would kick yourself for forgetting
+          from a hundred miles away.
         </p>
       ) : (
         <ul>
@@ -136,7 +136,9 @@ export default function HouseTasks({ tasks: initial = [], people = [] }) {
               className="flex items-start gap-3 border-b border-[var(--line)] p-4"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-medium leading-snug text-ink">{task.title}</p>
+                <p className="font-medium leading-snug text-ink">
+                  {task.title}
+                </p>
                 {task.detail ? (
                   <p className="mt-0.5 text-sm text-ink-soft">{task.detail}</p>
                 ) : null}
@@ -372,7 +374,10 @@ function PushPanel({ push, busy, onApply, onClose }) {
             <li key={trip.id} className="text-sm text-ink">
               <span className="font-semibold">{trip.name}</span>
               {trip.adds.length ? (
-                <span className="text-ink-soft"> &mdash; {trip.adds.join(", ")}</span>
+                <span className="text-ink-soft">
+                  {" "}
+                  &mdash; {trip.adds.join(", ")}
+                </span>
               ) : null}
               {trip.already ? (
                 <span className="text-ink-soft">
