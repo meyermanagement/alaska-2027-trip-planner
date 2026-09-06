@@ -297,35 +297,49 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         ? moments.map((m) => m.trim()).filter(Boolean)
         : [];
 
+      // Build the local-memory record once, in the same shape saveCurrent
+      // uses, so both modes hand the same object to `remember()` below.
+      // Real mode needs it too: without a local record, hitting Back after
+      // Save-and-continue lands on an empty form because the pre-fill has
+      // nothing to read.
+      const opt = (question.options || []).find((o) => o.value === choice);
+      const record = {
+        slot,
+        label: question.label,
+        kind: question.kind,
+        action,
+        picked:
+          action === "skip"
+            ? null
+            : isMoments
+              ? cleanedMoments.length > 0
+                ? cleanedMoments
+                : null
+              : question.kind === "text"
+                ? text.trim() || null
+                : choice === "other"
+                  ? text.trim() || null
+                  : opt
+                    ? opt.label
+                    : null,
+        reason:
+          action === "skip"
+            ? null
+            : question.kind === "options" && choice !== "other" && text.trim()
+              ? text.trim()
+              : null,
+      };
+      // Replace any previous record for the same slot so back-then-forward
+      // (or answer-then-back-then-revise) never leaves two rows for the
+      // same question.
+      const remember = () =>
+        setAnswers((prior) => {
+          const kept = prior.filter((a) => a.slot !== slot);
+          return [...kept, record];
+        });
+
       // Practice mode: record locally, wait the same beat, advance.
       if (mode === "practice") {
-        const opt = (question.options || []).find((o) => o.value === choice);
-        const record = {
-          slot,
-          label: question.label,
-          kind: question.kind,
-          action,
-          picked:
-            action === "skip"
-              ? null
-              : isMoments
-                ? cleanedMoments.length > 0
-                  ? cleanedMoments
-                  : null
-                : question.kind === "text"
-                  ? text.trim() || null
-                  : choice === "other"
-                    ? text.trim() || null
-                    : opt
-                      ? opt.label
-                      : null,
-          reason:
-            action === "skip"
-              ? null
-              : question.kind === "options" && choice !== "other" && text.trim()
-                ? text.trim()
-                : null,
-        };
         // Options questions still need a real pick before Save; moments and
         // text panels can save blank (both are treated as "asked and passed").
         if (
@@ -337,7 +351,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
           setError("Pick one of the two, or type what fits better.");
           return;
         }
-        setAnswers((a) => [...a, record]);
+        remember();
         const nextIndex = index + 1;
         const nextSlot =
           nextIndex < INTERVIEW_QUESTIONS.length
@@ -383,6 +397,10 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
           }, wait);
           return;
         }
+        // Persist the same record shape locally so a later Back finds the
+        // pick without another round trip. Only on success -- a failed save
+        // has nothing worth remembering.
+        remember();
         const wait = Math.max(0, HOLD_MS - (Date.now() - started));
         setTimeout(() => {
           setLoading(false);
