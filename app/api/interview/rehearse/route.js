@@ -18,6 +18,41 @@ import { rehearsal } from "@/lib/travelers/rehearse";
 export const maxDuration = 120;
 
 const TURN_MS = 60000;
+// The only person in a brand-new account. Fixed rather than random so the page can
+// name it before the first turn, and never written anywhere.
+const NEW_PERSON = "00000000-0000-4000-8000-000000000001";
+
+/**
+ * The whole record of an account nobody has used yet.
+ *
+ * Everything empty, one person in it, and the two things a signup actually
+ * collects: a name and, if they typed one, an address.
+ */
+function blankAccount(name, home) {
+  return {
+    trips: [],
+    itinerary: [],
+    packing: [],
+    tasks: [],
+    notes: [],
+    travelers: [{ id: NEW_PERSON, name, is_person: true, sort_order: 0 }],
+    rosters: [],
+    preferences: [],
+    rewards: [],
+    templates: [],
+    templateItems: [],
+    tripTemplates: [],
+    lessons: [],
+    pets: [],
+    tripPets: [],
+    insights: [],
+    costs: [],
+    facts: [],
+    slots: [],
+    userName: name,
+    home: home ? { home_address: home } : null,
+  };
+}
 const MAX_HISTORY = 40;
 
 /**
@@ -49,6 +84,20 @@ export async function POST(request) {
   }
 
   const payload = await request.json().catch(() => ({}));
+  // A first login, which is where this interview will mostly be met. The account
+  // holds a name off the signup form and an address if they gave one, and nothing
+  // else: no trips, no preferences, no animals, no paragraph about themselves.
+  // Practising against Veda's five-year-old record answers a different question
+  // than the one that matters, because Aly opens that one already knowing what
+  // she likes.
+  const blank = payload?.blank === true;
+  const newName =
+    String(payload?.name || "")
+      .trim()
+      .slice(0, 60) || "Sam";
+  const newHome = String(payload?.home || "")
+    .trim()
+    .slice(0, 200);
   const travelerId =
     typeof payload?.travelerId === "string" ? payload.travelerId : null;
   const said = String(payload?.said || "").trim();
@@ -67,6 +116,12 @@ export async function POST(request) {
   const carriedFacts = Array.isArray(carried.facts) ? carried.facts : [];
   const carriedSlots = Array.isArray(carried.slots) ? carried.slots : [];
 
+  if (blank && travelerId !== NEW_PERSON) {
+    return NextResponse.json(
+      { error: "A brand-new account has one person in it." },
+      { status: 400 },
+    );
+  }
   if (!travelerId || !said) {
     return NextResponse.json(
       { error: "Pick somebody and write an answer." },
@@ -74,7 +129,9 @@ export async function POST(request) {
     );
   }
 
-  const real = await readEverything(supabase, user.id);
+  const real = blank
+    ? blankAccount(newName, newHome)
+    : await readEverything(supabase, user.id);
   const person = (real.travelers || []).find((t) => t.id === travelerId);
   if (!person) {
     return NextResponse.json({ error: "No such person." }, { status: 404 });

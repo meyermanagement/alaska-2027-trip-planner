@@ -223,8 +223,16 @@ function Exchange({ index, asked, answer, calls, pending }) {
  * order, in words a twelve-year-old would answer -- and the saves can be read as
  * saves, without spending anybody's real file to find out.
  */
+// The one person in an account nobody has used yet. Matches the id the rehearsal
+// route makes up for a blank account, and exists nowhere else.
+const NEW_PERSON = "00000000-0000-4000-8000-000000000001";
+
 export default function RehearsalBody({ people = [], me = null }) {
-  const [travelerId, setTravelerId] = useState(people[0]?.id || "");
+  // Default to the empty account, because that is where this interview will
+  // actually be met: on a first login, before there is anything to read.
+  const [travelerId, setTravelerId] = useState(NEW_PERSON);
+  const [newName, setNewName] = useState("Sam");
+  const [newHome, setNewHome] = useState("");
   const [turns, setTurns] = useState([]);
   const [carried, setCarried] = useState(null);
   const [standing, setStanding] = useState(null);
@@ -234,9 +242,16 @@ export default function RehearsalBody({ people = [], me = null }) {
   const [done, setDone] = useState(false);
   const box = useRef(null);
 
+  const blank = travelerId === NEW_PERSON;
   const person = people.find((p) => p.id === travelerId) || null;
-  const first = person ? person.name.split(" ")[0] : "";
-  const self = Boolean(person && me && person.id === me);
+  const first = blank
+    ? newName.trim().split(" ")[0] || "Sam"
+    : person
+      ? person.name.split(" ")[0]
+      : "";
+  // A new account is answered by whoever just signed up, so Aly talks to them
+  // rather than about them.
+  const self = blank || Boolean(person && me && person.id === me);
   const started = turns.length > 0;
   const waiting = started && !done;
 
@@ -259,6 +274,9 @@ export default function RehearsalBody({ people = [], me = null }) {
             { role: "assistant", text: t.reply },
           ]),
           carried: carried || {},
+          blank,
+          name: newName,
+          home: newHome,
         }),
       });
       const data = await res.json();
@@ -303,21 +321,61 @@ export default function RehearsalBody({ people = [], me = null }) {
             value={travelerId}
             onChange={(e) => setTravelerId(e.target.value)}
           >
+            <option value={NEW_PERSON}>
+              Somebody who just signed up (nothing on file)
+            </option>
             {people.map((p) => (
               <option value={p.id} key={p.id}>
-                {p.name}
+                {p.name} (their real record)
               </option>
             ))}
           </select>
+          {blank && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label
+                  className="block text-sm font-semibold text-ink"
+                  htmlFor="new-name"
+                >
+                  Their name
+                </label>
+                <input
+                  id="new-name"
+                  className="field mt-1.5"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Sam"
+                />
+              </div>
+              <div>
+                <label
+                  className="block text-sm font-semibold text-ink"
+                  htmlFor="new-home"
+                >
+                  Where they live (optional)
+                </label>
+                <input
+                  id="new-home"
+                  className="field mt-1.5"
+                  value={newHome}
+                  onChange={(e) => setNewHome(e.target.value)}
+                  placeholder="St. Louis, MO"
+                />
+              </div>
+            </div>
+          )}
           <p className="mt-3 text-sm text-ink-soft">
-            Aly will ask one question at a time, starting from what she already
-            knows about {self ? "you" : first}. Answer in your own words.
-            Nothing you say here is saved.
+            {blank
+              ? `A name and an address is all this account holds, which is what Aly has to work with on somebody's first day. No trips, no preferences, no animals, and nothing ${first} has written about themselves.`
+              : `Aly will ask one question at a time, starting from what she already knows about ${
+                  self ? "you" : first
+                }.`}{" "}
+            Answer in your own words. Nothing you say here is saved.
           </p>
           <button
             type="button"
             className="btn btn-primary mt-3"
-            disabled={busy || !travelerId}
+            disabled={busy || !travelerId || (blank && !newName.trim())}
             onClick={() => send(opener(first, self))}
           >
             {busy ? "Aly is thinking…" : "Ask me the first question"}

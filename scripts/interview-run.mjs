@@ -58,9 +58,11 @@ const rehearse = await jiti.import(`${ROOT}/lib/travelers/rehearse.js`);
 const { saidNothing } = await jiti.import(`${ROOT}/lib/agent/asked.js`);
 
 const data = JSON.parse(
-  await (await import("node:fs/promises")).readFile("/tmp/family.json", "utf8"),
+  await (
+    await import("node:fs/promises")
+  ).readFile(process.env.FAMILY_JSON || "/tmp/family.json", "utf8"),
 );
-const VEDA = "9ef2580f-d697-47f9-9879-11f0311351d1";
+const VEDA = process.env.INTERVIEWEE || "9ef2580f-d697-47f9-9879-11f0311351d1";
 const travelers = data.travelers;
 const preferences = data.prefs;
 const facts = [];
