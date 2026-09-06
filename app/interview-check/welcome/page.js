@@ -1,0 +1,52 @@
+import { redirect } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+import { whoIs } from "@/lib/supabase/who";
+import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
+import TopBar from "@/components/TopBar";
+import WelcomeForm from "../../welcome/WelcomeForm";
+
+export const metadata = { title: "Practice welcome · Alyeska" };
+
+/**
+ * The welcome form, rehearsed by the primary, saving nothing.
+ *
+ * The real /welcome sends anybody who has already filled it in to /family --
+ * which is right for the real screen and wrong for practice, because it
+ * means somebody with a family already set up can never look at the form
+ * again. Here we mount the same component with practice=true: every field
+ * is present, the button says "Show what would save", and pressing it
+ * produces a plain recap of the home, people and animals it would have
+ * written. Nothing reaches the database and the family screen is not touched.
+ */
+export default async function InterviewCheckWelcomePage() {
+  const supabase = await createClient();
+  const user = await whoIs(supabase);
+  if (!user) redirect("/login?next=/interview-check/welcome");
+  const access = await resolveAccess(supabase, user);
+  if (!access?.familyId) redirect("/welcome");
+  if (access.level !== PRIMARY) redirect("/trips");
+
+  return (
+    <>
+      <TopBar />
+      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+        <h1 className="font-display text-3xl font-semibold">
+          Practice: welcome form
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+          The screen a brand-new family sees before Aly asks anything else. Fill
+          it in as though your family were new; the button will show what would
+          have been written without touching your real file.
+        </p>
+        <WelcomeForm
+          familyId={access.familyId}
+          myName={access.travelerName || ""}
+          myUserId={user.id}
+          myEmail={user.email || ""}
+          practice
+        />
+      </main>
+    </>
+  );
+}

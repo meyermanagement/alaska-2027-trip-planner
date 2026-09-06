@@ -25,6 +25,12 @@ export default function WelcomeForm({
   myName,
   myUserId = null,
   myEmail = "",
+  // When true, Save writes nothing and does not navigate. Instead the same
+  // three rows -- home, people, pets -- are shown back as a recap of what the
+  // real Save would have written. Used from the practice hub so somebody with
+  // a family already set up can walk through the welcome form without
+  // clobbering it.
+  practice = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -52,6 +58,9 @@ export default function WelcomeForm({
   const [pets, setPets] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Populated in practice mode with what would have been written. Rendered
+  // below the button in place of the real navigation.
+  const [preview, setPreview] = useState(null);
 
   function setPerson(i, patch) {
     setPeople((all) => all.map((r, n) => (n === i ? { ...r, ...patch } : r)));
@@ -78,6 +87,39 @@ export default function WelcomeForm({
   async function save() {
     setBusy(true);
     setError("");
+    setPreview(null);
+
+    // Practice: work out the same three rows the real Save would write, but
+    // do not touch the database and do not navigate. The recap lives on the
+    // page under the button.
+    if (practice) {
+      const typed = address.trim().replace(/\s+/g, " ");
+      const cleanPeople = people
+        .map((r) => ({
+          name: (r.name || "").trim(),
+          dob: (r.dob || "").trim() || null,
+          gender: (r.gender || "").trim() || null,
+        }))
+        .filter((r) => r.name.length > 0);
+      if (cleanPeople.length === 0) {
+        setBusy(false);
+        setError("At least one name.");
+        return;
+      }
+      const cleanPets = pets
+        .map((r) => ({
+          name: (r.name || "").trim(),
+          species: r.species || "other",
+        }))
+        .filter((r) => r.name.length > 0);
+      setBusy(false);
+      setPreview({
+        home: typed || null,
+        people: cleanPeople,
+        pets: cleanPets,
+      });
+      return;
+    }
 
     // Home: if the family typed an address, geocode it (only when they did not
     // pick a suggestion). Address writes even if the point cannot be found --
@@ -143,9 +185,7 @@ export default function WelcomeForm({
       user_id: idx === 0 ? myUserId : null,
       email: idx === 0 ? myEmail || null : null,
     }));
-    const { error: peopleErr } = await supabase
-      .from("travelers")
-      .insert(rows);
+    const { error: peopleErr } = await supabase.from("travelers").insert(rows);
     if (peopleErr) {
       setBusy(false);
       setError(peopleErr.message);
@@ -205,13 +245,13 @@ export default function WelcomeForm({
       <section className="card p-4">
         <p className="section-label">Who else is in the family</p>
         <p className="mt-1 text-xs text-ink-soft">
-          The first row is you. Everyone else is added as a secondary
-          traveler: they can see trips they are on and check off their own
-          packing and tasks, and can be given a full login later. Date of
-          birth and gender are both optional -- Aly uses them for the
-          ordinary things (age tells her a ten-year-old is on the trip,
-          gender helps with what to pack and who shares a room). You can add
-          more people or edit these later on the Family screen.
+          The first row is you. Everyone else is added as a secondary traveler:
+          they can see trips they are on and check off their own packing and
+          tasks, and can be given a full login later. Date of birth and gender
+          are both optional -- Aly uses them for the ordinary things (age tells
+          her a ten-year-old is on the trip, gender helps with what to pack and
+          who shares a room). You can add more people or edit these later on the
+          Family screen.
         </p>
         <div className="mt-3 space-y-4">
           {people.map((row, i) => (
@@ -286,40 +326,42 @@ export default function WelcomeForm({
           always stay home -- it helps Aly know when to ask about a sitter and
           when not to. You can add more later on the Family screen.
         </p>
-        {pets.length > 0 && <div className="mt-3 space-y-2">
-          {pets.map((row, i) => (
-            <div className="flex items-center gap-2" key={i}>
-              <input
-                className="field flex-1"
-                value={row.name}
-                onChange={(e) => setPet(i, { name: e.target.value })}
-                placeholder="Their name"
-                maxLength={60}
-              />
-              <select
-                className="field"
-                value={row.species}
-                onChange={(e) => setPet(i, { species: e.target.value })}
-                aria-label="Species"
-              >
-                {SPECIES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {speciesLabel(s.id)}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => removePet(i)}
-                disabled={busy}
-                aria-label={`Remove animal ${i + 1}`}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>}
+        {pets.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {pets.map((row, i) => (
+              <div className="flex items-center gap-2" key={i}>
+                <input
+                  className="field flex-1"
+                  value={row.name}
+                  onChange={(e) => setPet(i, { name: e.target.value })}
+                  placeholder="Their name"
+                  maxLength={60}
+                />
+                <select
+                  className="field"
+                  value={row.species}
+                  onChange={(e) => setPet(i, { species: e.target.value })}
+                  aria-label="Species"
+                >
+                  {SPECIES.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {speciesLabel(s.id)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => removePet(i)}
+                  disabled={busy}
+                  aria-label={`Remove animal ${i + 1}`}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           className="btn btn-ghost btn-sm mt-3"
@@ -337,13 +379,82 @@ export default function WelcomeForm({
           disabled={!canSave}
           onClick={save}
         >
-          {busy ? "Saving…" : "Save and start the interview"}
+          {busy
+            ? "Saving…"
+            : practice
+              ? "Show what would save"
+              : "Save and start the interview"}
         </button>
+        {practice && (
+          <a href="/interview-check" className="btn btn-ghost">
+            Back to practice
+          </a>
+        )}
         <p className="text-xs text-ink-soft">
-          You can change or add more on the Family screen after this.
+          {practice
+            ? "Nothing gets written. Your real family is unchanged."
+            : "You can change or add more on the Family screen after this."}
         </p>
       </div>
       {error && <p className="text-sm text-rose">{error}</p>}
+      {preview && <WelcomePreview preview={preview} />}
+    </div>
+  );
+}
+
+// The recap for the practice run of the welcome form. Shows the three groups
+// the real Save would write -- home, people, pets -- with a plain note that
+// nothing was written. Only rendered in practice mode.
+function WelcomePreview({ preview }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-teal/40 bg-teal-soft/40 p-4">
+      <p className="section-label text-teal">What would have been saved</p>
+
+      <div className="mt-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+          Home
+        </p>
+        <p className="mt-1 text-sm text-ink">
+          {preview.home || "(No address typed.)"}
+        </p>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+          People ({preview.people.length})
+        </p>
+        <ul className="mt-1 space-y-1 text-sm text-ink">
+          {preview.people.map((p, i) => (
+            <li key={i}>
+              {p.name}
+              {i === 0 ? " (primary)" : " (secondary)"}
+              {p.dob ? ` — born ${p.dob}` : ""}
+              {p.gender ? ` — ${p.gender}` : ""}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+          Animals ({preview.pets.length})
+        </p>
+        {preview.pets.length === 0 ? (
+          <p className="mt-1 text-sm text-ink-soft">(None.)</p>
+        ) : (
+          <ul className="mt-1 space-y-1 text-sm text-ink">
+            {preview.pets.map((p, i) => (
+              <li key={i}>
+                {p.name} — {p.species}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <p className="mt-4 text-xs text-ink-soft">
+        Nothing was written. Your real family, people and animals are unchanged.
+      </p>
     </div>
   );
 }

@@ -33,9 +33,14 @@ export default function AboutYouForm({
   about,
   first,
   secondary = false,
+  // When true, Save does not touch the database. Instead the paragraph the
+  // primary typed is shown back to them with a note that it would have been
+  // written to their own page. Used from the practice hub so somebody can
+  // rehearse the question without spending their real paragraph.
+  practice = false,
 }) {
   const saved = String(about || "").trim();
-  const [text, setText] = useState(saved);
+  const [text, setText] = useState(practice ? "" : saved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -44,6 +49,14 @@ export default function AboutYouForm({
   async function save() {
     setBusy(true);
     setError("");
+
+    // Practice: no write, no navigation. Show the paragraph back as the recap.
+    if (practice) {
+      setBusy(false);
+      setDone(true);
+      return;
+    }
+
     const supabase = createClient();
     const { data, error: dbError } = await supabase
       .from("travelers")
@@ -133,10 +146,22 @@ export default function AboutYouForm({
       </div>
 
       {error && <p className="mt-3 text-sm font-semibold text-rose">{error}</p>}
-      {done && !first && (
+      {done && !first && !practice && (
         <p className="mt-3 text-sm font-semibold text-teal">
           Saved. Aly will use this from her next answer on.
         </p>
+      )}
+      {done && practice && (
+        <div className="mt-4 rounded-2xl border border-teal/40 bg-teal-soft/40 p-4">
+          <p className="section-label text-teal">What would have been saved</p>
+          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
+            {text.trim() || "(A blank paragraph, which stays blank.)"}
+          </p>
+          <p className="mt-3 text-xs text-ink-soft">
+            Nothing was written to your own page. Your real About you is
+            unchanged.
+          </p>
+        </div>
       )}
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -144,11 +169,19 @@ export default function AboutYouForm({
           type="button"
           className="btn btn-primary"
           onClick={save}
-          disabled={busy || !text.trim() || text.trim() === saved}
+          disabled={
+            busy || !text.trim() || (!practice && text.trim() === saved)
+          }
         >
-          {busy ? "Saving…" : first ? "Save and get started" : "Save"}
+          {busy
+            ? "Saving…"
+            : practice
+              ? "Show what would save"
+              : first
+                ? "Save and get started"
+                : "Save"}
         </button>
-        {first && (
+        {first && !practice && (
           // A plain link rather than a button, and a form post rather than a
           // fetch: the cookie has to be set by the server, and the only thing
           // this does is get out of the way.
@@ -157,6 +190,11 @@ export default function AboutYouForm({
               Skip for now
             </button>
           </form>
+        )}
+        {practice && (
+          <a href="/interview-check" className="btn btn-ghost">
+            Back to practice
+          </a>
         )}
       </div>
 

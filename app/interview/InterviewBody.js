@@ -219,6 +219,13 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                 <p className="font-display text-lg text-ink">Something else</p>
                 <p className="mt-1 text-sm text-ink-soft">In your own words.</p>
               </button>
+              {choice && (
+                <ReasonChips
+                  choice={choice}
+                  question={question}
+                  onPick={(chip) => setText(chip)}
+                />
+              )}
               <textarea
                 rows={3}
                 value={text}
@@ -277,6 +284,38 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   );
 }
 
+// A small row of reason chips under the option buttons. Each chip is a short
+// plausible sentence the primary might have typed themselves; tapping one drops
+// it into the reason box, where it can be sent as-is or edited. Which chips
+// show depends on which option is picked -- the reasons for "packed" are not
+// the reasons for "one thing" -- and picking Something else swaps in a
+// separate set that fits the trade-off the whole question is about.
+function ReasonChips({ choice, question, onPick }) {
+  const list = (() => {
+    if (choice === "other") return question.otherReasons || [];
+    const opt = (question.options || []).find((o) => o.value === choice);
+    return (opt && opt.reasons) || [];
+  })();
+  if (list.length === 0) return null;
+  return (
+    <div className="mt-2">
+      <p className="section-label text-ink-soft">Or tap one of these</p>
+      <div className="mt-1 flex flex-wrap gap-2">
+        {list.map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => onPick(chip)}
+            className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Recap({ answers }) {
   const answered = answers.filter((a) => a.action !== "skip");
   const skipped = answers.filter((a) => a.action === "skip");
@@ -331,11 +370,19 @@ function Recap({ answers }) {
         </section>
       )}
 
-      <div className="mt-10">
+      <div className="mt-10 flex flex-wrap items-center gap-2">
+        <a href="/interview-check" className="btn btn-primary">
+          Back to practice
+        </a>
         <a href="/family" className="btn btn-ghost">
           Back to Family
         </a>
       </div>
+      <p className="mt-6 text-xs text-ink-soft">
+        Aly also asks about the shape of the household on the welcome form and
+        for a paragraph on each person on About you. Both can be rehearsed from
+        the practice hub.
+      </p>
     </div>
   );
 }
