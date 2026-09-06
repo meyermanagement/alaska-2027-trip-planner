@@ -111,15 +111,26 @@ function Turn({ turn, index, showSaid }) {
             .join(" · ")}
         </p>
       </div>
-      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
-        {turn.reply || "Came back with no words at all."}
-      </p>
-      {!turn.reply && (
-        <p className="mt-1.5 text-xs text-rose">
-          Nothing was said. In the app the family would see an empty reply here.
+      {/* The answer that produced this question, above it, because that is the
+          order it happened in. Turn one is left out: what was "said" there is
+          the app's own opening line, not anything the family typed. */}
+      {showSaid && (
+        <p className="mb-2.5 mt-2 rounded-lg bg-sand/60 p-2.5 text-sm text-ink">
+          <span className="section-label">You said</span>
+          <span className="mt-0.5 block">{turn.said}</span>
         </p>
       )}
-      {turn.reply && !turn.reply.includes("?") && (
+      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
+        {turn.reply}
+      </p>
+      {turn.wordless && (
+        <p className="mt-1.5 text-xs text-rose">
+          Those are not her words. The model came back with nothing at all,
+          twice, and the line above is what the app says when it has lost a
+          turn.
+        </p>
+      )}
+      {!turn.wordless && !turn.reply.includes("?") && (
         <p className="mt-1.5 text-xs text-amber">
           No question in it, so nothing was marked as asked.
         </p>
@@ -127,12 +138,6 @@ function Turn({ turn, index, showSaid }) {
       {turn.askedAgain && (
         <p className="mt-1.5 text-xs text-ink-soft">
           Came back as cards alone; the words above are the second attempt.
-        </p>
-      )}
-      {showSaid && (
-        <p className="mt-2.5 rounded-lg bg-sand/60 p-2.5 text-sm text-ink">
-          <span className="section-label">Your answer</span>
-          <span className="mt-0.5 block">{turn.said}</span>
         </p>
       )}
       {turn.calls?.length > 0 && (
@@ -318,12 +323,7 @@ export default function RehearsalBody({ people = [], me = null }) {
       )}
 
       {turns.map((turn, i) => (
-        <Turn
-          key={i}
-          turn={turn}
-          index={i + 1}
-          showSaid={i < turns.length - 1}
-        />
+        <Turn key={i} turn={turn} index={i + 1} showSaid={i > 0} />
       ))}
 
       {waiting && (

@@ -120,15 +120,19 @@ export async function POST(request) {
   }
 
   let askedAgain = false;
-  // The route's own second pass. A turn that saves an answer and says nothing is
-  // the failure this page exists to catch, so the rehearsal has to make the same
-  // recovery the app makes or it will report a bug the family never sees.
-  if (out && !(out.text || "").trim() && (out.calls || []).length) {
+  // The same second pass the chat route makes, on the same condition it now uses:
+  // any turn that came back without words, whether or not it saved something.
+  // Silence with no card beside it is the worst version -- the person is sitting
+  // there waiting to be asked -- and it used to fall through both gates because
+  // both counted the tool calls first.
+  if (out && !(out.text || "").trim()) {
     try {
       const again = await generate({
         system: [
           system,
-          "You are getting to know somebody, and you have just saved what they told you. Say in one line what you took from it, then put the one question the context hands you next, in words. Do not describe the card.",
+          (out.calls || []).length
+            ? "You are getting to know somebody, and you have just saved what they told you. Say in one line what you took from it, then put the one question the context hands you next, in words. Do not describe the card."
+            : "Your last turn came back empty. You are getting to know somebody and they have just answered you. Say in one line what you took from it, then put the one question the context hands you next, in words.",
         ].join("\n\n"),
         messages,
         tools: [],
@@ -147,6 +151,13 @@ export async function POST(request) {
   }
 
   const reply = (out?.text || "").trim();
+  // What the app would put on screen if this happened for real. The chat route
+  // never shows an empty reply -- it says it lost the turn and offers another go
+  // -- and a rehearsal that showed a blank where the app shows a sentence would
+  // be reporting a worse bug than the one that happened.
+  const shown =
+    reply ||
+    "Something went wrong at my end and I lost that one. Ask me again.";
   const calls = (out?.calls || []).map((call) => {
     const result = run.apply(call);
     return {
@@ -162,7 +173,9 @@ export async function POST(request) {
     person: { id: person.id, name: person.name },
     turn: {
       said,
-      reply,
+      reply: shown,
+      // Whether those were her words or the app's apology standing in for them.
+      wordless: !reply,
       failed,
       model: out?.model || null,
       seconds: Number(((Date.now() - started) / 1000).toFixed(1)),

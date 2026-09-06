@@ -43,6 +43,7 @@ import {
 } from "@/lib/places/rollcall";
 import { splitFollowupCalls } from "@/lib/agent/followups";
 import {
+  saidNothing,
   answerAsWell,
   asksAdvice,
   asksSomething,
@@ -540,19 +541,27 @@ export async function POST(request) {
   // Lisbon" is answered in cards.
   let shortlistAll = shortlist;
   const wantsAdvice = asksAdvice(said);
+  // Silence with nothing beside it. A turn that proposes something and says
+  // nothing was already retried below; a turn that came back with no words and
+  // no card at all was not, because every gate here counts the calls first. That
+  // is the turn the family sees as an empty reply -- and in an interview it is
+  // the worst one, because the question they were sitting there waiting for
+  // never arrived. It owes a retry more than any of the others.
+  const silent = saidNothing(result.text);
   if (
-    // Silent, or a handful of words restating the card. "What do you recommend?"
-    // came back as a change to the trip's getting-around line and nothing else:
-    // right answer, none of the answering. The thin version is caught alongside
-    // the silent one because "Updated for you." passes any test for having
-    // spoken while saying nothing a person could weigh.
-    needsReasons(result.text, changeCalls) &&
-    // An interview turn is the other kind of reply that cannot be a card on its
-    // own. Nobody asked a question -- they answered one -- so asksSomething is
-    // false, and the ladder used to walk straight past the turn that most needs
-    // words: five answers in a row were saved silently and Veda was never asked
-    // anything again. Whichever it is, the turn owes a sentence.
-    (asksSomething(said) || interviewing) &&
+    (silent ||
+      // Silent, or a handful of words restating the card. "What do you recommend?"
+      // came back as a change to the trip's getting-around line and nothing else:
+      // right answer, none of the answering. The thin version is caught alongside
+      // the silent one because "Updated for you." passes any test for having
+      // spoken while saying nothing a person could weigh.
+      // An interview turn is the other kind of reply that cannot be a card on its
+      // own. Nobody asked a question -- they answered one -- so asksSomething is
+      // false, and the ladder used to walk straight past the turn that most needs
+      // words: five answers in a row were saved silently and Veda was never asked
+      // anything again. Whichever it is, the turn owes a sentence.
+      (needsReasons(result.text, changeCalls) &&
+        (asksSomething(said) || interviewing))) &&
     clock(REWORD_TURN_MS)
   ) {
     // Searching again is only worth waiting for if the first turn never got to
@@ -570,7 +579,12 @@ export async function POST(request) {
           // own summaries are built further down the route, so this turn was
           // being told "you already proposed something" without being told
           // what -- which is a hard thing to write two paragraphs about.
-          answerAsWell(said, gistOf(changeCalls), { advice: wantsAdvice }),
+          // Nothing to hand back when the turn proposed nothing: this prompt
+          // exists to tell her what she just did, and telling a silent turn it
+          // proposed something is worse than saying nothing about it.
+          changeCalls.length
+            ? answerAsWell(said, gistOf(changeCalls), { advice: wantsAdvice })
+            : "Your last turn came back empty. Answer what was just said, in words, and if the context hands you a question to ask, ask it.",
           // The interview's own version of the same debt: what she saved is on a
           // card, and the person is still sitting there waiting to be asked
           // something. The slot to ask about is in the context above.
@@ -595,9 +609,14 @@ export async function POST(request) {
         // empty text falls straight through to the line above. So this turn is
         // given nothing it can hide behind. Where the filter leaves nothing at
         // all, silence is silence and the ladder walks to the next model itself.
-        tools: tools.filter(
-          (tool) => tool.name === "show_places" && !shortlist.length,
-        ),
+        // A silent turn is given nothing at all to call: silence is what makes
+        // the ladder walk to the next model by itself, and a tool in reach is how
+        // a model answers "say something" without saying anything.
+        tools: silent
+          ? []
+          : tools.filter(
+              (tool) => tool.name === "show_places" && !shortlist.length,
+            ),
         grounded: lookAgain,
         thinking: THINKING,
         deadline: wordsBy,
