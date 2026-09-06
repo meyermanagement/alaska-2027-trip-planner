@@ -176,8 +176,14 @@ export async function POST(request) {
       // whole family is unrestricted. The slot row alone is the record; no
       // fact row is written, because a fact row with an empty body is a lie.
     } else {
-      // Two-option question. The choice label is the body, and their own words
-      // (if they picked Something else) go in reason.
+      // Multi-option question. The choice label is the body, and their own
+      // words (if they picked Something else) go in reason. Some slots offer
+      // two options; others offer three, four, or five. The renderer and this
+      // handler both treat the option array as open-ended, so adding a middle
+      // choice on a spectrum question is a data change with no code impact.
+      // A pick lands as the option's `label`, so any downstream analyzer
+      // reads real English ("Trains, subways, and the odd taxi") rather than
+      // needing a switch statement on internal `value` strings.
       const opt = (question.options || []).find((o) => o.value === rawChoice);
       const somethingElse = rawChoice === "other";
       const bodyText = somethingElse ? rawText : opt ? opt.label : "";
