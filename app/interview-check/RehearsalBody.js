@@ -93,61 +93,78 @@ function Call({ call }) {
   );
 }
 
-/** One question and the answer given to it. */
+/**
+ * One exchange, in the order it happened.
+ *
+ * A turn is your answer, then what that answer would have been written down as,
+ * then the next question. It was laid out the other way round at first -- the
+ * question at the top of the card and the answer beneath it -- and that reads as
+ * an answer to a question it comes before.
+ */
 function Turn({ turn, index, showSaid }) {
   return (
     <section className="card mt-4 p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="section-label">Question {index}</p>
-        <p className="text-[11px] text-ink-soft">
-          {[
-            turn.model,
-            turn.seconds ? `${turn.seconds}s` : null,
-            turn.handed
-              ? `about ${slotLabel(turn.handed).toLowerCase()}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-      </div>
-      {/* The answer that produced this question, above it, because that is the
-          order it happened in. Turn one is left out: what was "said" there is
-          the app's own opening line, not anything the family typed. */}
+      {/* Turn one has no answer in it: what was "said" there is the app's own
+          opening line, not anything the family typed. */}
       {showSaid && (
-        <p className="mb-2.5 mt-2 rounded-lg bg-sand/60 p-2.5 text-sm text-ink">
-          <span className="section-label">You said</span>
-          <span className="mt-0.5 block">{turn.said}</span>
-        </p>
-      )}
-      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
-        {turn.reply}
-      </p>
-      {turn.wordless && (
-        <p className="mt-1.5 text-xs text-rose">
-          Those are not her words. The model came back with nothing at all,
-          twice, and the line above is what the app says when it has lost a
-          turn.
-        </p>
-      )}
-      {!turn.wordless && !turn.reply.includes("?") && (
-        <p className="mt-1.5 text-xs text-amber">
-          No question in it, so nothing was marked as asked.
-        </p>
-      )}
-      {turn.askedAgain && (
-        <p className="mt-1.5 text-xs text-ink-soft">
-          Came back as cards alone; the words above are the second attempt.
-        </p>
+        <>
+          <p className="section-label">Your answer</p>
+          <p className="mt-1 rounded-lg bg-sand/60 p-2.5 text-sm text-ink">
+            {turn.said}
+          </p>
+        </>
       )}
       {turn.calls?.length > 0 && (
-        <div className="mt-2.5 space-y-2">
+        <div className={showSaid ? "mt-3 space-y-2" : "space-y-2"}>
+          <p className="section-label">What that would have written down</p>
           {turn.calls.map((call, i) => (
             <Call call={call} key={i} />
           ))}
         </div>
       )}
-      {turn.failed && <p className="mt-2 text-xs text-rose">{turn.failed}</p>}
+      <div
+        className={
+          showSaid || turn.calls?.length
+            ? "mt-3 border-t border-[var(--line)] pt-3"
+            : ""
+        }
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="section-label">Question {index}</p>
+          <p className="text-[11px] text-ink-soft">
+            {[
+              turn.model,
+              turn.seconds ? `${turn.seconds}s` : null,
+              turn.handed
+                ? `about ${slotLabel(turn.handed).toLowerCase()}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink">
+          {turn.reply}
+        </p>
+        {turn.wordless && (
+          <p className="mt-1.5 text-xs text-rose">
+            Those are not her words. The model came back with nothing at all,
+            twice, and the line above is what the app says when it has lost a
+            turn.
+          </p>
+        )}
+        {!turn.wordless && !turn.reply.includes("?") && (
+          <p className="mt-1.5 text-xs text-amber">
+            No question in it, so nothing was marked as asked.
+          </p>
+        )}
+        {turn.askedAgain && (
+          <p className="mt-1.5 text-xs text-ink-soft">
+            Came back as cards alone; the words above are the second attempt.
+          </p>
+        )}
+        {turn.failed && <p className="mt-2 text-xs text-rose">{turn.failed}</p>}
+      </div>
     </section>
   );
 }
