@@ -429,10 +429,31 @@ export default function Templates({
     <section>
       <PropagatePanel />
 
-      <div className="no-print mb-4 flex flex-wrap items-stretch gap-2">
-        {!controlled &&
-          templates.length > 1 &&
-          templates.map((t) => {
+      {/* The Create button sits above the templates rather than at the end of
+          the row. It was the last card in a wrapping strip of templates, which
+          meant it landed in a different place on every account (after the last
+          template) and read as one more list somebody had already made rather
+          than as the thing that makes a new one. Above the row it is the same
+          place every time, and it is the answer to the same question the row
+          is about -- which list to work on, or start another. */}
+      {!controlled && (
+        <div className="no-print mb-3">
+          <button
+            type="button"
+            onClick={newTemplate}
+            className="inline-flex flex-col items-start rounded-xl border border-dashed border-teal/50 px-3 py-2 text-left text-sm text-teal transition hover:border-teal hover:bg-teal-soft/30"
+          >
+            <span className="font-semibold">+ Create packing template</span>
+            <span className="mt-0.5 text-xs text-ink-soft">
+              Aly builds it with you
+            </span>
+          </button>
+        </div>
+      )}
+
+      {!controlled && templates.length > 1 && (
+        <div className="no-print mb-4 flex flex-wrap items-stretch gap-2">
+          {templates.map((t) => {
             const on = t.id === templateId;
             return (
               <button
@@ -460,17 +481,8 @@ export default function Templates({
               </button>
             );
           })}
-        <button
-          type="button"
-          onClick={newTemplate}
-          className="rounded-xl border border-dashed border-teal/50 px-3 py-2 text-left text-sm text-teal transition hover:border-teal hover:bg-teal-soft/30"
-        >
-          <span className="block font-semibold">+ Create packing template</span>
-          <span className="mt-0.5 block text-xs text-ink-soft">
-            Aly builds it with you
-          </span>
-        </button>
-      </div>
+        </div>
+      )}
 
       <div className="card mb-4 p-4">
         {renaming ? (
