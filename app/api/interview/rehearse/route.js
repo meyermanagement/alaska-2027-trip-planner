@@ -10,6 +10,7 @@ import {
 } from "@/lib/agent/context";
 import { toolsForRequest } from "@/lib/agent/toolset";
 import { generate } from "@/lib/agent/llm";
+import { saidNothing } from "@/lib/agent/asked";
 import { rehearsal } from "@/lib/travelers/rehearse";
 
 // One turn, not seven. A real model on a real prompt takes long enough that the
@@ -125,7 +126,7 @@ export async function POST(request) {
   // Silence with no card beside it is the worst version -- the person is sitting
   // there waiting to be asked -- and it used to fall through both gates because
   // both counted the tool calls first.
-  if (out && !(out.text || "").trim()) {
+  if (out && saidNothing(out.text)) {
     try {
       const again = await generate({
         system: [
@@ -150,7 +151,10 @@ export async function POST(request) {
     }
   }
 
-  const reply = (out?.text || "").trim();
+  // saidNothing, not merely empty: a turn that typed its tool call out as prose
+  // said nothing anybody can answer.
+  const spoke = (out?.text || "").trim();
+  const reply = saidNothing(spoke) ? "" : spoke;
   // What the app would put on screen if this happened for real. The chat route
   // never shows an empty reply -- it says it lost the turn and offers another go
   // -- and a rehearsal that showed a blank where the app shows a sentence would

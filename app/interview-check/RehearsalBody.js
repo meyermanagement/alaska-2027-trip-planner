@@ -94,77 +94,79 @@ function Call({ call }) {
 }
 
 /**
- * One exchange, in the order it happened.
+ * One question, with the answer given to it and what that answer would have
+ * written down -- all in the same box.
  *
- * A turn is your answer, then what that answer would have been written down as,
- * then the next question. It was laid out the other way round at first -- the
- * question at the top of the card and the answer beneath it -- and that reads as
- * an answer to a question it comes before.
+ * A turn from the route is not a box: it carries the answer to the LAST question
+ * and then the next question. Laying that out as it arrives puts one question's
+ * answer in the same card as the next question, which is how this page read at
+ * first and it made no sense to anybody. So a box is built from two turns: the
+ * question from one, the answer and the saves from the one after it.
  */
-function Turn({ turn, index, showSaid }) {
+function Exchange({ index, asked, answer, calls, pending }) {
   return (
     <section className="card mt-4 p-4">
-      {/* Turn one has no answer in it: what was "said" there is the app's own
-          opening line, not anything the family typed. */}
-      {showSaid && (
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="section-label">Question {index}</p>
+        <p className="text-[11px] text-ink-soft">
+          {[
+            asked.model,
+            asked.seconds ? `${asked.seconds}s` : null,
+            asked.handed
+              ? `about ${slotLabel(asked.handed).toLowerCase()}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      </div>
+      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink">
+        {asked.reply}
+      </p>
+      {asked.wordless && (
+        <p className="mt-1.5 text-xs text-rose">
+          Those are not her words. The model came back with nothing at all,
+          twice, and the line above is what the app says when it has lost a
+          turn.
+        </p>
+      )}
+      {!asked.wordless && !asked.reply.includes("?") && (
+        <p className="mt-1.5 text-xs text-amber">
+          No question in it, so nothing was marked as asked.
+        </p>
+      )}
+      {asked.askedAgain && (
+        <p className="mt-1.5 text-xs text-ink-soft">
+          Came back as cards alone; the words above are the second attempt.
+        </p>
+      )}
+      {asked.failed && <p className="mt-2 text-xs text-rose">{asked.failed}</p>}
+      {answer != null && (
         <>
-          <p className="section-label">Your answer</p>
+          <p className="section-label mt-3">Your answer</p>
           <p className="mt-1 rounded-lg bg-sand/60 p-2.5 text-sm text-ink">
-            {turn.said}
+            {answer}
           </p>
         </>
       )}
-      {turn.calls?.length > 0 && (
-        <div className={showSaid ? "mt-3 space-y-2" : "space-y-2"}>
+      {calls?.length > 0 && (
+        <div className="mt-3 space-y-2">
           <p className="section-label">What that would have written down</p>
-          {turn.calls.map((call, i) => (
+          {calls.map((call, i) => (
             <Call call={call} key={i} />
           ))}
         </div>
       )}
-      <div
-        className={
-          showSaid || turn.calls?.length
-            ? "mt-3 border-t border-[var(--line)] pt-3"
-            : ""
-        }
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="section-label">Question {index}</p>
-          <p className="text-[11px] text-ink-soft">
-            {[
-              turn.model,
-              turn.seconds ? `${turn.seconds}s` : null,
-              turn.handed
-                ? `about ${slotLabel(turn.handed).toLowerCase()}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        </div>
-        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink">
-          {turn.reply}
+      {answer != null && !calls?.length && (
+        <p className="mt-2 text-xs text-ink-soft">
+          Nothing would have been written down from that one.
         </p>
-        {turn.wordless && (
-          <p className="mt-1.5 text-xs text-rose">
-            Those are not her words. The model came back with nothing at all,
-            twice, and the line above is what the app says when it has lost a
-            turn.
-          </p>
-        )}
-        {!turn.wordless && !turn.reply.includes("?") && (
-          <p className="mt-1.5 text-xs text-amber">
-            No question in it, so nothing was marked as asked.
-          </p>
-        )}
-        {turn.askedAgain && (
-          <p className="mt-1.5 text-xs text-ink-soft">
-            Came back as cards alone; the words above are the second attempt.
-          </p>
-        )}
-        {turn.failed && <p className="mt-2 text-xs text-rose">{turn.failed}</p>}
-      </div>
+      )}
+      {pending && (
+        <p className="mt-3 text-xs text-ink-soft">
+          Waiting on your answer, in the box below.
+        </p>
+      )}
     </section>
   );
 }
@@ -339,8 +341,17 @@ export default function RehearsalBody({ people = [], me = null }) {
         </div>
       )}
 
+      {/* A box per question: the question from this turn, and the answer and the
+          saves from the turn that followed it. */}
       {turns.map((turn, i) => (
-        <Turn key={i} turn={turn} index={i + 1} showSaid={i > 0} />
+        <Exchange
+          key={i}
+          index={i + 1}
+          asked={turn}
+          answer={i + 1 < turns.length ? turns[i + 1].said : null}
+          calls={i + 1 < turns.length ? turns[i + 1].calls : null}
+          pending={i + 1 === turns.length && !done}
+        />
       ))}
 
       {waiting && (
