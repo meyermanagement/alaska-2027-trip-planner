@@ -63,6 +63,12 @@ const BEZEL = [
  *               the pill, but if the needle sprang back to full size at the
  *               same moment the pill appeared, the compass would look like
  *               it jumped. This keeps the needle exactly where it was.
+ * @param bezelColor  Paint the bezel graduations in a different color than
+ *               the needle. Default is currentColor (both take the same
+ *               ink). The menu dial hands in the pill's own border color
+ *               while the search field is open, so the ticks read as an
+ *               extension of the pill's rim curving inward around the
+ *               compass rather than as a second circle inside the pill.
  * @param turned Swing the needle a quarter turn. The bezel does not move --
  *               on a real compass the card stays put and the needle points, and
  *               a rotating set of graduations would put north on the east mark.
@@ -75,6 +81,7 @@ export default function AlyeskaMark({
   className = "h-7 w-7",
   bezel = false,
   compact = false,
+  bezelColor = "currentColor",
   turned = false,
   spinning = false,
 }) {
@@ -91,7 +98,7 @@ export default function AlyeskaMark({
           <path
             key={d}
             d={d}
-            stroke="currentColor"
+            stroke={bezelColor}
             strokeWidth={w}
             strokeLinecap="round"
             opacity={o}

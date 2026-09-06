@@ -1063,17 +1063,20 @@ export default function NavTabs({
                   a second icon. The graduations stay put while it swings,
                   because a card that turned with the needle would leave
                   north sitting on the east mark. */}
-              {/* The graduated bezel is only drawn when the menu is closed.
-                  Open, the compass sits inside the search pill, and a ring of
-                  sixteen tick marks around the needle draws the visual
-                  impression of a second circle nested inside the pill --
-                  which is exactly the "still two shapes" reading we are
-                  trying to lose. Dropping the bezel while open lets the
-                  needle float on the same face as the field beside it. */}
+              {/* The graduated bezel is drawn in both states, but it is
+                  painted in the pill's own border color when the menu is
+                  open, rather than in the ink color it uses closed. Closed,
+                  the disc is an instrument and the ticks are the numbers on
+                  it; open, the same ticks read as the pill's own rim
+                  curving inward around the compass, so the shape stays one
+                  pill rather than a disc sitting inside another shape. The
+                  needle is held at the smaller compact size in both states,
+                  so nothing about the compass jumps when the pill opens. */}
               <AlyeskaMark
                 className="h-[52px] w-[52px] shrink-0"
-                bezel={!open}
-                compact={open}
+                bezel
+                compact
+                bezelColor={open ? "var(--disc-edge)" : "currentColor"}
                 turned={open}
                 spinning={navFetching}
               />
