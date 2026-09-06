@@ -156,11 +156,19 @@ export default function AskAlyDrawer({
 
   // Arriving from the trips list with ?ask=1 opens it straight away. Read from
   // location rather than useSearchParams so there's no prerender constraint.
+  // The bottom-bar search field passes a typed question along in ?q= when the
+  // primary sends from a page that has no drawer of its own; that landing page
+  // picks it up here and seeds the panel with it, autosending so the answer
+  // is on its way by the time the drawer opens. Without the autosend the user
+  // would arrive at their own words sitting in the box waiting for another
+  // press, which is one press more than they were promised.
   useEffect(() => {
     if (openedFromUrl.current) return;
-    if (!new URLSearchParams(window.location.search).get("ask")) return;
+    const q = new URLSearchParams(window.location.search);
+    if (!q.get("ask")) return;
     openedFromUrl.current = true;
-    openWith(null);
+    const seed = (q.get("q") || "").trim();
+    openWith(seed ? { text: seed, autoSend: true, focus: true } : null);
   }, [openWith]);
 
   useEffect(() => {
