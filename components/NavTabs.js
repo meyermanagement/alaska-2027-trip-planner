@@ -14,7 +14,7 @@ import { coverToken } from "@/lib/covers/tint";
 import { parseTripRef, tripPath } from "@/lib/trips/route";
 import { TRIPS_VIEW_EVENT } from "@/lib/trips/viewEvent";
 import AlyeskaMark from "./AlyeskaMark";
-import AskAlyTrigger, { ASK_ALY_EVENT, BubbleIcon } from "./AskAlyTrigger";
+import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
 import { SECONDARY } from "@/lib/travelers/access";
 import useSoftKeyboard from "./useSoftKeyboard";
@@ -278,18 +278,6 @@ export default function NavTabs({
   const [present, setPresent] = useState(false);
   const sheetRef = useRef(null);
 
-  // A search box that opens along the bottom in place of the Ask Aly disc. The
-  // compass toggles it: press once and the field appears with focus on it, press
-  // it again (or press Escape, or submit the question) and the two discs come
-  // back. Suggestions -- All Trips, a reminder that is due -- will land in a
-  // panel above the field in a follow-up; for now the field is the whole
-  // surface, so this is a change to the way you reach Aly rather than a new
-  // place. The state is kept here rather than at the page level because the
-  // bottom bar owns both discs and the Ask Aly disc is the one that hides.
-  const [search, setSearch] = useState(false);
-  const [searchText, setSearchText] = useState("");
-  const searchInputRef = useRef(null);
-
   const isActive = (href) =>
     pathname === href || pathname.startsWith(`${href}/`);
   // Inside one trip, as opposed to the list of them.
@@ -330,65 +318,10 @@ export default function NavTabs({
   const params = useSearchParams();
   const view = String(params.get("view") || "").toLowerCase();
 
-  // Shut the sheet the moment you arrive somewhere, and on Escape. The search
-  // field goes with it: crossing screens means the question you had in mind is
-  // for the new page and the old draft is not worth carrying over, and leaving
-  // the box up over a screen the user did not open would sit in the way of what
-  // they came for.
+  // Shut the sheet the moment you arrive somewhere, and on Escape.
   useEffect(() => {
     setOpen(false);
-    setSearch(false);
-    setSearchText("");
   }, [pathname]);
-
-  // When the search opens, land the caret inside it. Without the focus the
-  // primary has to press the compass and then press the field, which is one
-  // press too many for a control whose point is to skip the discs entirely.
-  useEffect(() => {
-    if (!search) return;
-    const t = setTimeout(() => searchInputRef.current?.focus(), 20);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  // Escape closes the search box the same way it closes the menu.
-  useEffect(() => {
-    if (!search) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") {
-        setSearch(false);
-        setSearchText("");
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [search]);
-
-  // Sending the question. On a page that has a drawer mounted, dispatch the
-  // event AskAlyTrigger uses so the drawer opens with the text carried in on a
-  // detail. On a page with no drawer -- the trip list, the family screen -- go
-  // to askHref, the same address the Ask Aly disc would have gone to, with the
-  // question in the query string. The drawer on the trip page picks the query
-  // string up on arrival and opens with it. Either way the discs come back.
-  function submitSearch(e) {
-    e?.preventDefault?.();
-    const q = searchText.trim();
-    if (!q) return;
-    if (askHref) {
-      const sep = askHref.includes("?") ? "&" : "?";
-      router.push(`${askHref}${sep}ask=1&q=${encodeURIComponent(q)}`);
-    } else {
-      // Match the shape AskAlyDrawer already listens for -- seed is the text,
-      // autoSend fires the ask on open, focus lands the caret in the reply
-      // box for whatever the primary wants to say next.
-      window.dispatchEvent(
-        new CustomEvent(ASK_ALY_EVENT, {
-          detail: { seed: q, autoSend: true, focus: true },
-        }),
-      );
-    }
-    setSearch(false);
-    setSearchText("");
-  }
   useEffect(() => {
     if (open) {
       setPresent(true);
@@ -767,24 +700,11 @@ export default function NavTabs({
         }}
       >
         <div className="mx-auto flex max-w-5xl items-end justify-between gap-3">
-          {/* The compass now owns the search field, not the menu. A press
-              raises a bar along the bottom with the caret inside it, a second
-              press puts it away; while it is up the Ask Aly disc on the other
-              side is hidden because the search is the way to Aly for as long
-              as it is showing. The needle keeps turning while the menu is
-              open, because the menu is still the sheet the compass is closest
-              to on the page -- the small dot beside it opens and closes it,
-              and the needle acknowledges that state. */}
           <button
             type="button"
-            onClick={() => {
-              setSearch((v) => !v);
-              setSearchText("");
-            }}
-            aria-expanded={search}
-            aria-label={
-              search ? "Close the search" : "What would you like to do?"
-            }
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={open ? "Close the menu" : "Open the menu"}
             /* Face, edge and shadow all come from the skin. On the two dark
                skins a card-colored circle on a near-black page had nothing
                separating it -- the drop shadow underneath is black on black --
@@ -818,24 +738,7 @@ export default function NavTabs({
               </span>
             )}
           </button>
-          {/* A small chip for the menu, sitting to the right of the compass.
-              It used to be that the compass opened the menu; the compass now
-              opens the search, and this is where the menu moved to. Small on
-              purpose -- it is a secondary control, not one of the two things
-              worth a disc -- and it wears the same face, edge and shadow as
-              the compass so the pair reads as belonging to each other rather
-              than to whatever card is on the page. */}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-label={open ? "Close the menu" : "Open the menu"}
-            className="pointer-events-auto -ml-1 mr-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)] transition hover:border-[var(--line-strong)] active:translate-y-px"
-          >
-            <MenuIcon className="h-4 w-4" />
-          </button>
           {showAsk &&
-            !search &&
             (askLive ? (
               <span className="pointer-events-auto">
                 <AskAlyTrigger href={askHref} round />
@@ -860,42 +763,6 @@ export default function NavTabs({
               </span>
             ))}
         </div>
-        {/* The search field. Along the bottom of the screen, above the two
-            discs, spanning the width the arc menu uses -- so a person tapping
-            the compass sees the field appear right where the Ask Aly disc
-            used to be. Suggestions (All Trips, a reminder that is due) are
-            coming in a follow-up; this first pass is the field itself and its
-            routing to Aly. */}
-        {search && (
-          <form
-            onSubmit={submitSearch}
-            role="search"
-            aria-label="What would you like to do?"
-            className="pointer-events-auto mx-auto mt-2 flex max-w-5xl items-center gap-2 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] px-4 py-2.5 shadow-[var(--disc-shadow)]"
-          >
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="What would you like to do?"
-              className="min-w-0 flex-1 bg-transparent text-base text-ink placeholder:text-ink/50 focus:outline-none"
-              aria-label="What would you like to do?"
-              enterKeyHint="send"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setSearch(false);
-                setSearchText("");
-              }}
-              aria-label="Close the search"
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink/60 transition hover:bg-ink/5 hover:text-ink"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </form>
-        )}
       </nav>
     </>
   );
@@ -936,32 +803,6 @@ function ChecklistIcon({ className }) {
       <rect x="4.2" y="4" width="11.6" height="13" rx="2" />
       <path d="M7.6 4V3.2h4.8V4" />
       <path d="M7.6 10.2l1.7 1.7 3.4-3.6" />
-    </svg>
-  );
-}
-
-// Three lines. The chip beside the compass carries this because a hamburger,
-// as tired as it is, still reads as "more here" to more people than any other
-// small mark. Drawn with the same weight and joins as everything else in the
-// bar, and small -- the chip is a secondary control.
-function MenuIcon({ className }) {
-  return (
-    <svg {...iconProps(className)}>
-      <path d="M4 6h12" />
-      <path d="M4 10h12" />
-      <path d="M4 14h12" />
-    </svg>
-  );
-}
-
-// A small ex, for the close corner on the search field. The same one that closes
-// dialogs in the rest of the app; drawn here in the bar's own icon weight so it
-// belongs to the same set.
-function CloseIcon({ className }) {
-  return (
-    <svg {...iconProps(className)}>
-      <path d="M5 5l10 10" />
-      <path d="M15 5L5 15" />
     </svg>
   );
 }
