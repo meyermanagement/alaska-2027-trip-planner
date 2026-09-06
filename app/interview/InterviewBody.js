@@ -312,7 +312,10 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         </div>
       ) : (
         <div className="w-full">
-          <h1 className="select-none font-display text-2xl leading-snug text-ink sm:text-3xl">
+          <h1
+            className="select-none font-display text-2xl leading-snug text-ink outline-none [outline:none!important] focus:outline-none focus-visible:outline-none sm:text-3xl"
+            style={{ outline: "none" }}
+          >
             {question.prompt}
           </h1>
           <span aria-live="polite" className="sr-only">
