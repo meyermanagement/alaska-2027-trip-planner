@@ -56,6 +56,13 @@ const BEZEL = [
  *               Only the menu dial asks for this; everywhere else the mark is
  *               either too small for graduations to survive or has no circle
  *               around it to act as the rim.
+ * @param compact  Hold the needle at the smaller size the bezel would have
+ *               forced, even when the bezel itself is not drawn. Used by the
+ *               menu dial when the search pill grows around the compass:
+ *               the ring of tick marks would read as a second circle inside
+ *               the pill, but if the needle sprang back to full size at the
+ *               same moment the pill appeared, the compass would look like
+ *               it jumped. This keeps the needle exactly where it was.
  * @param turned Swing the needle a quarter turn. The bezel does not move --
  *               on a real compass the card stays put and the needle points, and
  *               a rotating set of graduations would put north on the east mark.
@@ -67,10 +74,11 @@ const BEZEL = [
 export default function AlyeskaMark({
   className = "h-7 w-7",
   bezel = false,
+  compact = false,
   turned = false,
   spinning = false,
 }) {
-  const scale = bezel ? 0.72 : 1;
+  const scale = bezel || compact ? 0.72 : 1;
   return (
     <svg
       viewBox="0 0 32 32"
