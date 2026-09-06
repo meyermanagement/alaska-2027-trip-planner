@@ -1017,87 +1017,109 @@ export default function NavTabs({
         }}
       >
         <div className="mx-auto flex max-w-5xl items-end justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setOpen((v) => !v);
-            }}
-            aria-expanded={open}
-            aria-label={open ? "Close the menu" : "Open the menu"}
-            /* Face, edge and shadow all come from the skin. On the two dark
-               skins a card-colored circle on a near-black page had nothing
-               separating it -- the drop shadow underneath is black on black --
-               so those skins hand back a lighter face, a stronger rim and a lit
-               top edge instead. See --disc-face in globals.css. */
-            className="pointer-events-auto relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)] transition hover:border-[var(--line-strong)] active:translate-y-px"
+          {/* When the menu is closed the compass sits on its own as a plain
+              disc. When the menu is open it becomes the left cap of a single
+              stadium-shaped pill that also carries the search field, so the
+              disc you pressed and the field you type into read as one
+              surface rather than two controls sitting next to each other.
+              The pill borrows the same face, edge and shadow the closed disc
+              uses, so nothing about the compass changes shape when the pill
+              grows around it -- only what is beside it. */}
+          <div
+            className={`pointer-events-auto relative flex items-center transition-[background-color,border-color,box-shadow,padding,gap] duration-200 ${
+              open
+                ? "h-14 flex-1 gap-1 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] pr-3 shadow-[var(--disc-shadow)]"
+                : "h-14 w-14"
+            }`}
           >
-            {/* Drawn to very nearly the width of the button, and the only place
-                in the app that wears the graduated bezel. The button's own rim
-                is the bezel's edge -- the mark supplies the sixteen marks
-                inside it and no second circle -- which is what turns this from
-                a logo in a circle into a dial.
+            <button
+              type="button"
+              onClick={() => {
+                setOpen((v) => !v);
+              }}
+              aria-expanded={open}
+              aria-label={open ? "Close the menu" : "Open the menu"}
+              /* When the menu is closed the button paints its own disc --
+                 face, edge and shadow from the skin. When the menu is open
+                 the pill around it carries all three, so the button drops
+                 them and becomes a bare, round hit target the same size --
+                 no seam between the compass and its own container. */
+              className={`relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-ink transition active:translate-y-px ${
+                open
+                  ? ""
+                  : "border border-[var(--disc-edge)] bg-[var(--disc-face)] shadow-[var(--disc-shadow)] hover:border-[var(--line-strong)]"
+              }`}
+            >
+              {/* Drawn to very nearly the width of the button, and the only
+                  place in the app that wears the graduated bezel. The
+                  button's own rim is the bezel's edge -- the mark supplies
+                  the sixteen marks inside it and no second circle -- which
+                  is what turns this from a logo in a circle into a dial.
 
-                The needle turns to point right while the menu is open and back
-                to north when it is shut -- a compass held still is a logo, one
-                that swings is a control, and the direction it settles on says
-                which of the two states you are in without a second icon. The
-                graduations stay put while it swings, because a card that turned
-                with the needle would leave north sitting on the east mark. */}
-            <AlyeskaMark
-              className="h-[52px] w-[52px] shrink-0"
-              bezel
-              turned={open}
-              spinning={navFetching}
-            />
-            {/* The one number worth interrupting somebody for still shows on the
-              closed control, because it lives on a screen the menu is hiding. */}
-            {attention > 0 && !isActive("/reminders") && (
-              <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.62rem] font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
-                {attention}
-                <span className="sr-only"> reminders needing attention</span>
-              </span>
-            )}
-          </button>
-          {/* When the menu is open a search field grows between the compass
-              and where Ask Aly usually is; Ask Aly hides in that state. The
-              field lives in the bar rather than in the arc above it so a
-              query and the compass that opened the menu read as one control
-              -- typing on the row you tapped -- rather than as a second
-              surface to reach for. Aly comes back the moment the menu
-              closes. */}
-          {open && (
-            <div className="pointer-events-auto flex flex-1 items-center gap-2 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] px-4 h-11 shadow-[var(--disc-shadow)] transition">
-              <SearchIcon className="h-4 w-4 shrink-0 text-ink/50" />
-              <input
-                ref={queryInputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  // Escape closes the menu from inside the field so a person
-                  // whose hands are on the keyboard does not have to reach
-                  // for the compass again.
-                  if (e.key === "Escape") setOpen(false);
-                }}
-                placeholder="What would you like to do?"
-                aria-label="Filter the menu"
-                className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink/50 focus:outline-none"
+                  The needle turns to point right while the menu is open and
+                  back to north when it is shut -- a compass held still is a
+                  logo, one that swings is a control, and the direction it
+                  settles on says which of the two states you are in without
+                  a second icon. The graduations stay put while it swings,
+                  because a card that turned with the needle would leave
+                  north sitting on the east mark. */}
+              <AlyeskaMark
+                className="h-[52px] w-[52px] shrink-0"
+                bezel
+                turned={open}
+                spinning={navFetching}
               />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuery("");
-                    queryInputRef.current?.focus();
-                  }}
-                  aria-label="Clear the filter"
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink/60 transition hover:bg-ink/5 hover:text-ink"
-                >
-                  <CloseIcon className="h-3.5 w-3.5" />
-                </button>
+              {/* The one number worth interrupting somebody for still shows
+                on the closed control, because it lives on a screen the menu
+                is hiding. Hidden while the menu is open -- the pill around
+                the compass would put the badge on top of the search
+                field. */}
+              {attention > 0 && !isActive("/reminders") && !open && (
+                <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.62rem] font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
+                  {attention}
+                  <span className="sr-only"> reminders needing attention</span>
+                </span>
               )}
-            </div>
-          )}
+            </button>
+            {/* Inside the same pill as the compass while the menu is open --
+                one surface, two parts of the same control. The field is
+                aligned to the compass by vertical centring rather than a
+                fixed height, so a taller pill (the compass is 56 px) still
+                reads as one clean stadium. */}
+            {open && (
+              <>
+                <SearchIcon className="h-4 w-4 shrink-0 text-ink/50" />
+                <input
+                  ref={queryInputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Escape closes the menu from inside the field so a
+                    // person whose hands are on the keyboard does not have
+                    // to reach for the compass again.
+                    if (e.key === "Escape") setOpen(false);
+                  }}
+                  placeholder="What would you like to do?"
+                  aria-label="Filter the menu"
+                  className="ml-1 min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink/50 focus:outline-none"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery("");
+                      queryInputRef.current?.focus();
+                    }}
+                    aria-label="Clear the filter"
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink/60 transition hover:bg-ink/5 hover:text-ink"
+                  >
+                    <CloseIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
           {showAsk &&
             !open &&
             (askLive ? (
