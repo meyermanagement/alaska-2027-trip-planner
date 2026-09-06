@@ -65,6 +65,11 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   useEffect(() => {
     if (loading || done) return;
     setAnnounced(question?.prompt || "");
+    // Scroll the window back to the top so the new prompt is the first thing
+    // in view, even if the last question had a long Why panel below the fold.
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
   }, [slot, loading, done, question]);
 
   const advance = useCallback(
