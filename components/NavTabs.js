@@ -289,6 +289,19 @@ export default function NavTabs({
   const [query, setQuery] = useState("");
   const queryInputRef = useRef(null);
 
+  // What the model returned for the last query it settled on -- either a set
+  // of menu keys that answer the query, or null while the first fetch for a
+  // query is still in flight (fetching is the compass-spin loading state).
+  // The set is stored beside the query it corresponds to so we know when to
+  // discard it: the moment the user has typed something new, the previous
+  // set stops describing what is on the screen and we go back to "still
+  // fetching" until the next call returns. When the model errors we keep
+  // navFilter null so no rows disappear on a fetch failure.
+  const [navFilter, setNavFilter] = useState({ query: "", keys: null });
+  const [navFetching, setNavFetching] = useState(false);
+  const navAbortRef = useRef(null);
+  const navSeqRef = useRef(0);
+
   const isActive = (href) =>
     pathname === href || pathname.startsWith(`${href}/`);
   // Inside one trip, as opposed to the list of them.
@@ -336,6 +349,9 @@ export default function NavTabs({
   useEffect(() => {
     setOpen(false);
     setQuery("");
+    setNavFilter({ query: "", keys: null });
+    setNavFetching(false);
+    if (navAbortRef.current) navAbortRef.current.abort();
   }, [pathname]);
 
   // On close, drop the query so the next open starts on the full menu. Kept
@@ -343,7 +359,12 @@ export default function NavTabs({
   // scrim tap) also clears it -- staying on the same screen does not save the
   // filter, because the filter is a way of looking at this one menu opening.
   useEffect(() => {
-    if (!open) setQuery("");
+    if (!open) {
+      setQuery("");
+      setNavFilter({ query: "", keys: null });
+      setNavFetching(false);
+      if (navAbortRef.current) navAbortRef.current.abort();
+    }
   }, [open]);
   useEffect(() => {
     if (open) {
@@ -359,10 +380,90 @@ export default function NavTabs({
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    // Focus the sheet so a keyboard lands inside it rather than back on the page.
+    // Focus the sheet so a keyboard lands inside it rather than back on the
+    // page, then, on the next frame, hand focus to the search field so a
+    // person opening the menu can start typing without a second tap. On a
+    // phone this raises the software keyboard automatically -- the whole
+    // reason the field is next to the compass instead of buried inside the
+    // arc.
     sheetRef.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
+    const raf =
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+        ? window.requestAnimationFrame(() => queryInputRef.current?.focus())
+        : setTimeout(() => queryInputRef.current?.focus(), 0);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(raf);
+      } else {
+        clearTimeout(raf);
+      }
+    };
   }, [open]);
+
+  // Debounced live translation of the query into a set of menu keys the model
+  // thinks answer it. Runs on every keystroke while the menu is open, with a
+  // short debounce so a person still typing does not fire a request per
+  // character. Cancels any in-flight request when a new keystroke arrives.
+  // The menu itself is rebuilt every render, so we look at the current
+  // rendered rows through a ref -- fetching in this effect and reading rows
+  // in the render body would fight over the render cycle, and rows is cheap
+  // to snapshot at fetch time.
+  const rowsForFilterRef = useRef([]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const q = query.trim();
+    if (!q) {
+      setNavFilter({ query: "", keys: null });
+      setNavFetching(false);
+      if (navAbortRef.current) navAbortRef.current.abort();
+      return undefined;
+    }
+    setNavFetching(true);
+    const seq = ++navSeqRef.current;
+    const controller =
+      typeof AbortController !== "undefined" ? new AbortController() : null;
+    if (navAbortRef.current) navAbortRef.current.abort();
+    navAbortRef.current = controller;
+    const timer = setTimeout(async () => {
+      const menuPayload = rowsForFilterRef.current;
+      if (!Array.isArray(menuPayload) || menuPayload.length === 0) {
+        setNavFetching(false);
+        return;
+      }
+      try {
+        const res = await fetch("/api/nav-search", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            query: q,
+            currentPath: pathname || "",
+            menu: menuPayload,
+          }),
+          signal: controller?.signal,
+        });
+        if (seq !== navSeqRef.current) return;
+        const data = await res.json().catch(() => ({}));
+        setNavFilter({
+          query: q,
+          keys: Array.isArray(data?.keys) ? data.keys : null,
+        });
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        if (seq !== navSeqRef.current) return;
+        setNavFilter({ query: q, keys: null });
+      } finally {
+        if (seq === navSeqRef.current) setNavFetching(false);
+      }
+    }, 240);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [query, open, pathname]);
 
   // The plate above the arc. "Happening now" while they are away and a
   // countdown before they leave, because those are two different sentences and
@@ -377,30 +478,35 @@ export default function NavTabs({
   const where = trip && today ? tripDayNumber(trip, today) : null;
   const soon = trip && !where ? countdownSaid(daysUntil(trip.start_date)) : "";
 
-  // Whether the user has typed a filter, and the normalized query used to
-  // match rows against it. Declared here so both the current-trip plate and
-  // the rows below can be gated on the same string. Non-empty query means
-  // every kid inside every group is a candidate regardless of which group
-  // happened to be open at the time the menu was raised -- searching is how
-  // you find something you did not remember was inside a folded group -- and
-  // the group headers only survive if they or something under them matches.
-  const q = query.trim().toLowerCase();
-  const filtering = q.length > 0;
-  const matches = (row) =>
-    !filtering ||
-    (row.label && row.label.toLowerCase().includes(q)) ||
-    (row.sub && row.sub.toLowerCase().includes(q));
+  // Filter state. The primary types into the search field beside the compass
+  // and a model translates the query into a set of menu keys that answer it.
+  // Three conditions decide what happens to the rows below:
+  //   - No query typed: nothing filters, every row shows as it always did.
+  //   - Query typed and the model has settled on a matching key set for that
+  //     exact query: only the returned keys show, in the order the model
+  //     returned them.
+  //   - Query typed but no settled result yet (still fetching, or the last
+  //     fetch failed, or the query has moved on since the last result): show
+  //     every row untouched, and let the spinning compass in the bar say
+  //     that a filter is on its way. Hiding rows during a stale interval
+  //     would flicker the column every keystroke, which is worse than a
+  //     brief moment of "the answer is arriving".
+  const filtering = query.trim().length > 0;
+  const filterReady =
+    filtering &&
+    Array.isArray(navFilter.keys) &&
+    navFilter.query === query.trim();
+  const keySet = filterReady ? new Set(navFilter.keys) : null;
+  const keyOrder = filterReady
+    ? new Map(navFilter.keys.map((k, i) => [k, i]))
+    : null;
+  const shows = (key) => !keySet || keySet.has(key);
 
-  // The current-trip plate. It is filtered by the same query as the rows -- a
-  // person typing an active trip's name should still see this plate come
-  // through, otherwise the search would look like it dropped the one row
-  // above the column. When the plate does not match the query it hides, the
-  // same as any non-matching row.
-  const heroName = trip?.name || "";
-  const heroMatches =
-    !filtering ||
-    heroName.toLowerCase().includes(q) ||
-    (where ? "happening now" : "next trip").includes(q);
+  // The current-trip plate is a row like any other in the filter. When the
+  // model returned keys and "hero" is not among them the plate hides; while
+  // the fetch is still in flight the plate stays put so the column does not
+  // jump around underneath the typing.
+  const heroMatches = shows("hero");
   const hero =
     trip && !onThisTrip && heroMatches ? (
       <Link
@@ -440,101 +546,215 @@ export default function NavTabs({
       </Link>
     ) : null;
 
-  // The column, top to bottom, flattened out of the groups so that one map can
-  // draw it and the stagger can be counted straight down the shape. Inside a
-  // trip the first row is the way out of it, and it takes the larger size the
-  // Travel Journal door has everywhere else: leaving is the thing you came for.
-  const rows = [];
-  let seat = 1;
+  // Everything the menu could ever show, before the filter is applied. Two
+  // arrays: one is the flat list of row objects the render will draw; the
+  // other is the small menu shape sent to the model when a query is in the
+  // field. Building both here means the render, the fetch, and the filter
+  // all see the same set of keys.
+  const allRows = [];
+  const menuPayload = [];
+  const currentPathKey = pathname || "";
+  const pushRow = (row, payload) => {
+    allRows.push(row);
+    menuPayload.push(payload);
+  };
+  if (trip && !onThisTrip) {
+    // The current-trip plate is included in the payload as a destination the
+    // model can pick. The render draws it separately as `hero`, not inside
+    // the rows.map, so it does not appear in allRows here; it is filtered
+    // above through heroMatches.
+    menuPayload.push({
+      key: "hero",
+      kind: "link",
+      label: trip.name || "",
+      sub: where
+        ? `Happening now, day ${where}`
+        : soon
+          ? `Next trip, ${soon}`
+          : "Next trip",
+      here: onThisTrip,
+    });
+  }
   if (insideTrip) {
-    const wayout = {
-      kind: "wayout",
-      key: "wayout",
-      href: "/trips",
-      label: "All trips",
-      Icon: BackIcon,
-      lead: true,
-      i: seat,
-    };
-    if (matches(wayout)) {
-      rows.push(wayout);
-      seat++;
-    }
+    pushRow(
+      {
+        kind: "wayout",
+        key: "wayout",
+        href: "/trips",
+        label: "All trips",
+        Icon: BackIcon,
+        lead: true,
+      },
+      {
+        key: "wayout",
+        kind: "link",
+        label: "All trips",
+        sub: "Back out of this trip",
+      },
+    );
   }
   if (secondary) {
     for (const row of SECONDARY_ROWS) {
-      const entry = {
-        kind: "link",
-        key: row.href,
-        ...row,
-        active: onScreen(row.href, pathname),
-        i: seat,
-      };
-      if (matches(entry)) {
-        rows.push(entry);
-        seat++;
-      }
+      pushRow(
+        {
+          kind: "link",
+          key: row.href,
+          ...row,
+          active: onScreen(row.href, pathname),
+        },
+        {
+          key: row.href,
+          kind: "link",
+          label: row.label || "",
+          sub: row.sub || "",
+          here: currentPathKey === row.href,
+        },
+      );
     }
   } else {
     for (const g of GROUPS) {
-      // A group's kids all belong to it whether it is open or not while a
-      // filter is running; only the current open group's kids show without a
-      // filter. That way a query typed into the box surfaces the thing the
-      // user is trying to find without them having to open the group first --
-      // which is what a search into a menu is for.
-      const kidEntries = g.kids.map((kid, n) => ({
-        kind: "link",
-        kid: true,
-        last: n === g.kids.length - 1,
-        key: kid.href,
-        ...kid,
-        active:
-          onScreen(kid.href, pathname, Boolean(kid.view)) &&
-          (!kid.view || (view || "upcoming") === kid.view),
-      }));
-      const header = {
-        kind: "group",
-        key: g.key,
-        label: g.label,
-        sub: g.sub,
-        Icon: g.Icon,
-        badge: g.badge,
-        lead: !insideTrip && g.key === "journal",
-      };
-      const headerMatches = matches(header);
-      const matchingKids = kidEntries.filter((k) => matches(k));
-      // Group header shows if it itself matches, or a kid under it matches;
-      // the kids shown are all its kids when the header itself matched, and
-      // only the matching kids when the query found the kid rather than the
-      // group. Without a filter we fall back to the previous rule of showing
-      // kids only for the open group. If nothing under it matches and the
-      // header itself does not, the whole group drops out.
-      const showHeader = headerMatches || matchingKids.length > 0;
-      if (!showHeader) continue;
-      rows.push({ ...header, i: seat });
-      seat++;
-      let kidsToShow;
-      if (filtering) {
-        kidsToShow = headerMatches ? kidEntries : matchingKids;
-      } else if (group === g.key) {
-        kidsToShow = kidEntries;
-      } else {
-        kidsToShow = [];
-      }
-      kidsToShow.forEach((kid) => {
-        rows.push({ ...kid, i: seat });
-        seat++;
+      pushRow(
+        {
+          kind: "group",
+          key: `group:${g.key}`,
+          groupKey: g.key,
+          label: g.label,
+          sub: g.sub,
+          Icon: g.Icon,
+          badge: g.badge,
+          lead: !insideTrip && g.key === "journal",
+        },
+        {
+          key: `group:${g.key}`,
+          kind: "group",
+          label: g.label || "",
+          sub: g.sub || "",
+        },
+      );
+      g.kids.forEach((kid, n) => {
+        pushRow(
+          {
+            kind: "link",
+            kid: true,
+            last: n === g.kids.length - 1,
+            key: kid.href,
+            groupKey: g.key,
+            ...kid,
+            active:
+              onScreen(kid.href, pathname, Boolean(kid.view)) &&
+              (!kid.view || (view || "upcoming") === kid.view),
+          },
+          {
+            key: kid.href,
+            kind: "link",
+            parent: `group:${g.key}`,
+            label: kid.label || "",
+            sub: kid.sub || "",
+            here: currentPathKey === kid.href,
+          },
+        );
       });
     }
-    const settings = {
-      kind: "link",
-      key: SETTINGS.href,
-      ...SETTINGS,
-      active: onScreen(SETTINGS.href, pathname),
-      i: seat,
-    };
-    if (matches(settings)) {
-      rows.push(settings);
+    pushRow(
+      {
+        kind: "link",
+        key: SETTINGS.href,
+        ...SETTINGS,
+        active: onScreen(SETTINGS.href, pathname),
+      },
+      {
+        key: SETTINGS.href,
+        kind: "link",
+        label: SETTINGS.label || "",
+        sub: SETTINGS.sub || "",
+        here: currentPathKey === SETTINGS.href,
+      },
+    );
+  }
+  rowsForFilterRef.current = menuPayload;
+
+  // Apply the filter, and count the seat down the column so the entrance
+  // stagger stays in draw order. Without a filter, the previous rule stands:
+  // only the open group's kids show. With a settled filter, only rows whose
+  // keys came back from the model show; when a kid is included but its
+  // group's key is not, the group header is added back so the kid does not
+  // appear parentless in the column.
+  const includedKeys = filterReady ? new Set(navFilter.keys) : null;
+  if (includedKeys) {
+    for (const row of allRows) {
+      if (row.kind === "link" && row.kid && !includedKeys.has(row.key))
+        continue;
+      if (row.kind === "link" && row.kid && includedKeys.has(row.key)) {
+        if (row.groupKey) includedKeys.add(`group:${row.groupKey}`);
+      }
+    }
+  }
+  const rows = [];
+  let seat = 1;
+  const orderIndex = (row) => {
+    if (!keyOrder) return 0;
+    const idx = keyOrder.get(row.key);
+    return idx === undefined ? 9999 : idx;
+  };
+  const passesFilter = (row) => {
+    if (!includedKeys) return true;
+    return includedKeys.has(row.key);
+  };
+  if (filterReady) {
+    // Ordered by the model's ranking, with group headers pulled to sit just
+    // above their kids so a filtered folder still looks like a folder.
+    const kept = allRows.filter(passesFilter);
+    // Group kids under their group in the final render regardless of the
+    // model's exact ordering; the model picks who is in, the client picks
+    // where the header goes so the column reads as a menu rather than as a
+    // ranked list.
+    const groupOrder = new Map();
+    const groupKids = new Map();
+    const flatOrdered = [];
+    kept.sort((a, b) => orderIndex(a) - orderIndex(b));
+    for (const row of kept) {
+      if (row.kind === "group") {
+        if (!groupOrder.has(row.groupKey)) {
+          groupOrder.set(row.groupKey, flatOrdered.length);
+          flatOrdered.push(row);
+          groupKids.set(row.groupKey, []);
+        }
+      } else if (row.kind === "link" && row.kid && row.groupKey) {
+        if (!groupOrder.has(row.groupKey)) {
+          const parent = allRows.find(
+            (r) => r.kind === "group" && r.groupKey === row.groupKey,
+          );
+          if (parent) {
+            groupOrder.set(row.groupKey, flatOrdered.length);
+            flatOrdered.push(parent);
+            groupKids.set(row.groupKey, []);
+          }
+        }
+        groupKids.get(row.groupKey)?.push(row);
+      } else {
+        flatOrdered.push(row);
+      }
+    }
+    // Weave kids in right after their group.
+    for (const row of flatOrdered) {
+      rows.push({ ...row, i: seat });
+      seat++;
+      if (row.kind === "group" && groupKids.has(row.groupKey)) {
+        const kids = groupKids.get(row.groupKey) || [];
+        // The last kid loses its bottom border in the pill styling.
+        kids.forEach((kid, idx) => {
+          rows.push({ ...kid, last: idx === kids.length - 1, i: seat });
+          seat++;
+        });
+      }
+    }
+  } else {
+    // Unfiltered: the previous rule stands.
+    for (const row of allRows) {
+      if (row.kind === "link" && row.kid) {
+        if (row.groupKey !== group) continue;
+      }
+      rows.push({ ...row, i: seat });
       seat++;
     }
   }
@@ -615,7 +835,7 @@ export default function NavTabs({
                     against every other list in the app. */}
                 {rows.map((row) => {
                   if (row.kind === "group") {
-                    const isOpen = group === row.key;
+                    const isOpen = group === row.groupKey;
                     const count = row.badge && !isOpen ? attention : 0;
                     return (
                       <button
@@ -624,7 +844,7 @@ export default function NavTabs({
                         aria-expanded={isOpen}
                         onClick={() =>
                           setGroup((held) =>
-                            held === row.key ? null : row.key,
+                            held === row.groupKey ? null : row.groupKey,
                           )
                         }
                         style={{ "--arc-i": row.i }}
@@ -756,7 +976,7 @@ export default function NavTabs({
                     empty for a reason the user cannot see from the outside;
                     say so, in one small line the same width as the pills, so
                     the field they typed into does not look broken. */}
-                {filtering && rows.length === 0 && !hero && (
+                {filterReady && rows.length === 0 && !hero && (
                   <p className="px-1 py-2 text-[0.78rem] text-ink/60">
                     Nothing in the menu matches
                     {" \u201C"}
@@ -764,39 +984,6 @@ export default function NavTabs({
                     {"\u201D"}.
                   </p>
                 )}
-                {/* The search field. Along the bottom of the column, so it
-                    reads as a way of filtering what is above it rather than as
-                    a control on the page beneath. Typing narrows the pills in
-                    place; Escape closes the menu the same way it always did.
-                    The field takes the full width of the pill column so it
-                    sits under them without a jog to the left or the right. */}
-                <div className="mt-1.5 w-full">
-                  <div className="flex items-center gap-2 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] px-4 py-2 shadow-[var(--disc-shadow)]">
-                    <SearchIcon className="h-4 w-4 shrink-0 text-ink/50" />
-                    <input
-                      ref={queryInputRef}
-                      type="text"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="What would you like to do?"
-                      aria-label="Filter the menu"
-                      className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink/50 focus:outline-none"
-                    />
-                    {query && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQuery("");
-                          queryInputRef.current?.focus();
-                        }}
-                        aria-label="Clear the filter"
-                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink/50 transition hover:bg-ink/5 hover:text-ink"
-                      >
-                        <CloseIcon className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -805,7 +992,7 @@ export default function NavTabs({
 
       <nav
         aria-label="Main menu"
-        aria-hidden={keyboardOpen ? "true" : undefined}
+        aria-hidden={keyboardOpen && !open ? "true" : undefined}
         /* No surface of its own: two discs lying on the page, and the page
            visible everywhere between and behind them. The wrapper takes no
            presses -- only the discs do -- so the strip of screen either side of
@@ -818,8 +1005,11 @@ export default function NavTabs({
           present ? "z-[39]" : "z-30"
         } px-4 transition-transform duration-200 ${
           // Out of reach as well as out of sight, so a tap meant for the field
-          // underneath cannot land on a control on the way down.
-          keyboardOpen ? "translate-y-[130%]" : ""
+          // underneath cannot land on a control on the way down -- except
+          // while the menu is open, where the software keyboard is up on
+          // purpose because the search field beside the compass is what the
+          // user is typing into. Hiding the bar then would hide the field.
+          keyboardOpen && !open ? "translate-y-[130%]" : ""
         }`}
         style={{
           paddingBottom:
@@ -829,7 +1019,9 @@ export default function NavTabs({
         <div className="mx-auto flex max-w-5xl items-end justify-between gap-3">
           <button
             type="button"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => {
+              setOpen((v) => !v);
+            }}
             aria-expanded={open}
             aria-label={open ? "Close the menu" : "Open the menu"}
             /* Face, edge and shadow all come from the skin. On the two dark
@@ -855,6 +1047,7 @@ export default function NavTabs({
               className="h-[52px] w-[52px] shrink-0"
               bezel
               turned={open}
+              spinning={navFetching}
             />
             {/* The one number worth interrupting somebody for still shows on the
               closed control, because it lives on a screen the menu is hiding. */}
@@ -865,11 +1058,46 @@ export default function NavTabs({
               </span>
             )}
           </button>
-          {/* Ask Aly hides while the menu is open, because the search field
-              along the bottom of the menu is now the way to reach Aly from a
-              typed question -- two teal discs on top of each other with the
-              same purpose would read as a two-button choice for something
-              that is really one. It returns the moment the menu closes. */}
+          {/* When the menu is open a search field grows between the compass
+              and where Ask Aly usually is; Ask Aly hides in that state. The
+              field lives in the bar rather than in the arc above it so a
+              query and the compass that opened the menu read as one control
+              -- typing on the row you tapped -- rather than as a second
+              surface to reach for. Aly comes back the moment the menu
+              closes. */}
+          {open && (
+            <div className="pointer-events-auto flex flex-1 items-center gap-2 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] px-4 h-11 shadow-[var(--disc-shadow)] transition">
+              <SearchIcon className="h-4 w-4 shrink-0 text-ink/50" />
+              <input
+                ref={queryInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  // Escape closes the menu from inside the field so a person
+                  // whose hands are on the keyboard does not have to reach
+                  // for the compass again.
+                  if (e.key === "Escape") setOpen(false);
+                }}
+                placeholder="What would you like to do?"
+                aria-label="Filter the menu"
+                className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink/50 focus:outline-none"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    queryInputRef.current?.focus();
+                  }}
+                  aria-label="Clear the filter"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink/60 transition hover:bg-ink/5 hover:text-ink"
+                >
+                  <CloseIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
           {showAsk &&
             !open &&
             (askLive ? (

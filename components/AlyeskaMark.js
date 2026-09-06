@@ -59,11 +59,16 @@ const BEZEL = [
  * @param turned Swing the needle a quarter turn. The bezel does not move --
  *               on a real compass the card stays put and the needle points, and
  *               a rotating set of graduations would put north on the east mark.
+ * @param spinning Continuously rotate the needle. Overrides `turned`. Used as
+ *               a loading indicator: the same needle that points at things
+ *               is now looking for one, which is a truer picture of what is
+ *               happening than a separate spinner beside it would be.
  */
 export default function AlyeskaMark({
   className = "h-7 w-7",
   bezel = false,
   turned = false,
+  spinning = false,
 }) {
   const scale = bezel ? 0.72 : 1;
   return (
@@ -85,11 +90,24 @@ export default function AlyeskaMark({
           />
         ))}
       <g
-        style={{
-          transform: `rotate(${turned ? 90 : 0}deg) scale(${scale})`,
-          transformOrigin: "50% 50%",
-          transition: "transform 200ms ease-out",
-        }}
+        className={spinning ? "alyeska-mark-drift" : undefined}
+        style={
+          spinning
+            ? {
+                // The spin runs on its own keyframes; scale is applied to the
+                // element itself, and the CSS animation carries the rotation.
+                // Cannot combine an inline transform with a CSS animation that
+                // sets transform without the animation overwriting the scale,
+                // so the CSS rule includes the scale via a CSS variable.
+                transformOrigin: "50% 50%",
+                ["--alyeska-mark-scale"]: scale,
+              }
+            : {
+                transform: `rotate(${turned ? 90 : 0}deg) scale(${scale})`,
+                transformOrigin: "50% 50%",
+                transition: "transform 200ms ease-out",
+              }
+        }
       >
         <path fillRule="evenodd" fill="currentColor" d={OUTLINE} />
         <path d={WEST} fill="currentColor" opacity="0.28" />
