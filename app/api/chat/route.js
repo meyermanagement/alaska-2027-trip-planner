@@ -210,7 +210,7 @@ export async function POST(request) {
   // it becomes the default target for anything the user does not pin elsewhere.
   const [access, snapshot, conversationList] = await Promise.all([
     resolveAccess(supabase, user),
-    loadEverything(supabase, user.id, tripId || null, said),
+    loadEverything(supabase, user.id, tripId || null, said, focus),
     // Best effort, and asked for here rather than after the conversation is
     // opened because it does not depend on which conversation this is.
     listConversations(supabase, 20).catch(() => ({ conversations: [] })),
@@ -274,6 +274,8 @@ export async function POST(request) {
     travelerName: access?.travelerName,
     // The roster, so her opening line names whoever actually uses this account.
     people: ctx.travelerNames,
+    // Whose blanks are being filled in, when that is what this screen is for.
+    intervieweeName: ctx.intervieweeName,
   });
   // Not all 28 of them: the ones this screen and these words could plausibly
   // need. See lib/agent/toolset.js for why fewer is more accurate as well as
@@ -933,7 +935,13 @@ export async function POST(request) {
 }
 
 // Everything the family has, in one snapshot. RLS keeps it to their own rows.
-async function loadEverything(supabase, userId, focusTripId, said = "") {
+async function loadEverything(
+  supabase,
+  userId,
+  focusTripId,
+  said = "",
+  focus = null,
+) {
   const [
     profile,
     trips,
@@ -954,6 +962,8 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     tripTemplates,
     households,
     costs,
+    facts,
+    slots,
   ] = await Promise.all([
     // Who is asking. One more query in a batch of seventeen costs nothing; on
     // its own, in front of them, it cost a whole round trip.
@@ -1058,6 +1068,18 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
         "id, trip_id, label, category, cost_estimate, cost_actual, cost_note",
       )
       .order("created_at", { ascending: true }),
+    // The constraint layer: allergies, mobility, languages, ages. Read on every
+    // turn rather than only on the Family tab, because a rule that is only
+    // visible on one screen is a rule that gets broken on the others.
+    supabase
+      .from("household_facts")
+      .select("id, traveler_id, kind, slot, body, source")
+      .order("created_at", { ascending: true }),
+    // The interview ledger, so a conversation knows what has already been put to
+    // this person and what they waved off.
+    supabase
+      .from("traveler_slots")
+      .select("traveler_id, slot, status, asked_count, last_question, note"),
   ]);
 
   return buildContext({
@@ -1081,6 +1103,9 @@ async function loadEverything(supabase, userId, focusTripId, said = "") {
     tripPets: tripPets.data || [],
     insights: insights.data || [],
     costs: costs.data || [],
+    facts: facts.data || [],
+    slots: slots.data || [],
+    focus,
     message: said,
     userName: profile?.data?.display_name,
     home: households?.data?.[0] || null,

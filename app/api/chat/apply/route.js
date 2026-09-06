@@ -72,6 +72,8 @@ const LANDING_PATH = {
   update_pet: ["/family", "the Family tab"],
   delete_pet: ["/family", "the Family tab"],
   add_preference: ["/family", "the Family tab"],
+  record_household_fact: ["/family", "the Family tab"],
+  set_slot_status: ["/family", "the Family tab"],
   update_preference: ["/family", "the Family tab"],
   delete_preference: ["/family", "the Family tab"],
   set_person_details: ["/family", "the Family tab"],
@@ -666,6 +668,48 @@ export async function POST(request) {
             });
             if (outcome.message) extra = ` — ${outcome.message}`;
           }
+        }
+      } else if (table === "traveler_slots") {
+        // One row per person per question, so this is an upsert rather than an
+        // insert. Done by hand instead of onConflict because the uniqueness is
+        // enforced by two partial indexes -- a household slot has no traveler --
+        // and Postgres cannot infer a partial index from a plain upsert.
+        const slotTraveler = patch.traveler_id || null;
+        const finder = supabase
+          .from("traveler_slots")
+          .select("id, asked_count")
+          .eq("family_id", familyId)
+          .eq("slot", patch.slot);
+        const { data: existing } = await (
+          slotTraveler
+            ? finder.eq("traveler_id", slotTraveler)
+            : finder.is("traveler_id", null)
+        ).maybeSingle();
+        const nowIso = new Date().toISOString();
+        if (existing) {
+          const { error: e } = await supabase
+            .from("traveler_slots")
+            .update({
+              ...patch,
+              // Counted here rather than by the model, which has no way of
+              // knowing how many times this question has been put before.
+              asked_count:
+                patch.status === "asking"
+                  ? (existing.asked_count || 0) + 1
+                  : existing.asked_count || 0,
+              updated_at: nowIso,
+              updated_by: user.id,
+            })
+            .eq("id", existing.id);
+          dbError = e;
+        } else {
+          const { error: e } = await supabase.from("traveler_slots").insert({
+            ...patch,
+            family_id: familyId,
+            asked_count: patch.status === "asking" ? 1 : 0,
+            updated_by: user.id,
+          });
+          dbError = e;
         }
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.
