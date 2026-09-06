@@ -438,36 +438,101 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 // The "why" panel appears only after the primary has picked an option, so the
 // screen before a choice reads as "answer this question" rather than as a wall
 // of controls. Once an answer is picked, the panel slides in as a tinted card
-// with a friendly heading -- "Why? (Optional.)" -- a row of suggestion chips
-// (which chips depend on which option was picked; "Something else" swaps in a
-// separate set), and the reason textarea underneath. The tint and the heading
-// are the invitation to say a little more, without pretending the field is
-// required.
+// with a friendly heading -- "Why? (Optional.)" and "Something else" swaps it
+// to "What fits better?". Suggestions are togglable pills that append their
+// text to the reason on its own line; tapping again removes just that line,
+// so several suggestions can stack into a fuller answer without retyping.
+// Once the primary has picked at least one suggestion, a second "More" row
+// appears with the rest of the question's suggestions (the other options'
+// reasons and the otherReasons fallbacks), because somebody who wanted to say
+// more is probably also willing to say more precisely.
 function WhyPanel({ choice, question, text, setText }) {
-  const list = (() => {
-    if (choice === "other") return question.otherReasons || [];
+  const isOther = choice === "other";
+  const primary = (() => {
+    if (isOther) return question.otherReasons || [];
     const opt = (question.options || []).find((o) => o.value === choice);
     return (opt && opt.reasons) || [];
   })();
-  const isOther = choice === "other";
+  const rest = (() => {
+    const seen = new Set(primary.map((s) => s.toLowerCase()));
+    const bag = [];
+    if (!isOther) {
+      for (const opt of question.options || []) {
+        if (opt.value === choice) continue;
+        for (const r of opt.reasons || []) {
+          if (!seen.has(r.toLowerCase())) {
+            seen.add(r.toLowerCase());
+            bag.push(r);
+          }
+        }
+      }
+    }
+    for (const r of question.otherReasons || []) {
+      if (!seen.has(r.toLowerCase())) {
+        seen.add(r.toLowerCase());
+        bag.push(r);
+      }
+    }
+    return bag;
+  })();
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const activeSet = new Set(lines.map((s) => s.toLowerCase()));
+  const anyPicked = primary.some((c) => activeSet.has(c.toLowerCase()));
+
+  function toggle(chip) {
+    const has = activeSet.has(chip.toLowerCase());
+    if (has) {
+      const next = lines.filter((l) => l.toLowerCase() !== chip.toLowerCase());
+      setText(next.join("\n"));
+    } else {
+      const next = [...lines, chip];
+      setText(next.join("\n"));
+    }
+  }
+
+  function Chip({ chip }) {
+    const on = activeSet.has(chip.toLowerCase());
+    return (
+      <button
+        type="button"
+        onClick={() => toggle(chip)}
+        aria-pressed={on}
+        className={
+          on
+            ? "rounded-full border border-teal bg-teal-soft/60 px-3 py-1.5 text-sm text-ink shadow-sm"
+            : "rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
+        }
+      >
+        {chip}
+      </button>
+    );
+  }
+
   return (
     <div className="mt-4 rounded-2xl border border-teal/30 bg-teal-soft/25 p-4">
       <p className="font-display text-lg text-ink">
         {isOther ? "What fits better?" : "Why? (Optional.)"}
       </p>
-      {list.length > 0 && (
+      {primary.length > 0 && (
         <div className="mt-3">
           <p className="section-label text-ink-soft">Suggestions</p>
           <div className="mt-1 flex flex-wrap gap-2">
-            {list.map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => setText(chip)}
-                className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
-              >
-                {chip}
-              </button>
+            {primary.map((chip) => (
+              <Chip key={chip} chip={chip} />
+            ))}
+          </div>
+        </div>
+      )}
+      {anyPicked && rest.length > 0 && (
+        <div className="mt-3">
+          <p className="section-label text-ink-soft">More</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {rest.map((chip) => (
+              <Chip key={chip} chip={chip} />
             ))}
           </div>
         </div>
