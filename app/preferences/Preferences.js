@@ -46,6 +46,14 @@ const NO_TOPIC_KEY = "\u0000none";
 /** Where the shut topic headings are remembered between visits. */
 const FOLD_KEY = "alyeska.preferences.shut";
 
+/**
+ * How many preferences a topic can show before it caps itself off with a Show
+ * all chip. Small enough that a page with a dozen topics stays skimmable
+ * without any topic being cut off in the ordinary case, since most of ours run
+ * three or four preferences long.
+ */
+const SECTION_CAP = 8;
+
 const EXAMPLES = [
   "Public transport over a rental car in cities, rental car anywhere rural.",
   "Hotels, not camping. A resort we do not have to leave beats a cheaper room in town.",
@@ -101,17 +109,25 @@ export default function Preferences({
   // collapses Accommodations finds it collapsed tomorrow: a fold somebody chose
   // is a preference, and forgetting it every reload would make the control a toy.
   const [shut, setShut] = useState(() => new Set());
+  // A word or two the reader typed, matched against the body of a preference,
+  // the topics it is under, and the names of who it is for.
+  const [query, setQuery] = useState("");
+  // Which topic sections the reader has asked to see everything of. A long topic
+  // is capped at SECTION_CAP so the whole page is skimmable, and a chip on the
+  // heading gives up the rest on demand.
+  const [expanded, setExpanded] = useState({});
 
   const counts = useMemo(
     () => whoseCounts(prefs, travelers),
     [prefs, travelers],
   );
 
-  // Two filters, applied in the order they read on the screen: whose it is, then
-  // what it is about. There used to be a third, which trip a preference gets used
-  // on -- but a preference is a standing answer about how this family travels, so
-  // the honest answer for nearly all of them is every trip, and a filter whose
+  // Three filters, applied in the order they read on the screen: whose it is,
+  // what it is about, and a free-text search. There used to be a trip filter --
+  // a preference is a standing answer about how this family travels, so the
+  // honest answer for nearly all of them is every trip, and a filter whose
   // default is "all of them" was a control for a question nobody had.
+  const q = query.trim().toLowerCase();
   const shown = useMemo(() => {
     let list = prefs;
     if (whose === SHARED_LABEL) list = list.filter((p) => isShared(p));
@@ -122,8 +138,23 @@ export default function Preferences({
       list = list.filter((p) =>
         topicsOf(p).some((t) => normalizeTopic(t) === topicKey),
       );
+    if (q) {
+      list = list.filter((p) => {
+        if (
+          String(p.body || "")
+            .toLowerCase()
+            .includes(q)
+        )
+          return true;
+        if (topicsOf(p).some((t) => String(t).toLowerCase().includes(q)))
+          return true;
+        if (whoseNames(p, travelers).some((n) => n.toLowerCase().includes(q)))
+          return true;
+        return false;
+      });
+    }
     return list;
-  }, [prefs, whose, topicKey]);
+  }, [prefs, whose, topicKey, q, travelers]);
 
   // Grouped in planning order, the same every time it is drawn. A preference
   // about two things appears under both, and says so.
@@ -308,7 +339,7 @@ export default function Preferences({
   // not a remembered fold for a topic that no longer exists.
   const allShut = groups.length > 0 && groups.every((g) => shut.has(g.key));
 
-  const filtered = Boolean(whose || topicKey);
+  const filtered = Boolean(whose || topicKey || q);
 
   // A filtered list ignores the folds. Somebody who asks for Food has asked for
   // those three preferences by name, and honouring a fold set while browsing the
@@ -333,6 +364,7 @@ export default function Preferences({
       parts.push(
         `about ${topicChips.find((r) => r.key === topicKey)?.label || "one topic"}`,
       );
+    if (q) parts.push(`matching \u201C${query.trim()}\u201D`);
     return `Showing ${parts.join(", ")} \u2014 ${shown.length} of ${prefs.length}.`;
   }, [
     filtered,
@@ -342,12 +374,24 @@ export default function Preferences({
     topicKey,
     topicChips,
     travelers,
+    q,
+    query,
   ]);
 
   function clearFilters() {
     setWhose("");
     setTopicKey("");
+    setQuery("");
   }
+
+  // Changing what is on screen changes which headings ought to be open, so a
+  // fold set while reading the whole list stops applying -- and a search that
+  // just found something should not hand back a heading with nothing under it.
+  // Same reasoning for the per-section Show all: the cap is about a whole,
+  // uncut list, not about the filtered slice.
+  useEffect(() => {
+    setExpanded({});
+  }, [whose, topicKey, q]);
 
   async function save(id, values) {
     // Measured now, while the form is still on screen and the row is still where
@@ -594,12 +638,22 @@ export default function Preferences({
 
       {prefs.length > 0 && (
         <div className="no-print mt-4 space-y-2">
-          {/* On screen, not behind a Filter link. Two questions people actually
-              ask of this list -- whose is it, and what is it about -- are chips
-              you can see, and the third, which trip it gets used on, is a picker
-              rather than a row of twenty-one trip names. Hiding all three meant
-              the answer to "why am I only seeing four" was one tap away instead
-              of in front of you. */}
+          {/* A search box first, then chips for the questions people actually
+              ask of this list -- whose is it, and what is it about. The search
+              matches the body of a preference, the topics it is filed under,
+              and the names of who it is for, so a hunt for one line does not
+              have to know which topic it lived under. Filters compose: search
+              narrows what the chips are counting, and vice versa. */}
+          <label className="block">
+            <span className="sr-only">Search these preferences</span>
+            <input
+              type="search"
+              className="field"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search a preference, a topic, or a name"
+            />
+          </label>
           <div className="flex flex-wrap items-center gap-2">
             <span className="section-label">Whose</span>
             <Chip on={!whose} onClick={() => setWhose("")}>
@@ -797,119 +851,157 @@ export default function Preferences({
           filters above to see them.
         </p>
       ) : (
-        <div className="mt-4 space-y-5">
-          {groups.map((group) => (
-            <div key={group.key || "_none"}>
-              <div className="flex flex-wrap items-baseline gap-2">
-                <button
-                  type="button"
-                  className="flex items-baseline gap-2 text-left"
-                  aria-expanded={!isShut(group.key)}
-                  onClick={() => toggleGroup(group.key)}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`text-[0.6rem] text-ink-faint transition-transform ${
-                      isShut(group.key) ? "" : "rotate-90"
-                    }`}
-                  >
-                    ▸
-                  </span>
-                  <span className="section-label">{group.label}</span>
-                  <span className="text-xs text-ink-faint">
-                    {group.items.length}
-                  </span>
-                </button>
-                {group.key && !isShut(group.key) && (
+        <div className="mt-4 space-y-6">
+          {groups.map((group) => {
+            const open = !isShut(group.key);
+            const showAll = Boolean(expanded[group.key || "_none"]);
+            const capped =
+              !showAll && group.items.length > SECTION_CAP
+                ? group.items.slice(0, SECTION_CAP)
+                : group.items;
+            const hidden = group.items.length - capped.length;
+            return (
+              <section key={group.key || "_none"}>
+                {/* One heading, styled the way Past reviews styles its groups so a
+                  reader who has learned one page has learned the other. The
+                  whole row is the button -- chevron, name, hairline, count --
+                  which makes it obvious enough that tapping anywhere on it
+                  minimises or expands the topic. Rename sits to the right and
+                  only appears when a real topic is open, since renaming
+                  "Everything else" is not a thing you can do. */}
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    className="no-print text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                    onClick={() =>
-                      setRenaming(
-                        renaming?.key === group.key
-                          ? null
-                          : { key: group.key, from: group.label },
-                      )
-                    }
+                    aria-expanded={open}
+                    onClick={() => toggleGroup(group.key)}
+                    className="flex flex-1 items-center gap-3 text-left"
                   >
-                    {renaming?.key === group.key ? "Never mind" : "Rename"}
-                  </button>
-                )}
-              </div>
-              {renaming?.key === group.key && (
-                <TopicRename
-                  from={group.label}
-                  count={group.items.length}
-                  existing={topicsInUse(prefs)}
-                  busy={busy}
-                  onCancel={() => setRenaming(null)}
-                  onSave={(next) => renameTopic(group.label, next)}
-                />
-              )}
-              <ul
-                className={`mt-1.5 space-y-2 ${isShut(group.key) ? "hidden" : ""}`}
-              >
-                {group.items.map(({ pref, also }) =>
-                  editing === pref.id ? (
-                    <li
-                      key={pref.id}
-                      data-pref-row={pref.id}
-                      className="rounded-xl border border-[var(--line)] bg-sand/40 p-3"
+                    <span
+                      className={`text-ink-faint transition ${open ? "rotate-90" : ""}`}
+                      aria-hidden="true"
                     >
-                      <PreferenceForm
-                        pref={pref}
-                        travelers={travelers}
-                        preferences={prefs}
-                        busy={busy}
-                        onCancel={() => {
-                          holdRow(pref.id);
-                          setEditing(null);
-                        }}
-                        onDelete={() => remove(pref)}
-                        onSave={(values) => save(pref.id, values)}
-                      />
-                    </li>
-                  ) : (
-                    <li key={pref.id} data-pref-row={pref.id}>
-                      <button
-                        type="button"
-                        className="group w-full rounded-xl border border-[var(--line)] bg-white p-3 text-left hover:border-teal/40"
-                        onClick={() => {
-                          setAdding(false);
-                          setEditing(pref.id);
-                        }}
-                      >
-                        <p className="text-sm leading-relaxed whitespace-pre-line">
-                          {pref.body}
-                        </p>
-                        {(!isShared(pref) || also.length > 0) && (
-                          <span className="mt-1.5 flex flex-wrap items-center gap-2">
-                            {/* One chip per owner rather than one chip reading
+                      ▶
+                    </span>
+                    <h2 className="font-display text-xl font-semibold">
+                      {group.label}
+                    </h2>
+                    <span
+                      className="h-px flex-1 bg-sand-deep"
+                      aria-hidden="true"
+                    />
+                    <span className="whitespace-nowrap text-xs font-semibold text-ink-soft">
+                      {group.items.length}
+                    </span>
+                  </button>
+                  {group.key && open && (
+                    <button
+                      type="button"
+                      className="no-print whitespace-nowrap text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                      onClick={() =>
+                        setRenaming(
+                          renaming?.key === group.key
+                            ? null
+                            : { key: group.key, from: group.label },
+                        )
+                      }
+                    >
+                      {renaming?.key === group.key ? "Never mind" : "Rename"}
+                    </button>
+                  )}
+                </div>
+                {open && renaming?.key === group.key && (
+                  <div className="mt-2 pl-7">
+                    <TopicRename
+                      from={group.label}
+                      count={group.items.length}
+                      existing={topicsInUse(prefs)}
+                      busy={busy}
+                      onCancel={() => setRenaming(null)}
+                      onSave={(next) => renameTopic(group.label, next)}
+                    />
+                  </div>
+                )}
+                {open && (
+                  <>
+                    <ul className="mt-3 space-y-2">
+                      {capped.map(({ pref, also }) =>
+                        editing === pref.id ? (
+                          <li
+                            key={pref.id}
+                            data-pref-row={pref.id}
+                            className="rounded-xl border border-[var(--line)] bg-sand/40 p-3"
+                          >
+                            <PreferenceForm
+                              pref={pref}
+                              travelers={travelers}
+                              preferences={prefs}
+                              busy={busy}
+                              onCancel={() => {
+                                holdRow(pref.id);
+                                setEditing(null);
+                              }}
+                              onDelete={() => remove(pref)}
+                              onSave={(values) => save(pref.id, values)}
+                            />
+                          </li>
+                        ) : (
+                          <li key={pref.id} data-pref-row={pref.id}>
+                            <button
+                              type="button"
+                              className="group w-full rounded-xl border border-[var(--line)] bg-white p-3 text-left hover:border-teal/40"
+                              onClick={() => {
+                                setAdding(false);
+                                setEditing(pref.id);
+                              }}
+                            >
+                              <p className="text-sm leading-relaxed whitespace-pre-line">
+                                {pref.body}
+                              </p>
+                              {(!isShared(pref) || also.length > 0) && (
+                                <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                                  {/* One chip per owner rather than one chip reading
                                 "Mark & Steph": the colour is what makes a name
                                 findable down a long list, and a pair sharing
                                 one chip can only have one colour. */}
-                            {whoseNames(pref, travelers).map((name) => (
-                              <span
-                                key={name}
-                                className={`chip ${assigneeColor(name)}`}
-                              >
-                                {name}
-                              </span>
-                            ))}
-                            {also.length > 0 && (
-                              <span className="text-xs text-ink-faint">
-                                Also under {also.join(" and ")}
-                              </span>
-                            )}
-                          </span>
-                        )}
+                                  {whoseNames(pref, travelers).map((name) => (
+                                    <span
+                                      key={name}
+                                      className={`chip ${assigneeColor(name)}`}
+                                    >
+                                      {name}
+                                    </span>
+                                  ))}
+                                  {also.length > 0 && (
+                                    <span className="text-xs text-ink-faint">
+                                      Also under {also.join(" and ")}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                    {hidden > 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost mt-3 px-3 py-1.5 text-xs"
+                        onClick={() =>
+                          setExpanded((prev) => ({
+                            ...prev,
+                            [group.key || "_none"]: true,
+                          }))
+                        }
+                      >
+                        Show all {group.items.length}
                       </button>
-                    </li>
-                  ),
+                    )}
+                  </>
                 )}
-              </ul>
-            </div>
-          ))}
+              </section>
+            );
+          })}
         </div>
       )}
     </section>
