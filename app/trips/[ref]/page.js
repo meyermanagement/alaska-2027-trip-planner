@@ -278,6 +278,7 @@ export default async function TripPage({ params, searchParams }) {
         initialPetLinks={petLinks.data || []}
         tips={tips.data || []}
         everLooked={Boolean(facts.data?.checked_at)}
+        lastCheckedAt={facts.data?.checked_at || null}
         packingTemplates={templates.data || []}
         packingTemplateItems={templateItems.data || []}
         tripTemplateIds={(tripTemplates.data || []).map((r) => r.template_id)}

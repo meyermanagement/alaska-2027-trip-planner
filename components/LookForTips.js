@@ -43,6 +43,13 @@ export default function LookForTips({
   onGo = null,
   readOnly = false,
   className = "",
+  // When true, run the look on mount without waiting for a press. The trip
+  // header hands this on for trips that are upcoming or in progress and have
+  // not been looked at in a while, so opening a trip does the check without
+  // making the family remember to press. The trip page still owns the
+  // decision -- staleness, draft, past, secondary -- so this component only
+  // has to trust it.
+  autoRun = false,
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -52,6 +59,8 @@ export default function LookForTips({
   const [landed, setLanded] = useState([]);
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef(0);
+
+  const autoRanRef = useRef(false);
 
   useEffect(() => {
     if (!busy) return;
@@ -108,6 +117,23 @@ export default function LookForTips({
     setBusy(false);
     setProgress(null);
   }, [chain, scope, tripId, router, onLooked]);
+
+  // Fires the same look the button fires, once, on mount. Guarded so a page
+  // that re-renders (a tab switch inside TripView does not remount this
+  // component, but a route change back to /trips does) never runs the look
+  // twice in one visit. The trip page decides when this is worth firing --
+  // once a day, and after the itinerary moves -- because a look costs most of
+  // a minute of grounded model time and the family opens a trip several
+  // times a day.
+  useEffect(() => {
+    if (!autoRun) return;
+    if (autoRanRef.current) return;
+    if (busy) return;
+    if (!tripId) return;
+    if (!mayWrite(readOnly ? SECONDARY : null, "tripTips")) return;
+    autoRanRef.current = true;
+    look();
+  }, [autoRun, busy, tripId, readOnly, look]);
 
   // Producing a tip is refused by policy for a secondary traveler -- pro_tips
   // carries a pro_tips_no_secondary_insert policy -- so the button is not

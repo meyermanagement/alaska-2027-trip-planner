@@ -155,6 +155,13 @@ export default function TripView({
   initialPetLinks = [],
   tips = [],
   everLooked = false,
+  // When the trip was last researched, ISO. Null on a trip nobody has ever
+  // looked at. Used to decide whether opening the trip should run the look on
+  // its own: yes if a new day has started since the last one, or the
+  // itinerary has moved since the last one; no otherwise, because a look
+  // costs most of a minute of grounded model time and nothing on the trip
+  // has changed that would give a different answer.
+  lastCheckedAt = null,
   packingTemplates = [],
   tripTemplateIds = [],
   templatesChosen = false,
@@ -488,6 +495,44 @@ export default function TripView({
   const autoEnd = dated[dated.length - 1] || null;
 
   const past = isPastTrip(info);
+
+  // Whether opening this trip should ask Aly to check for pro tips on its own,
+  // rather than waiting for somebody to press the button. Two ways in: a new
+  // calendar day has started since the last check, or the itinerary has moved
+  // since the last check (a booking added, a time shifted, a card removed).
+  // Both matter: a look on Tuesday morning may find advice that yesterday's
+  // did not, and an itinerary change can invalidate advice that was true
+  // against the old one. A trip that has never been looked at qualifies too.
+  //
+  // Deliberately not on every open. A trip look is five grounded model calls
+  // and most of a minute, and the family opens the same trip several times a
+  // day; running it every time would spend the budget on the same answers.
+  // Draft and past trips are out: a draft has nothing to research yet, and
+  // advice for a trip that is over is a footnote.
+  const shouldAutoLook = (() => {
+    if (readOnly) return false;
+    if (isDraftTrip(info)) return false;
+    if (past) return false;
+    if (!lastCheckedAt) return true;
+    const checked = Date.parse(lastCheckedAt);
+    if (!Number.isFinite(checked)) return true;
+    // Local midnight of today. A check yesterday afternoon and one at 8am
+    // today should both count as "once a day", so the boundary is the wall
+    // clock's midnight, not a rolling 24 hours.
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    if (checked < startOfToday.getTime()) return true;
+    // Newest itinerary edit. If the trip changed after the last check, the
+    // advice may no longer fit -- a flight added at 6am wants the check to
+    // notice by 6:01.
+    const newestEdit = itinerary
+      .map((row) => Date.parse(row?.updated_at || ""))
+      .filter((n) => Number.isFinite(n))
+      .reduce((a, b) => (b > a ? b : a), 0);
+    if (newestEdit > checked) return true;
+    return false;
+  })();
+
   const goingNames = people
     .filter((p) => going.includes(p.id))
     .map((p) => p.name);
@@ -634,6 +679,7 @@ export default function TripView({
                   onLooked={setLanded}
                   onGo={setTab}
                   readOnly={readOnly}
+                  autoRun={shouldAutoLook}
                 />
                 {/* Only on a trip that is over, and quieter than the two buttons
                     above it: tidying the shelf is not why anybody opened this
