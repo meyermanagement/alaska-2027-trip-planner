@@ -674,6 +674,38 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
 // would contradict it.
 const MORE_CAP = 10;
 
+// Client-side twin of the server's signatureOf in
+// app/api/interview/suggest/route.js. Same intent: two chips that only differ
+// by punctuation, pronoun choice, filler verbs, or boilerplate endings plan
+// the same day, so they are one chip. Kept in sync with the server so a
+// primary chip and an otherReasons chip that say the same thing in different
+// words are not both drawn, and so a stale cached follow-up cannot pass the
+// client's dedupe even if it slipped past the server's.
+function signatureOf(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(
+      /\b(we|the family|the kids|our family)\s+(?:would\s+(?:rather|prefer)|prefer(?:red)?\s+to|like(?:d)?\s+to|love\s+to|want\s+to|need\s+to|have\s+to|tend\s+to|try\s+to|are\s+going\s+to|are\s+used\s+to|end\s+up|always|usually|often|sometimes|mostly|never|rarely)\b/g,
+      "$1",
+    )
+    .replace(/\b(?:we|us|our|ours|the family|our family)\b/g, "we")
+    .replace(
+      /\b(?:the kids|the children|our kids|our children|the boys|the girls)\b/g,
+      "kids",
+    )
+    .replace(
+      /\b(?:in general|most of the time|most days|most trips|on trips|when we travel|either way|no matter what|for us|for our family|as a rule|as a family)\b/g,
+      " ",
+    )
+    .replace(
+      /\b(?:really|actually|honestly|simply|just|kind of|sort of|a bit)\b/g,
+      " ",
+    )
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function WhyPanel({ choice, question, text, setText, cache }) {
   const isOther = choice === "other";
   const primary = (() => {
@@ -700,11 +732,13 @@ function WhyPanel({ choice, question, text, setText, cache }) {
   const [pool, setPool] = useState(() => ({}));
   const [pendingKeys, setPendingKeys] = useState(() => new Set());
 
-  // v2 keys start with a version tag so old cached entries generated before
+  // v3 keys start with a version tag so old cached entries generated before
   // the prompt was tightened don't survive across page loads or refreshes.
-  // Bump when the /api/interview/suggest prompt changes materially.
+  // Bump when the /api/interview/suggest prompt changes materially. v3 is
+  // the variations-over-rephrasings rewrite of the follow-up prompt paired
+  // with the redundancy filter on the server.
   const keyFor = useCallback(
-    (chip) => `v2::${question.slot}::${choice}::${chip.toLowerCase()}`,
+    (chip) => `v3::${question.slot}::${choice}::${chip.toLowerCase()}`,
     [question.slot, choice],
   );
 
@@ -760,17 +794,30 @@ function WhyPanel({ choice, question, text, setText, cache }) {
   // fetched, and something that stays in the same place across taps.
   // Aly's tailored follow-ups (in pick order) append after them, so a chip
   // that just arrived does not shove the hand-written suggestions off the
-  // top of the row. Everything is deduped case-insensitively against the
-  // primary list and each other, and capped at MORE_CAP so the row does
-  // not run away.
+  // top of the row. Everything is deduped by SIGNATURE against the primary
+  // row, the already-picked chips, and each other (so near-duplicates that
+  // differ only in punctuation or pronouns are caught, not just exact
+  // matches), and capped at MORE_CAP so the row does not run away.
   const more = (() => {
-    const seen = new Set(primary.map((s) => s.toLowerCase()));
+    // Seed the dedupe set with the primary row's signatures plus every
+    // already-picked chip's signature -- a follow-up that says the same
+    // thing as a chip already on the answer should not be drawn again in
+    // More.
+    const seen = new Set();
+    for (const s of primary) {
+      const sig = signatureOf(s);
+      if (sig) seen.add(sig);
+    }
+    for (const l of lines) {
+      const sig = signatureOf(l);
+      if (sig) seen.add(sig);
+    }
     const out = [];
     for (const r of question.otherReasons || []) {
       if (out.length >= MORE_CAP) return out;
-      const kk = r.toLowerCase();
-      if (seen.has(kk)) continue;
-      seen.add(kk);
+      const sig = signatureOf(r);
+      if (!sig || seen.has(sig)) continue;
+      seen.add(sig);
       out.push(r);
     }
     for (const chip of pickedPrimary) {
@@ -778,9 +825,9 @@ function WhyPanel({ choice, question, text, setText, cache }) {
       const generated = cache.current.get(k) || pool[k] || [];
       for (const g of generated) {
         if (!g) continue;
-        const kk = g.toLowerCase();
-        if (seen.has(kk)) continue;
-        seen.add(kk);
+        const sig = signatureOf(g);
+        if (!sig || seen.has(sig)) continue;
+        seen.add(sig);
         out.push(g);
         if (out.length >= MORE_CAP) return out;
       }
