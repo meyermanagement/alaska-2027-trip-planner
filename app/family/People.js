@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import { headlineFor } from "@/lib/tips/warnings";
 import { useRouter } from "next/navigation";
@@ -1316,6 +1316,24 @@ function PersonForm({ person, onCancel, onSave }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  // About me grows to fit the sentence. A fixed-height textarea meant a long
+  // paragraph became a two-line box with an inner scrollbar - and this is the
+  // one field on the form where the whole point is that Aly and the family
+  // will read every word of it, so scrolling three lines at a time inside a
+  // four-row box is exactly the wrong shape. The box starts around four rows
+  // (the size it used to be) and expands with the content instead.
+  const aboutRef = useRef(null);
+  useEffect(() => {
+    const el = aboutRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    // Plus the border, because the height set here is a border-box height
+    // while scrollHeight is not - without it the box sits two pixels short
+    // and the last line clips.
+    const border = el.offsetHeight - el.clientHeight;
+    el.style.height = `${el.scrollHeight + border}px`;
+  }, [form.about_me]);
   const toggleAid = (value) =>
     setForm((prev) => ({
       ...prev,
@@ -1441,7 +1459,8 @@ function PersonForm({ person, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           About me (optional)
           <textarea
-            className="field mt-1 text-sm"
+            ref={aboutRef}
+            className="field mt-1 min-h-24 overflow-hidden text-sm"
             rows={4}
             placeholder={ABOUT_ME_PLACEHOLDER}
             value={form.about_me}
