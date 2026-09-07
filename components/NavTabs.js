@@ -191,17 +191,20 @@ const SETTINGS = {
 };
 
 // The More group carries the three rooms of the app that are not about a trip
-// at all: what you have set (Settings), what we promise you (Our Pledge), and
-// how you tell us the app got something wrong (Contact Us). Kept as a group
-// rather than three top-level rows, so the column above it stays entirely
-// about travel and the housekeeping is one door.
+// at all: what we promise you (Our Pledge), how you tell us the app got
+// something wrong (Contact Us), and what you have set (Settings). Kept as a
+// group rather than three top-level rows, so the column above it stays
+// entirely about travel and the housekeeping is one door.
 const MORE_GROUP = {
   key: "more",
   label: "More",
-  sub: "Settings, what we promise, and how to reach us",
+  sub: "What we promise, how to reach us, and your settings",
   Icon: DotsIcon,
+  // Our Pledge and Contact Us are the two rooms a family is likely to want
+  // to look at; Settings is the room they open once to check whose account it
+  // is. So the reading order is what-we-promise, how-to-reach-us, and then
+  // the housekeeping door at the bottom.
   kids: [
-    SETTINGS,
     {
       href: "/pledge",
       label: "Our Pledge",
@@ -214,6 +217,7 @@ const MORE_GROUP = {
       sub: "Tell us what went right, or what went wrong",
       Icon: MailIcon,
     },
+    SETTINGS,
   ],
 };
 
