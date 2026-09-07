@@ -54,6 +54,12 @@ export default function Tasks({
   // below a wall of struck-through ones. Ticking a task now makes it leave the
   // list, which is the right feeling and reversible in one click.
   const [hideDone, setHideDone] = useState(true);
+  // The add form used to sit above the list all the time. On a trip with a
+  // planned pre-departure list of thirty tasks, the row you actually reach
+  // for is a task you already added, not a new one -- and yet the top of
+  // the screen was five inputs to add another one. It is a button now, and
+  // the form appears when you press it, the way Packing does the same job.
+  const [adding, setAdding] = useState(false);
   // The row under the add form used to be a legend: the word Priority, then the
   // three meters and their names, explaining what the bars mean. It looked
   // exactly like the filter on the Reminders page one level up, so it got
@@ -181,6 +187,11 @@ export default function Tasks({
     });
     setNewTitle("");
     setNewDue("");
+    // Close the form on a successful add. Somebody adding a run of tasks
+    // will press Add a task again -- the same shape as Packing's "+ Add"
+    // under each heading, and it stops the form from sitting open on the
+    // screen once the row is on the list where it belongs.
+    setAdding(false);
     onChange();
   }
 
@@ -251,13 +262,26 @@ export default function Tasks({
         </div>
       </div>
 
-      {!readOnly && (
+      {!readOnly && !adding && (
+        <div className="no-print mb-5">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setAdding(true)}
+            aria-expanded={false}
+          >
+            + Add a task
+          </button>
+        </div>
+      )}
+
+      {!readOnly && adding && (
         <form
           onSubmit={add}
           className={`card no-print mb-5 grid gap-2 p-4 ${
             newTiming === ON_A_DATE
-              ? "sm:grid-cols-[1.8fr_1.15fr_1.15fr_1fr_1fr_auto]"
-              : "sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+              ? "sm:grid-cols-[1.8fr_1.15fr_1.15fr_1fr_1fr_auto_auto]"
+              : "sm:grid-cols-[2fr_1fr_1fr_1fr_auto_auto]"
           }`}
         >
           <input
@@ -265,6 +289,7 @@ export default function Tasks({
             placeholder="Add a task"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
+            autoFocus
           />
           <WhenField
             idPrefix="new-task"
@@ -300,6 +325,17 @@ export default function Tasks({
             ))}
           </select>
           <button className="btn btn-primary">Add</button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setAdding(false);
+              setNewTitle("");
+              setNewDue("");
+            }}
+          >
+            Close
+          </button>
         </form>
       )}
 
