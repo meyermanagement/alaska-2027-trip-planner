@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
-import { HARD_SLOTS, tableForSlot } from "@/lib/travelers/slots";
+import { topicForSlot } from "@/lib/travelers/interview-topics";
+import { tableForSlot } from "@/lib/travelers/slots";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -91,9 +92,16 @@ export async function POST(request) {
   const action = body?.action === "skip" ? "skip" : "answer";
   const rawChoice = String(body?.choice || "").trim();
   const rawText = String(body?.text || "").trim();
+  // Whys and own-words are only sent by option questions. Chips is an array of
+  // strings (each becomes its own preference row); ownWords is a single string
+  // (becomes one more preference row, verbatim, when non-empty). Both are
+  // optional -- an option question with a plain pick and nothing else still
+  // saves fine.
+  const rawWhys = Array.isArray(body?.whys) ? body.whys : [];
+  const rawOwnWords = String(body?.ownWords || "").trim();
 
-  // Where the answer will land.
-  const isFact = HARD_SLOTS.has(slotId);
+  // Where the answer will land -- household_facts for the limits slot,
+  // travel_preferences for every option question.
   const table = tableForSlot(slotId);
   const nowIso = new Date().toISOString();
 
@@ -177,17 +185,31 @@ export async function POST(request) {
       // fact row is written, because a fact row with an empty body is a lie.
     } else {
       // Multi-option question. The choice label is the body, and their own
-      // words (if they picked Something else) go in reason. Some slots offer
-      // two options; others offer three, four, or five. The renderer and this
-      // handler both treat the option array as open-ended, so adding a middle
-      // choice on a spectrum question is a data change with no code impact.
-      // A pick lands as the option's `label`, so any downstream analyzer
-      // reads real English ("Trains, subways, and the odd taxi") rather than
-      // needing a switch statement on internal `value` strings.
+      // words (if they picked Something else) become the base row's body. The
+      // question label is prepended to the option label so the row on
+      // Preferences reads as a full sentence -- "Where money is worth
+      // spending: The room" instead of a bare "The room" that a reader has
+      // to guess the context of. Something-else answers get the same prefix.
+      //
+      // Whys and own-words are separate preference rows, not concatenated
+      // into the base row's reason column. Each tapped chip is one row; the
+      // typed sentence (if any) is one more row. That way Aly and the
+      // Preferences page read them as first-class preferences, without
+      // anything needing to know they came from the interview.
+      //
+      // Every row written here shares the same topic, drawn from the
+      // slot->topic map so Preferences groups "the money whys" with "the
+      // money answer" -- and so the topics are Mark's already-used
+      // vocabulary rather than new ones for every question.
+      //
+      // Some slots offer two options; others offer three, four, or five.
+      // The renderer and this handler both treat the option array as
+      // open-ended, so adding a middle choice on a spectrum question is a
+      // data change with no code impact.
       const opt = (question.options || []).find((o) => o.value === rawChoice);
       const somethingElse = rawChoice === "other";
-      const bodyText = somethingElse ? rawText : opt ? opt.label : "";
-      if (!bodyText) {
+      const answerText = somethingElse ? rawText : opt ? opt.label : "";
+      if (!answerText) {
         // No option picked and no words typed. The slot got saved as settled
         // above, which is wrong; roll it back to asking so the interview can
         // put the question again rather than skipping over it.
@@ -202,26 +224,84 @@ export async function POST(request) {
           { status: 400 },
         );
       }
-      const insertRow = {
+      // Topic and topics only exist on travel_preferences, not on
+      // household_facts. Every option question in the current interview
+      // writes to travel_preferences, but the guard keeps this correct if
+      // an option question is ever added that maps to household_facts.
+      const writesToPreferences = table === "travel_preferences";
+      const topic = writesToPreferences ? topicForSlot(slotId) : null;
+      const baseRow = {
         family_id: familyId,
         traveler_id: null,
         slot: slotId,
-        body: bodyText,
+        body: `${question.label}: ${answerText}`,
         source: "said",
       };
-      // Reason is the primary's own words when they said them. When they chose
-      // one of the two, there is no separate reason -- the option is the
-      // answer.
-      if (somethingElse === false && rawText) {
-        insertRow.reason = rawText;
+      if (topic) {
+        baseRow.topic = topic;
+        baseRow.topics = [topic];
       }
+
+      // The whys array often carries chips the panel silently included from
+      // the current answer's suggestion pool. Trim, drop blanks, and cap
+      // length so a runaway client cannot flood the table. A hard cap of 20
+      // is generous -- most questions have 5-8 primary chips plus a few
+      // more in the "More" pool.
+      const whyRows = [];
+      const seenBodies = new Set([baseRow.body.toLowerCase().trim()]);
+      for (const raw of rawWhys) {
+        const clean = String(raw || "").trim();
+        if (!clean) continue;
+        if (clean.length > 500) continue;
+        const key = clean.toLowerCase();
+        if (seenBodies.has(key)) continue;
+        seenBodies.add(key);
+        const row = {
+          family_id: familyId,
+          traveler_id: null,
+          slot: slotId,
+          body: clean,
+          source: "said",
+        };
+        if (topic) {
+          row.topic = topic;
+          row.topics = [topic];
+        }
+        whyRows.push(row);
+        if (whyRows.length >= 20) break;
+      }
+
+      // Own-words is one more preference row, verbatim. Kept separate from
+      // the picked option (whose text sits in the base row) and from the
+      // chips (each in its own row already). A blank own-words field is a
+      // fine answer -- the chips and the pick may be all somebody wanted
+      // to say.
+      const rowsToInsert = [baseRow, ...whyRows];
+      if (rawOwnWords && !somethingElse) {
+        const key = rawOwnWords.toLowerCase();
+        if (!seenBodies.has(key)) {
+          const row = {
+            family_id: familyId,
+            traveler_id: null,
+            slot: slotId,
+            body: rawOwnWords,
+            source: "said",
+          };
+          if (topic) {
+            row.topic = topic;
+            row.topics = [topic];
+          }
+          rowsToInsert.push(row);
+        }
+      }
+
       const { error } = await supabase
         .from(
           table === "household_facts"
             ? "household_facts"
             : "travel_preferences",
         )
-        .insert(insertRow);
+        .insert(rowsToInsert);
       if (error) {
         return NextResponse.json(
           { error: "That answer could not be saved. Try again." },

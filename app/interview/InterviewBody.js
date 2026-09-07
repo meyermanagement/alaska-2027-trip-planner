@@ -12,8 +12,38 @@ import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
 // so the wait is held to at least this long even when the network is faster.
 const HOLD_MS = 520;
 
+/**
+ * The display string for the practice-mode Recap and for anywhere else in
+ * the UI that wants a single sentence for the whys plus own-words. Chips
+ * are joined with a space so they read as one thought; own-words is added
+ * after them so the primary's own writing stays distinct from the chips
+ * they tapped.
+ *
+ * Returns null when there is nothing to show, so Recap can hide the row
+ * cleanly without an empty bullet.
+ */
+function buildReasonDisplay(whys, ownWords) {
+  const chipsLine = (whys || []).filter(Boolean).join(" ");
+  const own = (ownWords || "").trim();
+  const parts = [chipsLine, own].filter(Boolean);
+  return parts.length ? parts.join(" ") : null;
+}
+
 // The blank fields for a question with no prior answer.
-const BLANK_FIELDS = { choice: "", text: "", moments: [""] };
+//
+// `whys` is the list of picked reason chips on an options question. Each
+// tapped chip is one entry in the list, verbatim. `ownWords` is the free-text
+// box under the chips, kept separate from `text` because on option questions
+// `text` is the Something-else field (used only when the choice is 'other')
+// and would fight the own-words box if the two shared one string. Both stay
+// empty by default and reset on advance() and back() from the prior answer.
+const BLANK_FIELDS = {
+  choice: "",
+  text: "",
+  whys: [],
+  ownWords: "",
+  moments: [""],
+};
 
 /**
  * The three form fields (choice, text, moments) that should paint onto the
@@ -48,13 +78,21 @@ function fieldsForAnswer(question, priorAnswer) {
     const opt = (question.options || []).find(
       (o) => o.label === priorAnswer.picked,
     );
+    const priorWhys = Array.isArray(priorAnswer.whys) ? priorAnswer.whys : [];
+    const priorOwnWords =
+      typeof priorAnswer.ownWords === "string" ? priorAnswer.ownWords : "";
     return {
       choice: opt ? opt.value : priorAnswer.picked ? "other" : "",
+      // `text` is the Something-else field. It carries the primary's typed
+      // alternative when they picked "other", and stays blank otherwise --
+      // the own-words box for a normal pick lives on `ownWords`.
       text: opt
-        ? priorAnswer.reason || ""
+        ? ""
         : typeof priorAnswer.picked === "string"
           ? priorAnswer.picked
           : "",
+      whys: opt ? priorWhys : [],
+      ownWords: opt ? priorOwnWords : "",
       moments: [""],
     };
   }
@@ -63,6 +101,8 @@ function fieldsForAnswer(question, priorAnswer) {
     return {
       choice: "",
       text: "",
+      whys: [],
+      ownWords: "",
       moments: list.length ? [...list, ""] : [""],
     };
   }
@@ -70,6 +110,8 @@ function fieldsForAnswer(question, priorAnswer) {
   return {
     choice: "",
     text: typeof priorAnswer.picked === "string" ? priorAnswer.picked : "",
+    whys: [],
+    ownWords: "",
     moments: [""],
   };
 }
@@ -94,6 +136,8 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
   const [index, setIndex] = useState(startIndex);
   const [choice, setChoice] = useState("");
   const [text, setText] = useState("");
+  const [whys, setWhys] = useState([]);
+  const [ownWords, setOwnWords] = useState("");
   // The moments panel keeps its own list rather than reusing `text`, because
   // the shape is different: several rows the primary can add and remove
   // rather than a single field. One blank slot is kept at the end at all
@@ -170,6 +214,8 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         const fields = fieldsForAnswer(nextQuestion, priorAnswer);
         setChoice(fields.choice);
         setText(fields.text);
+        setWhys(fields.whys);
+        setOwnWords(fields.ownWords);
         setMoments(fields.moments);
         return prior;
       });
@@ -214,6 +260,17 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     // same way. Real mode also uses it to pre-fill the fields when the
     // primary steps back to this question later in the session.
     const opt = (question.options || []).find((o) => o.value === choice);
+    // Whys and own-words only apply to a normal option pick. Something-else
+    // (choice === "other") sends its typed alternative on `text`, not chips,
+    // and the interview UI doesn't offer chips on that path.
+    const cleanedWhys =
+      question.kind === "options" && choice && choice !== "other"
+        ? whys.map((w) => (w || "").trim()).filter(Boolean)
+        : [];
+    const cleanedOwnWords =
+      question.kind === "options" && choice && choice !== "other"
+        ? ownWords.trim()
+        : "";
     const record = {
       slot,
       label: question.label,
@@ -230,10 +287,13 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
             : opt
               ? opt.label
               : null,
-      reason:
-        question.kind === "options" && choice !== "other" && text.trim()
-          ? text.trim()
-          : null,
+      // `reason` is a display-only string kept for Recap (practice mode) so
+      // the recap shows the whys and own-words together on one line. The
+      // server no longer reads it; the answer route writes whys and own-
+      // words as their own preference rows.
+      reason: buildReasonDisplay(cleanedWhys, cleanedOwnWords),
+      whys: cleanedWhys,
+      ownWords: cleanedOwnWords,
     };
     // Replace any previous record for this slot rather than double-stack,
     // so back-then-forward does not leave two rows for the same question.
@@ -267,6 +327,8 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
               action: "answer",
               choice,
               text,
+              whys: cleanedWhys,
+              ownWords: cleanedOwnWords,
             }),
           });
       if (res.ok) remember();
@@ -274,7 +336,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
     } catch {
       return false;
     }
-  }, [choice, hasAnswer, mode, moments, question, slot, text]);
+  }, [choice, hasAnswer, mode, moments, ownWords, question, slot, text, whys]);
 
   // Go back one question. On the very first question this leaves the
   // interview entirely -- to the practice hub in practice mode, to Family in
@@ -324,6 +386,8 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
       const fields = fieldsForAnswer(previous, previousAnswer);
       setChoice(fields.choice);
       setText(fields.text);
+      setWhys(fields.whys);
+      setOwnWords(fields.ownWords);
       setMoments(fields.moments);
       return prior;
     });
@@ -353,6 +417,21 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
       // Save-and-continue lands on an empty form because the pre-fill has
       // nothing to read.
       const opt = (question.options || []).find((o) => o.value === choice);
+      // Same rule as saveCurrent: whys and own-words are option-pick-only.
+      const cleanedWhys =
+        action !== "skip" &&
+        question.kind === "options" &&
+        choice &&
+        choice !== "other"
+          ? whys.map((w) => (w || "").trim()).filter(Boolean)
+          : [];
+      const cleanedOwnWords =
+        action !== "skip" &&
+        question.kind === "options" &&
+        choice &&
+        choice !== "other"
+          ? ownWords.trim()
+          : "";
       const record = {
         slot,
         label: question.label,
@@ -375,9 +454,9 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         reason:
           action === "skip"
             ? null
-            : question.kind === "options" && choice !== "other" && text.trim()
-              ? text.trim()
-              : null,
+            : buildReasonDisplay(cleanedWhys, cleanedOwnWords),
+        whys: cleanedWhys,
+        ownWords: cleanedOwnWords,
       };
       // Replace any previous record for the same slot so back-then-forward
       // (or answer-then-back-then-revise) never leaves two rows for the
@@ -434,6 +513,8 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                 action,
                 choice: action === "skip" ? null : choice,
                 text: action === "skip" ? null : text,
+                whys: cleanedWhys,
+                ownWords: cleanedOwnWords,
               }),
             });
         const payload = await res.json().catch(() => null);
@@ -489,10 +570,12 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
       loading,
       mode,
       moments,
+      ownWords,
       question,
       router,
       slot,
       text,
+      whys,
     ],
   );
 
@@ -585,14 +668,37 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                 <p className="font-display text-lg text-ink">Something else</p>
                 <p className="mt-1 text-sm text-ink-soft">In your own words.</p>
               </button>
-              {choice && (
+              {choice && choice !== "other" && (
                 <WhyPanel
                   choice={choice}
                   question={question}
-                  text={text}
-                  setText={setText}
+                  whys={whys}
+                  setWhys={setWhys}
+                  ownWords={ownWords}
+                  setOwnWords={setOwnWords}
                   cache={suggestionCache}
                 />
+              )}
+              {choice === "other" && (
+                <div className="mt-6">
+                  <label
+                    htmlFor="interview-other-text"
+                    className="mb-2 block text-sm text-ink-soft"
+                  >
+                    Say what fits better.
+                  </label>
+                  <textarea
+                    id="interview-other-text"
+                    rows={4}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={
+                      question.otherPlaceholder ||
+                      "In your own words, what actually fits you."
+                    }
+                    className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+                  />
+                </div>
               )}
             </div>
           ) : question.kind === "moments" ? (
@@ -729,24 +835,30 @@ function signatureOf(value) {
     .trim();
 }
 
-function WhyPanel({ choice, question, text, setText, cache }) {
-  const isOther = choice === "other";
+function WhyPanel({
+  choice,
+  question,
+  whys,
+  setWhys,
+  ownWords,
+  setOwnWords,
+  cache,
+}) {
+  // Whys are chips only; own-words is a separate box below the chips. The
+  // Something-else branch never renders this panel -- the caller shows a
+  // plain textarea for that case -- so this component only handles a real
+  // option pick.
   const primary = (() => {
-    if (isOther) return question.otherReasons || [];
     const opt = (question.options || []).find((o) => o.value === choice);
     return (opt && opt.reasons) || [];
   })();
 
-  const lines = text
-    .split(/\r?\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const activeSet = new Set(lines.map((s) => s.toLowerCase()));
+  const activeSet = new Set((whys || []).map((s) => (s || "").toLowerCase()));
   // Which primary chips are actually picked, in the order they were picked --
   // so "More" starts with follow-ups to the FIRST pick and appends the next
   // pick's follow-ups below, rather than shuffling the order on each re-render.
-  const pickedPrimary = lines.filter((l) =>
-    primary.some((p) => p.toLowerCase() === l.toLowerCase()),
+  const pickedPrimary = (whys || []).filter((l) =>
+    primary.some((p) => p.toLowerCase() === (l || "").toLowerCase()),
   );
 
   // Track pending fetches and generated pools by cache key. State is used
@@ -768,7 +880,6 @@ function WhyPanel({ choice, question, text, setText, cache }) {
   // When a base chip is picked, ensure we have follow-ups for it. Read from
   // the session cache first; only fetch when it is genuinely absent.
   useEffect(() => {
-    if (isOther) return; // Something else has no follow-up model call.
     const missing = pickedPrimary.filter((chip) => {
       const k = keyFor(chip);
       return !cache.current.has(k) && !pendingKeys.has(k);
@@ -866,14 +977,13 @@ function WhyPanel({ choice, question, text, setText, cache }) {
   const showMoreSection = anyPickedPrimary && (more.length > 0 || anyPending);
 
   function toggle(chip) {
-    const has = activeSet.has(chip.toLowerCase());
-    if (has) {
-      const next = lines.filter((l) => l.toLowerCase() !== chip.toLowerCase());
-      setText(next.join("\n"));
-    } else {
-      const next = [...lines, chip];
-      setText(next.join("\n"));
-    }
+    const key = chip.toLowerCase();
+    setWhys((prev) => {
+      const current = Array.isArray(prev) ? prev : [];
+      const has = current.some((l) => (l || "").toLowerCase() === key);
+      if (has) return current.filter((l) => (l || "").toLowerCase() !== key);
+      return [...current, chip];
+    });
   }
 
   function Chip({ chip }) {
@@ -900,8 +1010,10 @@ function WhyPanel({ choice, question, text, setText, cache }) {
 
   return (
     <div className="mt-4 rounded-2xl border border-teal/30 bg-teal-soft/25 p-4">
-      <p className="font-display text-lg text-ink">
-        {isOther ? "What fits better?" : "Why? (Optional.)"}
+      <p className="font-display text-lg text-ink">Why? (Optional.)</p>
+      <p className="mt-1 text-sm text-ink-soft">
+        Tap any that fit. Each one gets saved as its own line on your
+        Preferences page.
       </p>
       {primary.length > 0 && (
         <div className="mt-3">
@@ -934,17 +1046,22 @@ function WhyPanel({ choice, question, text, setText, cache }) {
           </div>
         </div>
       )}
-      <textarea
-        rows={3}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={
-          isOther
-            ? "In your own words."
-            : "A sentence about why, or tap a suggestion above."
-        }
-        className="mt-3 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
-      />
+      <div className="mt-4">
+        <label
+          htmlFor="interview-own-words"
+          className="section-label text-ink-soft"
+        >
+          Anything to add, in your own words
+        </label>
+        <textarea
+          id="interview-own-words"
+          rows={3}
+          value={ownWords || ""}
+          onChange={(e) => setOwnWords(e.target.value)}
+          placeholder="Add a sentence about your reason, if you want."
+          className="mt-2 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+        />
+      </div>
     </div>
   );
 }
