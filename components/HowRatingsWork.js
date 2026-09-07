@@ -28,7 +28,7 @@ export default function HowRatingsWork({
 
   return (
     <div
-      className={`rounded-xl border border-sand-deep bg-sand-soft/50 ${compact ? "px-3 py-2" : "p-3"} ${className}`}
+      className={`rounded-xl border-2 border-amber/60 bg-amber/15 shadow-sm ${compact ? "px-3 py-2" : "p-3"} ${className}`}
     >
       <button
         type="button"
@@ -36,11 +36,13 @@ export default function HowRatingsWork({
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center ${headerJustify} text-left`}
       >
-        <span className={`section-label ${compact ? "text-[0.72rem]" : ""}`}>
+        <span
+          className={`section-label text-amber ${compact ? "text-[0.72rem]" : ""}`}
+        >
           How ratings work
         </span>
         <span
-          className={`text-xs text-ink-soft ${align === "between" ? "" : "ml-auto"}`}
+          className={`text-xs font-semibold text-amber ${align === "between" ? "" : "ml-auto"}`}
         >
           {open ? "Close" : "Read"}
         </span>
