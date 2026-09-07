@@ -818,21 +818,22 @@ function WhyPanel({ choice, question, text, setText, cache }) {
   // Aly's tailored follow-ups (in pick order) append after them, so a chip
   // that just arrived does not shove the hand-written suggestions off the
   // top of the row. Everything is deduped by SIGNATURE against the primary
-  // row, the already-picked chips, and each other (so near-duplicates that
-  // differ only in punctuation or pronouns are caught, not just exact
-  // matches), and capped at MORE_CAP so the row does not run away.
+  // row and each other (so near-duplicates that differ only in punctuation
+  // or pronouns are caught, not just exact matches), and capped at
+  // MORE_CAP so the row does not run away. Picked chips are NOT filtered
+  // out so a wrong tap can be untapped.
   const more = (() => {
-    // Seed the dedupe set with the primary row's signatures plus every
-    // already-picked chip's signature -- a follow-up that says the same
-    // thing as a chip already on the answer should not be drawn again in
-    // More.
+    // Seed the dedupe set with the primary row's signatures only. Picked
+    // chips are NOT added to the seen set, so a chip that got tapped in
+    // More stays visible in More and can be untapped from the same place
+    // it was tapped -- the same behavior the primary row already has
+    // (tapping a primary chip does not remove it from the primary row).
+    // The chip's picked state is drawn on the chip itself; that is
+    // enough to show it is on. Removing a picked chip from the row was
+    // the reason a wrong tap could not be undone.
     const seen = new Set();
     for (const s of primary) {
       const sig = signatureOf(s);
-      if (sig) seen.add(sig);
-    }
-    for (const l of lines) {
-      const sig = signatureOf(l);
       if (sig) seen.add(sig);
     }
     const out = [];
