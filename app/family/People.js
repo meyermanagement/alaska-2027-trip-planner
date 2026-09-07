@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import { headlineFor } from "@/lib/tips/warnings";
@@ -585,16 +586,38 @@ export default function People({
 
             {editingPerson !== person.id && <ProfileLines person={person} />}
 
-            {editingPerson !== person.id && person.about_me && (
-              <div className="mt-2.5 rounded-lg border border-sand-deep bg-sand/60 p-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                  In their own words
-                </p>
-                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
-                  {person.about_me}
-                </p>
-              </div>
-            )}
+            {/* About me sits below the profile lines because the profile lines
+                are the facts and this is the voice. Written or blank, it is
+                the same box: when it is written it wears the person's own
+                paragraph, and when it is blank it says so out loud and hands
+                back the one control that fills it. It used to hide itself
+                when nothing had been written, which meant a family with
+                nobody's paragraph on file saw no reason to write one -- the
+                gap was invisible. Now the gap is the loudest thing on the
+                card, because it is the one gap Aly can most feel. */}
+            {editingPerson !== person.id &&
+              (person.about_me ? (
+                <div className="mt-3 rounded-xl border-2 border-teal/40 bg-teal/5 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-teal">
+                    In {person.name || "their"}
+                    {person.name ? "'s" : ""} own words
+                  </p>
+                  <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink">
+                    {person.about_me}
+                  </p>
+                </div>
+              ) : (
+                <MissingAboutMe
+                  person={person}
+                  isMe={
+                    person.user_id === userId ||
+                    (!!person.email &&
+                      !!userEmail &&
+                      person.email.toLowerCase() === userEmail.toLowerCase())
+                  }
+                  onEdit={() => setEditingPerson(person.id)}
+                />
+              ))}
 
             <AccessRow
               person={person}
@@ -1177,6 +1200,54 @@ export function AccessRow({
 // The three new facts, read back on the card so it is obvious they were saved
 // and obvious when they are missing. One line each rather than a table: they are
 // short, and a table of two filled cells and four empty ones looks broken.
+// The empty state for About me. Rendered in place of the paragraph when nobody
+// has written it yet, and shaped so a family reading down the card cannot miss
+// it: dashed border, rose tint, the header saying 'not yet written' out loud.
+//
+// The button routes by who is asking. On my own card the /about-you screen is
+// the right door: it is the paragraph, alone on a page, without the rest of the
+// Edit details form to walk past. On somebody else's card there is no way to
+// write for them in their voice, but a primary can help by opening Edit details
+// with the paragraph field already visible, and that is what the button does
+// -- the same control the 'Edit details' button opens, aimed at the box the
+// family came here to fill.
+function MissingAboutMe({ person, isMe, onEdit }) {
+  const name = (person?.name || "").trim();
+  const possessive = name ? `${name}'s` : "their";
+  const subject = name || "this person";
+
+  return (
+    <div className="mt-3 rounded-xl border-2 border-dashed border-rose/50 bg-rose/5 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-rose">
+        In {possessive} own words -- not yet written
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+        A paragraph in {possessive} own voice about what {isMe ? "you" : "they"}
+        {isMe ? " enjoy" : " enjoy"} and what {isMe ? "you" : "they"} would
+        rather skip. Aly reads this before she answers anything for{" "}
+        {isMe ? "you" : subject}, and without it every suggestion she makes is a
+        suggestion for nobody in particular.
+      </p>
+      {isMe ? (
+        <Link
+          href="/about-you"
+          className="btn btn-primary no-print mt-2.5 inline-flex text-xs"
+        >
+          Write your paragraph
+        </Link>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-primary no-print mt-2.5 text-xs"
+          onClick={onEdit}
+        >
+          Write {possessive} paragraph
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ProfileLines({ person }) {
   const aids = cleanAids(person?.mobility_aids).map(aidLabel);
   const langs = (
