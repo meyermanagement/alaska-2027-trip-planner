@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
+import MomentsEditor from "@/components/MomentsEditor";
 import { headlineFor } from "@/lib/tips/warnings";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { syncPackingForTraveler } from "@/lib/packing/roster";
 import { ageToday } from "@/lib/travelers/ages";
@@ -64,6 +65,28 @@ export default function People({
   const [addingFor, setAddingFor] = useState(null); // traveler id
   const [editingDoc, setEditingDoc] = useState(null); // document id
   const [editingPerson, setEditingPerson] = useState(null); // traveler id
+
+  // If Preferences (or anywhere else) links here with ?edit=<traveler id>, open
+  // that person's editor and scroll to it. Once opened the query string is
+  // cleared so a refresh does not reopen the form, and does not fight a person
+  // who deliberately closes it. Only fires when the id is actually somebody in
+  // this household -- an unknown id is treated as no param at all.
+  const searchParams = useSearchParams();
+  const wantEditId = searchParams?.get("edit") || null;
+  useEffect(() => {
+    if (!wantEditId) return;
+    const hit = (travelers || []).some((t) => t.id === wantEditId);
+    if (!hit) return;
+    setEditingPerson(wantEditId);
+    // Give the row a moment to expand before scrolling to it.
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(`person-${wantEditId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+    // Drop the query string so a refresh does not reopen.
+    router.replace("/family", { scroll: false });
+    return () => window.clearTimeout(timer);
+  }, [wantEditId, travelers, router]);
   const [addingPersonInner, setAddingPerson] = useState(false);
   const controlled = picker !== null;
   const addingPerson = controlled ? addOpen : addingPersonInner;
@@ -411,7 +434,11 @@ export default function People({
       {shown.map((person) => {
         const docs = docsFor(person.id);
         return (
-          <section key={person.id} className="card p-5">
+          <section
+            key={person.id}
+            id={`person-${person.id}`}
+            className="card scroll-mt-4 p-5"
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 {person.color && (
@@ -1476,6 +1503,16 @@ function PersonForm({ person, onCancel, onSave }) {
           </span>
         </label>
       </div>
+
+      {person?.id && (
+        <div className="space-y-3 border-t border-teal/30 pt-3">
+          <MomentsEditor
+            travelerId={person.id}
+            travelerName={form.name.trim() || person.name}
+            help={`Small, real memories from ${form.name.trim() || person.name || "this person"}'s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes, so the truer they sound, the better the advice fits.`}
+          />
+        </div>
+      )}
 
       <div className="space-y-3 border-t border-teal/30 pt-3">
         <p className="section-label">

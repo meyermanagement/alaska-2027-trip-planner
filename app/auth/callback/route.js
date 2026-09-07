@@ -65,6 +65,23 @@ export async function GET(request) {
       ]);
       const empty = !fam?.home_address && (peopleCount || 0) === 0;
       if (empty) return NextResponse.redirect(`${origin}/welcome`);
+
+      // A non-owner signing in for the first time is walked through their own
+      // file before they land anywhere else: About me, then Favorite moments,
+      // then Home. The owner never sees this -- their traveler row is stamped
+      // welcomed_at at household creation time (see the migration). Everybody
+      // else gets the walkthrough once. Skipping stamps welcomed_at anyway so
+      // this never runs again for that person.
+      const { data: mySeat } = await supabase
+        .from("travelers")
+        .select("id, welcomed_at")
+        .eq("family_id", membership.family_id)
+        .eq("user_id", signedIn.id)
+        .eq("is_person", true)
+        .maybeSingle();
+      if (mySeat?.id && !mySeat.welcomed_at) {
+        return NextResponse.redirect(`${origin}/welcome/about-you`);
+      }
     }
   }
 

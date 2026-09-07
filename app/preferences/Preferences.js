@@ -513,6 +513,39 @@ export default function Preferences({
         </div>
       </div>
 
+      {(() => {
+        // Signpost to the per-person favorite moments editor. Preferences are
+        // written here; moments live on each person's file, because a moment is
+        // about the person who lived it -- edit and delete belong on the same
+        // screen where the person's other details live. This is the pointer,
+        // not the editor: a moment is one API call away, on a page most
+        // families already know from adding somebody new.
+        const people = (travelers || []).filter(
+          (t) => t?.name && t.name !== "Shared",
+        );
+        if (people.length === 0) return null;
+        return (
+          <div className="mt-4 rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
+            <p className="section-label">Favorite moments</p>
+            <p className="mt-1 text-xs text-ink-soft">
+              Small, real memories Aly reads before every answer. Add or edit
+              them on each person&apos;s file.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {people.map((t) => (
+                <a
+                  key={t.id}
+                  href={`/family?edit=${encodeURIComponent(t.id)}`}
+                  className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+                >
+                  {t.name}
+                </a>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {adding && (
         <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
           <PreferenceForm
