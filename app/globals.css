@@ -2647,6 +2647,52 @@ html[data-skin="sodium"] .menu-arc {
   margin-top: 1px;
 }
 
+/* A group that is deliberately quieter than the three travel groups above
+   it. Used on More -- Settings, Our Pledge, Contact Us -- because that
+   row is the least-visited door on the menu and drawing it at the same
+   weight as Travel Journal made it read as another destination of equal
+   importance, which it is not. Sized close to a kid row: smaller disc,
+   smaller label, tighter padding, sub subdued into one line. */
+.arc-pill.group.slim {
+  padding-top: 0.24rem;
+  padding-bottom: 0.24rem;
+  padding-right: 0.7rem;
+  gap: 0.5rem;
+}
+
+.arc-pill.group.slim .arc-disc {
+  width: 28px;
+  height: 28px;
+  margin-top: 0;
+}
+
+.arc-pill.group.slim .arc-disc svg {
+  width: 15px;
+  height: 15px;
+}
+
+.arc-pill.group.slim .arc-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.arc-pill.group.slim .arc-sub {
+  font-size: 0.66rem;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arc-pill.group.slim .arc-chev {
+  opacity: 0.35;
+}
+
+.arc-pill.group.slim .arc-chev svg {
+  width: 12px;
+  height: 12px;
+}
+
 .arc-chev {
   margin-left: 0.35rem;
   align-self: center;

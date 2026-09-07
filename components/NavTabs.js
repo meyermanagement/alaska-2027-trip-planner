@@ -198,8 +198,16 @@ const SETTINGS = {
 const MORE_GROUP = {
   key: "more",
   label: "More",
-  sub: "What we promise, how to reach us, and your settings",
+  // Deliberately short: this row is drawn slim, so the sub sits on one line
+  // beside the label rather than wrapping. The kids inside the drawer
+  // (Our Pledge, Contact Us, Settings) still carry their own subtitles.
+  sub: "Pledge, contact, settings",
   Icon: DotsIcon,
+  // Render as a slimmer row than the three travel groups: a smaller disc,
+  // smaller label, tighter padding. More is the least-visited door on the
+  // menu, and drawing it at the same weight as Travel Journal made it read
+  // as another destination of equal importance -- which it is not.
+  slim: true,
   // Our Pledge and Contact Us are the two rooms a family is likely to want
   // to look at; Settings is the room they open once to check whose account it
   // is. So the reading order is what-we-promise, how-to-reach-us, and then
@@ -659,6 +667,7 @@ export default function NavTabs({
           sub: g.sub,
           Icon: g.Icon,
           badge: g.badge,
+          slim: Boolean(g.slim),
           lead: !insideTrip && g.key === "journal",
         },
         {
@@ -874,8 +883,8 @@ export default function NavTabs({
                         }
                         style={{ "--arc-i": row.i }}
                         className={`arc-pill group ${row.lead ? "lead " : ""}${
-                          isOpen ? "open" : ""
-                        }`}
+                          row.slim ? "slim " : ""
+                        }${isOpen ? "open" : ""}`}
                       >
                         <span className="arc-disc">
                           <row.Icon className="h-[18px] w-[18px] shrink-0" />
