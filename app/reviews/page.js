@@ -5,6 +5,7 @@ import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
+import HowRatingsWork from "@/components/HowRatingsWork";
 import { isCurrentTrip, isDraftTrip, isPastTrip } from "@/lib/format";
 import { REVIEWABLE_CATEGORIES } from "@/lib/reviews/when";
 
@@ -163,13 +164,18 @@ export default async function ReviewsPage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-        <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">Past reviews</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            What the family thought of the places they stayed, the things they
-            did and the meals they ate. Aly reads these when it suggests
-            somewhere new.
-          </p>
+        <div className="mb-6 space-y-3">
+          <div>
+            <h1 className="font-display text-3xl font-semibold">
+              Past reviews
+            </h1>
+            <p className="mt-1 text-sm text-ink-soft">
+              What the family thought of the places they stayed, the things they
+              did and the meals they ate. Aly reads these when it suggests
+              somewhere new.
+            </p>
+          </div>
+          <HowRatingsWork />
         </div>
 
         {shownTrips.length === 0 ? (

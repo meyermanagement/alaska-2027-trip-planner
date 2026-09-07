@@ -1,6 +1,7 @@
 "use client";
 
 import Stars from "@/components/Stars";
+import HowRatingsWork from "@/components/HowRatingsWork";
 import { canReviewNow, reviewTarget } from "@/lib/reviews/when";
 import { directionsToPlace } from "@/lib/travel/modes";
 import { dayRecap } from "@/lib/day/done";
@@ -94,6 +95,7 @@ export default function DayDone({
               ? "One place to rate while it is fresh"
               : `${toRate.length} places to rate while they are fresh`}
           </p>
+          <HowRatingsWork className="mt-2" compact />
           <ul className="mt-2 space-y-1.5">
             {toRate.map(({ item, target }) => (
               <li
