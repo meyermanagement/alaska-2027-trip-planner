@@ -515,6 +515,29 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
         </div>
       ) : (
         <div className="w-full">
+          {/* One-time honesty note above the FIRST question only. The
+              interview writes to a person's travel file and Aly plans
+              against it later, so a chip picked because it sounded nice
+              rather than because it is true will narrow the recommendations
+              in ways nobody wanted. The rule is short here so it can be read
+              once and remembered: only tick what is actually true, short
+              answers are fine, and an over-restrictive answer can taper
+              Aly's suggestions enough that a later recommendation is off. */}
+          {index === 0 && (
+            <div
+              role="note"
+              className="mb-6 rounded-2xl border border-sand-deep bg-sand-soft/60 px-4 py-3 text-sm leading-relaxed text-ink-soft"
+            >
+              <p className="font-display text-ink">
+                Only tick what is actually true.
+              </p>
+              <p className="mt-1">
+                Short answers are fine. A blank is fine. If you pick something
+                too specific because it sounded good, Aly will plan around it
+                and a later suggestion might come back a little off.
+              </p>
+            </div>
+          )}
           <h1
             className="select-none font-display text-2xl leading-snug text-ink outline-none [outline:none!important] focus:outline-none focus-visible:outline-none sm:text-3xl"
             style={{ outline: "none" }}
