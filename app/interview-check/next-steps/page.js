@@ -4,7 +4,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import TopBar from "@/components/TopBar";
 import NextStepsChecklist from "@/components/NextStepsChecklist";
 
 export const metadata = { title: "Practice: next steps · Alyeska" };
@@ -24,9 +23,12 @@ export default async function InterviewCheckNextStepsPage() {
   if (!access?.familyId) redirect("/welcome");
   if (access.level !== PRIMARY) redirect("/trips");
 
+  // No TopBar here on purpose. The real /welcome/next-steps is a walkthrough
+  // step with no menu and no Ask Aly button; the practice copy has to feel
+  // like the same screen, so the NavTabs disc and the Ask Aly button stay
+  // off. The "Back to practice" link at the bottom is the way out.
   return (
     <>
-      <TopBar />
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
         <h1 className="font-display text-3xl font-semibold">
           Practice: three things worth doing next
