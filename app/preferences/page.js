@@ -44,7 +44,7 @@ export default async function PreferencesPage() {
       .order("created_at", { ascending: true }),
     supabase
       .from("travelers")
-      .select("id, name, sort_order")
+      .select("id, name, sort_order, about_me")
       .eq("is_person", true)
       .order("sort_order", { ascending: true }),
   ]);

@@ -31,6 +31,8 @@ import {
   withTopic,
   withoutTopic,
 } from "@/lib/preferences/topics";
+import AboutInlineEditor from "@/components/AboutInlineEditor";
+import MomentsEditor from "@/components/MomentsEditor";
 
 /**
  * The filter value meaning "the ones filed under nothing".
@@ -64,6 +66,16 @@ export default function Preferences({
   const [busy, setBusy] = useState(false);
   // "" is everyone; otherwise a traveler id, or SHARED for the family's own.
   const [whose, setWhose] = useState("");
+  // When a specific person is selected, About and Favorite moments appear
+  // above the topic filter so they can be edited without hopping to the
+  // person's file. Both start collapsed; opened state is per-person so
+  // switching people does not carry the last person's open drawer.
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [momentsOpen, setMomentsOpen] = useState(false);
+  useEffect(() => {
+    setAboutOpen(false);
+    setMomentsOpen(false);
+  }, [whose]);
   // A topic's comparable form, or "" for all of them, or NO_TOPIC_KEY for the
   // ones filed under nothing.
   const [topicKey, setTopicKey] = useState("");
@@ -513,39 +525,6 @@ export default function Preferences({
         </div>
       </div>
 
-      {(() => {
-        // Signpost to the per-person favorite moments editor. Preferences are
-        // written here; moments live on each person's file, because a moment is
-        // about the person who lived it -- edit and delete belong on the same
-        // screen where the person's other details live. This is the pointer,
-        // not the editor: a moment is one API call away, on a page most
-        // families already know from adding somebody new.
-        const people = (travelers || []).filter(
-          (t) => t?.name && t.name !== "Shared",
-        );
-        if (people.length === 0) return null;
-        return (
-          <div className="mt-4 rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
-            <p className="section-label">Favorite moments</p>
-            <p className="mt-1 text-xs text-ink-soft">
-              Small, real memories Aly reads before every answer. Add or edit
-              them on each person&apos;s file.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {people.map((t) => (
-                <a
-                  key={t.id}
-                  href={`/family?edit=${encodeURIComponent(t.id)}`}
-                  className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
-                >
-                  {t.name}
-                </a>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
       {adding && (
         <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
           <PreferenceForm
@@ -687,6 +666,72 @@ export default function Preferences({
               </button>
             )
           )}
+          {/* When a specific person is chosen -- not Everyone, not the family's
+              own -- About and Favorite moments appear here so they can be
+              edited in the same screen as their preferences. About first,
+              because it is a paragraph somebody wrote and the shortest thing
+              to skim; then moments, because they are a list; then their
+              preferences below. Both sections start collapsed so the
+              preferences list remains the main event, and both open in place
+              on a tap. */}
+          {(() => {
+            if (!whose || whose === SHARED_LABEL) return null;
+            const person = (travelers || []).find((t) => t.id === whose);
+            if (!person) return null;
+            const name = person.name || "this person";
+            const hasAbout = Boolean((person.about_me || "").trim());
+            return (
+              <div className="space-y-2">
+                <div className="rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                    onClick={() => setAboutOpen((v) => !v)}
+                    aria-expanded={aboutOpen}
+                  >
+                    <span className="section-label">About {name}</span>
+                    <span className="text-xs text-ink-soft">
+                      {aboutOpen ? "Close" : hasAbout ? "Edit" : "Add"}
+                    </span>
+                  </button>
+                  {aboutOpen && (
+                    <div className="mt-3">
+                      <AboutInlineEditor
+                        travelerId={person.id}
+                        travelerName={name}
+                        initial={person.about_me || ""}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                    onClick={() => setMomentsOpen((v) => !v)}
+                    aria-expanded={momentsOpen}
+                  >
+                    <span className="section-label">
+                      {name}&rsquo;s favorite moments
+                    </span>
+                    <span className="text-xs text-ink-soft">
+                      {momentsOpen ? "Close" : "Edit"}
+                    </span>
+                  </button>
+                  {momentsOpen && (
+                    <div className="mt-3">
+                      <MomentsEditor
+                        travelerId={person.id}
+                        travelerName={name}
+                        heading=""
+                        help={`Small, real memories from ${name}\u2019s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes.`}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           {tidy.length > 0 && (
             <div className="space-y-2 rounded-xl border border-amber/30 bg-amber/5 p-3">
               <span className="section-label">Topics worth tidying</span>
