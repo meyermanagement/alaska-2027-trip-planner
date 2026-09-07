@@ -111,7 +111,7 @@ const TRIP_ROWS = [
   },
 ];
 
-const GROUPS = [
+const GROUPS_BASE = [
   {
     key: "journal",
     label: "Travel Journal",
@@ -189,6 +189,39 @@ const SETTINGS = {
   sub: "About you, your look, sign-in",
   Icon: GearIcon,
 };
+
+// The More group carries the three rooms of the app that are not about a trip
+// at all: what you have set (Settings), what we promise you (Our Pledge), and
+// how you tell us the app got something wrong (Contact Us). Kept as a group
+// rather than three top-level rows, so the column above it stays entirely
+// about travel and the housekeeping is one door.
+const MORE_GROUP = {
+  key: "more",
+  label: "More",
+  sub: "Settings, what we promise, and how to reach us",
+  Icon: DotsIcon,
+  kids: [
+    SETTINGS,
+    {
+      href: "/pledge",
+      label: "Our Pledge",
+      sub: "No bias, no selling your information, no ads",
+      Icon: ShieldIcon,
+    },
+    {
+      href: "/contact",
+      label: "Contact Us",
+      sub: "Tell us what went right, or what went wrong",
+      Icon: MailIcon,
+    },
+  ],
+};
+
+// GROUPS_BASE is the three travel groups. GROUPS is what the menu actually
+// draws: those three plus the More group (Settings, Our Pledge, Contact Us)
+// pinned to the bottom of the column. Kept as a computed constant rather
+// than mutating GROUPS_BASE so the two sets can never drift.
+const GROUPS = [...GROUPS_BASE, MORE_GROUP];
 
 // A secondary traveler -- a minor, or a friend along for one trip -- gets three
 // doors and no groups: the trips they are on, their own share of the checklist,
@@ -655,21 +688,9 @@ export default function NavTabs({
         );
       });
     }
-    pushRow(
-      {
-        kind: "link",
-        key: SETTINGS.href,
-        ...SETTINGS,
-        active: onScreen(SETTINGS.href, pathname),
-      },
-      {
-        key: SETTINGS.href,
-        kind: "link",
-        label: SETTINGS.label || "",
-        sub: SETTINGS.sub || "",
-        here: currentPathKey === SETTINGS.href,
-      },
-    );
+    // Settings used to be pushed here as a bottom row of its own. It now lives
+    // inside the More group, alongside Our Pledge and Contact Us, so the
+    // whole non-travel section of the menu is one door.
   }
   rowsForFilterRef.current = menuPayload;
 
@@ -1352,6 +1373,39 @@ function PeopleIcon({ className }) {
       <circle cx="7.8" cy="7.4" r="2.6" />
       <path d="M3 16.3c0-2.4 2.1-4.1 4.8-4.1s4.8 1.7 4.8 4.1" />
       <path d="M13.4 5.2a2.4 2.4 0 0 1 0 4.6M14.2 12.5c1.7.3 2.9 1.5 2.9 3.3" />
+    </svg>
+  );
+}
+
+// Three dots in a row: the convention for a drawer of things that did not
+// fit into a named group. Used on the More row -- Settings, Our Pledge and
+// Contact Us -- because none of those are travel and naming the group after
+// any one of them would mis-lead the other two.
+function DotsIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <circle cx="4.4" cy="10" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="10" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="15.6" cy="10" r="1.3" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+// A shield: the shape of a promise -- what the app will not do. On Our Pledge.
+function ShieldIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M10 3 4 5v4.4c0 3.6 2.5 6.4 6 7.3 3.5-.9 6-3.7 6-7.3V5l-6-2Z" />
+    </svg>
+  );
+}
+
+// An envelope: the way to reach a person on the other end. On Contact Us.
+function MailIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <rect x="3" y="5.4" width="14" height="9.2" rx="1.6" />
+      <path d="M3.6 6.4 10 10.6l6.4-4.2" />
     </svg>
   );
 }
