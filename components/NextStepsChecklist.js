@@ -1,5 +1,7 @@
 "use client";
 
+import { Housing, Needle } from "@/components/CompassLoader";
+
 /**
  * The shown-once informational screen after the welcome walkthrough. Three
  * things worth doing next -- Wallet, forwarding, past trips -- each drawn with
@@ -37,33 +39,23 @@ const ITEMS = [
 ];
 
 function CompassMark({ index }) {
-  // Same housing and needle as the CompassLoader, drawn statically. Each row
-  // uses the same instrument so the moment reads as one screen doing three
-  // things, not three unrelated icons.
+  // Same Housing + Needle the loader and boot splash use, so the checklist
+  // mark reads as the same instrument -- not a lookalike drawn from scratch.
+  // The row's per-row delay is passed in so the housing fades in with its
+  // row; the needle swings to north after a small extra offset.
   return (
     <span
-      className="next-steps-compass inline-flex shrink-0 items-center justify-center rounded-full border border-teal/30 bg-teal/10 p-2 text-teal"
+      className="next-steps-compass inline-flex shrink-0 items-center justify-center text-teal"
       style={{ animationDelay: `${index * 0.55}s` }}
       aria-hidden="true"
     >
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-        <circle
-          cx="16"
-          cy="16"
-          r="14.5"
-          stroke="currentColor"
-          strokeWidth="1"
-          opacity="0.55"
-        />
+      <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
+        <Housing />
         <g
           className="next-steps-needle"
           style={{ animationDelay: `${index * 0.55 + 0.2}s` }}
         >
-          <path
-            fillRule="evenodd"
-            fill="currentColor"
-            d="M16 5 25 25 16 20 7 25Z M16 9.5 12 20 16 18 20 20Z"
-          />
+          <Needle spin={false} />
         </g>
       </svg>
     </span>
