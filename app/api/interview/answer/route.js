@@ -162,7 +162,33 @@ export async function POST(request) {
 
   // 2. The preference or fact row. Skips write nothing here; the slot row alone
   //    records that the primary passed.
+  //
+  //    A re-answer must not double-stack. The interview writes several rows
+  //    per option answer (base + one per chip + own-words), so replacing the
+  //    previous set has to be done as a group: delete every family-wide row
+  //    for this slot on the target table, then insert the new set.
+  //
+  //    The delete is scoped by (family_id, slot, traveler_id IS NULL). It is
+  //    safe against Mark's hand-added preferences because those rows carry
+  //    slot=NULL, and against per-person rows because those carry a
+  //    traveler_id. Only interview-authored, family-wide rows for the same
+  //    slot are cleared.
   if (action === "answer") {
+    const targetTable =
+      table === "household_facts" ? "household_facts" : "travel_preferences";
+    const { error: clearError } = await supabase
+      .from(targetTable)
+      .delete()
+      .eq("family_id", familyId)
+      .eq("slot", slotId)
+      .is("traveler_id", null);
+    if (clearError) {
+      return NextResponse.json(
+        { error: "That answer could not be saved. Try again." },
+        { status: 500 },
+      );
+    }
+
     if (question.kind === "text") {
       if (rawText) {
         const { error } = await supabase.from("household_facts").insert({
@@ -295,13 +321,7 @@ export async function POST(request) {
         }
       }
 
-      const { error } = await supabase
-        .from(
-          table === "household_facts"
-            ? "household_facts"
-            : "travel_preferences",
-        )
-        .insert(rowsToInsert);
+      const { error } = await supabase.from(targetTable).insert(rowsToInsert);
       if (error) {
         return NextResponse.json(
           { error: "That answer could not be saved. Try again." },
