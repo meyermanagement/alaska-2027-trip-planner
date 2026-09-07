@@ -12,7 +12,11 @@ import MomentsEditor from "@/components/MomentsEditor";
 // Finish or skip stamps welcomed_at through /api/welcome (POST), which is
 // what the auth callback checks. After the stamp, the walkthrough is over
 // for this person; landing back here later would just re-run the guard and
-// send them straight to /trips.
+// send them past. The stamp happens here rather than one screen later, so
+// somebody who exits the browser between moments and the informational
+// next-steps screen does not get re-asked for their moments on the next
+// login. Next-steps itself takes no action -- it is purely informational --
+// so a refresh there is fine.
 
 export default function WelcomeMomentsForm({ travelerId, travelerName }) {
   const router = useRouter();
@@ -34,7 +38,7 @@ export default function WelcomeMomentsForm({ travelerId, travelerName }) {
         setBusy(false);
         return;
       }
-      router.push("/trips");
+      router.push("/welcome/next-steps");
     } catch {
       setError("That could not be saved.");
       setBusy(false);
@@ -59,7 +63,7 @@ export default function WelcomeMomentsForm({ travelerId, travelerName }) {
           disabled={busy}
           className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
-          {busy ? "Finishing..." : "I'm done -- take me in"}
+          {busy ? "Finishing..." : "I'm done -- what's next"}
         </button>
       </div>
       <p className="text-xs text-ink-soft">

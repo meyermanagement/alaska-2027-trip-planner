@@ -63,6 +63,11 @@ export default async function InterviewCheckPage() {
             title="About you"
             body="A paragraph on the primary's own page for what they are like on a trip. The one thing Aly reads before every answer she writes."
           />
+          <PracticeTile
+            href="/interview-check/next-steps"
+            title="Three things worth doing next"
+            body="The screen a new family sees right after Favorite moments. Purely informational -- Wallet, forwarding trip confirmations, and adding past trips -- with a small compass mark orienting into place for each row."
+          />
         </div>
 
         <p className="mt-8 text-xs text-ink-soft">

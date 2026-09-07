@@ -427,6 +427,56 @@ html[data-booted] #boot-veil {
   }
 }
 
+/* The three rows on the after-welcome next-steps screen tick in one after the
+   other, and the compass mark inside each row swings to north as its row
+   arrives. The row and the mark share a per-row delay set inline, so the two
+   animations stay locked together no matter how the screen is embedded. */
+.next-steps-row {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: next-steps-row 0.55s ease-out both;
+}
+
+@keyframes next-steps-row {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.next-steps-compass {
+  opacity: 0;
+  animation: next-steps-mark-fade 0.4s ease-out 0.05s both;
+}
+
+@keyframes next-steps-mark-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+.next-steps-needle {
+  transform-origin: 16px 16px;
+  transform: rotate(-42deg);
+  animation: next-steps-needle-swing 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes next-steps-needle-swing {
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .next-steps-row,
+  .next-steps-compass,
+  .next-steps-needle {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes boot-draw {
   to {
     stroke-dashoffset: 0;
