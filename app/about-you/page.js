@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
-import AskAlyGeneral from "@/components/AskAlyGeneral";
-import TopBar from "@/components/TopBar";
-import { SETTINGS_FOCUS } from "@/lib/agent/context";
 import AboutYouForm from "./AboutYouForm";
 
 export const metadata = { title: "About you · Alyeska" };
@@ -51,23 +48,22 @@ export default async function AboutYouPage({ searchParams }) {
   // them to a box that cannot save is worse than not asking.
   if (!mine) redirect("/trips");
 
+  // Chromeless: no TopBar (compass menu, tip strip, current-trip banner) and
+  // no Ask Aly. This screen is entered from the first-run chain -- welcome,
+  // then here, then interview -- and the compass and the drawer belong to the
+  // app you land in once the chain is done, not the chain itself. The Family
+  // screen and Settings still hand you a way back here later, with the
+  // chrome, when you return to edit the paragraph.
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
-        <AboutYouForm
-          travelerId={mine.id}
-          name={mine.name || ""}
-          about={mine.about_me || ""}
-          first={first}
-          secondary={mine.access_level === "secondary"}
-          nextHref={nextHref}
-        />
-      </main>
-      {/* Aly is good at drafting the paragraph this screen is for, which makes
-        her absence here the worst place to be missing. Same subject as Settings:
-        the person, not a trip. */}
-      <AskAlyGeneral focus={SETTINGS_FOCUS} />
-    </>
+    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+      <AboutYouForm
+        travelerId={mine.id}
+        name={mine.name || ""}
+        about={mine.about_me || ""}
+        first={first}
+        secondary={mine.access_level === "secondary"}
+        nextHref={nextHref}
+      />
+    </main>
   );
 }

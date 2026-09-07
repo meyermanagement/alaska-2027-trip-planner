@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { ledgerFor } from "@/lib/travelers/ledger";
 import { INTERVIEW_QUESTIONS, nextQuestion } from "@/lib/travelers/interview";
@@ -92,7 +91,6 @@ export default async function InterviewPage() {
 
   return (
     <>
-      <TopBar />
       <InterviewBody
         mode="real"
         startSlot={question.slot}

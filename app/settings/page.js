@@ -33,11 +33,13 @@ export default async function SettingsPage() {
       .select("display_name, skin")
       .eq("id", user.id)
       .maybeSingle(),
-    // Whether there is a row of their own to write a paragraph on. Without one,
-    // About you has nothing to save, so it is stated rather than offered.
+    // Their traveler row, if the seat has been claimed, only to say what name
+    // they appear under on trips. About you no longer lives on this screen --
+    // it lives on the Family tab where the rest of the record lives -- so
+    // there is nothing to write from here.
     supabase
       .from("travelers")
-      .select("id, name, about_me")
+      .select("id, name")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle(),

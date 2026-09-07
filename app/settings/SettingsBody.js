@@ -1,4 +1,3 @@
-import Link from "next/link";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
 import SkinPicker from "@/components/SkinPicker";
@@ -7,10 +6,18 @@ import { SETTINGS_FOCUS } from "@/lib/agent/context";
 /**
  * Everything the Settings screen draws, given what it needs. Kept apart from the
  * page so the layout can be rendered and looked at without a signed-in session.
+ *
+ * About you was the first section on this screen, on the argument that the
+ * paragraph Aly reads about you was the thing you were likeliest to come back
+ * to change. On a second look that was not true -- the paragraph lives on the
+ * Family tab where the rest of your record lives, and Settings collecting a
+ * shortcut to it made Settings the second door to one page, in the wrong
+ * order, quietly duplicating the entry point that already existed.
+ *
+ * So Settings is the two things it always meant to be: how the app looks, and
+ * whose account this is.
  */
 export default function SettingsBody({ email, displayName, skin, mine }) {
-  const written = !!(mine?.about_me || "").trim();
-
   return (
     <>
       <TopBar />
@@ -18,34 +25,9 @@ export default function SettingsBody({ email, displayName, skin, mine }) {
         <h1 className="font-display text-3xl font-semibold">Settings</h1>
 
         <div className="mt-6 space-y-10">
-          <section>
-            <h2 className="font-display text-xl font-semibold">About you</h2>
-            {mine ? (
-              <>
-                <p className="mt-1 text-sm text-ink-soft">
-                  {written
-                    ? "Your own paragraph, which Aly reads before she answers anything."
-                    : "Say what you enjoy and what you would rather skip, and Aly's answers stop being generic."}
-                </p>
-                <Link
-                  href="/about-you"
-                  className="btn btn-ghost no-print mt-3 inline-flex"
-                >
-                  {written ? "Edit what you wrote" : "Write it"}
-                </Link>
-              </>
-            ) : (
-              <p className="mt-1 text-sm text-ink-soft">
-                Nobody in the family has claimed this sign-in address yet, so
-                there is no record of your own to write on. A primary traveler
-                can add {email} to your name on the Family tab.
-              </p>
-            )}
-          </section>
-
           <SkinPicker skin={skin} />
 
-          <section className="border-t border-[var(--line)] pt-8">
+          <section>
             <h2 className="font-display text-xl font-semibold">Signed in</h2>
             <dl className="mt-3 space-y-2 text-sm">
               {displayName && (
