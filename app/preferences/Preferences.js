@@ -74,16 +74,16 @@ export default function Preferences({
   const [busy, setBusy] = useState(false);
   // "" is everyone; otherwise a traveler id, or SHARED for the family's own.
   const [whose, setWhose] = useState("");
-  // When a specific person is selected, About and Favorite moments appear
-  // above the topic filter so they can be edited without hopping to the
-  // person's file. Both start collapsed; opened state is per-person so
-  // switching people does not carry the last person's open drawer.
-  const [aboutOpen, setAboutOpen] = useState(false);
-  const [momentsOpen, setMomentsOpen] = useState(false);
-  useEffect(() => {
-    setAboutOpen(false);
-    setMomentsOpen(false);
-  }, [whose]);
+  // A separate top-level section above the preferences list holds About and
+  // Favorite moments for every person, so they are visible without a Whose
+  // filter being chosen and can be edited without hopping to the person's file.
+  // Kept as maps keyed by traveler id: one person open at a time is common, but
+  // opening two at once to compare should not close the first. Each person's
+  // About and Moments rows track their own open state so opening About does
+  // not scroll Moments off the screen.
+  const [personOpen, setPersonOpen] = useState({});
+  const [aboutOpen, setAboutOpen] = useState({});
+  const [momentsOpen, setMomentsOpen] = useState({});
   // A topic's comparable form, or "" for all of them, or NO_TOPIC_KEY for the
   // ones filed under nothing.
   const [topicKey, setTopicKey] = useState("");
@@ -521,360 +521,49 @@ export default function Preferences({
     setIdeas((list) => (list || []).filter((row) => row.key !== key));
   }
 
+  const people = (travelers || []).filter((t) => t?.id);
+
   return (
-    <section className="card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-semibold">
-            How we like to travel
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-            Anything worth remembering when we plan the next one — how we get
-            around, what we will and will not sleep in, what a night is worth to
-            us. Write it however you like. Aly reads these when she suggests
-            things. Press one to change or delete it.
-          </p>
-        </div>
-        <div className="no-print flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => askAly("ideas")}
-            disabled={Boolean(asking)}
-          >
-            {asking === "ideas" ? "Aly is thinking…" : "Ask Aly for ideas"}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => askAly("missing")}
-            disabled={Boolean(asking)}
-          >
-            {asking === "missing"
-              ? "Aly is thinking…"
-              : "Ask Aly what is missing"}
-          </button>
-          {!adding && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setEditing(null);
-                setAdding(true);
-              }}
-            >
-              Add a preference
-            </button>
-          )}
-        </div>
-      </div>
-
-      {adding && (
-        <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
-          <PreferenceForm
-            travelers={travelers}
-            preferences={prefs}
-            busy={busy}
-            onCancel={() => {
-              holdRow(firstRowKey());
-              setAdding(false);
-            }}
-            onSave={(values) => save(null, values)}
-          />
-        </div>
-      )}
-
-      {askError && (
-        <p className="no-print mt-4 rounded-xl border border-rose/30 bg-rose/5 p-3 text-sm text-rose">
-          {askError}
-        </p>
-      )}
-
-      {asking && (
-        <p className="no-print mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm text-ink-soft">
-          {asking === "ideas"
-            ? "Aly is drafting the decisions any trip needs an answer to, skipping anything already saved here. This takes a few seconds."
-            : "Aly is reading your trips, your reviews and what is already saved here, looking for the decisions she keeps having to guess at. This takes a few seconds."}
-        </p>
-      )}
-
-      {ideas && !asking && (
-        <div className="no-print mt-4 space-y-3 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
-          <div>
-            <span className="section-label">Aly&apos;s suggestions</span>
-            <p className="mt-1 text-sm text-ink-soft">
-              {ideas.length === 0
-                ? "Nothing to add — everything Aly would want to know is already written down here."
-                : askedFor === "ideas"
-                  ? "The decisions any trip needs an answer to, drafted the ordinary way rather than picked out of your record. Change each one to what is actually true of you, or turn it down. Nothing is saved until you press Save."
-                  : starter
-                    ? "There is not much saved about you yet, so these are not things Aly spotted — they are the decisions every trip needs an answer to, drafted the ordinary way. Change any of them to what is actually true of you, or turn them down. Nothing is saved until you press Save."
-                    : "Drafts, in your words, from what Aly already knows about you. Nothing is saved until you press Save, and you can change the wording first."}
+    <div className="space-y-5">
+      {people.length > 0 && (
+        <section className="card p-5">
+          <div className="mb-3">
+            <h2 className="font-display text-xl font-semibold">
+              About your family
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+              A paragraph or two about each person, and the small real memories
+              from their life that make an answer feel like it was written for
+              them. Aly reads these before every answer.
             </p>
           </div>
-          {ideas.map((idea) => (
-            <SuggestionCard
-              key={idea.key}
-              idea={idea}
-              travelers={travelers}
-              preferences={prefs}
-              busy={busy}
-              onSave={async (values) => {
-                await save(null, values);
-                dropIdea(idea.key);
-              }}
-              onSkip={() => dropIdea(idea.key)}
-            />
-          ))}
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => setIdeas(null)}
-          >
-            {ideas.length === 0 ? "Close" : "Done with these"}
-          </button>
-        </div>
-      )}
-
-      {prefs.length > 0 && (
-        <div className="no-print mt-4 space-y-2">
-          {/* A search box first, then chips for the questions people actually
-              ask of this list -- whose is it, and what is it about. The search
-              matches the body of a preference, the topics it is filed under,
-              and the names of who it is for, so a hunt for one line does not
-              have to know which topic it lived under. Filters compose: search
-              narrows what the chips are counting, and vice versa. */}
-          <label className="block">
-            <span className="sr-only">Search these preferences</span>
-            <input
-              type="search"
-              className="field"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search a preference, a topic, or a name"
-            />
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="section-label">Whose</span>
-            <Chip on={!whose} onClick={() => setWhose("")}>
-              Everyone · {prefs.length}
-            </Chip>
-            {counts.map((row) => (
-              <Chip
-                key={row.id || "_shared"}
-                on={whose === (row.id || SHARED_LABEL)}
-                onClick={() => setWhose(row.id || SHARED_LABEL)}
-              >
-                {row.name} · {row.count}
-              </Chip>
-            ))}
-          </div>
-          {(topicChips.length > 1 || topicKey) && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="section-label">About</span>
-              <Chip on={!topicKey} onClick={() => setTopicKey("")}>
-                Anything
-              </Chip>
-              {topicChips.map((row) => (
-                <Chip
-                  key={row.key}
-                  on={topicKey === row.key}
-                  onClick={() => setTopicKey(row.key)}
-                >
-                  {row.label} · {row.count}
-                </Chip>
-              ))}
-              {untopiced > 0 && (
-                <Chip
-                  on={topicKey === NO_TOPIC_KEY}
-                  onClick={() => setTopicKey(NO_TOPIC_KEY)}
-                >
-                  {NO_TOPIC_LABEL} · {untopiced}
-                </Chip>
-              )}
-            </div>
-          )}
-          {/* One line under the chips: what a filter did and how to undo it, or
-              the fold control when nothing is filtered. Never both. */}
-          {filtered ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="text-sm text-ink-soft">{filterSaid}</span>
-              <button
-                type="button"
-                className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
-                onClick={clearFilters}
-              >
-                Clear
-              </button>
-            </div>
-          ) : (
-            groups.length > 1 && (
-              <button
-                type="button"
-                className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
-                onClick={() =>
-                  fold(allShut ? new Set() : new Set(groups.map((g) => g.key)))
-                }
-              >
-                {allShut ? "Open all" : "Collapse all"}
-              </button>
-            )
-          )}
-          {/* When a specific person is chosen -- not Everyone, not the family's
-              own -- About and Favorite moments appear here so they can be
-              edited in the same screen as their preferences. About first,
-              because it is a paragraph somebody wrote and the shortest thing
-              to skim; then moments, because they are a list; then their
-              preferences below. Both sections start collapsed so the
-              preferences list remains the main event, and both open in place
-              on a tap. */}
-          {(() => {
-            if (!whose || whose === SHARED_LABEL) return null;
-            const person = (travelers || []).find((t) => t.id === whose);
-            if (!person) return null;
-            const name = person.name || "this person";
-            const hasAbout = Boolean((person.about_me || "").trim());
-            return (
-              <div className="space-y-2">
-                <div className="rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-3 text-left"
-                    onClick={() => setAboutOpen((v) => !v)}
-                    aria-expanded={aboutOpen}
-                  >
-                    <span className="section-label">About {name}</span>
-                    <span className="text-xs text-ink-soft">
-                      {aboutOpen ? "Close" : hasAbout ? "Edit" : "Add"}
-                    </span>
-                  </button>
-                  {aboutOpen && (
-                    <div className="mt-3">
-                      <AboutInlineEditor
-                        travelerId={person.id}
-                        travelerName={name}
-                        initial={person.about_me || ""}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-3 text-left"
-                    onClick={() => setMomentsOpen((v) => !v)}
-                    aria-expanded={momentsOpen}
-                  >
-                    <span className="section-label">
-                      {name}&rsquo;s favorite moments
-                    </span>
-                    <span className="text-xs text-ink-soft">
-                      {momentsOpen ? "Close" : "Edit"}
-                    </span>
-                  </button>
-                  {momentsOpen && (
-                    <div className="mt-3">
-                      <MomentsEditor
-                        travelerId={person.id}
-                        travelerName={name}
-                        heading=""
-                        help={`Small, real memories from ${name}\u2019s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes.`}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-          {tidy.length > 0 && (
-            <div className="space-y-2 rounded-xl border border-amber/30 bg-amber/5 p-3">
-              <span className="section-label">Topics worth tidying</span>
-              {tidy.map((row) => (
+          <div className="space-y-3">
+            {people.map((person) => {
+              const name = person.name || "this person";
+              const hasAbout = Boolean((person.about_me || "").trim());
+              const open = Boolean(personOpen[person.id]);
+              const aboutIsOpen = Boolean(aboutOpen[person.id]);
+              const momentsIsOpen = Boolean(momentsOpen[person.id]);
+              return (
                 <div
-                  key={`${row.kind}:${row.fromKey}`}
-                  className="flex flex-wrap items-center gap-2 text-sm"
+                  key={person.id}
+                  className="rounded-xl border border-[var(--line)] bg-white"
                 >
-                  <span className="text-ink-soft">
-                    {row.kind === "spelling"
-                      ? row.said
-                      : `Move ${row.fromCount} from \u201C${row.from}\u201D into \u201C${row.into}\u201D? ${row.because}`}
-                  </span>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                    disabled={busy}
-                    onClick={() => renameTopic(row.from, row.into)}
-                  >
-                    {row.kind === "spelling"
-                      ? `Rename to \u201C${row.into}\u201D`
-                      : "Merge them"}
-                  </button>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
-                    onClick={() =>
-                      setIgnored((list) => [
-                        ...list,
-                        `${row.kind}:${row.fromKey}`,
-                      ])
-                    }
-                  >
-                    Leave it
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {prefs.length === 0 && !adding ? (
-        <div className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4">
-          <p className="text-sm text-ink-soft">
-            Nothing saved yet. The sort of thing that belongs here:
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {EXAMPLES.map((e) => (
-              <li key={e} className="text-sm text-ink-soft">
-                <span aria-hidden="true" className="mr-1.5 text-ink-soft/60">
-                  ·
-                </span>
-                {e}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : shown.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4 text-sm text-ink-soft">
-          Nothing saved under that. {prefs.length}{" "}
-          {prefs.length === 1 ? "preference" : "preferences"} in all — clear the
-          filters above to see them.
-        </p>
-      ) : (
-        <div className="mt-4 space-y-6">
-          {groups.map((group) => {
-            const open = !isShut(group.key);
-            const showAll = Boolean(expanded[group.key || "_none"]);
-            const capped =
-              !showAll && group.items.length > SECTION_CAP
-                ? group.items.slice(0, SECTION_CAP)
-                : group.items;
-            const hidden = group.items.length - capped.length;
-            return (
-              <section key={group.key || "_none"}>
-                {/* One heading, styled the way Past reviews styles its groups so a
-                  reader who has learned one page has learned the other. The
-                  whole row is the button -- chevron, name, hairline, count --
-                  which makes it obvious enough that tapping anywhere on it
-                  minimises or expands the topic. Rename sits to the right and
-                  only appears when a real topic is open, since renaming
-                  "Everything else" is not a thing you can do. */}
-                <div className="flex items-center gap-3">
+                  {/* The whole row is the button so tapping anywhere on the
+                      name minimises or expands the person, the same shape Past
+                      reviews uses on its group headings. A short summary sits
+                      on the right so a reader can tell at a glance whether
+                      About has been written and Moments have been added. */}
                   <button
                     type="button"
                     aria-expanded={open}
-                    onClick={() => toggleGroup(group.key)}
-                    className="flex flex-1 items-center gap-3 text-left"
+                    onClick={() =>
+                      setPersonOpen((prev) => ({
+                        ...prev,
+                        [person.id]: !prev[person.id],
+                      }))
+                    }
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left"
                   >
                     <span
                       className={`text-ink-faint transition ${open ? "rotate-90" : ""}`}
@@ -882,129 +571,510 @@ export default function Preferences({
                     >
                       ▶
                     </span>
-                    <h2 className="font-display text-xl font-semibold">
-                      {group.label}
-                    </h2>
+                    <span className="font-display text-lg font-semibold">
+                      {name}
+                    </span>
                     <span
                       className="h-px flex-1 bg-sand-deep"
                       aria-hidden="true"
                     />
                     <span className="whitespace-nowrap text-xs font-semibold text-ink-soft">
-                      {group.items.length}
+                      {hasAbout ? "About written" : "No About yet"}
                     </span>
                   </button>
-                  {group.key && open && (
-                    <button
-                      type="button"
-                      className="no-print whitespace-nowrap text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                      onClick={() =>
-                        setRenaming(
-                          renaming?.key === group.key
-                            ? null
-                            : { key: group.key, from: group.label },
-                        )
-                      }
-                    >
-                      {renaming?.key === group.key ? "Never mind" : "Rename"}
-                    </button>
+                  {open && (
+                    <div className="space-y-3 border-t border-[var(--line)] p-4">
+                      {/* About first, because it is a paragraph somebody
+                          wrote and the shortest thing to skim. Moments
+                          below, because they are a list that grows. Each
+                          opens in place so a reader who is editing About
+                          does not lose their spot on Moments. */}
+                      <div className="rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-3 text-left"
+                          onClick={() =>
+                            setAboutOpen((prev) => ({
+                              ...prev,
+                              [person.id]: !prev[person.id],
+                            }))
+                          }
+                          aria-expanded={aboutIsOpen}
+                        >
+                          <span className="section-label">About {name}</span>
+                          <span className="text-xs text-ink-soft">
+                            {aboutIsOpen ? "Close" : hasAbout ? "Edit" : "Add"}
+                          </span>
+                        </button>
+                        {aboutIsOpen && (
+                          <div className="mt-3">
+                            <AboutInlineEditor
+                              travelerId={person.id}
+                              travelerName={name}
+                              initial={person.about_me || ""}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="rounded-xl border border-sand-deep bg-sand-soft/60 p-3">
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-3 text-left"
+                          onClick={() =>
+                            setMomentsOpen((prev) => ({
+                              ...prev,
+                              [person.id]: !prev[person.id],
+                            }))
+                          }
+                          aria-expanded={momentsIsOpen}
+                        >
+                          <span className="section-label">
+                            {name}&rsquo;s favorite moments
+                          </span>
+                          <span className="text-xs text-ink-soft">
+                            {momentsIsOpen ? "Close" : "Edit"}
+                          </span>
+                        </button>
+                        {momentsIsOpen && (
+                          <div className="mt-3">
+                            <MomentsEditor
+                              travelerId={person.id}
+                              travelerName={name}
+                              heading=""
+                              help={`Small, real memories from ${name}\u2019s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes.`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
-                {open && renaming?.key === group.key && (
-                  <div className="mt-2 pl-7">
-                    <TopicRename
-                      from={group.label}
-                      count={group.items.length}
-                      existing={topicsInUse(prefs)}
-                      busy={busy}
-                      onCancel={() => setRenaming(null)}
-                      onSave={(next) => renameTopic(group.label, next)}
-                    />
-                  </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section className="card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-semibold">
+              How we like to travel
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+              Anything worth remembering when we plan the next one — how we get
+              around, what we will and will not sleep in, what a night is worth
+              to us. Write it however you like. Aly reads these when she
+              suggests things. Press one to change or delete it.
+            </p>
+          </div>
+          <div className="no-print flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => askAly("ideas")}
+              disabled={Boolean(asking)}
+            >
+              {asking === "ideas" ? "Aly is thinking…" : "Ask Aly for ideas"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => askAly("missing")}
+              disabled={Boolean(asking)}
+            >
+              {asking === "missing"
+                ? "Aly is thinking…"
+                : "Ask Aly what is missing"}
+            </button>
+            {!adding && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setEditing(null);
+                  setAdding(true);
+                }}
+              >
+                Add a preference
+              </button>
+            )}
+          </div>
+        </div>
+
+        {adding && (
+          <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+            <PreferenceForm
+              travelers={travelers}
+              preferences={prefs}
+              busy={busy}
+              onCancel={() => {
+                holdRow(firstRowKey());
+                setAdding(false);
+              }}
+              onSave={(values) => save(null, values)}
+            />
+          </div>
+        )}
+
+        {askError && (
+          <p className="no-print mt-4 rounded-xl border border-rose/30 bg-rose/5 p-3 text-sm text-rose">
+            {askError}
+          </p>
+        )}
+
+        {asking && (
+          <p className="no-print mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm text-ink-soft">
+            {asking === "ideas"
+              ? "Aly is drafting the decisions any trip needs an answer to, skipping anything already saved here. This takes a few seconds."
+              : "Aly is reading your trips, your reviews and what is already saved here, looking for the decisions she keeps having to guess at. This takes a few seconds."}
+          </p>
+        )}
+
+        {ideas && !asking && (
+          <div className="no-print mt-4 space-y-3 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+            <div>
+              <span className="section-label">Aly&apos;s suggestions</span>
+              <p className="mt-1 text-sm text-ink-soft">
+                {ideas.length === 0
+                  ? "Nothing to add — everything Aly would want to know is already written down here."
+                  : askedFor === "ideas"
+                    ? "The decisions any trip needs an answer to, drafted the ordinary way rather than picked out of your record. Change each one to what is actually true of you, or turn it down. Nothing is saved until you press Save."
+                    : starter
+                      ? "There is not much saved about you yet, so these are not things Aly spotted — they are the decisions every trip needs an answer to, drafted the ordinary way. Change any of them to what is actually true of you, or turn them down. Nothing is saved until you press Save."
+                      : "Drafts, in your words, from what Aly already knows about you. Nothing is saved until you press Save, and you can change the wording first."}
+              </p>
+            </div>
+            {ideas.map((idea) => (
+              <SuggestionCard
+                key={idea.key}
+                idea={idea}
+                travelers={travelers}
+                preferences={prefs}
+                busy={busy}
+                onSave={async (values) => {
+                  await save(null, values);
+                  dropIdea(idea.key);
+                }}
+                onSkip={() => dropIdea(idea.key)}
+              />
+            ))}
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setIdeas(null)}
+            >
+              {ideas.length === 0 ? "Close" : "Done with these"}
+            </button>
+          </div>
+        )}
+
+        {prefs.length > 0 && (
+          <div className="no-print mt-4 space-y-2">
+            {/* A search box first, then chips for the questions people actually
+              ask of this list -- whose is it, and what is it about. The search
+              matches the body of a preference, the topics it is filed under,
+              and the names of who it is for, so a hunt for one line does not
+              have to know which topic it lived under. Filters compose: search
+              narrows what the chips are counting, and vice versa. */}
+            <label className="block">
+              <span className="sr-only">Search these preferences</span>
+              <input
+                type="search"
+                className="field"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search a preference, a topic, or a name"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="section-label">Whose</span>
+              <Chip on={!whose} onClick={() => setWhose("")}>
+                Everyone · {prefs.length}
+              </Chip>
+              {counts.map((row) => (
+                <Chip
+                  key={row.id || "_shared"}
+                  on={whose === (row.id || SHARED_LABEL)}
+                  onClick={() => setWhose(row.id || SHARED_LABEL)}
+                >
+                  {row.name} · {row.count}
+                </Chip>
+              ))}
+            </div>
+            {(topicChips.length > 1 || topicKey) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="section-label">About</span>
+                <Chip on={!topicKey} onClick={() => setTopicKey("")}>
+                  Anything
+                </Chip>
+                {topicChips.map((row) => (
+                  <Chip
+                    key={row.key}
+                    on={topicKey === row.key}
+                    onClick={() => setTopicKey(row.key)}
+                  >
+                    {row.label} · {row.count}
+                  </Chip>
+                ))}
+                {untopiced > 0 && (
+                  <Chip
+                    on={topicKey === NO_TOPIC_KEY}
+                    onClick={() => setTopicKey(NO_TOPIC_KEY)}
+                  >
+                    {NO_TOPIC_LABEL} · {untopiced}
+                  </Chip>
                 )}
-                {open && (
-                  <>
-                    <ul className="mt-3 space-y-2">
-                      {capped.map(({ pref, also }) =>
-                        editing === pref.id ? (
-                          <li
-                            key={pref.id}
-                            data-pref-row={pref.id}
-                            className="rounded-xl border border-[var(--line)] bg-sand/40 p-3"
-                          >
-                            <PreferenceForm
-                              pref={pref}
-                              travelers={travelers}
-                              preferences={prefs}
-                              busy={busy}
-                              onCancel={() => {
-                                holdRow(pref.id);
-                                setEditing(null);
-                              }}
-                              onDelete={() => remove(pref)}
-                              onSave={(values) => save(pref.id, values)}
-                            />
-                          </li>
-                        ) : (
-                          <li key={pref.id} data-pref-row={pref.id}>
-                            <button
-                              type="button"
-                              className="group w-full rounded-xl border border-[var(--line)] bg-white p-3 text-left hover:border-teal/40"
-                              onClick={() => {
-                                setAdding(false);
-                                setEditing(pref.id);
-                              }}
+              </div>
+            )}
+            {/* One line under the chips: what a filter did and how to undo it, or
+              the fold control when nothing is filtered. Never both. */}
+            {filtered ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="text-sm text-ink-soft">{filterSaid}</span>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
+                  onClick={clearFilters}
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              groups.length > 1 && (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
+                  onClick={() =>
+                    fold(
+                      allShut ? new Set() : new Set(groups.map((g) => g.key)),
+                    )
+                  }
+                >
+                  {allShut ? "Open all" : "Collapse all"}
+                </button>
+              )
+            )}
+            {tidy.length > 0 && (
+              <div className="space-y-2 rounded-xl border border-amber/30 bg-amber/5 p-3">
+                <span className="section-label">Topics worth tidying</span>
+                {tidy.map((row) => (
+                  <div
+                    key={`${row.kind}:${row.fromKey}`}
+                    className="flex flex-wrap items-center gap-2 text-sm"
+                  >
+                    <span className="text-ink-soft">
+                      {row.kind === "spelling"
+                        ? row.said
+                        : `Move ${row.fromCount} from \u201C${row.from}\u201D into \u201C${row.into}\u201D? ${row.because}`}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                      disabled={busy}
+                      onClick={() => renameTopic(row.from, row.into)}
+                    >
+                      {row.kind === "spelling"
+                        ? `Rename to \u201C${row.into}\u201D`
+                        : "Merge them"}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-ink-soft underline decoration-ink-soft/30 underline-offset-2 hover:text-ink"
+                      onClick={() =>
+                        setIgnored((list) => [
+                          ...list,
+                          `${row.kind}:${row.fromKey}`,
+                        ])
+                      }
+                    >
+                      Leave it
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {prefs.length === 0 && !adding ? (
+          <div className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4">
+            <p className="text-sm text-ink-soft">
+              Nothing saved yet. The sort of thing that belongs here:
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {EXAMPLES.map((e) => (
+                <li key={e} className="text-sm text-ink-soft">
+                  <span aria-hidden="true" className="mr-1.5 text-ink-soft/60">
+                    ·
+                  </span>
+                  {e}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : shown.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4 text-sm text-ink-soft">
+            Nothing saved under that. {prefs.length}{" "}
+            {prefs.length === 1 ? "preference" : "preferences"} in all — clear
+            the filters above to see them.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-6">
+            {groups.map((group) => {
+              const open = !isShut(group.key);
+              const showAll = Boolean(expanded[group.key || "_none"]);
+              const capped =
+                !showAll && group.items.length > SECTION_CAP
+                  ? group.items.slice(0, SECTION_CAP)
+                  : group.items;
+              const hidden = group.items.length - capped.length;
+              return (
+                <section key={group.key || "_none"}>
+                  {/* One heading, styled the way Past reviews styles its groups so a
+                  reader who has learned one page has learned the other. The
+                  whole row is the button -- chevron, name, hairline, count --
+                  which makes it obvious enough that tapping anywhere on it
+                  minimises or expands the topic. Rename sits to the right and
+                  only appears when a real topic is open, since renaming
+                  "Everything else" is not a thing you can do. */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => toggleGroup(group.key)}
+                      className="flex flex-1 items-center gap-3 text-left"
+                    >
+                      <span
+                        className={`text-ink-faint transition ${open ? "rotate-90" : ""}`}
+                        aria-hidden="true"
+                      >
+                        ▶
+                      </span>
+                      <h2 className="font-display text-xl font-semibold">
+                        {group.label}
+                      </h2>
+                      <span
+                        className="h-px flex-1 bg-sand-deep"
+                        aria-hidden="true"
+                      />
+                      <span className="whitespace-nowrap text-xs font-semibold text-ink-soft">
+                        {group.items.length}
+                      </span>
+                    </button>
+                    {group.key && open && (
+                      <button
+                        type="button"
+                        className="no-print whitespace-nowrap text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                        onClick={() =>
+                          setRenaming(
+                            renaming?.key === group.key
+                              ? null
+                              : { key: group.key, from: group.label },
+                          )
+                        }
+                      >
+                        {renaming?.key === group.key ? "Never mind" : "Rename"}
+                      </button>
+                    )}
+                  </div>
+                  {open && renaming?.key === group.key && (
+                    <div className="mt-2 pl-7">
+                      <TopicRename
+                        from={group.label}
+                        count={group.items.length}
+                        existing={topicsInUse(prefs)}
+                        busy={busy}
+                        onCancel={() => setRenaming(null)}
+                        onSave={(next) => renameTopic(group.label, next)}
+                      />
+                    </div>
+                  )}
+                  {open && (
+                    <>
+                      <ul className="mt-3 space-y-2">
+                        {capped.map(({ pref, also }) =>
+                          editing === pref.id ? (
+                            <li
+                              key={pref.id}
+                              data-pref-row={pref.id}
+                              className="rounded-xl border border-[var(--line)] bg-sand/40 p-3"
                             >
-                              <p className="text-sm leading-relaxed whitespace-pre-line">
-                                {pref.body}
-                              </p>
-                              {(!isShared(pref) || also.length > 0) && (
-                                <span className="mt-1.5 flex flex-wrap items-center gap-2">
-                                  {/* One chip per owner rather than one chip reading
+                              <PreferenceForm
+                                pref={pref}
+                                travelers={travelers}
+                                preferences={prefs}
+                                busy={busy}
+                                onCancel={() => {
+                                  holdRow(pref.id);
+                                  setEditing(null);
+                                }}
+                                onDelete={() => remove(pref)}
+                                onSave={(values) => save(pref.id, values)}
+                              />
+                            </li>
+                          ) : (
+                            <li key={pref.id} data-pref-row={pref.id}>
+                              <button
+                                type="button"
+                                className="group w-full rounded-xl border border-[var(--line)] bg-white p-3 text-left hover:border-teal/40"
+                                onClick={() => {
+                                  setAdding(false);
+                                  setEditing(pref.id);
+                                }}
+                              >
+                                <p className="text-sm leading-relaxed whitespace-pre-line">
+                                  {pref.body}
+                                </p>
+                                {(!isShared(pref) || also.length > 0) && (
+                                  <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                                    {/* One chip per owner rather than one chip reading
                                 "Mark & Steph": the colour is what makes a name
                                 findable down a long list, and a pair sharing
                                 one chip can only have one colour. */}
-                                  {whoseNames(pref, travelers).map((name) => (
-                                    <span
-                                      key={name}
-                                      className={`chip ${assigneeColor(name)}`}
-                                    >
-                                      {name}
-                                    </span>
-                                  ))}
-                                  {also.length > 0 && (
-                                    <span className="text-xs text-ink-faint">
-                                      Also under {also.join(" and ")}
-                                    </span>
-                                  )}
-                                </span>
-                              )}
-                            </button>
-                          </li>
-                        ),
+                                    {whoseNames(pref, travelers).map((name) => (
+                                      <span
+                                        key={name}
+                                        className={`chip ${assigneeColor(name)}`}
+                                      >
+                                        {name}
+                                      </span>
+                                    ))}
+                                    {also.length > 0 && (
+                                      <span className="text-xs text-ink-faint">
+                                        Also under {also.join(" and ")}
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                      {hidden > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost mt-3 px-3 py-1.5 text-xs"
+                          onClick={() =>
+                            setExpanded((prev) => ({
+                              ...prev,
+                              [group.key || "_none"]: true,
+                            }))
+                          }
+                        >
+                          Show all {group.items.length}
+                        </button>
                       )}
-                    </ul>
-                    {hidden > 0 && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost mt-3 px-3 py-1.5 text-xs"
-                        onClick={() =>
-                          setExpanded((prev) => ({
-                            ...prev,
-                            [group.key || "_none"]: true,
-                          }))
-                        }
-                      >
-                        Show all {group.items.length}
-                      </button>
-                    )}
-                  </>
-                )}
-              </section>
-            );
-          })}
-        </div>
-      )}
-    </section>
+                    </>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
