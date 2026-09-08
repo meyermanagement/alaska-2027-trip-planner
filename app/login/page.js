@@ -19,9 +19,17 @@ export default function LoginPage() {
         <h1 className="font-display mt-3 text-3xl font-semibold tracking-[0.03em] text-ink">
           Alyeska
         </h1>
+        {/* Two lines, not one, because the promise and the pledge do
+            different work. The first names what the app is; the second
+            says how it pays for itself, which is the question a new sign-in
+            actually has once they read the first line. Kept as two <p>s so
+            the pledge sits on its own and does not read as a subordinate
+            clause of the promise. */}
         <p className="mt-2 text-sm text-ink-soft">
-          Shared itineraries, packing lists and pre-departure tasks — live
-          across everyone&apos;s devices.
+          Travel, Personalized. Contextualized. Simplified.
+        </p>
+        <p className="mt-1 text-sm text-ink-soft">
+          No ads. No commissions. Just the memories that matter.
         </p>
       </div>
       <Suspense

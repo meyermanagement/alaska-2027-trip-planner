@@ -8,6 +8,8 @@ import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
 import FamilyScreen from "./FamilyScreen";
 import InterviewLauncher from "./InterviewLauncher";
+import InboxAddressChip from "@/components/InboxAddressChip";
+import { inboxAddressFor } from "@/lib/inbox/address";
 import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 import { coverage, ledgerFor } from "@/lib/travelers/ledger";
@@ -23,7 +25,7 @@ export default async function PeoplePage() {
   const { data: memberships } = await supabase
     .from("family_members")
     .select(
-      "family_id, families (id, name, home_address, home_lat, home_lon, home_precise)",
+      "family_id, families (id, name, home_address, home_lat, home_lon, home_precise, inbox_local_part)",
     )
     .eq("user_id", user.id);
   if (!memberships || memberships.length === 0) redirect("/join");
@@ -166,6 +168,16 @@ export default async function PeoplePage() {
             lat={household?.home_lat ?? null}
             lon={household?.home_lon ?? null}
             precise={household?.home_precise === true}
+          />
+          {/* The forwarding address, on the screen an operator most often
+              opens when they need to hand something out to a family member.
+              Small and quiet: the household name and home take precedence,
+              and the address only shows once so the page does not become
+              about it. Repeats on the Trips index for the same reason -- so
+              the address is where you already are, not one screen away. */}
+          <InboxAddressChip
+            address={inboxAddressFor(household?.inbox_local_part)}
+            note="Forward flight, hotel and rental confirmations to"
           />
         </div>
         <InterviewLauncher

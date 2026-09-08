@@ -143,6 +143,16 @@ const GROUPS_BASE = [
         Icon: BellIcon,
         badge: true,
       },
+      {
+        // Forwarded booking confirmations land here to be sorted onto
+        // the right trip. Sits under Checklist because filing an incoming
+        // confirmation is the same shape of work as packing and reminders:
+        // it is what has to be dealt with before you go.
+        href: "/inbox",
+        label: "Inbox",
+        sub: "Confirmations forwarded to Aly",
+        Icon: InboxIcon,
+      },
     ],
   },
   {
@@ -1409,6 +1419,18 @@ function ShieldIcon({ className }) {
   return (
     <svg {...iconProps(className)}>
       <path d="M10 3 4 5v4.4c0 3.6 2.5 6.4 6 7.3 3.5-.9 6-3.7 6-7.3V5l-6-2Z" />
+    </svg>
+  );
+}
+
+// A tray with a slot -- the mailbox that catches forwarded confirmations.
+// Not the envelope, which is reserved for Contact Us, so the two rooms do
+// not read as the same room.
+function InboxIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M3.6 4.2h12.8v6.6H12.6l-.9 1.5H8.3l-.9-1.5H3.6V4.2Z" />
+      <path d="M3.6 10.8v3.4c0 .8.6 1.4 1.4 1.4h10c.8 0 1.4-.6 1.4-1.4v-3.4" />
     </svg>
   );
 }

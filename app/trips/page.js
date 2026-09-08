@@ -15,6 +15,8 @@ import NewTripButton from "./NewTripButton";
 import TripBoard from "./TripBoard";
 import BoardSkeleton from "./BoardSkeleton";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
+import InboxAddressChip from "@/components/InboxAddressChip";
+import { inboxAddressFor } from "@/lib/inbox/address";
 import { ABOUT_SKIP_COOKIE } from "@/lib/travelers/profile";
 import { BASIC_SELECT } from "@/lib/trips/basics";
 
@@ -49,13 +51,14 @@ export default async function TripsPage({ searchParams }) {
 
   const { data: memberships } = await supabase
     .from("family_members")
-    .select("family_id")
+    .select("family_id, families (id, inbox_local_part)")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/join");
 
   const access = await resolveAccess(supabase, user);
   const familyId = memberships[0].family_id;
+  const inboxAddress = inboxAddressFor(memberships[0].families?.inbox_local_part);
 
   // The one query the page itself needs: the About You redirect below is decided
   // on it, and a redirect has to be decided before anything is streamed.
@@ -91,6 +94,9 @@ export default async function TripsPage({ searchParams }) {
                 three groups below are each named now, so the page keeps the
                 plain name and "Upcoming trips" labels the list it belongs to. */}
             <h1 className="font-display text-3xl font-semibold">Trips</h1>
+            {!access?.can.isSecondary && (
+              <InboxAddressChip address={inboxAddress} />
+            )}
           </div>
           {!access?.can.isSecondary && <NewTripButton />}
         </div>

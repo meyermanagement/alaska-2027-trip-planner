@@ -15,7 +15,7 @@ export default function manifest() {
     name: "Alyeska",
     short_name: "Alyeska",
     description:
-      "Shared itineraries, packing lists and pre-departure tasks for the family — with Aly along for the trip.",
+      "Travel, Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

@@ -20,8 +20,13 @@ const sansFace = Geist({
 
 export const metadata = {
   title: "Alyeska",
+  // One line, because metadata descriptions have to be one string -- browser
+  // tabs, link previews and search snippets do not honor paragraph breaks.
+  // The login screen splits promise from pledge across two <p>s; here the
+  // two halves are strung together as six short sentences so the rhythm
+  // survives being read on one line.
   description:
-    "Shared itineraries, packing lists and pre-departure tasks for the family — with Aly along for the trip.",
+    "Travel, Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
 };
 
 export const viewport = {
