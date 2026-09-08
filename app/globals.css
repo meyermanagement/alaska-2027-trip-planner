@@ -1322,7 +1322,16 @@ input[type="month"]::-webkit-date-and-time-value {
 
 :root {
   --on-photo: #fffdf8;
-  --photo-filter: grayscale(1) sepia(0.42) contrast(1.06) brightness(1.02);
+  /* Softened from the old grayscale(1) sepia(.42) recipe. That version crushed
+     every picture to the same warm brown -- a beach, a castle and a mountain
+     range all read as one silhouette against the plate. This one keeps enough
+     desaturation for the picture to belong to the plate (the ground and words
+     were tuned assuming a muted photo) but leaves the trip's own color through,
+     so covers actually look like different places. The other four skins already
+     do their own version of this -- Aurora runs no grayscale, Sodium a mild
+     sepia, and both light skins drop the luminosity blend entirely -- so this
+     change lands only on Field Journal, which was the outlier. */
+  --photo-filter: grayscale(0.6) sepia(0.15) contrast(1.06) brightness(1.02);
   --photo-opacity: 0.74;
   --scrim: linear-gradient(
     180deg,
