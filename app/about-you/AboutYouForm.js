@@ -7,9 +7,9 @@ import {
   ABOUT_ME_CHIP_GROUPS,
   ABOUT_ME_EXAMPLES,
   ABOUT_ME_MICRO_PROMPTS,
-  ABOUT_ME_PROMPTS,
   aboutMeFromParts,
 } from "@/lib/travelers/profile";
+import { buildSportsChipItems } from "@/lib/travelers/sports";
 import DictationHint from "@/components/DictationHint";
 
 /**
@@ -49,6 +49,14 @@ export default function AboutYouForm({
   // would have been written to their own page. Used from the practice hub so
   // somebody can rehearse the question without spending their real paragraph.
   practice = false,
+  // The family's home coordinates from families.home_lat/home_lon. Used to
+  // fill the "Sports and teams" chip drawer with local pro teams so somebody
+  // in St. Louis sees the Cardinals and the Blues as the first two chips
+  // instead of a generic "the NFL" that could belong to anyone. Null when
+  // the family has no geocoded home (rare -- the welcome screen geocodes it)
+  // in which case the drawer falls back to the general sports list.
+  homeLat = null,
+  homeLon = null,
   // Where a first-run user lands after Save or Skip. Defaults to /trips --
   // the original behaviour -- but the first-login chain hands us /interview
   // so the paragraph flows straight into the interview instead of a Trips
@@ -196,8 +204,19 @@ export default function AboutYouForm({
   }
 
   const router = useRouter();
+
+  // Fill the sports chip group with local teams first, general sports after.
+  // The rest of ABOUT_ME_CHIP_GROUPS is used as-is; only "sports" is dynamic.
+  // Done once per render (cheap: it's a haversine over ~50 metros) so a
+  // family that later edits their home address on Settings sees the drawer
+  // update the next time they open this page.
+  const chipGroups = ABOUT_ME_CHIP_GROUPS.map((g) =>
+    g.key === "sports"
+      ? { ...g, items: buildSportsChipItems(homeLat, homeLon) }
+      : g,
+  );
   const chipsFor = (targetKey) =>
-    ABOUT_ME_CHIP_GROUPS.filter((g) => g.target === targetKey);
+    chipGroups.filter((g) => g.target === targetKey);
 
   return (
     <>
@@ -226,19 +245,38 @@ export default function AboutYouForm({
 
       <DictationHint className="mt-5" />
 
-      <div className="mt-4 space-y-6">
-        {ABOUT_ME_MICRO_PROMPTS.map((p) => {
+      {/*
+        Each of the four prompts is its own card -- a sand-tinted panel with a
+        border, generous inside padding, and a clear gap between cards. Before
+        this the sections were separated only by vertical rhythm, and with a
+        chip drawer expanded under a prompt box the next prompt's label read
+        as another line of the same section. Cards give each question its own
+        stage.
+      */}
+      <div className="mt-4 space-y-4">
+        {ABOUT_ME_MICRO_PROMPTS.map((p, idx) => {
           const groups = chipsFor(p.key);
           const isFlashed = flashedPrompt === p.key;
           return (
-            <section key={p.key} className="space-y-2">
+            <section
+              key={p.key}
+              className="space-y-2 rounded-2xl border border-sand-deep bg-white p-4 shadow-sm sm:p-5"
+            >
               <div className="flex items-baseline justify-between gap-3">
-                <label
-                  htmlFor={`about-${p.key}`}
-                  className="text-sm font-semibold text-ink"
-                >
-                  {p.label}
-                </label>
+                <div className="flex items-baseline gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="text-xs font-semibold uppercase tracking-wide text-ink-faint"
+                  >
+                    {idx + 1} of {ABOUT_ME_MICRO_PROMPTS.length}
+                  </span>
+                  <label
+                    htmlFor={`about-${p.key}`}
+                    className="text-sm font-semibold text-ink"
+                  >
+                    {p.label}
+                  </label>
+                </div>
                 {isFlashed && (
                   <span
                     aria-live="polite"
@@ -339,22 +377,6 @@ export default function AboutYouForm({
             </section>
           );
         })}
-      </div>
-
-      <div className="mt-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
-          Worth mentioning
-        </p>
-        <ul className="mt-2 flex flex-wrap gap-1.5">
-          {ABOUT_ME_PROMPTS.map((prompt) => (
-            <li
-              key={prompt}
-              className="rounded-full border border-sand-deep bg-sand/60 px-2.5 py-1 text-xs text-ink-soft"
-            >
-              {prompt}
-            </li>
-          ))}
-        </ul>
       </div>
 
       {error && <p className="mt-4 text-sm font-semibold text-rose">{error}</p>}

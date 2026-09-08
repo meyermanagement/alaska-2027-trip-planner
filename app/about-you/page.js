@@ -39,7 +39,7 @@ export default async function AboutYouPage({ searchParams }) {
   // two Marks would both be handed the same paragraph to write.
   const { data: mine } = await supabase
     .from("travelers")
-    .select("id, name, about_me, access_level")
+    .select("id, name, about_me, access_level, family_id")
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -47,6 +47,18 @@ export default async function AboutYouPage({ searchParams }) {
   // Somebody whose seat has not been claimed has no row to write this on. Sending
   // them to a box that cannot save is worse than not asking.
   if (!mine) redirect("/trips");
+
+  // The home coordinates are what powers the local-teams chip. Pulled from the
+  // families row that the welcome screen wrote when the primary geocoded the
+  // home address. Nothing else on this page needs the family row, so the read
+  // is deliberately just these two columns.
+  const { data: family } = mine.family_id
+    ? await supabase
+        .from("families")
+        .select("home_lat, home_lon")
+        .eq("id", mine.family_id)
+        .maybeSingle()
+    : { data: null };
 
   // Chromeless: no TopBar (compass menu, tip strip, current-trip banner) and
   // no Ask Aly. This screen is entered from the first-run chain -- welcome,
@@ -61,6 +73,8 @@ export default async function AboutYouPage({ searchParams }) {
         name={mine.name || ""}
         first={first}
         secondary={mine.access_level === "secondary"}
+        homeLat={family?.home_lat ?? null}
+        homeLon={family?.home_lon ?? null}
         nextHref={nextHref}
       />
     </main>

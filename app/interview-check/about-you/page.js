@@ -35,6 +35,15 @@ export default async function InterviewCheckAboutYouPage() {
     .maybeSingle();
   if (!mine) redirect("/trips");
 
+  // Home coordinates power the local-teams chip on the real form. Practice
+  // uses the same form, so the same read here keeps the rehearsed version
+  // identical to what the primary will see when they open the real screen.
+  const { data: family } = await supabase
+    .from("families")
+    .select("home_lat, home_lon")
+    .eq("id", access.familyId)
+    .maybeSingle();
+
   return (
     <>
       <TopBar />
@@ -44,6 +53,8 @@ export default async function InterviewCheckAboutYouPage() {
           name={mine.name || ""}
           first={false}
           secondary={false}
+          homeLat={family?.home_lat ?? null}
+          homeLon={family?.home_lon ?? null}
           practice
         />
       </main>
