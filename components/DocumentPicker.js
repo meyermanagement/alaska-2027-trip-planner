@@ -100,6 +100,11 @@ export default function DocumentPicker({
           className="mt-1 block w-full text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-teal file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-on-accent hover:file:bg-teal/90"
         />
       </label>
+      <p className="text-[11px] leading-snug text-ink-soft">
+        Take a photo or pick a PDF. Aly reads the number and expiry off the scan
+        and fills the fields below, and the file itself stays cached on the
+        phone so it opens at the desk with no signal.
+      </p>
 
       {has && kind && (
         <div className="flex items-start justify-between gap-3 rounded-lg border border-[var(--line)] bg-white/60 p-2.5 text-xs">

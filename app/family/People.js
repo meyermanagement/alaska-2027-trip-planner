@@ -477,6 +477,18 @@ export default function People({
     <div className="space-y-5">
       {picker}
 
+      <div className="rounded-xl border border-teal/25 bg-teal-soft/25 p-3 text-sm text-ink">
+        <p>
+          <span className="font-semibold">
+            Snap passports, licenses and IDs with the phone.
+          </span>{" "}
+          Aly reads the number and expiry off the scan so you do not have to
+          type them, and every file you save stays cached on the phone — the
+          scan opens at the check-in desk with no signal, and the app itself
+          runs on the plane.
+        </p>
+      </div>
+
       <PassportWarningPanel warnings={shownWarnings} />
       {expiring.length > 0 && (
         <div className="rounded-xl border border-amber/40 bg-amber/[0.07] p-4 shadow-[0_1px_2px_rgba(22,33,31,0.04)]">
@@ -760,9 +772,18 @@ export default function People({
 
             <div className="mt-4 space-y-2.5">
               {docs.length === 0 && addingFor !== person.id && (
-                <p className="text-sm text-ink-soft">
-                  Nothing saved for {person.name} yet.
-                </p>
+                <div className="rounded-xl border border-dashed border-teal/30 bg-teal-soft/20 p-3">
+                  <p className="text-sm text-ink">
+                    <span className="font-semibold">
+                      Nothing saved for {person.name} yet.
+                    </span>{" "}
+                    Snap {person.name === "You" ? "your" : `${person.name}'s`}{" "}
+                    passport, license or ID with the phone camera and Add
+                    document. Aly reads the number and expiry off the scan so
+                    you do not have to type them, and the file itself stays on
+                    the phone — openable at the check-in desk with no signal.
+                  </p>
+                </div>
               )}
               {docs.map((doc) =>
                 editingDoc === doc.id ? (
