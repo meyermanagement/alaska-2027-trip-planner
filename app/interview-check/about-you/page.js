@@ -42,7 +42,6 @@ export default async function InterviewCheckAboutYouPage() {
         <AboutYouForm
           travelerId={mine.id}
           name={mine.name || ""}
-          about=""
           first={false}
           secondary={false}
           practice

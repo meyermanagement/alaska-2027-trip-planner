@@ -59,7 +59,6 @@ export default async function AboutYouPage({ searchParams }) {
       <AboutYouForm
         travelerId={mine.id}
         name={mine.name || ""}
-        about={mine.about_me || ""}
         first={first}
         secondary={mine.access_level === "secondary"}
         nextHref={nextHref}
