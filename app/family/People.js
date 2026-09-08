@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import MomentsEditor from "@/components/MomentsEditor";
 import DocumentPicker from "@/components/DocumentPicker";
+import ExtractedFieldsStrip from "@/components/ExtractedFieldsStrip";
+import { readFileFields } from "@/lib/documents/read";
 import DocumentViewer from "@/components/DocumentViewer";
 import { uploadDocumentFile, deleteDocumentFile } from "@/lib/documents/upload";
 import { headlineFor } from "@/lib/tips/warnings";
@@ -931,7 +933,64 @@ function DocForm({ doc, onCancel, onSave }) {
   // one; DocForm holds both here and hands them to the row writer under keys
   // it recognizes but the database column list does not.
   const [attach, setAttach] = useState({ file: null, clearExisting: false });
+  // What Aly read from the scan, and where in the read that got to. The status
+  // machine is: idle -> reading -> ready | error. "ready" holds the parsed
+  // fields; the strip renders itself from these two values and does not
+  // remember its own state.
+  const [extract, setExtract] = useState({
+    status: "idle",
+    fields: null,
+    error: "",
+  });
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  // When the person picks a new file, kick off a read against Gemini right
+  // then. The bytes are already in the browser, so this does not need Storage
+  // and does not wait for the save. If the person swaps files, the strip
+  // starts over.
+  //
+  // A tiny AbortController-like guard: track the token of the read we started
+  // and only accept the answer that matches the current one, so a slow first
+  // read cannot overwrite a fresh second one.
+  const readTokenRef = useRef(0);
+  function handlePickerChange(next) {
+    setAttach(next);
+    if (!next.file) {
+      setExtract({ status: "idle", fields: null, error: "" });
+      return;
+    }
+    const token = readTokenRef.current + 1;
+    readTokenRef.current = token;
+    setExtract({ status: "reading", fields: null, error: "" });
+    readFileFields(next.file).then(
+      (fields) => {
+        if (readTokenRef.current !== token) return;
+        setExtract({ status: "ready", fields, error: "" });
+      },
+      (err) => {
+        if (readTokenRef.current !== token) return;
+        setExtract({
+          status: "error",
+          fields: null,
+          error: err?.message || "",
+        });
+      },
+    );
+  }
+
+  function applyOne(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+  function applyAll(rows) {
+    setForm((prev) => {
+      const next = { ...prev };
+      for (const row of rows) next[row.key] = row.read;
+      return next;
+    });
+  }
+  function dismissExtract() {
+    setExtract({ status: "idle", fields: null, error: "" });
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -1029,7 +1088,7 @@ function DocForm({ doc, onCancel, onSave }) {
           />
         </label>
       </div>
-      <div className="rounded-xl border border-teal/20 bg-white/40 p-3">
+      <div className="space-y-2 rounded-xl border border-teal/20 bg-white/40 p-3">
         <DocumentPicker
           existing={
             doc?.storage_path
@@ -1041,8 +1100,17 @@ function DocForm({ doc, onCancel, onSave }) {
                 }
               : null
           }
-          onChange={setAttach}
+          onChange={handlePickerChange}
           label="Attach a scan or photo (optional)"
+        />
+        <ExtractedFieldsStrip
+          status={extract.status}
+          fields={extract.fields}
+          error={extract.error}
+          form={form}
+          onApply={applyOne}
+          onApplyAll={applyAll}
+          onDismiss={dismissExtract}
         />
       </div>
       {error && (
