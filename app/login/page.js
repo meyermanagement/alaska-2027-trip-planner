@@ -8,7 +8,14 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-7 text-center">
-        <AlyeskaMark className="mx-auto h-12 w-12 text-teal" />
+        {/* The dial the rest of the app wears -- the same graduated bezel the
+            menu button carries, so the first surface a new sign-in sees is the
+            same instrument they will find in the header once they are in.
+            The disc supplies the rim the bezel graduations lean against; the
+            AlyeskaMark draws the sixteen ticks and the needle inside it. */}
+        <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)]">
+          <AlyeskaMark className="h-[60px] w-[60px]" bezel />
+        </span>
         <h1 className="font-display mt-3 text-3xl font-semibold tracking-[0.03em] text-ink">
           Alyeska
         </h1>
