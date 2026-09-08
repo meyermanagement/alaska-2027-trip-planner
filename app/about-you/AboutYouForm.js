@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  ABOUT_ME_CHIP_GROUPS,
   ABOUT_ME_EXAMPLES,
+  ABOUT_ME_MICRO_PROMPTS,
   ABOUT_ME_PLACEHOLDER,
   ABOUT_ME_PROMPTS,
 } from "@/lib/travelers/profile";
@@ -17,8 +19,16 @@ import DictationHint from "@/components/DictationHint";
  * A first-time user has an empty Trips page and the one useful thing on it was
  * competing with the heading for attention; and a box asking for a paragraph does
  * not get a paragraph when it is six lines tall between two other things. On its
- * own screen it can show four real examples at full length, which is what
- * actually gets somebody to write more than a sentence.
+ * own screen it can show five real examples at full length, three funnels into
+ * the paragraph (pill hints, tap-to-append chips, four short prompts) and the
+ * box itself -- which is what actually gets somebody to write more than a
+ * sentence.
+ *
+ * The paragraph is still the source of truth. Everything else on the screen is
+ * a way to get text into it: the chip drawer appends "I like Broadway" style
+ * lines, the four short prompts each let you write two or three sentences and
+ * add them to the paragraph with a blank line between. Nothing downstream cares
+ * how the paragraph got written -- Aly reads about_me either way.
  *
  * For a secondary traveler this screen is not one field of their record -- it is
  * the whole of it. The database refuses every other column on their own row, so
@@ -53,7 +63,47 @@ export default function AboutYouForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [openGroup, setOpenGroup] = useState(null);
+  const [micro, setMicro] = useState(() =>
+    Object.fromEntries(ABOUT_ME_MICRO_PROMPTS.map((p) => [p.key, ""])),
+  );
+  const textareaRef = useRef(null);
   const router = useRouter();
+
+  // Append a line to the paragraph, focus the box, and scroll the caret to the
+  // bottom so the person can see what just landed. A blank line between the
+  // existing text and the new line keeps the paragraph readable even when
+  // somebody taps three chips in a row.
+  const appendLine = useCallback((line) => {
+    const clean = String(line || "").trim();
+    if (!clean) return;
+    setText((prev) => {
+      const trimmed = prev.replace(/\s+$/, "");
+      if (!trimmed) return clean;
+      return `${trimmed}\n\n${clean}`;
+    });
+    // Focus + scroll to end on the next tick, after React has flushed the new
+    // value into the textarea.
+    setTimeout(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.scrollTop = el.scrollHeight;
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+    }, 0);
+  }, []);
+
+  function addChip(prefix, item) {
+    appendLine(`${prefix} ${item}.`);
+  }
+
+  function addMicro(key) {
+    const val = String(micro[key] || "").trim();
+    if (!val) return;
+    appendLine(val);
+    setMicro((prev) => ({ ...prev, [key]: "" }));
+  }
 
   async function save() {
     setBusy(true);
@@ -109,12 +159,12 @@ export default function AboutYouForm({
           : "About you"}
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        This is where you tell Aly who you are — what you do, what you&rsquo;re
-        into, the places and subjects that pull at you. She reads it before she
-        answers, so a few sentences here are the difference between advice that
-        fits you and advice that would fit anybody. How you travel — pace, food,
-        early or late, where to spend the money — is asked separately in the
-        interview, so you don&rsquo;t have to say all of that here.
+        This is where you tell Aly who you are — what you love to do, what pulls
+        at you, and what you&rsquo;d rather skip. She reads it before she
+        answers, so a few real sentences here are the difference between advice
+        that fits you and advice that would fit anybody. How you travel — pace,
+        food, early or late, where to spend the money — is asked separately in
+        the interview, so you don&rsquo;t have to say all of that here.
       </p>
 
       {secondary && (
@@ -127,6 +177,7 @@ export default function AboutYouForm({
       )}
 
       <textarea
+        ref={textareaRef}
         className="field mt-5 text-base leading-relaxed"
         rows={9}
         placeholder={ABOUT_ME_PLACEHOLDER}
@@ -156,6 +207,112 @@ export default function AboutYouForm({
           ))}
         </ul>
       </div>
+
+      {/* The chip drawer. Closed by default so the screen does not read as a
+          form; opens one group at a time so the reader is not staring at a
+          hundred chips at once. Tapping a chip appends a sentence to the
+          paragraph above and closes nothing -- the person can tap three in a
+          row and see them land. */}
+      <div className="mt-6 rounded-2xl border border-[var(--line)] bg-white/60 p-4">
+        <p className="text-sm font-semibold text-ink">
+          Not sure what to say? Pick a few things you like.
+        </p>
+        <p className="mt-1 text-xs text-ink-soft">
+          Each tap adds a short sentence to your paragraph above. Edit any of it
+          in place — these are just to get you started.
+        </p>
+        <div className="mt-3 space-y-2">
+          {ABOUT_ME_CHIP_GROUPS.map((group) => {
+            const isOpen = openGroup === group.key;
+            return (
+              <div
+                key={group.key}
+                className="rounded-xl border border-sand-deep bg-sand/30"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenGroup(isOpen ? null : group.key)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-semibold text-ink"
+                >
+                  <span>{group.label}</span>
+                  <span
+                    aria-hidden="true"
+                    className="text-ink-soft transition-transform"
+                    style={{
+                      transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                    }}
+                  >
+                    ›
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="border-t border-sand-deep px-3 py-2.5">
+                    <ul className="flex flex-wrap gap-1.5">
+                      {group.items.map((item) => (
+                        <li key={item}>
+                          <button
+                            type="button"
+                            onClick={() => addChip(group.prefix, item)}
+                            className="rounded-full border border-teal/40 bg-white px-2.5 py-1 text-xs font-medium text-ink hover:border-teal hover:bg-teal-soft/40"
+                          >
+                            + {item}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[11px] text-ink-faint">
+                      Adds “{group.prefix} …” to your paragraph.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Four short prompts. Each is a two-or-three-sentence box that appends
+          into the paragraph on tap. A person who cannot face a paragraph can
+          still fill four small boxes and end up with one. */}
+      <details className="mt-6 rounded-2xl border border-[var(--line)] bg-white/60 p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-ink">
+          Or write one part at a time
+        </summary>
+        <p className="mt-2 text-xs text-ink-soft">
+          Answer any of these that come easily. Add to my paragraph puts the
+          sentences up top with a blank line between, so you can string a few
+          together without staring at a blank box.
+        </p>
+        <div className="mt-3 space-y-3">
+          {ABOUT_ME_MICRO_PROMPTS.map((p) => (
+            <div key={p.key} className="space-y-1.5">
+              <label className="block text-xs font-semibold text-ink">
+                {p.label}
+              </label>
+              <textarea
+                className="field text-sm leading-relaxed"
+                rows={3}
+                placeholder={p.placeholder}
+                value={micro[p.key]}
+                onChange={(e) =>
+                  setMicro((prev) => ({ ...prev, [p.key]: e.target.value }))
+                }
+              />
+              <div>
+                <button
+                  type="button"
+                  className="btn btn-ghost text-xs"
+                  onClick={() => addMicro(p.key)}
+                  disabled={!String(micro[p.key] || "").trim()}
+                >
+                  Add to my paragraph
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
 
       {error && <p className="mt-3 text-sm font-semibold text-rose">{error}</p>}
       {done && !first && !practice && (
@@ -218,7 +375,7 @@ export default function AboutYouForm({
           Some examples
         </p>
         <p className="mt-1 text-xs text-ink-soft">
-          There is no right answer here. These four are meant to show a range of
+          There is no right answer here. These five are meant to show a range of
           what people put in — who they are, what they care about, what shapes
           what a good trip looks like to them.
         </p>
