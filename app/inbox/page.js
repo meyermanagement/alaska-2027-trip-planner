@@ -39,7 +39,7 @@ export default async function InboxPage() {
       supabase
         .from("inbox_messages")
         .select(
-          "id, from_email, from_name, subject, text_body, received_at, classification, attributed_traveler_id",
+          "id, from_email, from_name, subject, text_body, received_at, classification, attributed_traveler_id, parse_status, parse_error",
         )
         .eq("family_id", familyId)
         .eq("status", "pending")
@@ -57,15 +57,28 @@ export default async function InboxPage() {
         .order("sort_order", { ascending: true }),
     ]);
 
-  // Attachments in one round-trip, keyed by message id in the client.
+  // Attachments and parsed items in parallel round-trips, keyed by message
+  // id in the client. Parsed items are what the extractor staged for the
+  // primary to approve; the card shows a one-line summary so filing feels
+  // like confirming rather than reading.
   const ids = (pending || []).map((m) => m.id);
   let attachments = [];
+  let parsedItems = [];
   if (ids.length) {
-    const { data } = await supabase
-      .from("inbox_attachments")
-      .select("id, message_id, mime_type, size_bytes, original_filename")
-      .in("message_id", ids);
-    attachments = data || [];
+    const [{ data: att }, { data: pi }] = await Promise.all([
+      supabase
+        .from("inbox_attachments")
+        .select("id, message_id, mime_type, size_bytes, original_filename")
+        .in("message_id", ids),
+      supabase
+        .from("inbox_parsed_items")
+        .select("id, message_id, category, title, item_date, confidence, status")
+        .in("message_id", ids)
+        .eq("status", "pending")
+        .order("sort_order", { ascending: true }),
+    ]);
+    attachments = att || [];
+    parsedItems = pi || [];
   }
 
   // Trips split into upcoming (the sensible default in the file-it picker)
@@ -83,6 +96,7 @@ export default async function InboxPage() {
           address={inboxAddressFor(household?.inbox_local_part)}
           messages={pending || []}
           attachments={attachments}
+          parsedItems={parsedItems}
           upcomingTrips={upcoming}
           pastTrips={past}
           travelers={travelers || []}

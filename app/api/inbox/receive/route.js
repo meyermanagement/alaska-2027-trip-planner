@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual as cryptoTimingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { localPartFromAddress } from "@/lib/inbox/address";
+import { parseInboxMessage } from "@/lib/inbox/parser";
 
 // The 60-second ceiling matches the tasks/remind route: an inbound message
 // with a couple of PDF attachments takes a few seconds to write to storage
@@ -16,10 +17,15 @@ export const maxDuration = 60;
  * and this route:
  *
  *   1. Verifies the request came from Postmark by checking a shared secret
- *      the sender puts in the `x-postmark-webhook-secret` header. Postmark's
- *      inbound webhook does not sign the body, so a shared secret over TLS
- *      is the honest bar. The secret lives on Vercel and is set on the
- *      Postmark server's webhook URL configuration.
+ *      the sender puts in the `x-postmark-webhook-secret` header, or as a
+ *      `?secret=...` query parameter on the webhook URL for the case where
+ *      the Postmark account's inbound stream does not expose the custom
+ *      header field (some accounts have it, some don't; the query param
+ *      works on every account). Postmark's inbound webhook does not sign
+ *      the body, so a shared secret over TLS is the honest bar. The secret
+ *      lives on Vercel; it is set either on the Postmark server's webhook
+ *      URL as `?secret=...` or under Custom HTTP Headers if the account
+ *      offers that.
  *
  *   2. Resolves the recipient local part (e.g. "fhc5h4" from
  *      "fhc5h4@trips.alyeska.app") to a family. An unknown local part 200s
@@ -64,7 +70,14 @@ export async function POST(request) {
     );
   }
 
-  const presented = request.headers.get("x-postmark-webhook-secret") || "";
+  // Header first, query param as fallback. Postmark accounts without a
+  // custom-header field for inbound webhooks can put ?secret=... on the URL
+  // instead; either presented value is compared in constant time against
+  // the configured secret.
+  const presented =
+    request.headers.get("x-postmark-webhook-secret") ||
+    new URL(request.url).searchParams.get("secret") ||
+    "";
   if (!timingSafeEqual(presented, configuredSecret)) {
     // Do not narrate why. A well-shaped 401 is enough; anything else invites
     // probing. Postmark's UI shows the response body when a webhook fails,
@@ -232,6 +245,21 @@ export async function POST(request) {
       original_filename: att.Name || null,
     });
   }
+
+  // Fire-and-forget: kick the extractor off without waiting. Postmark only
+  // cares that we 200'd on the write; if Gemini takes six seconds to answer,
+  // that is time the retry timer should not be counting against us. Any
+  // failure inside parseInboxMessage writes parse_status='failed' with a
+  // reason onto the row, so the /inbox card can surface it -- nothing needs
+  // to escape here.
+  //
+  // The unhandled-rejection guard is defensive: parseInboxMessage catches
+  // its own errors, but a bug that let one slip through should not crash
+  // the serverless worker holding the webhook's response open. This turns
+  // it into a log line and moves on.
+  parseInboxMessage({ messageId: message.id }).catch((err) => {
+    console.error("inbox parse failed", message.id, err);
+  });
 
   return NextResponse.json(
     {

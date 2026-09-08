@@ -68,11 +68,21 @@ places:
 1. **Vercel** → Project Settings → Environment Variables. Add
    `POSTMARK_WEBHOOK_SECRET` to Production (and Preview if you plan to test
    there). Redeploy so the new environment reaches the running function.
-2. **Postmark** → Server → Inbound → Settings → Custom HTTP Headers. Add a
-   header named `x-postmark-webhook-secret` with the same value.
+2. **Postmark** → the inbound stream's Settings page. Two options depending on
+   what your Postmark account exposes:
+   - If the stream Settings page has a **Include custom headers with the HTTP
+     POST** section, add a header named `x-postmark-webhook-secret` with the
+     same value.
+   - If it does not (some accounts do not have that field on inbound streams),
+     put the secret directly in the Webhook URL as a query parameter:
+     `https://<production host>/api/inbox/receive?secret=<the secret>`. The
+     webhook accepts either the header or the query parameter.
 
-The webhook rejects any request whose header does not match with a 401 and
-does not touch the database, so a missing or wrong secret is safe.
+The webhook rejects any request whose secret does not match with a 401 and
+does not touch the database, so a missing or wrong secret is safe. Because the
+query-string secret rides over TLS, it is not visible on the wire; the tradeoff
+versus a header is that it can end up in Postmark's activity logs, which is
+acceptable since only you and Postmark can see them.
 
 ### 5. (Optional) Change the inbox domain
 

@@ -29,6 +29,7 @@ export default function InboxScreen({
   address,
   messages,
   attachments,
+  parsedItems,
   upcomingTrips,
   pastTrips,
   travelers,
@@ -48,6 +49,16 @@ export default function InboxScreen({
     }
     return m;
   }, [attachments]);
+
+  const parsedByMessage = useMemo(() => {
+    const m = new Map();
+    for (const p of parsedItems || []) {
+      const list = m.get(p.message_id) || [];
+      list.push(p);
+      m.set(p.message_id, list);
+    }
+    return m;
+  }, [parsedItems]);
 
   const travelerById = useMemo(() => {
     const m = new Map();
@@ -212,6 +223,10 @@ export default function InboxScreen({
                         : {files.map((f) => f.original_filename).join(", ")}
                       </div>
                     )}
+                    <ParsedSummary
+                      status={m.parse_status}
+                      items={parsedByMessage.get(m.id) || []}
+                    />
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
@@ -417,6 +432,73 @@ function TrustPicker({ travelers, fromEmail, busy, onCancel, onConfirm }) {
       </div>
     </div>
   );
+}
+
+// One quiet line under the attachment strip that says what the extractor
+// made of this message. Deliberately calm: a full approval UI belongs on the
+// filed trip, not on the inbox card. Here we only need to signal "there are
+// three flights waiting for you" so filing feels like confirming and not
+// reading.
+function ParsedSummary({ status, items }) {
+  if (status === "pending" || status === "running") {
+    return (
+      <div className="mt-2 text-xs text-ink-faint">Reading this one…</div>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <div className="mt-2 text-xs text-ink-faint">
+        Aly could not read this one. Filing it will keep the message on the trip
+        so you can read it there.
+      </div>
+    );
+  }
+  if (!items || items.length === 0) return null;
+
+  const counts = items.reduce((acc, item) => {
+    acc[item.category] = (acc[item.category] || 0) + 1;
+    return acc;
+  }, {});
+  const parts = CATEGORY_ORDER.filter((k) => counts[k]).map((k) => {
+    const n = counts[k];
+    return `${n} ${n === 1 ? CATEGORY_LABEL[k].single : CATEGORY_LABEL[k].plural}`;
+  });
+  if (parts.length === 0) return null;
+
+  return (
+    <div className="mt-2 text-xs text-teal">
+      Aly read {joinWithAnd(parts)} in this message. Filing it will stage them
+      for you to approve.
+    </div>
+  );
+}
+
+const CATEGORY_ORDER = [
+  "flight",
+  "lodging",
+  "cruise",
+  "transport",
+  "excursion",
+  "dining",
+  "activity",
+  "note",
+];
+const CATEGORY_LABEL = {
+  flight: { single: "flight", plural: "flights" },
+  lodging: { single: "hotel night", plural: "hotel bookings" },
+  cruise: { single: "cruise booking", plural: "cruise bookings" },
+  transport: { single: "transport booking", plural: "transport bookings" },
+  excursion: { single: "excursion", plural: "excursions" },
+  dining: { single: "restaurant", plural: "restaurants" },
+  activity: { single: "activity", plural: "activities" },
+  note: { single: "note", plural: "notes" },
+};
+
+function joinWithAnd(parts) {
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
 
 function formatWhen(iso) {
