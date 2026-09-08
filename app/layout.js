@@ -1,6 +1,7 @@
 import { Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import BootVeil from "@/components/BootVeil";
+import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
 import { BAND_COOKIE, DEFAULT_SKIN, SKINS, SKIN_COOKIE } from "@/lib/skins";
 
 // One editorial serif for names and headings, one quiet sans for everything
@@ -113,6 +114,7 @@ export default function RootLayout({ children }) {
             gets and there is no blank moment before it. It hides itself once
             the app underneath has painted -- see components/BootVeil.js. */}
         <BootVeil />
+        <ServiceWorkerBoot />
         <div className="app-shell">{children}</div>
       </body>
     </html>

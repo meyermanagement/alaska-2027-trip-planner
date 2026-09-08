@@ -69,7 +69,7 @@ export default async function PeoplePage() {
     supabase
       .from("traveler_documents")
       .select(
-        "id, traveler_id, doc_type, label, number, issuing_authority, issue_date, expiration_date, notes, sort_order",
+        "id, traveler_id, doc_type, label, number, issuing_authority, issue_date, expiration_date, notes, sort_order, storage_path, mime_type, size_bytes, original_filename, file_uploaded_at",
       )
       .order("sort_order", { ascending: true }),
     supabase

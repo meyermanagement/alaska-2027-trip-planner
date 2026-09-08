@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import MomentsEditor from "@/components/MomentsEditor";
+import DocumentPicker from "@/components/DocumentPicker";
+import DocumentViewer from "@/components/DocumentViewer";
+import { uploadDocumentFile, deleteDocumentFile } from "@/lib/documents/upload";
 import { headlineFor } from "@/lib/tips/warnings";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -239,26 +242,101 @@ export default function People({
   const nameFor = (id) => travelers.find((t) => t.id === id)?.name || "Someone";
 
   async function saveDoc(travelerId, docId, values) {
+    // The form gives us three groups of things at once: the plain columns to
+    // write on the row (values), a chosen file that has to reach storage first,
+    // and a flag saying "and get rid of the old attachment". Splitting them
+    // here keeps the row writer unaware of storage.
+    const {
+      __file: file,
+      __clearExisting: clearExisting,
+      ...rowValues
+    } = values || {};
+
+    const previous = docId
+      ? docsFor(travelerId).find((d) => d.id === docId)
+      : null;
+    const previousPath = previous?.storage_path || null;
+
+    let attachment = null;
+    if (file) {
+      try {
+        attachment = await uploadDocumentFile({
+          supabase,
+          scope: "personal",
+          familyId,
+          ownerId: travelerId,
+          file,
+        });
+      } catch (err) {
+        return err?.message || "That file did not upload.";
+      }
+    }
+
+    const rowPatch = { ...rowValues };
+    if (attachment) {
+      rowPatch.storage_path = attachment.storage_path;
+      rowPatch.mime_type = attachment.mime_type;
+      rowPatch.size_bytes = attachment.size_bytes;
+      rowPatch.original_filename = attachment.original_filename;
+      rowPatch.file_uploaded_at = new Date().toISOString();
+    } else if (clearExisting) {
+      rowPatch.storage_path = null;
+      rowPatch.mime_type = null;
+      rowPatch.size_bytes = null;
+      rowPatch.original_filename = null;
+      rowPatch.file_uploaded_at = null;
+    }
+
+    let error = null;
     if (docId) {
-      await supabase.from("traveler_documents").update(values).eq("id", docId);
+      ({ error } = await supabase
+        .from("traveler_documents")
+        .update(rowPatch)
+        .eq("id", docId));
     } else {
       const mine = docsFor(travelerId);
       const next = mine.length
         ? Math.max(...mine.map((d) => d.sort_order || 0)) + 1
         : 0;
-      await supabase
+      ({ error } = await supabase
         .from("traveler_documents")
-        .insert({ ...values, traveler_id: travelerId, sort_order: next });
+        .insert({ ...rowPatch, traveler_id: travelerId, sort_order: next }));
     }
+
+    if (error) {
+      // A row that failed to write must not leave an orphan file behind, or
+      // the drawer fills up with uploads nobody can find.
+      if (attachment) {
+        await deleteDocumentFile({
+          supabase,
+          storagePath: attachment.storage_path,
+        });
+      }
+      return error.message || "That did not save.";
+    }
+
+    // The row now points at the new file, so the old one can go. Same reasoning
+    // for a clear: the row no longer references it.
+    if (previousPath && (attachment || clearExisting)) {
+      await deleteDocumentFile({ supabase, storagePath: previousPath });
+    }
+
     setAddingFor(null);
     setEditingDoc(null);
     router.refresh();
+    return null;
   }
 
   async function removeDoc(doc) {
     const label = doc.label || docType(doc.doc_type).label;
     if (!window.confirm(`Delete ${label}?`)) return;
+    // The row goes first so a family member cannot see the reference after
+    // storage has removed the file. If deleting the file fails afterwards, the
+    // orphan is invisible from the app and only a bucket sweep would notice.
     await supabase.from("traveler_documents").delete().eq("id", doc.id);
+    if (doc.storage_path) {
+      await deleteDocumentFile({ supabase, storagePath: doc.storage_path });
+    }
     router.refresh();
   }
 
@@ -800,6 +878,18 @@ function DocRow({ doc, shown, onToggle, onEdit, onDelete }) {
               {doc.notes}
             </p>
           )}
+          {doc.storage_path && (
+            <div className="no-print mt-2">
+              <DocumentViewer
+                storagePath={doc.storage_path}
+                mimeType={doc.mime_type}
+                originalFilename={doc.original_filename}
+                sizeBytes={doc.size_bytes}
+                compact
+                label="Open scan"
+              />
+            </div>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1.5">
           {expiry}
@@ -836,12 +926,18 @@ function DocForm({ doc, onCancel, onSave }) {
     notes: doc?.notes || "",
   });
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  // The picker reports back a chosen File plus an intent to clear the stored
+  // one; DocForm holds both here and hands them to the row writer under keys
+  // it recognizes but the database column list does not.
+  const [attach, setAttach] = useState({ file: null, clearExisting: false });
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
-    await onSave({
+    setError("");
+    const message = await onSave({
       doc_type: form.doc_type,
       label: form.label.trim() || null,
       number: form.number.trim() || null,
@@ -850,8 +946,11 @@ function DocForm({ doc, onCancel, onSave }) {
       expiration_date: form.expiration_date || null,
       notes: form.notes.trim() || null,
       ...(doc ? { updated_at: new Date().toISOString() } : {}),
+      __file: attach.file,
+      __clearExisting: attach.clearExisting,
     });
     setBusy(false);
+    if (message) setError(message);
   }
 
   return (
@@ -930,12 +1029,39 @@ function DocForm({ doc, onCancel, onSave }) {
           />
         </label>
       </div>
+      <div className="rounded-xl border border-teal/20 bg-white/40 p-3">
+        <DocumentPicker
+          existing={
+            doc?.storage_path
+              ? {
+                  storage_path: doc.storage_path,
+                  mime_type: doc.mime_type,
+                  size_bytes: doc.size_bytes,
+                  original_filename: doc.original_filename,
+                }
+              : null
+          }
+          onChange={setAttach}
+          label="Attach a scan or photo (optional)"
+        />
+      </div>
+      {error && (
+        <p aria-live="polite" className="text-xs text-rose">
+          {error}
+        </p>
+      )}
       <div className="flex gap-2">
         <button
           className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
           disabled={busy}
         >
-          {doc ? "Save changes" : "Save document"}
+          {busy
+            ? attach.file
+              ? "Uploading…"
+              : "Saving…"
+            : doc
+              ? "Save changes"
+              : "Save document"}
         </button>
         <button
           type="button"

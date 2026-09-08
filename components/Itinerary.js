@@ -5,6 +5,7 @@ import ProTips from "./ProTips";
 import { createClient } from "@/lib/supabase/client";
 import LocationField from "@/components/LocationField";
 import AddToCalendar from "@/components/AddToCalendar";
+import ItemDocumentStrip from "@/components/ItemDocumentStrip";
 import { eventFromItem, eventFromTask } from "@/lib/calendar";
 import {
   scrollWon,
@@ -694,6 +695,7 @@ export default function Itinerary({
   onChange,
   tripStart,
   tripEnd,
+  familyId,
   tasks = [],
   onTaskChange = () => {},
   onOpenTasks = () => {},
@@ -1855,6 +1857,11 @@ export default function Itinerary({
                                   {item.notes}
                                 </p>
                               )}
+                              <ItemDocumentStrip
+                                itemId={item.id}
+                                familyId={familyId}
+                                readOnly={readOnly}
+                              />
                               {/* Somewhere the family has now actually been. The
                               stars appear on the walk home rather than a
                               fortnight later on another tab. */}
