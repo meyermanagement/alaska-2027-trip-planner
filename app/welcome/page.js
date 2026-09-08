@@ -36,15 +36,13 @@ export default async function WelcomePage() {
     // never created one -- so hand back a plain sentence rather than a broken
     // form. The primary way to reach a family is an invite code today.
     return (
-      <>
-        <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
-          <h1 className="font-display text-3xl font-semibold">Welcome</h1>
-          <p className="mt-3 text-sm text-ink">
-            This account is not attached to a family yet. Ask whoever invited
-            you for the invite code, or reach out to support.
-          </p>
-        </main>
-      </>
+      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+        <h1 className="font-display text-3xl font-semibold">Welcome</h1>
+        <p className="mt-3 text-sm text-ink">
+          This account is not attached to a family yet. Ask whoever invited you
+          for the invite code, or reach out to support.
+        </p>
+      </main>
     );
   }
 
@@ -76,26 +74,29 @@ export default async function WelcomePage() {
   // this screen again. Send them where they were going.
   if (!nothingHere) redirect("/family");
 
+  // Chromeless. No compass menu, no Ask Aly, no tip strip. The first-run
+  // chain -- welcome, then About you, then interview, then Three things
+  // worth doing next -- deliberately keeps the app itself out of the way
+  // until the family has said who they are. The menu and Ask Aly belong to
+  // Trips onward, where they have something to point at. This screen and its
+  // three siblings all render bare pages for the same reason.
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
-        <h1 className="font-display text-3xl font-semibold">
-          Welcome to Alyeska
-        </h1>
-        <p className="mt-2 text-sm text-ink-soft">
-          Three quick things and Aly can start being useful right away: where
-          you live, who else travels with you, and any animals that are part of
-          the family.
-        </p>
-        <WelcomeForm
-          familyId={access.familyId}
-          familyName={family?.name || ""}
-          myName={access.travelerName || ""}
-          myUserId={user.id}
-          myEmail={user.email || ""}
-        />
-      </main>
-    </>
+    <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+      <h1 className="font-display text-3xl font-semibold">
+        Welcome to Alyeska
+      </h1>
+      <p className="mt-2 text-sm text-ink-soft">
+        Three quick things and Aly can start being useful right away: where you
+        live, who else travels with you, and any animals that are part of the
+        family.
+      </p>
+      <WelcomeForm
+        familyId={access.familyId}
+        familyName={family?.name || ""}
+        myName={access.travelerName || ""}
+        myUserId={user.id}
+        myEmail={user.email || ""}
+      />
+    </main>
   );
 }
