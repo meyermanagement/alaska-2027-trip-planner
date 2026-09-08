@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   ABOUT_ME_CHIP_GROUPS,
   ABOUT_ME_EXAMPLES,
@@ -175,26 +174,48 @@ export default function AboutYouForm({
       return;
     }
 
-    const supabase = createClient();
-    const { data, error: dbError } = await supabase
-      .from("travelers")
-      .update({ about_me: paragraph || null })
-      .eq("id", travelerId)
-      .select("id");
-    setBusy(false);
-
-    if (dbError) {
-      setError(dbError.message || "That did not save. Try again in a moment.");
+    // Route the save through the server so the same request that writes the
+    // paragraph also refreshes the interview priors it implies. The route
+    // still writes through the caller's Supabase session (row-level security
+    // makes the same access decision it made when this ran client-side); the
+    // server layer only exists to hold the Gemini key that reads the
+    // paragraph and to keep the paragraph and the priors in lockstep.
+    let response;
+    try {
+      response = await fetch("/api/about-you/save", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          traveler_id: travelerId,
+          paragraph: paragraph || "",
+        }),
+      });
+    } catch (fetchError) {
+      setBusy(false);
+      setError(
+        fetchError?.message || "That did not save. Try again in a moment.",
+      );
       return;
     }
-    // A write the rules refuse does not raise -- row-level security filters the
-    // row away and the update reports success having changed nothing. Counting
-    // what came back is the only way to tell "saved" from "silently dropped".
-    if (!data || data.length === 0) {
+
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      // 403 is the row-level-security refusal shape (server saw zero rows
+      // changed). Show the same helpful wording the client-side write used
+      // to show so a secondary traveler is told this is theirs to change
+      // and the wall is at our end.
+      if (response.status === 403) {
+        setError(
+          secondary
+            ? "That did not save. This paragraph is yours to change, so if it keeps refusing, tell a primary traveler in the family — something is wrong at our end, not yours."
+            : "That did not save. Ask a primary traveler in the family to write this one for you.",
+        );
+        return;
+      }
       setError(
-        secondary
-          ? "That did not save. This paragraph is yours to change, so if it keeps refusing, tell a primary traveler in the family — something is wrong at our end, not yours."
-          : "That did not save. Ask a primary traveler in the family to write this one for you.",
+        payload?.error || "That did not save. Try again in a moment.",
       );
       return;
     }

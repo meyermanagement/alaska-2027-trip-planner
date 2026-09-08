@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import CompassLoader from "@/components/CompassLoader";
 import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
+import { personalizeReasons } from "@/lib/travelers/interviewPersonalize";
 
 // The minimum a Compass loader is on screen between questions. The write and
 // the next-question calculation take a few hundred milliseconds; anything
@@ -130,7 +131,14 @@ function fieldsForAnswer(question, priorAnswer) {
  * The two modes share the same UI so the practice interview does not lie about
  * what the real one feels like.
  */
-export default function InterviewBody({ mode, startSlot, startIndex, total }) {
+export default function InterviewBody({
+  mode,
+  startSlot,
+  startIndex,
+  total,
+  context,
+  aboutMePriors,
+}) {
   const router = useRouter();
   const [slot, setSlot] = useState(startSlot);
   const [index, setIndex] = useState(startIndex);
@@ -621,6 +629,26 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
               </p>
             </div>
           )}
+          {aboutMePriors && aboutMePriors[slot] && (
+            <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
+              <p className="font-display text-ink">
+                You mentioned this on About you.
+              </p>
+              <p className="mt-1 italic">
+                &ldquo;{aboutMePriors[slot].quote}&rdquo;
+              </p>
+              <p className="mt-2">
+                Aly is already planning around it. Confirm below or{" "}
+                <a
+                  href="/about-you"
+                  className="text-teal underline underline-offset-4"
+                >
+                  change it on About you
+                </a>
+                .
+              </p>
+            </div>
+          )}
           <h1
             className="select-none font-display text-2xl leading-snug text-ink outline-none [outline:none!important] focus:outline-none focus-visible:outline-none sm:text-3xl"
             style={{ outline: "none" }}
@@ -677,6 +705,7 @@ export default function InterviewBody({ mode, startSlot, startIndex, total }) {
                   ownWords={ownWords}
                   setOwnWords={setOwnWords}
                   cache={suggestionCache}
+                  context={context}
                 />
               )}
               {choice === "other" && (
@@ -843,14 +872,22 @@ function WhyPanel({
   ownWords,
   setOwnWords,
   cache,
+  context,
 }) {
   // Whys are chips only; own-words is a separate box below the chips. The
   // Something-else branch never renders this panel -- the caller shows a
   // plain textarea for that case -- so this component only handles a real
   // option pick.
+  // The base suggestions ship with the question, hand-written in a family
+  // voice. personalizeReasons swaps the stock "the kids" and "we" tokens for
+  // the family's actual names when we know them, so the chip reads as if Aly
+  // knew who she was writing to rather than a stock questionnaire. Called on
+  // every render because the chip list is small; there is no cost worth
+  // memoizing over.
   const primary = (() => {
     const opt = (question.options || []).find((o) => o.value === choice);
-    return (opt && opt.reasons) || [];
+    const raw = (opt && opt.reasons) || [];
+    return personalizeReasons(raw, context);
   })();
 
   const activeSet = new Set((whys || []).map((s) => (s || "").toLowerCase()));
@@ -948,7 +985,7 @@ function WhyPanel({
       if (sig) seen.add(sig);
     }
     const out = [];
-    for (const r of question.otherReasons || []) {
+    for (const r of personalizeReasons(question.otherReasons || [], context)) {
       if (out.length >= MORE_CAP) return out;
       const sig = signatureOf(r);
       if (!sig || seen.has(sig)) continue;

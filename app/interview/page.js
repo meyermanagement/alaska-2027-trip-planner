@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { ledgerFor } from "@/lib/travelers/ledger";
 import { INTERVIEW_QUESTIONS, nextQuestion } from "@/lib/travelers/interview";
+import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 
 import InterviewBody from "./InterviewBody";
 
@@ -39,6 +40,7 @@ export default async function InterviewPage() {
     { data: facts },
     { data: slots },
     { data: pets },
+    { data: travelers },
   ] = await Promise.all([
     supabase
       .from("travel_preferences")
@@ -52,7 +54,17 @@ export default async function InterviewPage() {
       .from("traveler_slots")
       .select("traveler_id, slot, status, asked_count, last_question, note")
       .eq("family_id", familyId),
-    supabase.from("pets").select("id").eq("family_id", familyId),
+    supabase.from("pets").select("id, name, species").eq("family_id", familyId),
+    // Every person on the family, so the reason chips can say real names
+    // and the primary's About-you priors can pre-answer questions the
+    // paragraph already settled.
+    supabase
+      .from("travelers")
+      .select(
+        "id, name, is_person, date_of_birth, access_level, about_me_priors",
+      )
+      .eq("family_id", familyId)
+      .eq("is_person", true),
   ]);
 
   const entries = ledgerFor(null, {
@@ -82,6 +94,26 @@ export default async function InterviewPage() {
   else if (momentsRow?.status === "skipped") ledger.skipped.push("moments");
   else if (momentsRow?.status === "asking") ledger.asking.push("moments");
 
+  // The About-you paragraph the primary wrote may have already answered some
+  // of these questions. The extractor stores those on the primary's row as
+  // {slot: {value, quote, confidence}}. Anything keyed there is a slot the
+  // interview should show as pre-answered rather than blank -- the primary
+  // wrote the answer once, and being asked it again reads like nothing was
+  // read.
+  const primaryRow =
+    (travelers || []).find(
+      (t) => (t.access_level || "").toLowerCase() === "primary",
+    ) || null;
+  const aboutMePriors =
+    primaryRow?.about_me_priors && typeof primaryRow.about_me_priors === "object"
+      ? primaryRow.about_me_priors
+      : {};
+
+  const context = personalizationContext({
+    travelers: travelers || [],
+    pets: pets || [],
+  });
+
   const { question, index } = nextQuestion(ledger);
   // Every question already answered: send the primary back to Family. That is
   // the "complete → gone" state -- the top-of-family launcher will already be
@@ -96,6 +128,8 @@ export default async function InterviewPage() {
         startSlot={question.slot}
         startIndex={index}
         total={INTERVIEW_QUESTIONS.length}
+        context={context}
+        aboutMePriors={aboutMePriors}
       />
     </>
   );
