@@ -3,10 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import TopBar from "@/components/TopBar";
 import AboutYouForm from "../../about-you/AboutYouForm";
 
-export const metadata = { title: "Practice About you · Alyeska" };
+export const metadata = { title: "About you · Alyeska" };
 
 /**
  * The About you paragraph, rehearsed, saving nothing.
@@ -45,19 +44,16 @@ export default async function InterviewCheckAboutYouPage() {
     .maybeSingle();
 
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
-        <AboutYouForm
-          travelerId={mine.id}
-          name={mine.name || ""}
-          first={false}
-          secondary={false}
-          homeLat={family?.home_lat ?? null}
-          homeLon={family?.home_lon ?? null}
-          practice
-        />
-      </main>
-    </>
+    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+      <AboutYouForm
+        travelerId={mine.id}
+        name={mine.name || ""}
+        first={false}
+        secondary={false}
+        homeLat={family?.home_lat ?? null}
+        homeLon={family?.home_lon ?? null}
+        practice
+      />
+    </main>
   );
 }

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import TopBar from "@/components/TopBar";
 import { INTERVIEW_QUESTIONS } from "@/lib/travelers/interview";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 import InterviewBody from "../../interview/InterviewBody";
@@ -46,16 +45,13 @@ export default async function InterviewCheckInterviewPage() {
   });
 
   return (
-    <>
-      <TopBar />
-      <InterviewBody
+    <InterviewBody
         mode="practice"
         startSlot={INTERVIEW_QUESTIONS[0].slot}
         startIndex={0}
         total={INTERVIEW_QUESTIONS.length}
         context={context}
-        aboutMePriors={{}}
-      />
-    </>
+      aboutMePriors={{}}
+    />
   );
 }

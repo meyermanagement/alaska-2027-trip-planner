@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import TopBar from "@/components/TopBar";
 import AfterInterviewClient from "../../welcome/after-interview/AfterInterviewClient";
 
 export const metadata = {
@@ -27,11 +26,8 @@ export default async function InterviewCheckAfterInterviewPage() {
   if (access.level !== PRIMARY) redirect("/trips");
 
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
-        <AfterInterviewClient demo backHref="/interview-check" />
-      </main>
-    </>
+    <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
+      <AfterInterviewClient demo backHref="/interview-check" />
+    </main>
   );
 }

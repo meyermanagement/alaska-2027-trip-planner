@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import TopBar from "@/components/TopBar";
 import MeetAlyPracticeClient from "./MeetAlyPracticeClient";
 
 export const metadata = { title: "Meet Aly \u00b7 Alyeska" };
@@ -26,11 +25,8 @@ export default async function InterviewCheckMeetAlyPage() {
   if (access.level !== PRIMARY) redirect("/trips");
 
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
-        <MeetAlyPracticeClient />
-      </main>
-    </>
+    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+      <MeetAlyPracticeClient />
+    </main>
   );
 }

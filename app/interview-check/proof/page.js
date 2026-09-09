@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import TopBar from "@/components/TopBar";
 import ProofClient from "../../interview/proof/ProofClient";
 
 export const metadata = { title: "Interview proof \u00b7 Alyeska" };
@@ -27,11 +26,8 @@ export default async function InterviewCheckProofPage() {
   if (access.level !== PRIMARY) redirect("/trips");
 
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
-        <ProofClient demo backHref="/interview-check" />
-      </main>
-    </>
+    <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
+      <ProofClient demo backHref="/interview-check" />
+    </main>
   );
 }

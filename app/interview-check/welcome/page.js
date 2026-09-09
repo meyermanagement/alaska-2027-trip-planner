@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import TopBar from "@/components/TopBar";
 import WelcomeForm from "../../welcome/WelcomeForm";
 
 export const metadata = { title: "Welcome · Alyeska" };
@@ -28,17 +27,14 @@ export default async function InterviewCheckWelcomePage() {
   if (access.level !== PRIMARY) redirect("/trips");
 
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-        <WelcomeForm
-          familyId={access.familyId}
-          myName={access.travelerName || ""}
-          myUserId={user.id}
-          myEmail={user.email || ""}
-          practice
-        />
-      </main>
-    </>
+    <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+      <WelcomeForm
+        familyId={access.familyId}
+        myName={access.travelerName || ""}
+        myUserId={user.id}
+        myEmail={user.email || ""}
+        practice
+      />
+    </main>
   );
 }
