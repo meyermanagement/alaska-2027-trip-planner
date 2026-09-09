@@ -49,6 +49,11 @@ export default async function InterviewCheckPage() {
 
         <div className="mt-6 space-y-3">
           <PracticeTile
+            href="/interview-check/meet-aly"
+            title="Meet Aly"
+            body="The first screen a new primary sees, before the family form. Two stand-in families getting different answers to the same question, and a box to try your own."
+          />
+          <PracticeTile
             href="/interview-check/welcome"
             title="Welcome form"
             body="Where the family lives, who else is in it, and any animals. The one-time screen a new family sees before any of the other questions."
@@ -57,6 +62,16 @@ export default async function InterviewCheckPage() {
             href="/interview-check/interview"
             title="Nine-question interview"
             body="How the family travels: pace, days, doing or seeing, where you stay, how you get around, food, crowds, money, and anything Aly should not do. The interview the launcher on Family opens."
+          />
+          <PracticeTile
+            href="/interview-check/proof"
+            title="Interview proof"
+            body="The screen right after the interview: one real question about your next trip, answered twice by the same model, once with the interview folded in and once without."
+          />
+          <PracticeTile
+            href="/interview-check/after-interview"
+            title="After the interview"
+            body="The last onboarding screen for a primary: a per-trip note from Aly about what she'll be doing on each trip, plus one open box to ask her a real question before landing in the app."
           />
           <PracticeTile
             href="/interview-check/about-you"

@@ -14,7 +14,7 @@ import CompassLoader from "@/components/CompassLoader";
  * onward to the after-interview screen (what Aly already put on your
  * trips + ask a real question).
  */
-export default function ProofClient() {
+export default function ProofClient({ demo = false, backHref = null } = {}) {
   const router = useRouter();
   const [category, setCategory] = useState("food");
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,7 @@ export default function ProofClient() {
     fetch("/api/interview/proof", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ category }),
+      body: JSON.stringify({ category, demo }),
     })
       .then((r) => r.json().catch(() => null))
       .then((json) => {
@@ -50,15 +50,24 @@ export default function ProofClient() {
     return () => {
       cancelled = true;
     };
-  }, [category]);
+  }, [category, demo]);
 
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <p className="section-label text-ink-soft">Proof</p>
+        <p className="section-label text-ink-soft">
+          {demo ? "Practice \u00b7 Proof" : "Proof"}
+        </p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
           Watch the same question, answered two ways.
         </h1>
+        {demo && (
+          <p className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-3 text-xs italic text-ink-soft">
+            You're in practice. The comparison below runs against a stand-in
+            family (a couple with a nine-year-old going to Reykjavik) so
+            nothing on your own file is touched.
+          </p>
+        )}
         <p className="text-base leading-relaxed text-ink-soft">
           Aly is answering one real question about your next trip. On the
           left is what she would say if she knew nothing about you. On the
@@ -178,10 +187,12 @@ export default function ProofClient() {
       <div className="flex flex-wrap gap-2 border-t border-sand-deep pt-5">
         <button
           type="button"
-          onClick={() => router.push("/welcome/after-interview")}
+          onClick={() =>
+            router.push(demo ? backHref || "/interview-check" : "/welcome/after-interview")
+          }
           className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
-          Show me what Aly did with all this
+          {demo ? "Back to practice" : "Show me what Aly did with all this"}
         </button>
       </div>
     </div>

@@ -25,7 +25,39 @@ function preferencesLines(prefs) {
     });
 }
 
-export async function POST() {
+// The stand-in family used in practice-mode requests. Two grown-ups
+// and a nine-year-old going to Reykjavik, matching Meet Aly's demo
+// and the proof screen's demo so the practice pass reads as one
+// continuous rehearsal.
+const DEMO_FAMILY = "the Rivera family";
+const DEMO_TRIPS = [
+  {
+    id: "demo-trip-reykjavik",
+    name: "Reykjavik long weekend",
+    destination: "Reykjavik, Iceland",
+    start_date: null,
+    end_date: null,
+  },
+  {
+    id: "demo-trip-paris",
+    name: "Paris in October",
+    destination: "Paris, France",
+    start_date: null,
+    end_date: null,
+  },
+];
+const DEMO_PREFS_LINES = [
+  "- [pace] Slow mornings; one anchor thing per day.",
+  "- [day_shape] Late starts; dinner is the point of the day.",
+  "- [doing_or_seeing] Doing over seeing; walk more than we ride.",
+  "- [food] Sit-down local places over reservations booked from home.",
+  "- [crowds] Off-peak. Skip anything with a line longer than 15 minutes.",
+  "- [money] Spend on food and a good hotel; save on activities.",
+];
+
+export async function POST(req) {
+  const body = await req.json().catch(() => null);
+  const demo = Boolean(body?.demo);
   const supabase = await createClient();
   const {
     data: { user },
@@ -37,7 +69,9 @@ export async function POST() {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: trips }, { data: prefs }, { data: travelers }] = await Promise.all([
+  const [{ data: trips }, { data: prefs }, { data: travelers }] = demo
+    ? [{ data: DEMO_TRIPS }, { data: [] }, { data: [] }]
+    : await Promise.all([
     supabase
       .from("trips")
       .select("id, name, destination, start_date, end_date, status")
@@ -62,8 +96,12 @@ export async function POST() {
     return NextResponse.json({ ok: true, notes: [] });
   }
 
-  const prefsText = preferencesLines(prefs).join("\n") || "(no preferences on file)";
-  const familyNames = (travelers || []).map((t) => t.name).filter(Boolean).join(", ");
+  const prefsText = demo
+    ? DEMO_PREFS_LINES.join("\n")
+    : preferencesLines(prefs).join("\n") || "(no preferences on file)";
+  const familyNames = demo
+    ? DEMO_FAMILY
+    : (travelers || []).map((t) => t.name).filter(Boolean).join(", ");
 
   const system = `You are Aly, a travel assistant. Write in American English. For each trip named below, write exactly two short sentences, no lists, no headings, no emoji. Sentence one: what you already know about this specific trip that will shape your work on it. Sentence two: one concrete thing you will do differently because of the family's preferences. Reference the family by name if useful, but do not list their preferences back to them; just let them show through in what you say you'll do.
 

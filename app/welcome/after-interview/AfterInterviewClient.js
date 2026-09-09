@@ -17,7 +17,10 @@ import CompassLoader from "@/components/CompassLoader";
  * belongs to secondary travelers, and this screen is only for primaries
  * who have just finished the ten-question interview.
  */
-export default function AfterInterviewClient() {
+export default function AfterInterviewClient({
+  demo = false,
+  backHref = null,
+} = {}) {
   const router = useRouter();
   const [notesLoading, setNotesLoading] = useState(true);
   const [notes, setNotes] = useState([]);
@@ -30,7 +33,11 @@ export default function AfterInterviewClient() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/interview/aly-notes", { method: "POST" })
+    fetch("/api/interview/aly-notes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ demo }),
+    })
       .then((r) => r.json().catch(() => null))
       .then((json) => {
         if (cancelled) return;
@@ -50,7 +57,7 @@ export default function AfterInterviewClient() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [demo]);
 
   async function askAly(e) {
     e.preventDefault();
@@ -62,7 +69,7 @@ export default function AfterInterviewClient() {
       const r = await fetch("/api/interview/ask-once", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: q.trim() }),
+        body: JSON.stringify({ question: q.trim(), demo }),
       });
       const json = await r.json().catch(() => null);
       if (!json?.ok) {
@@ -80,10 +87,19 @@ export default function AfterInterviewClient() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="section-label text-ink-soft">You're in</p>
+        <p className="section-label text-ink-soft">
+          {demo ? "Practice \u00b7 After the interview" : "You're in"}
+        </p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
           Here's what Aly already put on your trips.
         </h1>
+        {demo && (
+          <p className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-3 text-xs italic text-ink-soft">
+            You're in practice. The trip cards below are for a stand-in
+            family (a couple with a nine-year-old and two tentative trips)
+            so nothing on your own file is used or changed.
+          </p>
+        )}
         <p className="text-base leading-relaxed text-ink-soft">
           You just answered ten questions. Aly took each one and rolled it
           into your real upcoming trips. These aren't examples. They're
@@ -222,10 +238,12 @@ export default function AfterInterviewClient() {
       <div className="flex flex-wrap items-center gap-3 border-t border-sand-deep pt-5">
         <button
           type="button"
-          onClick={() => router.push("/trips")}
+          onClick={() =>
+            router.push(demo ? backHref || "/interview-check" : "/trips")
+          }
           className="btn btn-primary px-4 py-2 text-sm"
         >
-          Take me to my trips
+          {demo ? "Back to practice" : "Take me to my trips"}
         </button>
         <p className="text-xs italic text-ink-soft">
           Aly is right there in every trip. Ask her anything, any time.

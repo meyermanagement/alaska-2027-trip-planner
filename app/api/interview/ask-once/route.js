@@ -38,13 +38,30 @@ export async function POST(req) {
 
   const body = await req.json().catch(() => null);
   const question = String(body?.question || "").trim().slice(0, MAX_LEN);
+  const demo = Boolean(body?.demo);
   if (!question) {
     return NextResponse.json({ error: "type a question" }, { status: 400 });
   }
 
+  // Practice-mode requests answer against a stand-in family so the
+  // rehearsal does not leak real preferences into the response.
+  const DEMO_FAMILY_NAMES = "the Rivera family (Alex, Sam, and Riley (9))";
+  const DEMO_PETS_TEXT = "(no pets)";
+  const DEMO_TRIPS_TEXT =
+    "- Reykjavik long weekend: Reykjavik, Iceland, dates tentative\n" +
+    "- Paris in October: Paris, France, dates tentative";
+  const DEMO_PREFS_TEXT =
+    "- [pace] Slow mornings; one anchor thing per day.\n" +
+    "- [day_shape] Late starts; dinner is the point of the day.\n" +
+    "- [doing_or_seeing] Doing over seeing; walk more than we ride.\n" +
+    "- [food] Sit-down local places over reservations booked from home.\n" +
+    "- [crowds] Off-peak. Skip anything with a line longer than 15 minutes.\n" +
+    "- [money] Spend on food and a good hotel; save on activities.";
+
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: trips }, { data: prefs }, { data: travelers }, { data: pets }] =
-    await Promise.all([
+  const [{ data: trips }, { data: prefs }, { data: travelers }, { data: pets }] = demo
+    ? [{ data: [] }, { data: [] }, { data: [] }, { data: [] }]
+    : await Promise.all([
       supabase
         .from("trips")
         .select("id, name, destination, start_date, end_date, status")
@@ -69,19 +86,27 @@ export async function POST(req) {
         .eq("family_id", access.familyId),
     ]);
 
-  const prefsText = preferencesLines(prefs).join("\n") || "(no preferences)";
-  const familyNames = (travelers || []).map((t) => t.name).filter(Boolean).join(", ");
-  const tripsText = (trips || [])
-    .map(
-      (t) =>
-        `- ${t.name || t.destination}: ${t.destination || "?"}, ${
-          t.start_date || "?"
-        } to ${t.end_date || "?"}`,
-    )
-    .join("\n");
-  const petsText = (pets || []).length
-    ? (pets || []).map((p) => `${p.name} (${p.species || "pet"})`).join(", ")
-    : "(no pets)";
+  const prefsText = demo
+    ? DEMO_PREFS_TEXT
+    : preferencesLines(prefs).join("\n") || "(no preferences)";
+  const familyNames = demo
+    ? DEMO_FAMILY_NAMES
+    : (travelers || []).map((t) => t.name).filter(Boolean).join(", ");
+  const tripsText = demo
+    ? DEMO_TRIPS_TEXT
+    : (trips || [])
+        .map(
+          (t) =>
+            `- ${t.name || t.destination}: ${t.destination || "?"}, ${
+              t.start_date || "?"
+            } to ${t.end_date || "?"}`,
+        )
+        .join("\n");
+  const petsText = demo
+    ? DEMO_PETS_TEXT
+    : (pets || []).length
+      ? (pets || []).map((p) => `${p.name} (${p.species || "pet"})`).join(", ")
+      : "(no pets)";
 
   const system = `You are Aly, the family's travel assistant. Answer in American English. Reply in one to three short paragraphs, no lists, no headings, no emoji. Use everything you know about the family below to make the answer specific to them, not generic. When something you can't be sure of would change your answer, say so briefly rather than make it up.
 
