@@ -608,6 +608,10 @@ export async function POST(request) {
         ...(existing || []).map((row) => row.fingerprint),
         ...house.map((tip) => tip.fingerprint),
       ],
+      // Every earlier title in this place goes into the subject check. The
+      // fingerprint alone is title-normalised, which is fooled by a model that
+      // reworded a cleared tip; subject-word overlap catches those.
+      subjects: (existing || []).filter(placeKey).map((row) => row.title),
       scope,
       today,
       trip,

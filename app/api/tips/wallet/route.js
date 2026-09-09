@@ -148,6 +148,11 @@ export async function POST(request) {
       place: { family_id: familyId, scope },
       avoid: [...sameScope.map((row) => row.title), ...namedAlready],
       known: (existing || []).map((row) => row.fingerprint),
+      // Same subject filter as the trip refresh: earlier wallet titles are
+      // matched by subject-word overlap, not just normalised title, so
+      // "Chase Sapphire Preferred welcome bonus" and "Sapphire Preferred
+      // 60k point offer" collapse to one.
+      subjects: sameScope.map((row) => row.title),
       already: sameScope.map((row) => row.title),
       scope,
       today,
