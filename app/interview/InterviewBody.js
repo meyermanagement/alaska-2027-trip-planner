@@ -547,10 +547,13 @@ export default function InterviewBody({
           setLoading(false);
           if (payload?.complete) {
             setDone(true);
-            // The whole reason the family answers this is to plan a trip. Land
-            // them at the trip builder rather than back on Family, so the
-            // momentum of the interview earns itself a next step.
-            router.push("/trips/new");
+            // The interview earns itself in front of the primary on the very
+            // next screen: /interview/proof runs the same real question about
+            // their upcoming trip twice, once with the answers folded in and
+            // once without, so the ten questions they just answered become
+            // a difference they can read. From there /welcome/after-interview
+            // carries them onward to the trip builder.
+            router.push("/interview/proof");
             return;
           }
           // If the primary went back and revised an already-answered
