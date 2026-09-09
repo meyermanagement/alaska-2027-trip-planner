@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ABOUT_ME_CHIP_GROUPS,
-  ABOUT_ME_EXAMPLES,
   ABOUT_ME_MICRO_PROMPTS,
   aboutMeFromParts,
 } from "@/lib/travelers/profile";
@@ -15,8 +14,8 @@ import { patchRun, readRun } from "@/lib/practice/session";
 /**
  * The About You page, which is a whole screen rather than a card.
  *
- * Four short prompts, one chip drawer that appends into the matching prompt,
- * five examples underneath. The free-text paragraph is gone -- the nine-row
+ * Four short prompts and one chip drawer that appends into the matching
+ * prompt. The free-text paragraph is gone -- the nine-row
  * textarea was honest but hard, and every A/B of it ended in two sentences.
  * Now every input on the screen writes into a labelled box, and on save the
  * four boxes concatenate into the same about_me column so nothing downstream
@@ -233,9 +232,7 @@ export default function AboutYouForm({
         );
         return;
       }
-      setError(
-        payload?.error || "That did not save. Try again in a moment.",
-      );
+      setError(payload?.error || "That did not save. Try again in a moment.");
       return;
     }
     setDone(true);
@@ -480,27 +477,6 @@ export default function AboutYouForm({
             Back to practice
           </a>
         )}
-      </div>
-
-      <div className="mt-9 border-t border-[var(--line)] pt-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
-          Some examples
-        </p>
-        <p className="mt-1 text-xs text-ink-soft">
-          There is no right answer here. These five are meant to show a range of
-          what people put in — who they are, what they care about, what shapes
-          what a good trip looks like to them.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {ABOUT_ME_EXAMPLES.map((example) => (
-            <blockquote
-              key={example}
-              className="rounded-xl border border-sand-deep bg-sand/50 p-3 text-xs leading-relaxed text-ink-soft"
-            >
-              &ldquo;{example}&rdquo;
-            </blockquote>
-          ))}
-        </div>
       </div>
     </>
   );
