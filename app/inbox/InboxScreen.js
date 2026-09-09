@@ -226,7 +226,11 @@ export default function InboxScreen({
               const trip = m.trips;
               const tripName = trip?.name || "a trip";
               const subject = m.subject || "(no subject)";
-              const href = trip ? tripPath(trip, "itinerary") : null;
+              const href = trip
+                ? m.filed_date
+                  ? `${tripPath(trip, "itinerary")}&date=${m.filed_date}`
+                  : tripPath(trip, "itinerary")
+                : null;
               const isClearing = clearBusyId === m.id;
               const isUndoing = undoBusyId === m.id;
               const rowBusy = isClearing || isUndoing;

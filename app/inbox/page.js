@@ -142,6 +142,33 @@ export default async function InboxPage() {
     parsedItems = pi || [];
   }
 
+  // Earliest date each auto-filed message wrote an itinerary row on, so the
+  // Go to trip button opens the itinerary on that day rather than on today.
+  // Only approved rows count: pending rows were declined by the parser, and
+  // any other status is not something that turned into an itinerary_items
+  // row. If a message has more than one date, the earliest is the one the
+  // trip's rail is scrolled to; that is the first thing the filing added.
+  const autoIds = (autoFiled || []).map((m) => m.id);
+  const filedDates = new Map();
+  if (autoIds.length) {
+    const { data: filedRows } = await supabase
+      .from("inbox_parsed_items")
+      .select("message_id, item_date")
+      .in("message_id", autoIds)
+      .eq("status", "approved")
+      .not("item_date", "is", null)
+      .order("item_date", { ascending: true });
+    for (const row of filedRows || []) {
+      if (!filedDates.has(row.message_id)) {
+        filedDates.set(row.message_id, row.item_date);
+      }
+    }
+  }
+  const autoFiledWithDate = (autoFiled || []).map((m) => ({
+    ...m,
+    filed_date: filedDates.get(m.id) || null,
+  }));
+
   // Trips split into upcoming (the sensible default in the file-it picker)
   // and past (for the odd case where a family is filing a confirmation
   // long after the trip is over). The picker on the client keeps them in
@@ -158,7 +185,7 @@ export default async function InboxPage() {
           messages={pending || []}
           attachments={attachments}
           parsedItems={parsedItems}
-          autoFiled={autoFiled || []}
+          autoFiled={autoFiledWithDate}
           upcomingTrips={upcoming}
           pastTrips={past}
           travelers={travelers || []}

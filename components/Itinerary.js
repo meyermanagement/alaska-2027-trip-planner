@@ -814,17 +814,25 @@ export default function Itinerary({
     }
   }, [railKeys, selected, today]);
 
-  // Once, on arrival: if the phone in the hand says a different day than home does
-  // and that day belongs to this trip, that is the day being lived. Alaska is four
-  // hours behind Missouri, so without this an evening in Ketchikan would open on
-  // tomorrow's tour. Deliberately after hydration rather than during render, so the
-  // browser draws the server's frame first and there is nothing to mismatch, and
-  // deliberately once, so a day somebody has chosen by hand is never moved under
-  // them.
+  // Once, on arrival: a link that names a day wins outright -- Go to trip from
+  // an auto-filed inbox row points at the day the filing landed on, and the
+  // family would rather see that day than today. Failing a link, if the phone
+  // in the hand says a different day than home does and that day belongs to
+  // this trip, that is the day being lived. Alaska is four hours behind
+  // Missouri, so without this an evening in Ketchikan would open on tomorrow's
+  // tour. Deliberately after hydration rather than during render, so the
+  // browser draws the server's frame first and there is nothing to mismatch,
+  // and deliberately once, so a day somebody has chosen by hand is never moved
+  // under them.
   const settled = useRef(false);
   useEffect(() => {
     if (settled.current) return;
     settled.current = true;
+    const wanted = new URLSearchParams(window.location.search).get("date");
+    if (wanted && dayKeys.includes(wanted)) {
+      setSelected(wanted);
+      return;
+    }
     const lived = livedDay(today, localToday(), dayKeys);
     if (lived === today) return;
     setToday(lived);
