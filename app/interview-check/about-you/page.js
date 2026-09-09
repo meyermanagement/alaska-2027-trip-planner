@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
+import { resolveHomePoint } from "@/lib/places/homePoint";
 import AboutYouForm from "../../about-you/AboutYouForm";
 
 export const metadata = { title: "About you · Alyeska" };
@@ -34,14 +36,15 @@ export default async function InterviewCheckAboutYouPage() {
     .maybeSingle();
   if (!mine) redirect("/trips");
 
-  // Home coordinates power the local-teams chip on the real form. Practice
-  // uses the same form, so the same read here keeps the rehearsed version
+  // Where home is powers the local-teams chips on the real form. Practice uses
+  // the same form and the same resolution, so the rehearsed version is
   // identical to what the primary will see when they open the real screen.
   const { data: family } = await supabase
     .from("families")
-    .select("home_lat, home_lon")
+    .select("home_address, home_lat, home_lon")
     .eq("id", access.familyId)
     .maybeSingle();
+  const home = await resolveHomePoint(family, await headers());
 
   return (
     <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
@@ -50,8 +53,8 @@ export default async function InterviewCheckAboutYouPage() {
         name={mine.name || ""}
         first={false}
         secondary={false}
-        homeLat={family?.home_lat ?? null}
-        homeLon={family?.home_lon ?? null}
+        homeLat={home?.lat ?? null}
+        homeLon={home?.lon ?? null}
         practice
       />
     </main>

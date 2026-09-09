@@ -1,6 +1,8 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
+import { resolveHomePoint } from "@/lib/places/homePoint";
 import AboutYouForm from "./AboutYouForm";
 
 export const metadata = { title: "About you · Alyeska" };
@@ -48,17 +50,19 @@ export default async function AboutYouPage({ searchParams }) {
   // them to a box that cannot save is worse than not asking.
   if (!mine) redirect("/trips");
 
-  // The home coordinates are what powers the local-teams chip. Pulled from the
-  // families row that the welcome screen wrote when the primary geocoded the
-  // home address. Nothing else on this page needs the family row, so the read
-  // is deliberately just these two columns.
+  // Where home is, which is what powers the local-teams chips. The address the
+  // family typed on the welcome screen decides this: its stored coordinates
+  // when it has them, or the words themselves sent to the geocoder when the
+  // welcome screen saved an address it could not place. Only a family with no
+  // usable address falls back to the coarse position of this request.
   const { data: family } = mine.family_id
     ? await supabase
         .from("families")
-        .select("home_lat, home_lon")
+        .select("home_address, home_lat, home_lon")
         .eq("id", mine.family_id)
         .maybeSingle()
     : { data: null };
+  const home = await resolveHomePoint(family, await headers());
 
   // Chromeless: no TopBar (compass menu, tip strip, current-trip banner) and
   // no Ask Aly. This screen is entered from the first-run chain -- welcome,
@@ -73,8 +77,8 @@ export default async function AboutYouPage({ searchParams }) {
         name={mine.name || ""}
         first={first}
         secondary={mine.access_level === "secondary"}
-        homeLat={family?.home_lat ?? null}
-        homeLon={family?.home_lon ?? null}
+        homeLat={home?.lat ?? null}
+        homeLon={home?.lon ?? null}
         nextHref={nextHref}
       />
     </main>
