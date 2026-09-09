@@ -13,7 +13,7 @@ export default function MeetAlyClient() {
   return (
     <MeetAly
       onContinue={() => router.push("/welcome")}
-      continueLabel="I'm ready -- take me in"
+      continueLabel="Take me in"
     />
   );
 }

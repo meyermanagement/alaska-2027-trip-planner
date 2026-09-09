@@ -21,13 +21,19 @@ import {
  * job in front of the primary, on demand, so what looked like polish is
  * proven to be real.
  *
+ * The copy here is deliberately thin. The screen has to argue that Aly is
+ * not a search box, and the demonstration is the argument -- so anything
+ * that says in prose what the two columns already show is cut, including
+ * the sentence that used to tell people to compare them. A screen that
+ * both shows and explains gets read as an explanation and skipped.
+ *
  * onContinue is the escape hatch: the button below moves the primary to
  * the next screen (the welcome form in real mode, back to the practice
  * hub in practice mode). The component itself does not know which one.
  */
 export default function MeetAly({
   onContinue,
-  continueLabel = "I'm ready -- take me in",
+  continueLabel = "Take me in",
   practice = false,
 }) {
   const [question, setQuestion] = useState("");
@@ -63,9 +69,7 @@ export default function MeetAly({
 
   return (
     <div className="space-y-8">
-      {practice && (
-        <p className="section-label text-ink-soft">Practice</p>
-      )}
+      {practice && <p className="section-label text-ink-soft">Practice</p>}
 
       <header className="space-y-4">
         <div className="flex items-start gap-4">
@@ -86,16 +90,13 @@ export default function MeetAly({
           </div>
         </div>
         <p className="text-base leading-relaxed text-ink">
-          I'm the assistant inside your family's travel planner. I'm not a
-          search box that anyone else could ask -- I'm the one who knows your
-          family, remembers who you travel with, what you like doing, what you
-          skip, and what a good trip looks like to you. Every answer I give
-          you fits your family, not a generic traveler.
+          I plan your family's trips. I remember who you travel with, what you
+          like, and what you skip -- so my answers fit you, not a generic
+          traveler.
         </p>
         <p className="text-sm leading-relaxed text-ink-soft">
-          What you tell me stays on your family's file. Never sold, never
-          mined. You can see and remove any of it any time on the Family and
-          Preferences pages.
+          What you tell me stays on your family's file, never sold. You can read
+          or delete any of it on the Family and Preferences pages.
         </p>
       </header>
 
@@ -113,10 +114,6 @@ export default function MeetAly({
           >
             &ldquo;{DEMO_QUESTION}&rdquo; &mdash; {DEMO_DESTINATION}
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-            Watch what changes between the two answers. That is the part a
-            search box cannot do.
-          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -127,7 +124,6 @@ export default function MeetAly({
             >
               <header>
                 <p className="section-label text-ink-soft">{f.heading}</p>
-                <p className="mt-1 text-sm text-ink">{f.subheading}</p>
               </header>
               <ul className="space-y-1 text-xs text-ink-soft">
                 {f.facts.map((fact) => (
@@ -153,18 +149,14 @@ export default function MeetAly({
         className="space-y-3 rounded-2xl border border-sand-deep bg-white p-5"
       >
         <div>
-          <p className="section-label text-ink-soft">
-            Ask her something else
-          </p>
           <h2
             id="meet-aly-ask-heading"
-            className="mt-1 font-display text-lg font-semibold text-ink"
+            className="font-display text-lg font-semibold text-ink"
           >
-            Try a question of your own
+            Ask something of your own
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-            Aly will answer twice using the same two stand-in families above.
-            This is the same model that will answer questions on your trips.
+          <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+            She answers twice, for the same two families.
           </p>
         </div>
         <label htmlFor="meet-aly-question" className="sr-only">
@@ -188,9 +180,7 @@ export default function MeetAly({
           >
             {busy ? "Aly is thinking..." : "Ask Aly"}
           </button>
-          {error && (
-            <p className="text-xs text-terra-deep">{error}</p>
-          )}
+          {error && <p className="text-xs text-terra-deep">{error}</p>}
         </div>
 
         {answer && (
