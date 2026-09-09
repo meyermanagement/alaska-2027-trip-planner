@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { Buffer } from "node:buffer";
 import { timingSafeEqual as cryptoTimingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -246,19 +246,24 @@ export async function POST(request) {
     });
   }
 
-  // Fire-and-forget: kick the extractor off without waiting. Postmark only
-  // cares that we 200'd on the write; if Gemini takes six seconds to answer,
-  // that is time the retry timer should not be counting against us. Any
-  // failure inside parseInboxMessage writes parse_status='failed' with a
-  // reason onto the row, so the /inbox card can surface it -- nothing needs
-  // to escape here.
+  // Fire the parser through after() so the response can return 200 to
+  // Postmark immediately while the Gemini call still gets to finish inside
+  // the same invocation. A naked fire-and-forget Promise here freezes on
+  // Vercel the moment we return the response, which used to leave the row
+  // stuck in parse_status='pending' for hours until a later request
+  // happened to thaw the process. after() is the sanctioned path: the
+  // response goes out on time, and the runtime is held open for the
+  // callback within the same maxDuration budget.
   //
   // The unhandled-rejection guard is defensive: parseInboxMessage catches
   // its own errors, but a bug that let one slip through should not crash
-  // the serverless worker holding the webhook's response open. This turns
-  // it into a log line and moves on.
-  parseInboxMessage({ messageId: message.id }).catch((err) => {
-    console.error("inbox parse failed", message.id, err);
+  // the after() task and take the log line down with it.
+  after(async () => {
+    try {
+      await parseInboxMessage({ messageId: message.id });
+    } catch (err) {
+      console.error("inbox parse failed", message.id, err);
+    }
   });
 
   return NextResponse.json(

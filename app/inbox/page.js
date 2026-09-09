@@ -1,10 +1,13 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { inboxAddressFor } from "@/lib/inbox/address";
+import { parseInboxMessage } from "@/lib/inbox/parser";
 import InboxScreen from "./InboxScreen";
 import { isPastTrip } from "@/lib/format";
 
@@ -33,6 +36,40 @@ export default async function InboxPage() {
 
   const familyId = memberships[0].family_id;
   const household = memberships[0].families;
+
+  // Self-healing sweep. A message row can end up in `pending` (webhook wrote
+  // it but the parser never ran) or in an ageing `running` (a previous parse
+  // was frozen mid-call) when the runtime was hibernated before the
+  // after() task finished. Every time the family opens their inbox we look
+  // for those rows and re-kick the parser through after() so the same
+  // background primitive that a fresh receive uses gets a chance to
+  // complete them. This is bounded to this family's own rows, capped, and
+  // still governed by the two-minute idempotency guard inside
+  // parseInboxMessage, so a live parse in another invocation is never
+  // interrupted.
+  const admin = createAdminClient();
+  if (admin) {
+    const stuckSince = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data: stuck } = await admin
+      .from("inbox_messages")
+      .select("id, parse_status, received_at")
+      .eq("family_id", familyId)
+      .in("parse_status", ["pending", "running"])
+      .lte("received_at", stuckSince)
+      .order("received_at", { ascending: false })
+      .limit(3);
+    if (stuck && stuck.length) {
+      after(async () => {
+        for (const row of stuck) {
+          try {
+            await parseInboxMessage({ messageId: row.id });
+          } catch (err) {
+            console.error("inbox self-heal parse failed", row.id, err);
+          }
+        }
+      });
+    }
+  }
 
   // The undo window on an auto-filed message is 24 hours; anything older
   // than that stops being offered as undoable and drops off this list on
