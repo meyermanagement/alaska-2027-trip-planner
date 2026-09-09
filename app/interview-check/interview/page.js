@@ -5,6 +5,11 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { INTERVIEW_QUESTIONS } from "@/lib/travelers/interview";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
+import {
+  resolveStandIn,
+  standInPetsRows,
+  standInTravelers,
+} from "@/lib/practice/standIn";
 import InterviewBody from "../../interview/InterviewBody";
 
 export const metadata = { title: "Interview · Alyeska" };
@@ -26,22 +31,25 @@ export default async function InterviewCheckInterviewPage() {
   if (!access?.familyId) redirect("/welcome");
   if (access.level !== PRIMARY) redirect("/trips");
 
-  // Practice mode reads the same names as real mode so the reason chips look
-  // like the ones the primary will see when they take the real interview.
+  // The reason chips name the family -- the children by name, the animals by
+  // name, "you and Steph" when there are two adults -- and a rehearsal must not
+  // name the real one. It used to read the travelers and pets tables here,
+  // which meant somebody who had just invented a family on the practice
+  // welcome screen walked into an interview talking about their actual
+  // children, and the whole point of the rehearsal is to show what the
+  // questions do with the family you typed.
+  //
+  // So this renders the built-in stand-in family, and the body swaps in
+  // whatever the practice run holds once it is mounted and can reach
+  // sessionStorage. Either way no real name reaches this screen.
+  //
   // No writes happen here; the About-you priors banner is deliberately not
   // wired through the practice path because seeing "you mentioned this" on a
   // rehearsal that saves nothing would confuse more than help.
-  const [{ data: travelers }, { data: pets }] = await Promise.all([
-    supabase
-      .from("travelers")
-      .select("id, name, is_person, date_of_birth, access_level")
-      .eq("family_id", access.familyId)
-      .eq("is_person", true),
-    supabase.from("pets").select("id, name, species").eq("family_id", access.familyId),
-  ]);
+  const standIn = resolveStandIn(null);
   const context = personalizationContext({
-    travelers: travelers || [],
-    pets: pets || [],
+    travelers: standInTravelers(standIn),
+    pets: standInPetsRows(standIn),
   });
 
   return (

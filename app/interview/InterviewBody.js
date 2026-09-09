@@ -5,9 +5,17 @@ import { useRouter } from "next/navigation";
 
 import CompassLoader from "@/components/CompassLoader";
 import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
-import { personalizeReasons } from "@/lib/travelers/interviewPersonalize";
+import {
+  personalizationContext,
+  personalizeReasons,
+} from "@/lib/travelers/interviewPersonalize";
 import { summaryForAnswer } from "@/lib/travelers/runningSummary";
-import { patchRun } from "@/lib/practice/session";
+import { patchRun, runToStandIn } from "@/lib/practice/session";
+import {
+  resolveStandIn,
+  standInPetsRows,
+  standInTravelers,
+} from "@/lib/practice/standIn";
 
 // The minimum a Compass loader is on screen between questions. The write and
 // the next-question calculation take a few hundred milliseconds; anything
@@ -176,6 +184,29 @@ export default function InterviewBody({
     if (mode !== "practice") return;
     patchRun({ answers });
   }, [answers, mode]);
+
+  // Who the reason chips talk about. Real mode is handed the family read from
+  // the database and nothing here touches it.
+  //
+  // Practice mode arrives with the built-in stand-in family, because the server
+  // cannot see sessionStorage and rendering the real family for even one frame
+  // is the bug this fixes. Once mounted, whatever was typed on the practice
+  // welcome screen takes over, so the questions ask about that family's
+  // children and animals by name. Read after mount rather than during render
+  // so the server and client first paints agree.
+  const [live, setLive] = useState(context);
+  useEffect(() => {
+    if (mode !== "practice") return;
+    const typed = runToStandIn();
+    if (!typed) return;
+    const standIn = resolveStandIn(typed);
+    setLive(
+      personalizationContext({
+        travelers: standInTravelers(standIn),
+        pets: standInPetsRows(standIn),
+      }),
+    );
+  }, [mode]);
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
   // Session cache for Aly-generated follow-up chips. Keyed by
@@ -728,7 +759,7 @@ export default function InterviewBody({
                   ownWords={ownWords}
                   setOwnWords={setOwnWords}
                   cache={suggestionCache}
-                  context={context}
+                  context={live}
                 />
               )}
               {choice === "other" && (
