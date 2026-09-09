@@ -77,13 +77,17 @@ export default function InboxScreen({
     }
   }
 
-  async function fileMessage(id, tripId, travelerId) {
+  async function fileMessage(id, tripId, travelerId, approveItemIds) {
     setBusyId(id);
     try {
       const res = await fetch(`/api/inbox/${id}/file`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ trip_id: tripId, traveler_id: travelerId }),
+        body: JSON.stringify({
+          trip_id: tripId,
+          traveler_id: travelerId,
+          approve_item_ids: approveItemIds || [],
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       setOpenId(null);
@@ -269,6 +273,7 @@ export default function InboxScreen({
                     upcoming={upcomingTrips}
                     past={pastTrips}
                     travelers={travelers}
+                    parsedItems={parsedByMessage.get(m.id) || []}
                     needsTraveler={isUnknown && !m.attributed_traveler_id}
                     initialTravelerId={m.attributed_traveler_id || ""}
                     busy={busyId === m.id}
@@ -276,8 +281,8 @@ export default function InboxScreen({
                       setOpenId(null);
                       setMode(null);
                     }}
-                    onConfirm={(tripId, travelerId) =>
-                      fileMessage(m.id, tripId, travelerId)
+                    onConfirm={(tripId, travelerId, approveIds) =>
+                      fileMessage(m.id, tripId, travelerId, approveIds)
                     }
                   />
                 )}
@@ -307,6 +312,7 @@ function FilePicker({
   upcoming,
   past,
   travelers,
+  parsedItems,
   needsTraveler,
   initialTravelerId,
   busy,
@@ -315,8 +321,28 @@ function FilePicker({
 }) {
   const [tripId, setTripId] = useState("");
   const [travelerId, setTravelerId] = useState(initialTravelerId);
+  // Parsed items are ticked by default. The whole point of staging is that a
+  // person looked at them before they became real itinerary rows -- but the
+  // usual case is that the parser got them right and the person is here to
+  // agree, not to painstakingly re-select every leg. Ticks are keyed by
+  // parsed-item id so a re-render with the same set does not blank them.
+  const [approved, setApproved] = useState(() => {
+    const s = new Set();
+    for (const p of parsedItems || []) s.add(p.id);
+    return s;
+  });
+
+  function toggle(id) {
+    setApproved((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const canConfirm = Boolean(tripId) && (!needsTraveler || travelerId);
+  const approvedCount = approved.size;
 
   return (
     <div className="border-t border-[var(--line)] bg-sand/40 p-4">
@@ -369,6 +395,49 @@ function FilePicker({
         </>
       )}
 
+      {parsedItems.length > 0 && (
+        <div className="mt-4">
+          <div className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+            Add to the itinerary
+          </div>
+          <p className="mt-1 text-xs text-ink-soft">
+            Aly read these from the message. Untick anything that does not
+            belong on the trip; the rest become itinerary items when you file.
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {parsedItems.map((p) => {
+              const checked = approved.has(p.id);
+              return (
+                <li key={p.id}>
+                  <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm text-ink transition hover:border-teal/60">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(p.id)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="mr-2 rounded-full bg-sand-deep/60 px-1.5 py-0.5 text-[0.65rem] uppercase tracking-[0.06em] text-ink-soft">
+                        {p.category}
+                      </span>
+                      <span className="font-medium text-ink">{p.title}</span>
+                      {p.item_date ? (
+                        <span className="text-ink-soft"> · {p.item_date}</span>
+                      ) : null}
+                      {p.confidence === "low" ? (
+                        <span className="ml-2 text-[0.7rem] text-ink-faint">
+                          low confidence
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="mt-4 flex justify-end gap-2">
         <button
           type="button"
@@ -380,10 +449,16 @@ function FilePicker({
         <button
           type="button"
           disabled={!canConfirm || busy}
-          onClick={() => onConfirm(tripId, travelerId || null)}
+          onClick={() =>
+            onConfirm(tripId, travelerId || null, Array.from(approved))
+          }
           className="rounded-lg bg-teal px-4 py-1.5 text-sm font-medium text-on-accent transition disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "Filing…" : "File on this trip"}
+          {busy
+            ? "Filing…"
+            : approvedCount > 0
+              ? `File and add ${approvedCount} ${approvedCount === 1 ? "item" : "items"}`
+              : "File on this trip"}
         </button>
       </div>
     </div>
