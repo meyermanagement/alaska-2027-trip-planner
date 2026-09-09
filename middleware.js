@@ -15,7 +15,17 @@ const PUBLIC_PATHS = ["/login", "/auth"];
 // person — so it has to get past the redirect below. It is not open: the route
 // itself demands the shared secret Vercel signs the request with, and refuses to
 // do anything when that secret has not been configured.
-const MACHINE_PATHS = ["/api/tasks/remind", "/api/mail/check"];
+//
+// The Postmark inbound webhook is here for the same reason: it is a POST from
+// Postmark carrying a forwarded confirmation, and Postmark has no session and
+// no way of being given one. The route itself checks the shared secret in the
+// x-postmark-webhook-secret header or the ?secret= query parameter before it
+// touches the database.
+const MACHINE_PATHS = [
+  "/api/tasks/remind",
+  "/api/mail/check",
+  "/api/inbox/receive",
+];
 
 // The calendar subscription is read by Google Calendar, Apple Calendar or
 // Outlook, which have no session and no way of being given one, so a redirect to
