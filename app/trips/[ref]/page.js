@@ -174,7 +174,7 @@ export default async function TripPage({ params, searchParams }) {
       .order("created_at", { ascending: true }),
     supabase
       .from("trip_facts")
-      .select("checked_at")
+      .select("checked_at, looked_at")
       .eq("trip_id", trip.id)
       .maybeSingle(),
     // The packing templates, so an item invented while packing for this trip
@@ -277,8 +277,8 @@ export default async function TripPage({ params, searchParams }) {
         pets={pets.data || []}
         initialPetLinks={petLinks.data || []}
         tips={tips.data || []}
-        everLooked={Boolean(facts.data?.checked_at)}
-        lastCheckedAt={facts.data?.checked_at || null}
+        everLooked={Boolean(facts.data?.checked_at || facts.data?.looked_at)}
+        lastLookedAt={facts.data?.looked_at || facts.data?.checked_at || null}
         packingTemplates={templates.data || []}
         packingTemplateItems={templateItems.data || []}
         tripTemplateIds={(tripTemplates.data || []).map((r) => r.template_id)}

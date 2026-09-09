@@ -245,6 +245,28 @@ async function writeFloorItems({
  * route only loaded the unfinished ones, and a currency task somebody ticked off
  * last month is not a gap to fill again.
  */
+// Records that a look ran on this trip, whether or not the fact sheet had to be
+// re-researched. The trip page reads trip_facts.looked_at to decide whether to
+// fire the auto-look on open, and it has to move on every successful look:
+// reading checked_at instead means the auto-look runs every open of any trip
+// whose fact sheet is more than a day old, which is most of them once the sheet
+// has settled. The update path is chosen over an upsert because a bare upsert
+// with only trip_id and looked_at would leave a mostly-empty facts row that
+// factsAreStale treats as "missing" and researches all over again. The upsert
+// on the researched branch (see below) sets looked_at at the same time as the
+// rest of the sheet, so this update path is only reached when a real sheet
+// already exists.
+async function bumpLookedAt({ supabase, tripId }) {
+  const { error } = await supabase
+    .from("trip_facts")
+    .update({ looked_at: new Date().toISOString() })
+    .eq("trip_id", tripId);
+  if (error)
+    console.log(
+      `[tips/refresh] looked_at NOT saved trip=${tripId}: ${error.message}`,
+    );
+}
+
 async function writeFloorTasks({ supabase, trip, tripId, facts, itinerary }) {
   const { data: all, error: readError } = await supabase
     .from("predeparture_tasks")
@@ -451,6 +473,7 @@ export async function POST(request) {
             sources: researched.sources,
             model: researched.model,
             checked_at: new Date().toISOString(),
+            looked_at: new Date().toISOString(),
             windows_version: WINDOWS_VERSION,
             standings_key: standingsKey(memberships || []),
           },
@@ -492,6 +515,12 @@ export async function POST(request) {
       scope,
       existing,
     });
+    // Only reached when the sheet did not have to be researched -- the branch
+    // above that did research it has already stamped looked_at inside its
+    // upsert. Kept guarded rather than unconditional so a look that runs
+    // through a fresh sheet still counts as "we looked today" for the trip
+    // page's once-a-day gate.
+    if (!researched.searched) await bumpLookedAt({ supabase, tripId });
     return NextResponse.json({
       step: "facts",
       facts: researched.facts,
@@ -641,6 +670,12 @@ export async function POST(request) {
     }
     added = (inserted || []).length;
   }
+
+  // Stamp the trip so the trip page's once-a-day auto-look does not fire again
+  // this afternoon. Done at the end rather than the start because a look that
+  // returned an error above should not count as one -- the point of the gate
+  // is "we successfully asked today", not "we tried today".
+  await bumpLookedAt({ supabase, tripId });
 
   return NextResponse.json({
     step: scope,

@@ -161,7 +161,7 @@ export default function TripView({
   // itinerary has moved since the last one; no otherwise, because a look
   // costs most of a minute of grounded model time and nothing on the trip
   // has changed that would give a different answer.
-  lastCheckedAt = null,
+  lastLookedAt = null,
   packingTemplates = [],
   tripTemplateIds = [],
   templatesChosen = false,
@@ -513,23 +513,23 @@ export default function TripView({
     if (readOnly) return false;
     if (isDraftTrip(info)) return false;
     if (past) return false;
-    if (!lastCheckedAt) return true;
-    const checked = Date.parse(lastCheckedAt);
-    if (!Number.isFinite(checked)) return true;
-    // Local midnight of today. A check yesterday afternoon and one at 8am
+    if (!lastLookedAt) return true;
+    const looked = Date.parse(lastLookedAt);
+    if (!Number.isFinite(looked)) return true;
+    // Local midnight of today. A look yesterday afternoon and one at 8am
     // today should both count as "once a day", so the boundary is the wall
     // clock's midnight, not a rolling 24 hours.
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    if (checked < startOfToday.getTime()) return true;
-    // Newest itinerary edit. If the trip changed after the last check, the
+    if (looked < startOfToday.getTime()) return true;
+    // Newest itinerary edit. If the trip changed after the last look, the
     // advice may no longer fit -- a flight added at 6am wants the check to
     // notice by 6:01.
     const newestEdit = itinerary
       .map((row) => Date.parse(row?.updated_at || ""))
       .filter((n) => Number.isFinite(n))
       .reduce((a, b) => (b > a ? b : a), 0);
-    if (newestEdit > checked) return true;
+    if (newestEdit > looked) return true;
     return false;
   })();
 
