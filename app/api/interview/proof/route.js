@@ -29,10 +29,86 @@ const DEADLINE_MS = 22000;
 
 const QUESTIONS = {
   food: (dest) =>
-    `We're going to ${dest} soon. Where should we go for dinner our first night? Answer in one short paragraph, no lists, no headings. Name a concrete place if one fits and explain why in one clause. If the trip's shape or the family's shape suggests a different kind of dinner, say so.`,
+    `We're going to ${dest} soon. Plan our first evening's food. Where are we eating, roughly when, and why that and not something else?`,
   day: (dest) =>
-    `We're going to ${dest} soon. What should we do on our first full day there? Answer in one short paragraph, no lists, no headings. Name concrete places and times if they fit. Match the pace and shape you know about the family.`,
+    `We're going to ${dest} soon. Plan our first full day there. Where are we going, roughly when, and why that and not something else?`,
 };
+
+// Both answers come back as a plan rather than a paragraph.
+//
+// The screen exists to show that the interview changed the recommendation, and
+// a paragraph makes that comparison hard work: the reader has to hold two
+// pieces of prose side by side and find the sentence that differs. Rows make
+// the difference structural instead. The same three or four slots appear in
+// both columns, so a person reads down one column and across to the other and
+// sees that the eight o'clock reservation became a six o'clock one, and the
+// reason column says which of their own answers did that.
+//
+// The shape is pipe-delimited on purpose. It survives a model that ignores
+// markdown instructions, it parses without a JSON mode the deadline can't
+// afford to retry, and a row that comes back malformed is dropped rather than
+// breaking the render -- with the raw text still returned as a fallback so a
+// wholly non-compliant answer is shown as prose instead of as nothing.
+const PLAN_SHAPE = `Answer as a plan, not a paragraph. Three or four rows, one per line, in exactly this shape:
+
+WHEN | WHAT | WHY
+
+WHEN is a clock time or a short label of at most four words. WHAT is the choice itself, named, at most ten words. WHY is one sentence, at most twenty words, saying why that choice and not another. Use the pipe character to separate the three parts. No bullets, no numbering, no headings, no blank lines, and nothing before the first row or after the last.`;
+
+/**
+ * The model's plan text, as rows the client can lay out.
+ *
+ * Deliberately forgiving about everything except the pipe. A model that adds a
+ * bullet, numbers the rows, wraps a part in asterisks, or writes a sentence of
+ * preamble above the plan still parses, because those are the failures that
+ * actually happen and none of them change the meaning of the row. A line with
+ * no pipe is dropped rather than guessed at, and a run with nothing parsable
+ * returns an empty array so the caller falls back to the raw text.
+ *
+ * @param text the model's reply
+ * @returns [{ when, what, why }], at most five rows
+ */
+function planRows(text) {
+  return (
+    String(text || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.includes("|"))
+      .map((line) =>
+        line
+          // Bold markers come off first: a row written as "**6:30 pm**" would
+          // otherwise lose one asterisk to the bullet strip below and keep the
+          // other, and the hour would render as "*6:30 pm".
+          .replace(/\*\*/g, "")
+          // A leading bullet or "2." is noise; a leading "6:30" is the answer, so
+          // only strip a number when a list marker follows it.
+          .replace(/^([-*•–]|\d+[.)])\s*/, "")
+          .split("|")
+          .map((part) => part.trim()),
+      )
+      // A model that reaches for a markdown table writes leading and trailing
+      // pipes, a header row, and a row of dashes. Drop the empty edge cells, then
+      // drop those two rows, and the table parses as the plan it was trying to be.
+      .map((parts) => {
+        const trimmed = [...parts];
+        if (trimmed[0] === "") trimmed.shift();
+        if (trimmed[trimmed.length - 1] === "") trimmed.pop();
+        return trimmed;
+      })
+      .filter((parts) => !parts.every((part) => /^:?-{2,}:?$/.test(part)))
+      .filter(
+        (parts) =>
+          !/^(when|what|why|time|choice|reason)$/i.test(parts[0] || ""),
+      )
+      .filter((parts) => parts.length >= 2 && parts[0] && parts[1])
+      .map((parts) => ({
+        when: parts[0],
+        what: parts[1],
+        why: parts.slice(2).join(" ").trim(),
+      }))
+      .slice(0, 5)
+  );
+}
 
 function preferencesLines(prefs) {
   return (prefs || [])
@@ -79,7 +155,8 @@ export async function POST(req) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+  if (!user)
+    return NextResponse.json({ error: "sign in first" }, { status: 401 });
 
   const access = await resolveAccess(supabase, user);
   if (!access?.familyId || access.level !== PRIMARY) {
@@ -139,9 +216,9 @@ export async function POST(req) {
 
   const question = QUESTIONS[category](destination);
 
-  const baseSystem = `You are Aly, a travel assistant. Answer in American English. One short paragraph. No lists, no headings, no emoji, no source citations. Do not preface with "great question" or similar. Do not caveat with "of course, this depends on your preferences" -- just answer.`;
+  const baseSystem = `You are Aly, a travel assistant. Answer in American English. No emoji, no source citations. Do not preface with "great question" or similar. Do not caveat with "of course, this depends on your preferences" -- just answer.\n\n${PLAN_SHAPE}`;
 
-  const withoutSystem = `${baseSystem}\n\nYou do not know anything about the family asking. Answer the way a general travel article would answer -- named places, common picks, the safe recommendation.`;
+  const withoutSystem = `${baseSystem}\n\nYou do not know anything about the family asking. Choose the way a general travel article would choose -- named places, common picks, the safe recommendation. Each WHY should be the reason an article would give: that it is well reviewed, famous, central, a classic. Do not invent a family to justify a choice.`;
 
   const familyLinesText = demo
     ? standInFamilyLines(standIn).join("\n")
@@ -153,7 +230,7 @@ export async function POST(req) {
   const prefsText = demo
     ? standInPrefsLines(standIn).join("\n")
     : preferencesLines(prefs).join("\n");
-  const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nUse this to shape your one-paragraph answer. Name at least one specific way the family's preferences change the recommendation from what a generic answer would say. Do not list the preferences back to the family; just let them show through in your choice.`;
+  const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nEvery WHY must name the specific thing about this family that drove the choice -- the preference, the age, the limit, the hour they said they get up. "Well reviewed" and "a local favorite" are not reasons here; those are what the answer looks like without an interview. If a preference rules something out, the WHY may say what you are avoiding and why.`;
 
   const deadline = Date.now() + DEADLINE_MS;
 
@@ -191,6 +268,10 @@ export async function POST(req) {
     standInCustom: Boolean(standIn?.custom),
     without: (withoutRes?.text || "").trim(),
     withPrefs: (withRes?.text || "").trim(),
+    // Parsed rows for the itinerary render. Empty when the model ignored the
+    // shape, which is the client's cue to fall back to the raw text above.
+    withoutRows: planRows(withoutRes?.text),
+    withPrefsRows: planRows(withRes?.text),
     preferenceCount: prefsText ? prefsText.split("\n").length : 0,
   });
 }

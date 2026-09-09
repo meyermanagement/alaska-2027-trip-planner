@@ -14,7 +14,60 @@ import { runToStandIn } from "@/lib/practice/session";
  * proof against another question. The button at the bottom carries them
  * onward to the after-interview screen (what Aly already put on your
  * trips + ask a real question).
+ *
+ * Both answers arrive as plan rows rather than paragraphs -- see the endpoint
+ * for why -- and are laid out as an itinerary: the hour, the choice, and
+ * underneath it the reason that choice won. The reason line is the whole point
+ * of the screen, so it is given its own line rather than tucked into the same
+ * sentence as the choice, and the two columns share the row shape so the eye
+ * can travel across a row and see what the interview moved.
  */
+
+/**
+ * One column's answer, as an itinerary.
+ *
+ * Falls back to the raw paragraph when the model ignored the row shape, because
+ * a prose answer is still a real answer and the comparison survives it. The
+ * reason line is dropped when a row came back without one instead of leaving an
+ * empty line under the choice.
+ */
+function PlanRows({ rows, fallback, tone }) {
+  if (!rows?.length) {
+    return (
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
+        {fallback || "(no answer)"}
+      </p>
+    );
+  }
+  const rule = tone === "with" ? "border-teal/30" : "border-sand-deep";
+  // Not the section-label class. That rule is unlayered in globals.css and so
+  // wins the cascade over any Tailwind text color, which would quietly render
+  // both columns' hours in the same gray and lose half the point of the pair.
+  const when = `text-[0.7rem] font-semibold uppercase tracking-[0.09em] tabular-nums ${
+    tone === "with" ? "text-teal" : "text-ink-soft"
+  }`;
+  return (
+    <ol className="space-y-3">
+      {rows.map((row, i) => (
+        <li
+          key={`${row.when}-${i}`}
+          className={`${i > 0 ? `border-t ${rule} pt-3` : ""}`}
+        >
+          <p className={when}>{row.when}</p>
+          <p className="mt-0.5 text-sm font-medium leading-snug text-ink">
+            {row.what}
+          </p>
+          {row.why && (
+            <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+              {row.why}
+            </p>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function ProofClient({ demo = false, backHref = null } = {}) {
   const router = useRouter();
   const [category, setCategory] = useState("food");
@@ -71,10 +124,11 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           Watch the same question, answered two ways.
         </h1>
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly is answering one real question about your next trip. On the
-          left is what she would say if she knew nothing about you. On the
-          right is what she says with everything you just told her folded
-          in. Same question, same model. The difference is the interview.
+          Aly is answering one real question about your next trip. On the left
+          is what she would say if she knew nothing about you. On the right is
+          what she says with everything you just told her folded in. Same
+          question, same model. Under every choice is the reason it won; on the
+          right, those reasons are your own answers doing the work.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
@@ -120,7 +174,10 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
 
       {loading && (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-teal">
-          <CompassLoader size={64} label="Aly is answering the same question twice." />
+          <CompassLoader
+            size={64}
+            label="Aly is answering the same question twice."
+          />
           <p className="text-sm text-ink-soft">
             Two answers, side by side. This takes a moment.
           </p>
@@ -167,14 +224,18 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                   What a general travel article would say.
                 </p>
               </header>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
-                {data.without || "(no answer)"}
-              </p>
+              <PlanRows
+                rows={data.withoutRows}
+                fallback={data.without}
+                tone="without"
+              />
             </article>
 
             <article className="flex flex-col gap-2 rounded-2xl border-2 border-teal bg-teal-soft/30 p-4">
               <header>
-                <p className="section-label text-teal">
+                {/* Same cascade trap as the hour above: section-label would
+                    override the teal, so the label is spelled out here. */}
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
                   Aly, with your interview
                 </p>
                 <p className="mt-1 text-xs italic text-ink-soft">
@@ -182,16 +243,18 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                   just told her.
                 </p>
               </header>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
-                {data.withPrefs || "(no answer)"}
-              </p>
+              <PlanRows
+                rows={data.withPrefsRows}
+                fallback={data.withPrefs}
+                tone="with"
+              />
             </article>
           </div>
 
           <p className="text-xs italic text-ink-soft">
             Aly is a model. Both answers are her best guess in the moment;
-            she'll say different things on different runs. What's stable is
-            that the right-hand answer will keep fitting your family and the
+            she'll say different things on different runs. What's stable is that
+            the right-hand answer will keep fitting your family and the
             left-hand answer will keep fitting nobody in particular.
           </p>
         </>
@@ -201,7 +264,11 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         <button
           type="button"
           onClick={() =>
-            router.push(demo ? backHref || "/interview-check" : "/welcome/after-interview")
+            router.push(
+              demo
+                ? backHref || "/interview-check"
+                : "/welcome/after-interview",
+            )
           }
           className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
