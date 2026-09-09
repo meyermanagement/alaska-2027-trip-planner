@@ -30,6 +30,7 @@ export default function InboxScreen({
   messages,
   attachments,
   parsedItems,
+  autoFiled = [],
   upcomingTrips,
   pastTrips,
   travelers,
@@ -39,6 +40,26 @@ export default function InboxScreen({
   const [mode, setMode] = useState(null); // "file" | "trust" | null
   const [busyId, setBusyId] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [undoBusyId, setUndoBusyId] = useState(null);
+
+  async function handleUndoAutoFile(messageId) {
+    setUndoBusyId(messageId);
+    try {
+      const res = await fetch(`/api/inbox/${messageId}/unfile`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        window.alert(body.error || "We could not undo that. Try again.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("We could not reach the server. Try again.");
+    } finally {
+      setUndoBusyId(null);
+    }
+  }
 
   const byMessage = useMemo(() => {
     const m = new Map();
@@ -167,12 +188,56 @@ export default function InboxScreen({
         </button>
       </div>
 
+      {autoFiled.length > 0 ? (
+        <section className="mt-6 rounded-2xl border border-[var(--line)] bg-sand p-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-ink">
+              Just filed by Aly
+            </h2>
+            <span className="text-xs text-ink-faint">
+              Undo good for a day
+            </span>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {autoFiled.map((m) => {
+              const trip = m.trips;
+              const tripName = trip?.name || "a trip";
+              const subject = m.subject || "(no subject)";
+              return (
+                <li
+                  key={m.id}
+                  className="flex flex-col gap-1 rounded-xl border border-[var(--line)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm text-ink">{subject}</div>
+                    <div className="text-xs text-ink-soft">
+                      Filed to {tripName}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleUndoAutoFile(m.id)}
+                    disabled={undoBusyId === m.id}
+                    className="shrink-0 rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal disabled:cursor-progress disabled:opacity-60"
+                  >
+                    {undoBusyId === m.id ? "Undoing\u2026" : "Undo"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
       {messages.length === 0 ? (
-        <p className="mt-8 rounded-2xl border border-dashed border-[var(--line)] bg-white/60 p-8 text-center text-sm text-ink-soft">
-          Nothing in the inbox. Anything forwarded to the address above will
-          show up here within about a minute.
-        </p>
+        autoFiled.length === 0 ? (
+          <p className="mt-8 rounded-2xl border border-dashed border-[var(--line)] bg-white/60 p-8 text-center text-sm text-ink-soft">
+            Nothing in the inbox. Anything forwarded to the address above will
+            show up here within about a minute.
+          </p>
+        ) : null
       ) : (
+
         <div className="mt-6 space-y-3">
           {messages.map((m) => {
             const isOpen = openId === m.id;

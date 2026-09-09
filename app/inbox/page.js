@@ -34,28 +34,52 @@ export default async function InboxPage() {
   const familyId = memberships[0].family_id;
   const household = memberships[0].families;
 
-  const [{ data: pending }, { data: trips }, { data: travelers }] =
-    await Promise.all([
-      supabase
-        .from("inbox_messages")
-        .select(
-          "id, from_email, from_name, subject, text_body, received_at, classification, attributed_traveler_id, parse_status, parse_error",
+  // The undo window on an auto-filed message is 24 hours; anything older
+  // than that stops being offered as undoable and drops off this list on
+  // the next render, even though the message stays filed forever.
+  const undoCutoffISO = new Date(
+    Date.now() - 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const [
+    { data: pending },
+    { data: trips },
+    { data: travelers },
+    { data: autoFiled },
+  ] = await Promise.all([
+    supabase
+      .from("inbox_messages")
+      .select(
+        "id, from_email, from_name, subject, text_body, received_at, classification, attributed_traveler_id, parse_status, parse_error",
+      )
+      .eq("family_id", familyId)
+      .eq("status", "pending")
+      .order("received_at", { ascending: false }),
+    supabase
+      .from("trips")
+      .select("id, name, slug, public_id, start_date, end_date, status")
+      .eq("family_id", familyId)
+      .order("start_date", { ascending: true }),
+    supabase
+      .from("travelers")
+      .select("id, name, color, sort_order, email")
+      .eq("family_id", familyId)
+      .eq("is_person", true)
+      .order("sort_order", { ascending: true }),
+    // Messages this family auto-filed in the last 24 hours. The Undo band
+    // above the pending list shows them so a bad match is one tap of work
+    // to reverse. Anything older is not shown -- the itinerary is not
+    // haunted by ghost undo buttons forever.
+    supabase
+      .from("inbox_messages")
+      .select(
+          "id, subject, from_email, from_name, filed_trip_id, auto_filed_at, trips!inbox_messages_filed_trip_id_fkey (id, name, slug, public_id)",
         )
-        .eq("family_id", familyId)
-        .eq("status", "pending")
-        .order("received_at", { ascending: false }),
-      supabase
-        .from("trips")
-        .select("id, name, slug, public_id, start_date, end_date, status")
-        .eq("family_id", familyId)
-        .order("start_date", { ascending: true }),
-      supabase
-        .from("travelers")
-        .select("id, name, color, sort_order, email")
-        .eq("family_id", familyId)
-        .eq("is_person", true)
-        .order("sort_order", { ascending: true }),
-    ]);
+      .eq("family_id", familyId)
+      .eq("auto_filed", true)
+      .gte("auto_filed_at", undoCutoffISO)
+      .order("auto_filed_at", { ascending: false }),
+  ]);
 
   // Attachments and parsed items in parallel round-trips, keyed by message
   // id in the client. Parsed items are what the extractor staged for the
@@ -97,6 +121,7 @@ export default async function InboxPage() {
           messages={pending || []}
           attachments={attachments}
           parsedItems={parsedItems}
+          autoFiled={autoFiled || []}
           upcomingTrips={upcoming}
           pastTrips={past}
           travelers={travelers || []}
