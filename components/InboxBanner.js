@@ -28,7 +28,6 @@ export default function InboxBanner({ count = 0 }) {
   if (pathname.startsWith("/inbox")) return null;
 
   const noun = count === 1 ? "message" : "messages";
-  const verb = count === 1 ? "is" : "are";
 
   return (
     <section
@@ -46,17 +45,17 @@ export default function InboxBanner({ count = 0 }) {
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-4 w-4 shrink-0 text-teal"
+          className="h-6 w-6 shrink-0 text-teal"
         >
           <rect x="3" y="5" width="18" height="14" rx="2.5" />
           <path d="M3.5 7.5l8.5 6 8.5-6" />
         </svg>
-        <p className="min-w-0 text-[0.9rem] leading-snug">
+        <p className="min-w-0 flex-1 truncate text-[0.9rem] leading-snug">
           <span className="font-semibold">
             {count} {noun}
           </span>{" "}
           <span className="text-ink-soft">
-            {verb} waiting to be filed to a trip.
+            waiting to be filed.
           </span>{" "}
           <Link
             href="/inbox"
