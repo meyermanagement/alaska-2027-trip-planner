@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { generate } from "@/lib/agent/llm";
+import {
+  resolveStandIn,
+  standInFamilyNames,
+  standInPrefsLines,
+} from "@/lib/practice/standIn";
 
 /**
  * Aly-notes-per-trip endpoint. Given the family's real upcoming trips
@@ -25,39 +30,13 @@ function preferencesLines(prefs) {
     });
 }
 
-// The stand-in family used in practice-mode requests. Two grown-ups
-// and a nine-year-old going to Reykjavik, matching Meet Aly's demo
-// and the proof screen's demo so the practice pass reads as one
-// continuous rehearsal.
-const DEMO_FAMILY = "the Rivera family";
-const DEMO_TRIPS = [
-  {
-    id: "demo-trip-reykjavik",
-    name: "Reykjavik long weekend",
-    destination: "Reykjavik, Iceland",
-    start_date: null,
-    end_date: null,
-  },
-  {
-    id: "demo-trip-paris",
-    name: "Paris in October",
-    destination: "Paris, France",
-    start_date: null,
-    end_date: null,
-  },
-];
-const DEMO_PREFS_LINES = [
-  "- [pace] Slow mornings; one anchor thing per day.",
-  "- [day_shape] Late starts; dinner is the point of the day.",
-  "- [doing_or_seeing] Doing over seeing; walk more than we ride.",
-  "- [food] Sit-down local places over reservations booked from home.",
-  "- [crowds] Off-peak. Skip anything with a line longer than 15 minutes.",
-  "- [money] Spend on food and a good hotel; save on activities.",
-];
-
 export async function POST(req) {
   const body = await req.json().catch(() => null);
   const demo = Boolean(body?.demo);
+  // A practice caller may carry the family it collected while walking the
+  // practice chain; see lib/practice/standIn.js. Only honored for a
+  // rehearsal, so a real family's notes always come from their own rows.
+  const standIn = demo ? resolveStandIn(body?.standIn) : null;
   const supabase = await createClient();
   const {
     data: { user },
@@ -70,7 +49,7 @@ export async function POST(req) {
 
   const today = new Date().toISOString().slice(0, 10);
   const [{ data: trips }, { data: prefs }, { data: travelers }] = demo
-    ? [{ data: DEMO_TRIPS }, { data: [] }, { data: [] }]
+    ? [{ data: standIn.trips }, { data: [] }, { data: [] }]
     : await Promise.all([
     supabase
       .from("trips")
@@ -97,10 +76,10 @@ export async function POST(req) {
   }
 
   const prefsText = demo
-    ? DEMO_PREFS_LINES.join("\n")
+    ? standInPrefsLines(standIn).join("\n")
     : preferencesLines(prefs).join("\n") || "(no preferences on file)";
   const familyNames = demo
-    ? DEMO_FAMILY
+    ? standInFamilyNames(standIn)
     : (travelers || []).map((t) => t.name).filter(Boolean).join(", ");
 
   const system = `You are Aly, a travel assistant. Write in American English. For each trip named below, write exactly two short sentences, no lists, no headings, no emoji. Sentence one: what you already know about this specific trip that will shape your work on it. Sentence two: one concrete thing you will do differently because of the family's preferences. Reference the family by name if useful, but do not list their preferences back to them; just let them show through in what you say you'll do.

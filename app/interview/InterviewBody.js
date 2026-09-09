@@ -7,6 +7,7 @@ import CompassLoader from "@/components/CompassLoader";
 import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
 import { personalizeReasons } from "@/lib/travelers/interviewPersonalize";
 import { summaryForAnswer } from "@/lib/travelers/runningSummary";
+import { patchRun } from "@/lib/practice/session";
 
 // The minimum a Compass loader is on screen between questions. The write and
 // the next-question calculation take a few hundred milliseconds; anything
@@ -163,6 +164,18 @@ export default function InterviewBody({
   // for prior answers between questions, so this is the memory that lets
   // Back-then-Save-and-continue keep the current question's answer visible.
   const [answers, setAnswers] = useState([]);
+
+  // Practice mode writes no preference rows, so without this the answers a
+  // person gives here would die with the component and the proof screen two
+  // steps later would compare against the built-in stand-in preferences
+  // rather than the ones they just chose. Mirroring the whole array on every
+  // change -- rather than appending on each save -- means stepping back and
+  // changing an answer corrects the run too, since `answers` already keeps
+  // exactly one record per slot.
+  useEffect(() => {
+    if (mode !== "practice") return;
+    patchRun({ answers });
+  }, [answers, mode]);
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
   // Session cache for Aly-generated follow-up chips. Keyed by

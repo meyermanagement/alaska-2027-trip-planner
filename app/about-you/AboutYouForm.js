@@ -10,6 +10,7 @@ import {
 } from "@/lib/travelers/profile";
 import { buildSportsChipItems } from "@/lib/travelers/sports";
 import DictationHint from "@/components/DictationHint";
+import { patchRun, readRun } from "@/lib/practice/session";
 
 /**
  * The About You page, which is a whole screen rather than a card.
@@ -69,6 +70,21 @@ export default function AboutYouForm({
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [openGroup, setOpenGroup] = useState(null);
+
+  // Whose name the heading greets. Real visits greet the signed-in traveler.
+  // A practice visit greets the first person from the practice run, because
+  // the rehearsal is about a family somebody just typed -- greeting the real
+  // account holder here is what made the chain feel like it had forgotten
+  // the previous screen. Read after mount, since sessionStorage does not
+  // exist during the server render and reading it in the initializer would
+  // make the markup disagree on hydration.
+  const [practiceName, setPracticeName] = useState("");
+  useEffect(() => {
+    if (!practice) return;
+    const run = readRun();
+    setPracticeName((run.people || [])[0]?.name || "");
+  }, [practice]);
+  const heading = practice ? practiceName : name;
 
   // Chip feedback -- when a chip is tapped, its key goes into justAdded so the
   // chip renders as "✓ added" for a moment. And the target prompt key goes
@@ -170,6 +186,9 @@ export default function AboutYouForm({
 
     if (practice) {
       setBusy(false);
+      // Keep the paragraph in the practice run so the proof screen later in
+      // the chain can weigh it, the way a real paragraph would be weighed.
+      patchRun({ aboutMe: paragraph || "" });
       setDone(true);
       return;
     }
@@ -243,8 +262,8 @@ export default function AboutYouForm({
     <>
       <h1 className="font-display text-3xl font-semibold">
         {first
-          ? name
-            ? `Before you start, ${name} — what are you like on a trip?`
+          ? heading
+            ? `Before you start, ${heading} — what are you like on a trip?`
             : "Before you start — what are you like on a trip?"
           : "About you"}
       </h1>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompassLoader from "@/components/CompassLoader";
+import { runToStandIn } from "@/lib/practice/session";
 
 /**
  * The after-interview onboarding client.
@@ -36,7 +37,10 @@ export default function AfterInterviewClient({
     fetch("/api/interview/aly-notes", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ demo }),
+      // In a rehearsal, Aly's per-trip notes should be about the family the
+      // person typed on the way here, not the built-in stand-in. Null on a
+      // real visit, and the endpoint ignores it there regardless.
+      body: JSON.stringify({ demo, standIn: demo ? runToStandIn() : null }),
     })
       .then((r) => r.json().catch(() => null))
       .then((json) => {
@@ -69,7 +73,11 @@ export default function AfterInterviewClient({
       const r = await fetch("/api/interview/ask-once", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: q.trim(), demo }),
+        body: JSON.stringify({
+          question: q.trim(),
+          demo,
+          standIn: demo ? runToStandIn() : null,
+        }),
       });
       const json = await r.json().catch(() => null);
       if (!json?.ok) {

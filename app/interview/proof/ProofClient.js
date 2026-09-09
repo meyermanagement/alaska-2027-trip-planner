@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompassLoader from "@/components/CompassLoader";
+import { runToStandIn } from "@/lib/practice/session";
 
 /**
  * The client shell for the interview proof step.
@@ -29,7 +30,17 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     fetch("/api/interview/proof", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ category, demo }),
+      // A rehearsal carries whatever family was typed on the way here, so
+      // the "with what you told me" side answers about that family rather
+      // than the built-in stand-in. Read at fetch time rather than held in
+      // state, so a person who steps back, changes an answer, and returns
+      // gets the changed answer in the comparison. Null on a real visit and
+      // on an untouched rehearsal, and ignored by the endpoint either way.
+      body: JSON.stringify({
+        category,
+        demo,
+        standIn: demo ? runToStandIn() : null,
+      }),
     })
       .then((r) => r.json().catch(() => null))
       .then((json) => {
@@ -65,6 +76,17 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           right is what she says with everything you just told her folded
           in. Same question, same model. The difference is the interview.
         </p>
+        {/* A rehearsal answers about a stand-in family, and which stand-in it
+            is changes what the right-hand answer should look like. Saying so
+            here is what lets somebody tell a working comparison from one that
+            quietly fell back to the built-in family. */}
+        {demo && (
+          <p className="text-sm leading-relaxed text-ink-soft">
+            {data?.standInCustom
+              ? "This is a rehearsal, answered about the family you typed on the way here."
+              : "This is a rehearsal, answered about a stand-in family. Walk the practice chain from the welcome form to use your own answers instead."}
+          </p>
+        )}
       </header>
 
       <nav

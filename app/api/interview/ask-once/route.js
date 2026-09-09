@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { generate } from "@/lib/agent/llm";
+import {
+  resolveStandIn,
+  standInFamilyNames,
+  standInPetsText,
+  standInPrefsLines,
+  standInTripsText,
+} from "@/lib/practice/standIn";
 
 /**
  * Ask-once endpoint. The final onboarding moment: the primary types one
@@ -44,19 +51,11 @@ export async function POST(req) {
   }
 
   // Practice-mode requests answer against a stand-in family so the
-  // rehearsal does not leak real preferences into the response.
-  const DEMO_FAMILY_NAMES = "the Rivera family (Alex, Sam, and Riley (9))";
-  const DEMO_PETS_TEXT = "(no pets)";
-  const DEMO_TRIPS_TEXT =
-    "- Reykjavik long weekend: Reykjavik, Iceland, dates tentative\n" +
-    "- Paris in October: Paris, France, dates tentative";
-  const DEMO_PREFS_TEXT =
-    "- [pace] Slow mornings; one anchor thing per day.\n" +
-    "- [day_shape] Late starts; dinner is the point of the day.\n" +
-    "- [doing_or_seeing] Doing over seeing; walk more than we ride.\n" +
-    "- [food] Sit-down local places over reservations booked from home.\n" +
-    "- [crowds] Off-peak. Skip anything with a line longer than 15 minutes.\n" +
-    "- [money] Spend on food and a good hotel; save on activities.";
+  // rehearsal does not leak real preferences into the response. The caller
+  // may supply the family it collected while walking the practice chain,
+  // merged over the built-in stand-in; see lib/practice/standIn.js. A
+  // non-practice request ignores it entirely.
+  const standIn = demo ? resolveStandIn(body?.standIn) : null;
 
   const today = new Date().toISOString().slice(0, 10);
   const [{ data: trips }, { data: prefs }, { data: travelers }, { data: pets }] = demo
@@ -87,13 +86,13 @@ export async function POST(req) {
     ]);
 
   const prefsText = demo
-    ? DEMO_PREFS_TEXT
+    ? standInPrefsLines(standIn).join("\n")
     : preferencesLines(prefs).join("\n") || "(no preferences)";
   const familyNames = demo
-    ? DEMO_FAMILY_NAMES
+    ? standInFamilyNames(standIn)
     : (travelers || []).map((t) => t.name).filter(Boolean).join(", ");
   const tripsText = demo
-    ? DEMO_TRIPS_TEXT
+    ? standInTripsText(standIn)
     : (trips || [])
         .map(
           (t) =>
@@ -103,7 +102,7 @@ export async function POST(req) {
         )
         .join("\n");
   const petsText = demo
-    ? DEMO_PETS_TEXT
+    ? standInPetsText(standIn)
     : (pets || []).length
       ? (pets || []).map((p) => `${p.name} (${p.species || "pet"})`).join(", ")
       : "(no pets)";

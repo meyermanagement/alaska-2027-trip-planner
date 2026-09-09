@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import RunPanel from "./RunPanel";
 
 export const metadata = { title: "Practice · Alyeska" };
 
@@ -44,8 +45,13 @@ export default async function InterviewCheckPage() {
         <h1 className="font-display text-3xl font-semibold">Practice</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">
           The three places Aly asks the family things, rehearsed without
-          touching your file. Nothing you type here saves.
+          touching your file. Nothing you type here is written to your family.
+          It is carried from one practice screen to the next, in this browser
+          tab only, so you can walk the whole thing as one family and see
+          whether Aly&rsquo;s answers actually improve.
         </p>
+
+        <RunPanel />
 
         <div className="mt-6 space-y-3">
           <PracticeTile

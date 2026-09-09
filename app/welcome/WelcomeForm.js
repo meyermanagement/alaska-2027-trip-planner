@@ -7,6 +7,7 @@ import { SPECIES, speciesLabel } from "@/lib/pets/pets";
 import { GENDERS } from "@/lib/travelers/profile";
 import HomePicker, { locateHome } from "@/components/HomePicker";
 import AlyKnowsSidebar from "@/components/AlyKnowsSidebar";
+import { patchRun } from "@/lib/practice/session";
 
 /**
  * The first-login form.
@@ -105,7 +106,8 @@ export default function WelcomeForm({
 
     // Practice: work out the same rows the real Save would write, but do not
     // touch the database and do not navigate. The recap lives on the page
-    // under the button.
+    // under the button, and the family is kept in the practice run so the
+    // screens after this one work from it instead of the built-in stand-in.
     if (practice) {
       const typed = address.trim().replace(/\s+/g, " ");
       const cleanPeople = people
@@ -127,6 +129,12 @@ export default function WelcomeForm({
         }))
         .filter((r) => r.name.length > 0);
       setBusy(false);
+      patchRun({
+        familyName: nextFamilyName,
+        home: typed,
+        people: cleanPeople,
+        pets: cleanPets,
+      });
       setPreview({
         familyName: nextFamilyName,
         home: typed || null,

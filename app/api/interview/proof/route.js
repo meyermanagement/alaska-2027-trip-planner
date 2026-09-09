@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { generate } from "@/lib/agent/llm";
+import {
+  resolveStandIn,
+  standInFamilyLines,
+  standInPrefsLines,
+} from "@/lib/practice/standIn";
 
 /**
  * The interview-proof endpoint.
@@ -28,33 +33,6 @@ const QUESTIONS = {
   day: (dest) =>
     `We're going to ${dest} soon. What should we do on our first full day there? Answer in one short paragraph, no lists, no headings. Name concrete places and times if they fit. Match the pace and shape you know about the family.`,
 };
-
-// The stand-in family used in practice-mode requests. Kept in this file
-// so the practice hub does not have to reach into the primary's real
-// preferences, and so the demo answers stay reproducible and safe to
-// show in a rehearsal. Two grown-ups and a nine-year-old going to
-// Reykjavik for a long weekend -- the same family the Meet Aly demo
-// uses, so the practice screens read as one continuous rehearsal.
-const DEMO_HOME = "St. Louis, MO";
-const DEMO_TRIP = {
-  name: "Reykjavik long weekend",
-  destination: "Reykjavik, Iceland",
-  start_date: null,
-  end_date: null,
-};
-const DEMO_PEOPLE = [
-  { name: "Alex", date_of_birth: "1985-06-01" },
-  { name: "Sam", date_of_birth: "1987-03-14" },
-  { name: "Riley", date_of_birth: "2016-08-20" },
-];
-const DEMO_PREFS = [
-  { slot: "pace", body: "Slow mornings; one anchor thing per day." },
-  { slot: "day_shape", body: "Late starts; dinner is the point of the day." },
-  { slot: "doing_or_seeing", body: "Doing over seeing; walk more than we ride." },
-  { slot: "food", body: "Sit-down local places over reservations booked from home." },
-  { slot: "crowds", body: "Off-peak. Skip anything with a line longer than 15 minutes." },
-  { slot: "money", body: "Spend on food and a good hotel; save on activities." },
-];
 
 function preferencesLines(prefs) {
   return (prefs || [])
@@ -111,6 +89,12 @@ export async function POST(req) {
   const body = await req.json().catch(() => null);
   const category = body?.category === "day" ? "day" : "food";
   const demo = Boolean(body?.demo);
+  // In practice mode the caller may carry the family they typed while
+  // walking the practice chain. Merged over the built-in stand-in, so a
+  // half-finished run still produces a complete prompt. Ignored outright
+  // when the request is not a rehearsal, so nothing a client sends can
+  // reshape a real family's proof screen.
+  const standIn = demo ? resolveStandIn(body?.standIn) : null;
 
   const today = new Date().toISOString().slice(0, 10);
   const [
@@ -149,7 +133,7 @@ export async function POST(req) {
       .eq("family_id", access.familyId),
   ]);
 
-  const upcoming = demo ? DEMO_TRIP : (trips || [])[0] || null;
+  const upcoming = demo ? standIn.trips[0] || null : (trips || [])[0] || null;
   const destination =
     (upcoming?.destination || upcoming?.name || "").trim() || "your next trip";
 
@@ -160,18 +144,14 @@ export async function POST(req) {
   const withoutSystem = `${baseSystem}\n\nYou do not know anything about the family asking. Answer the way a general travel article would answer -- named places, common picks, the safe recommendation.`;
 
   const familyLinesText = demo
-    ? familyLines({
-        people: DEMO_PEOPLE,
-        pets: [],
-        homeAddress: DEMO_HOME,
-      }).join("\n")
+    ? standInFamilyLines(standIn).join("\n")
     : familyLines({
         people,
         pets,
         homeAddress: family?.home_address,
       }).join("\n");
   const prefsText = demo
-    ? DEMO_PREFS.map((p) => `- [${p.slot}] ${p.body}`).join("\n")
+    ? standInPrefsLines(standIn).join("\n")
     : preferencesLines(prefs).join("\n");
   const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nUse this to shape your one-paragraph answer. Name at least one specific way the family's preferences change the recommendation from what a generic answer would say. Do not list the preferences back to the family; just let them show through in your choice.`;
 
@@ -205,6 +185,10 @@ export async function POST(req) {
     category,
     question,
     demo,
+    // Lets the proof screen say whose answers it worked from, so a person
+    // who typed a family into practice can tell their run reached the
+    // prompt rather than guessing from the wording of the answer.
+    standInCustom: Boolean(standIn?.custom),
     without: (withoutRes?.text || "").trim(),
     withPrefs: (withRes?.text || "").trim(),
     preferenceCount: prefsText ? prefsText.split("\n").length : 0,
