@@ -27,12 +27,33 @@ import {
 
 const DEADLINE_MS = 22000;
 
+// The lead-in is separate from the question because at this point in onboarding
+// there is very often no trip to be going on. Nothing in the welcome chain
+// creates one -- it collects the family, then the interview -- so a family that
+// signed up today reaches this screen with an empty calendar, and the screen
+// used to paper over that by asking Aly about a destination literally named
+// "your next trip". Now the primary is asked where they are thinking of going
+// and the question is honest about being about a trip they do not have yet.
 const QUESTIONS = {
-  food: (dest) =>
-    `We're going to ${dest} soon. Plan our first evening's food. Where are we eating, roughly when, and why that and not something else?`,
-  day: (dest) =>
-    `We're going to ${dest} soon. Plan our first full day there. Where are we going, roughly when, and why that and not something else?`,
+  food: (lead) =>
+    `${lead} Plan our first evening's food. Where are we eating, roughly when, and why that and not something else?`,
+  day: (lead) =>
+    `${lead} Plan our first full day there. Where are we going, roughly when, and why that and not something else?`,
 };
+
+/**
+ * A destination the primary typed on the proof screen, made safe to interpolate.
+ *
+ * Caller-controlled text reaching a prompt, so it is flattened to one line and
+ * capped -- a place name is a few words, and anything longer is either a mistake
+ * or somebody trying to write the system prompt themselves.
+ */
+function cleanDestination(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+}
 
 // Both answers come back as a plan rather than a paragraph.
 //
@@ -211,10 +232,28 @@ export async function POST(req) {
   ]);
 
   const upcoming = demo ? standIn.trips[0] || null : (trips || [])[0] || null;
-  const destination =
-    (upcoming?.destination || upcoming?.name || "").trim() || "your next trip";
+  const onCalendar = (upcoming?.destination || upcoming?.name || "").trim();
+  const typed = cleanDestination(body?.destination);
+  const destination = onCalendar || typed;
 
-  const question = QUESTIONS[category](destination);
+  // No trip and nothing typed yet: say so instead of inventing a destination.
+  // The client turns this into one question rather than a spinner, and asks
+  // again with an answer.
+  if (!destination) {
+    return NextResponse.json({
+      ok: true,
+      needsDestination: true,
+      category,
+      demo,
+      standInCustom: Boolean(standIn?.custom),
+    });
+  }
+
+  const question = QUESTIONS[category](
+    onCalendar
+      ? `We're going to ${destination} soon.`
+      : `We're thinking about ${destination} for our next trip.`,
+  );
 
   const baseSystem = `You are Aly, a travel assistant. Answer in American English. No emoji, no source citations. Do not preface with "great question" or similar. Do not caveat with "of course, this depends on your preferences" -- just answer.\n\n${PLAN_SHAPE}`;
 
@@ -258,6 +297,9 @@ export async function POST(req) {
   return NextResponse.json({
     ok: true,
     destination,
+    // Lets the screen say the plan is about a trip being considered rather than
+    // one on the calendar, which is the honest framing during onboarding.
+    onCalendar: Boolean(onCalendar),
     tripName: upcoming?.name || null,
     category,
     question,

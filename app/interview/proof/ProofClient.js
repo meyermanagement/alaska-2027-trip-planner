@@ -74,6 +74,12 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  // A family that signed up today has no trip: nothing in the welcome chain
+  // creates one. So the destination may have to come from the primary. `place`
+  // is what they are typing; `destination` is what has been asked about, and
+  // changing it re-runs the pair.
+  const [place, setPlace] = useState("");
+  const [destination, setDestination] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +98,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
       body: JSON.stringify({
         category,
         demo,
+        destination: destination || null,
         standIn: demo ? runToStandIn() : null,
       }),
     })
@@ -114,7 +121,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     return () => {
       cancelled = true;
     };
-  }, [category, demo]);
+  }, [category, demo, destination]);
 
   return (
     <div className="space-y-6">
@@ -124,11 +131,11 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           Watch the same question, answered two ways.
         </h1>
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly is answering one real question about your next trip. On the left
-          is what she would say if she knew nothing about you. On the right is
-          what she says with everything you just told her folded in. Same
-          question, same model. Under every choice is the reason it won; on the
-          right, those reasons are your own answers doing the work.
+          Aly is answering one real question about somewhere you're going. On
+          the left is what she would say if she knew nothing about you. On the
+          right is what she says with everything you just told her folded in.
+          Same question, same model. Under every choice is the reason it won; on
+          the right, those reasons are your own answers doing the work.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
@@ -172,7 +179,44 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         </button>
       </nav>
 
-      {loading && (
+      {/* No trip on the calendar and no destination given yet. Asked as one
+          question rather than assumed, because the answer is the difference
+          between a plan for a real place and a plan for "your next trip". */}
+      {!loading && !error && data?.needsDestination && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const next = place.trim();
+            if (next) setDestination(next);
+          }}
+          className="space-y-3 rounded-2xl border border-sand-deep bg-sand-soft/60 p-4"
+        >
+          <label
+            htmlFor="proof-place"
+            className="block font-display text-lg text-ink"
+          >
+            Where are you thinking of going?
+          </label>
+          <input
+            id="proof-place"
+            value={place}
+            onChange={(e) => setPlace(e.target.value)}
+            placeholder="Alaska, Curacao, Orlando, anywhere"
+            maxLength={60}
+            autoComplete="off"
+            className="w-full rounded-xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!place.trim()}
+            className="btn btn-primary px-4 py-2 text-sm disabled:opacity-50"
+          >
+            Plan a day there
+          </button>
+        </form>
+      )}
+
+      {loading && !data?.needsDestination && (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-teal">
           <CompassLoader
             size={64}
@@ -197,7 +241,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         </div>
       )}
 
-      {!loading && !error && data && (
+      {!loading && !error && data && !data.needsDestination && (
         <>
           <section
             aria-labelledby="proof-question-heading"

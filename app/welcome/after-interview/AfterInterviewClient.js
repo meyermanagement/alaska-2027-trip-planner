@@ -17,10 +17,21 @@ import { runToStandIn } from "@/lib/practice/session";
  * Kept separate from the moments/next-steps chain because that chain
  * belongs to secondary travelers, and this screen is only for primaries
  * who have just finished the ten-question interview.
+ *
+ * Two versions, decided by hasTrips. A family that has trips gets the
+ * per-trip notes and a headline about them. A family that does not -- which
+ * is every family that signed up today, since onboarding never creates a
+ * trip -- gets a screen whose subject is the trip they are about to make.
+ * The old single version promised "here's what Aly already put on your
+ * trips", then asked for the notes, then replaced the whole section with a
+ * line admitting there were none, having already said "these aren't
+ * examples, they're your trips, on the calendar" to somebody with an empty
+ * calendar. Defaults to true so the practice mount keeps its stand-in trips.
  */
 export default function AfterInterviewClient({
   demo = false,
   backHref = null,
+  hasTrips = true,
 } = {}) {
   const router = useRouter();
   const [notesLoading, setNotesLoading] = useState(true);
@@ -33,6 +44,12 @@ export default function AfterInterviewClient({
   const composerRef = useRef(null);
 
   useEffect(() => {
+    // Nothing to write notes about, and no reason to spend a model call finding
+    // that out.
+    if (!hasTrips) {
+      setNotesLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     fetch("/api/interview/aly-notes", {
       method: "POST",
@@ -61,7 +78,7 @@ export default function AfterInterviewClient({
     return () => {
       cancelled = true;
     };
-  }, [demo]);
+  }, [demo, hasTrips]);
 
   async function askAly(e) {
     e.preventDefault();
@@ -97,69 +114,79 @@ export default function AfterInterviewClient({
       <header className="space-y-2">
         <p className="section-label text-ink-soft">You're in</p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
-          Here's what Aly already put on your trips.
+          {hasTrips
+            ? "Here's what Aly already put on your trips."
+            : "That's everything Aly needed. Now she needs a trip."}
         </h1>
         <p className="text-base leading-relaxed text-ink-soft">
-          You just answered ten questions. Aly took each one and rolled it
-          into your real upcoming trips. These aren't examples. They're
-          your trips, on the calendar, changed by what you said.
+          {hasTrips
+            ? "You just answered ten questions. Aly took each one and rolled it into your real upcoming trips. These aren't examples. They're your trips, on the calendar, changed by what you said."
+            : "Your answers are saved, and nothing else needs setting up. The first trip you add gets planned against them from the moment you name a destination."}
         </p>
       </header>
 
-      <section aria-labelledby="trips-heading" className="space-y-3">
-        <h2 id="trips-heading" className="font-display text-xl text-ink">
-          What Aly is doing on each of your trips
-        </h2>
+      {hasTrips && (
+        <section aria-labelledby="trips-heading" className="space-y-3">
+          <h2 id="trips-heading" className="font-display text-xl text-ink">
+            What Aly is doing on each of your trips
+          </h2>
 
-        {notesLoading && (
-          <div className="flex min-h-[180px] flex-col items-center justify-center gap-3 text-teal">
-            <CompassLoader size={56} label="Aly is reading each trip against your answers." />
-            <p className="text-sm text-ink-soft">
-              One trip at a time. Won't be long.
+          {notesLoading && (
+            <div className="flex min-h-[180px] flex-col items-center justify-center gap-3 text-teal">
+              <CompassLoader
+                size={56}
+                label="Aly is reading each trip against your answers."
+              />
+              <p className="text-sm text-ink-soft">
+                One trip at a time. Won't be long.
+              </p>
+            </div>
+          )}
+
+          {!notesLoading && notesError && (
+            <p className="rounded-2xl border border-terra-deep/50 bg-terra-soft/40 p-4 text-sm text-ink">
+              {notesError}
             </p>
-          </div>
-        )}
+          )}
 
-        {!notesLoading && notesError && (
-          <p className="rounded-2xl border border-terra-deep/50 bg-terra-soft/40 p-4 text-sm text-ink">
-            {notesError}
-          </p>
-        )}
+          {/* Reachable when a trip exists but every note came back empty --
+            a model timeout, not an empty calendar, which the headline above
+            has already ruled out. */}
+          {!notesLoading && !notesError && notes.length === 0 && (
+            <p className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-4 text-sm text-ink-soft">
+              Aly didn't get to your trips this time. Your answers are saved,
+              and she'll use them the next time you open one.
+            </p>
+          )}
 
-        {!notesLoading && !notesError && notes.length === 0 && (
-          <p className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-4 text-sm text-ink-soft">
-            No trips on the calendar yet. Your answers are saved and will
-            shape the first trip you plan.
-          </p>
-        )}
-
-        {!notesLoading && !notesError && notes.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-2">
-            {notes.map((note) => (
-              <article
-                key={note.trip_id}
-                className="rounded-2xl border border-sand-deep bg-white p-4"
-              >
-                <header className="mb-2">
-                  <p className="font-display text-lg font-semibold text-ink">
-                    {note.name}
-                  </p>
-                  {(note.start_date || note.destination) && (
-                    <p className="text-xs italic text-ink-soft">
-                      {[note.destination, note.start_date]
-                        .filter(Boolean)
-                        .join(" \u00b7 ")}
+          {!notesLoading && !notesError && notes.length > 0 && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {notes.map((note) => (
+                <article
+                  key={note.trip_id}
+                  className="rounded-2xl border border-sand-deep bg-white p-4"
+                >
+                  <header className="mb-2">
+                    <p className="font-display text-lg font-semibold text-ink">
+                      {note.name}
                     </p>
-                  )}
-                </header>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
-                  {note.text || "Aly is still thinking about this one."}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+                    {(note.start_date || note.destination) && (
+                      <p className="text-xs italic text-ink-soft">
+                        {[note.destination, note.start_date]
+                          .filter(Boolean)
+                          .join(" \u00b7 ")}
+                      </p>
+                    )}
+                  </header>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                    {note.text || "Aly is still thinking about this one."}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section
         aria-labelledby="ask-heading"
@@ -169,9 +196,9 @@ export default function AfterInterviewClient({
           Ask Aly one real question before you go in.
         </h2>
         <p className="text-sm text-ink-soft">
-          Anything about any trip. She has your family, your dates, and
-          everything you just told her. This is a plain preview of what
-          asking Aly feels like once you're in the app.
+          {hasTrips
+            ? "Anything about any trip. She has your family, your dates, and everything you just told her."
+            : "Anywhere you're thinking of going, whether or not it's booked. She has your family and everything you just told her."}
         </p>
 
         <form onSubmit={askAly} className="space-y-2">
@@ -179,7 +206,11 @@ export default function AfterInterviewClient({
             ref={composerRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="What should we pack for our first night's dinner?"
+            placeholder={
+              hasTrips
+                ? "What should we pack for our first night's dinner?"
+                : "We're thinking about Alaska next summer. When should we go?"
+            }
             rows={3}
             className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
             aria-label="Ask Aly a real question"
@@ -222,11 +253,15 @@ export default function AfterInterviewClient({
 
         {answered && !answering && (
           <article className="rounded-2xl border-2 border-teal bg-teal-soft/30 p-4">
-            <p className="section-label text-teal">You asked</p>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+              You asked
+            </p>
             <p className="mt-1 text-sm italic text-ink">
               &ldquo;{answered.question}&rdquo;
             </p>
-            <p className="section-label mt-4 text-teal">Aly says</p>
+            <p className="mt-4 text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+              Aly says
+            </p>
             <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">
               {answered.answer}
             </p>
@@ -237,16 +272,28 @@ export default function AfterInterviewClient({
       <div className="flex flex-wrap items-center gap-3 border-t border-sand-deep pt-5">
         <button
           type="button"
-          onClick={() =>
-            router.push(demo ? backHref || "/interview-check" : "/trips")
-          }
+          onClick={() => {
+            if (demo) {
+              router.push(backHref || "/interview-check");
+              return;
+            }
+            // With no trips, the trip index is an empty screen with one button
+            // on it. Go straight to the button.
+            router.push(hasTrips ? "/trips" : "/trips/new");
+          }}
           className="btn btn-primary px-4 py-2 text-sm"
         >
-          Take me to my trips
+          {demo || hasTrips ? "Take me to my trips" : "Plan my first trip"}
         </button>
-        <p className="text-xs italic text-ink-soft">
-          Aly is right there in every trip. Ask her anything, any time.
-        </p>
+        {!demo && !hasTrips && (
+          <button
+            type="button"
+            onClick={() => router.push("/trips")}
+            className="text-sm text-ink-soft underline underline-offset-4"
+          >
+            Not yet
+          </button>
+        )}
       </div>
     </div>
   );
