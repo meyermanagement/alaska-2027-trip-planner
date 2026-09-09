@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
+import {
+  inferAnswer,
+  priorAnswersFrom,
+} from "@/lib/travelers/interviewInference";
 import { topicForSlot } from "@/lib/travelers/interview-topics";
 import { tableForSlot } from "@/lib/travelers/slots";
 
@@ -99,6 +103,42 @@ export async function POST(request) {
   // saves fine.
   const rawWhys = Array.isArray(body?.whys) ? body.whys : [];
   const rawOwnWords = String(body?.ownWords || "").trim();
+
+  // Was this answer worked out from earlier ones and agreed to, rather than
+  // said outright?
+  //
+  // The client says so, but it is not taken at its word and its sentence is
+  // never stored. The rules are re-run here against the family's own rows, and
+  // the claim only stands if the server independently works out the same option
+  // for the same slot. So a client cannot label a freely-given answer as
+  // derived, cannot label a derived one as said, and cannot write its own
+  // explanation into the travel file.
+  //
+  // Read before anything is written, because the first write below marks this
+  // slot settled and the rules deliberately refuse to work out an answer to a
+  // question that is already answered.
+  let derivedBecause = null;
+  if (action === "answer" && body?.derived === true && rawChoice) {
+    const [{ data: priorSlots }, { data: priorPreferences }] =
+      await Promise.all([
+        supabase
+          .from("traveler_slots")
+          .select("traveler_id, slot, status, note")
+          .eq("family_id", familyId),
+        supabase
+          .from("travel_preferences")
+          .select("traveler_id, slot, body")
+          .eq("family_id", familyId),
+      ]);
+    const agreed = inferAnswer(
+      slotId,
+      priorAnswersFrom({
+        slots: priorSlots || [],
+        preferences: priorPreferences || [],
+      }),
+    );
+    if (agreed?.value === rawChoice) derivedBecause = agreed.because;
+  }
 
   // Where the answer will land -- household_facts for the limits slot,
   // travel_preferences for every option question.
@@ -256,13 +296,19 @@ export async function POST(request) {
       // an option question is ever added that maps to household_facts.
       const writesToPreferences = table === "travel_preferences";
       const topic = writesToPreferences ? topicForSlot(slotId) : null;
+      // A worked-out answer is stored as derived, with the sentence explaining
+      // where it came from in the reason column. That column normally holds
+      // somebody's own words, and pairing it with source 'derived' is what
+      // keeps that honest: a reader of the Preferences page sees both the
+      // reasoning and the fact that the reasoning is ours rather than theirs.
       const baseRow = {
         family_id: familyId,
         traveler_id: null,
         slot: slotId,
         body: `${question.label}: ${answerText}`,
-        source: "said",
+        source: derivedBecause ? "derived" : "said",
       };
+      if (derivedBecause) baseRow.reason = derivedBecause;
       if (topic) {
         baseRow.topic = topic;
         baseRow.topics = [topic];

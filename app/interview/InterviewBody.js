@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import CompassLoader from "@/components/CompassLoader";
@@ -9,6 +9,7 @@ import {
   personalizationContext,
   personalizeReasons,
 } from "@/lib/travelers/interviewPersonalize";
+import { inferAnswer } from "@/lib/travelers/interviewInference";
 import { summaryForAnswer } from "@/lib/travelers/runningSummary";
 import { patchRun, runToStandIn } from "@/lib/practice/session";
 import {
@@ -148,6 +149,7 @@ export default function InterviewBody({
   total,
   context,
   aboutMePriors,
+  priorAnswers = null,
   destination = null,
 }) {
   const router = useRouter();
@@ -172,6 +174,36 @@ export default function InterviewBody({
   // for prior answers between questions, so this is the memory that lets
   // Back-then-Save-and-continue keep the current question's answer visible.
   const [answers, setAnswers] = useState([]);
+  // Whether the primary has touched the choice on the current question. A
+  // worked-out answer arrives pre-picked, and the difference between agreeing
+  // with it and picking the same option by hand is the difference between
+  // 'derived' and 'said' in the travel file, so it has to be tracked rather
+  // than guessed from the value.
+  const [touched, setTouched] = useState(false);
+
+  // Everything already answered, whether in this sitting or a previous one, in
+  // the shape the inference rules read. In-session answers win over the ones
+  // loaded from the server, so stepping back and changing an answer changes
+  // what gets worked out from it.
+  const priorMap = useMemo(() => {
+    const base = { ...(priorAnswers || {}) };
+    for (const answer of answers) {
+      if (!answer?.slot) continue;
+      const question = questionFor(answer.slot);
+      const opt = (question?.options || []).find(
+        (o) => o.label === answer.picked,
+      );
+      base[answer.slot] = {
+        value: opt?.value || null,
+        whys: answer.whys || [],
+      };
+    }
+    return base;
+  }, [priorAnswers, answers]);
+
+  // What the interview can work out about the question it is about to put.
+  // Null means it genuinely does not know and should ask cold.
+  const inferred = useMemo(() => inferAnswer(slot, priorMap), [slot, priorMap]);
 
   // Practice mode writes no preference rows, so without this the answers a
   // person gives here would die with the component and the proof screen two
@@ -278,6 +310,45 @@ export default function InterviewBody({
     [index],
   );
 
+  // Arriving at a question means nothing has been touched on it yet, whether
+  // or not anything was worked out for it.
+  useEffect(() => {
+    setTouched(false);
+  }, [slot]);
+
+  // A worked-out answer arrives with its option already picked, so agreeing is
+  // one tap on Save and continue rather than a pick and then a tap. Applied
+  // once per question: if the primary picks something else, this must not put
+  // the inference back on the next render.
+  const preFilledFor = useRef(null);
+  useEffect(() => {
+    if (!inferred) return;
+    if (preFilledFor.current === slot) return;
+    preFilledFor.current = slot;
+    setChoice(inferred.value);
+    setTouched(false);
+  }, [inferred, slot]);
+
+  // A question is only "worked out" while the pre-picked option is still the
+  // one showing and nothing has been touched. Changing the answer and changing
+  // it back counts as saying it, which is the honest reading.
+  // The About-you paragraph is a more direct source than anything worked out
+  // from other answers -- the primary wrote the sentence themselves -- so when
+  // that card is already explaining this question, the worked-out card stays
+  // out of the way rather than stacking a second explanation above the same
+  // prompt. The pick still stands; only the second card is suppressed.
+  const aboutMeCovers = Boolean(aboutMePriors && aboutMePriors[slot]);
+  const confirmingInference = Boolean(
+    inferred && !touched && choice === inferred.value,
+  );
+
+  // Every choice the primary makes by hand, so the pre-picked option can stop
+  // claiming to be worked out the moment they disagree with it.
+  const pickChoice = useCallback((value) => {
+    setTouched(true);
+    setChoice(value);
+  }, []);
+
   // Whether the current form has something worth saving before leaving the
   // question. Options questions need a choice (either one of the two, or
   // Something else with text); moments questions need at least one non-empty
@@ -383,6 +454,12 @@ export default function InterviewBody({
               text,
               whys: cleanedWhys,
               ownWords: cleanedOwnWords,
+              // Tells the answer route this was worked out from earlier
+              // answers and agreed to rather than said outright, so the
+              // preference row is stored as derived and carries the sentence
+              // explaining where it came from.
+              derived: confirmingInference,
+              derivedBecause: confirmingInference ? inferred.because : null,
             }),
           });
       if (res.ok) remember();
@@ -390,7 +467,19 @@ export default function InterviewBody({
     } catch {
       return false;
     }
-  }, [choice, hasAnswer, mode, moments, ownWords, question, slot, text, whys]);
+  }, [
+    choice,
+    confirmingInference,
+    hasAnswer,
+    inferred,
+    mode,
+    moments,
+    ownWords,
+    question,
+    slot,
+    text,
+    whys,
+  ]);
 
   // Go back one question. On the very first question this leaves the
   // interview entirely -- to the practice hub in practice mode, to Family in
@@ -647,20 +736,19 @@ export default function InterviewBody({
 
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 lg:grid-cols-[minmax(0,42rem)_minmax(0,20rem)]">
-    <div className="flex min-h-[70vh] w-full flex-col items-center justify-center">
-      <p className="section-label mb-2 self-start text-ink-soft">
-        Question {index + 1} of {total}
+      <div className="flex min-h-[70vh] w-full flex-col items-center justify-center">
+        <p className="section-label mb-2 self-start text-ink-soft">
+          Question {index + 1} of {total}
+        </p>
 
-      </p>
-
-      {loading ? (
-        <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-teal">
-          <CompassLoader size={72} label="Working on the next question." />
-          <p className="text-sm text-ink-soft">One moment.</p>
-        </div>
-      ) : (
-        <div className="w-full">
-          {/* One-time honesty note above the FIRST question only. The
+        {loading ? (
+          <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-teal">
+            <CompassLoader size={72} label="Working on the next question." />
+            <p className="text-sm text-ink-soft">One moment.</p>
+          </div>
+        ) : (
+          <div className="w-full">
+            {/* One-time honesty note above the FIRST question only. The
               interview writes to a person's travel file and Aly plans
               against it later, so a chip picked because it sounded nice
               rather than because it is true will narrow the recommendations
@@ -668,204 +756,234 @@ export default function InterviewBody({
               once and remembered: only tick what is actually true, short
               answers are fine, and an over-restrictive answer can taper
               Aly's suggestions enough that a later recommendation is off. */}
-          {index === 0 && (
-            <div
-              role="note"
-              className="mb-6 rounded-2xl border border-sand-deep bg-sand-soft/60 px-4 py-3 text-sm leading-relaxed text-ink-soft"
+            {index === 0 && (
+              <div
+                role="note"
+                className="mb-6 rounded-2xl border border-sand-deep bg-sand-soft/60 px-4 py-3 text-sm leading-relaxed text-ink-soft"
+              >
+                <p className="font-display text-ink">
+                  Only tick what is actually true.
+                </p>
+                <p className="mt-1">
+                  Short answers are fine. A blank is fine. If you pick something
+                  too specific because it sounded good, Aly will plan around it
+                  and a later suggestion might come back a little off.
+                </p>
+              </div>
+            )}
+            {aboutMePriors && aboutMePriors[slot] && (
+              <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
+                <p className="font-display text-ink">
+                  You mentioned this on About you.
+                </p>
+                <p className="mt-1 italic">
+                  &ldquo;{aboutMePriors[slot].quote}&rdquo;
+                </p>
+                <p className="mt-2">
+                  Aly is already planning around it. Confirm below or{" "}
+                  <a
+                    href="/about-you"
+                    className="text-teal underline underline-offset-4"
+                  >
+                    change it on About you
+                  </a>
+                  .
+                </p>
+              </div>
+            )}
+            {/* A question the earlier answers already settle. The option is
+              picked below, so agreeing is one tap on Save and continue, and
+              the sentence says what it was worked out from -- an inference
+              nobody can see the basis of is just a guess with confidence.
+              Hidden the moment the primary touches the choice, because from
+              then on the screen is showing their answer rather than ours. The
+              two strengths get different words: a near-certain link says the
+              answer, a reasonable one asks. */}
+            {confirmingInference && !aboutMeCovers && (
+              <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
+                <p className="font-display text-ink">
+                  {inferred.strength === "sure"
+                    ? "You have already answered this one."
+                    : "This one Aly can probably guess."}
+                </p>
+                <p className="mt-1">{inferred.because}</p>
+                <p className="mt-2">
+                  {inferred.strength === "sure"
+                    ? "So it is picked below. Save and continue to agree, or pick another if we have it wrong."
+                    : "So it is picked below as a guess. Save and continue to agree, or pick another if we have it wrong."}
+                </p>
+              </div>
+            )}
+            <h1
+              className="select-none font-display text-2xl leading-snug text-ink outline-none [outline:none!important] focus:outline-none focus-visible:outline-none sm:text-3xl"
+              style={{ outline: "none" }}
             >
-              <p className="font-display text-ink">
-                Only tick what is actually true.
-              </p>
-              <p className="mt-1">
-                Short answers are fine. A blank is fine. If you pick something
-                too specific because it sounded good, Aly will plan around it
-                and a later suggestion might come back a little off.
-              </p>
-            </div>
-          )}
-          {aboutMePriors && aboutMePriors[slot] && (
-            <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
-              <p className="font-display text-ink">
-                You mentioned this on About you.
-              </p>
-              <p className="mt-1 italic">
-                &ldquo;{aboutMePriors[slot].quote}&rdquo;
-              </p>
-              <p className="mt-2">
-                Aly is already planning around it. Confirm below or{" "}
-                <a
-                  href="/about-you"
-                  className="text-teal underline underline-offset-4"
-                >
-                  change it on About you
-                </a>
-                .
-              </p>
-            </div>
-          )}
-          <h1
-            className="select-none font-display text-2xl leading-snug text-ink outline-none [outline:none!important] focus:outline-none focus-visible:outline-none sm:text-3xl"
-            style={{ outline: "none" }}
-          >
-            {question.prompt}
-          </h1>
-          <span aria-live="polite" className="sr-only">
-            {announced}
-          </span>
+              {question.prompt}
+            </h1>
+            <span aria-live="polite" className="sr-only">
+              {announced}
+            </span>
 
-          {question.help && (
-            <p className="mt-3 text-sm text-ink-soft">{question.help}</p>
-          )}
+            {question.help && (
+              <p className="mt-3 text-sm text-ink-soft">{question.help}</p>
+            )}
 
-          {question.kind === "options" ? (
-            <div className="mt-6 flex flex-col gap-3">
-              {question.options.map((opt) => (
+            {question.kind === "options" ? (
+              <div className="mt-6 flex flex-col gap-3">
+                {question.options.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => pickChoice(opt.value)}
+                    aria-pressed={choice === opt.value}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      choice === opt.value
+                        ? "border-teal bg-teal-soft/50 shadow-sm"
+                        : "border-sand-deep bg-white hover:border-teal/50"
+                    }`}
+                  >
+                    <p className="font-display text-lg text-ink">{opt.label}</p>
+                    {opt.detail && (
+                      <p className="mt-1 text-sm text-ink-soft">{opt.detail}</p>
+                    )}
+                  </button>
+                ))}
                 <button
-                  key={opt.value}
                   type="button"
-                  onClick={() => setChoice(opt.value)}
-                  aria-pressed={choice === opt.value}
+                  onClick={() => pickChoice("other")}
+                  aria-pressed={choice === "other"}
                   className={`rounded-2xl border p-4 text-left transition ${
-                    choice === opt.value
+                    choice === "other"
                       ? "border-teal bg-teal-soft/50 shadow-sm"
                       : "border-sand-deep bg-white hover:border-teal/50"
                   }`}
                 >
-                  <p className="font-display text-lg text-ink">{opt.label}</p>
-                  {opt.detail && (
-                    <p className="mt-1 text-sm text-ink-soft">{opt.detail}</p>
-                  )}
+                  <p className="font-display text-lg text-ink">
+                    Something else
+                  </p>
+                  <p className="mt-1 text-sm text-ink-soft">
+                    In your own words.
+                  </p>
                 </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setChoice("other")}
-                aria-pressed={choice === "other"}
-                className={`rounded-2xl border p-4 text-left transition ${
-                  choice === "other"
-                    ? "border-teal bg-teal-soft/50 shadow-sm"
-                    : "border-sand-deep bg-white hover:border-teal/50"
-                }`}
-              >
-                <p className="font-display text-lg text-ink">Something else</p>
-                <p className="mt-1 text-sm text-ink-soft">In your own words.</p>
-              </button>
-              {choice && choice !== "other" && (
-                <WhyPanel
-                  choice={choice}
-                  question={question}
-                  whys={whys}
-                  setWhys={setWhys}
-                  ownWords={ownWords}
-                  setOwnWords={setOwnWords}
-                  cache={suggestionCache}
-                  context={live}
-                />
-              )}
-              {choice === "other" && (
-                <div className="mt-6">
-                  <label
-                    htmlFor="interview-other-text"
-                    className="mb-2 block text-sm text-ink-soft"
-                  >
-                    Say what fits better.
-                  </label>
-                  <textarea
-                    id="interview-other-text"
-                    rows={4}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder={
-                      question.otherPlaceholder ||
-                      "In your own words, what actually fits you."
-                    }
-                    className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+                {choice && choice !== "other" && (
+                  <WhyPanel
+                    choice={choice}
+                    question={question}
+                    whys={whys}
+                    setWhys={setWhys}
+                    ownWords={ownWords}
+                    setOwnWords={setOwnWords}
+                    cache={suggestionCache}
+                    context={live}
                   />
-                </div>
-              )}
-            </div>
-          ) : question.kind === "moments" ? (
-            <MomentsPanel
-              moments={moments}
-              setMoments={setMoments}
-              examples={question.examples || []}
-              placeholder={question.placeholder || ""}
-              focusRef={focusRef}
-            />
-          ) : (
-            <div className="mt-6">
-              <textarea
-                rows={5}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
+                )}
+                {choice === "other" && (
+                  <div className="mt-6">
+                    <label
+                      htmlFor="interview-other-text"
+                      className="mb-2 block text-sm text-ink-soft"
+                    >
+                      Say what fits better.
+                    </label>
+                    <textarea
+                      id="interview-other-text"
+                      rows={4}
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      placeholder={
+                        question.otherPlaceholder ||
+                        "In your own words, what actually fits you."
+                      }
+                      className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : question.kind === "moments" ? (
+              <MomentsPanel
+                moments={moments}
+                setMoments={setMoments}
+                examples={question.examples || []}
                 placeholder={question.placeholder || ""}
-                className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+                focusRef={focusRef}
               />
-            </div>
-          )}
+            ) : (
+              <div className="mt-6">
+                <textarea
+                  rows={5}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={question.placeholder || ""}
+                  className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+                />
+              </div>
+            )}
 
-          {error && (
-            <p className="mt-3 text-sm text-rose" role="alert">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="mt-3 text-sm text-rose" role="alert">
+                {error}
+              </p>
+            )}
 
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-4">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={back}
+                  className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
+                  aria-label={
+                    index === 0
+                      ? "Leave the interview"
+                      : "Go back to the previous question"
+                  }
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => submit("skip")}
+                  className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
+                >
+                  {question.kind === "moments"
+                    ? "None to add"
+                    : "Skip this one"}
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={back}
-                className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
-                aria-label={
-                  index === 0
-                    ? "Leave the interview"
-                    : "Go back to the previous question"
+                onClick={() => submit("answer")}
+                disabled={
+                  question.kind === "options"
+                    ? !choice || (choice === "other" && !text.trim())
+                    : false
                 }
+                className="btn btn-primary"
               >
-                ← Back
-              </button>
-              <button
-                type="button"
-                onClick={() => submit("skip")}
-                className="text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
-              >
-                {question.kind === "moments" ? "None to add" : "Skip this one"}
+                {index + 1 === total ? "Save and finish" : "Save and continue"}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => submit("answer")}
-              disabled={
-                question.kind === "options"
-                  ? !choice || (choice === "other" && !text.trim())
-                  : false
-              }
-              className="btn btn-primary"
-            >
-              {index + 1 === total ? "Save and finish" : "Save and continue"}
-            </button>
           </div>
-        </div>
+        )}
+      </div>
+      {summaryLines.length > 0 && (
+        <aside className="hidden self-start rounded-2xl border border-sand-deep bg-sand-soft/60 p-4 lg:sticky lg:top-4 lg:block">
+          <p className="section-label text-ink-soft">What Aly now knows</p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+            One line every time you answer. This is what she'll do because of
+            it.
+          </p>
+          <div className="mt-3 space-y-2">
+            {summaryLines.map((row) => (
+              <p
+                key={row.slot}
+                className="rounded-lg border border-sand-deep bg-white p-3 text-sm leading-relaxed text-ink"
+              >
+                {row.text}
+              </p>
+            ))}
+          </div>
+        </aside>
       )}
-    </div>
-    {summaryLines.length > 0 && (
-      <aside className="hidden self-start rounded-2xl border border-sand-deep bg-sand-soft/60 p-4 lg:sticky lg:top-4 lg:block">
-        <p className="section-label text-ink-soft">What Aly now knows</p>
-        <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-          One line every time you answer. This is what she'll do because of it.
-        </p>
-        <div className="mt-3 space-y-2">
-          {summaryLines.map((row) => (
-            <p
-              key={row.slot}
-              className="rounded-lg border border-sand-deep bg-white p-3 text-sm leading-relaxed text-ink"
-            >
-              {row.text}
-            </p>
-          ))}
-        </div>
-      </aside>
-    )}
     </div>
   );
 }

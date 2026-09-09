@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { ledgerFor } from "@/lib/travelers/ledger";
 import { INTERVIEW_QUESTIONS, nextQuestion } from "@/lib/travelers/interview";
+import { priorAnswersFrom } from "@/lib/travelers/interviewInference";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 
 import InterviewBody from "./InterviewBody";
@@ -115,13 +116,23 @@ export default async function InterviewPage() {
       (t) => (t.access_level || "").toLowerCase() === "primary",
     ) || null;
   const aboutMePriors =
-    primaryRow?.about_me_priors && typeof primaryRow.about_me_priors === "object"
+    primaryRow?.about_me_priors &&
+    typeof primaryRow.about_me_priors === "object"
       ? primaryRow.about_me_priors
       : {};
 
   const context = personalizationContext({
     travelers: travelers || [],
     pets: pets || [],
+  });
+
+  // What the questions already answered imply about the ones still to come.
+  // Read from the same slot and preference rows the ledger uses, so an
+  // interview picked up a week later works out just as much as one done in a
+  // single sitting.
+  const priorAnswers = priorAnswersFrom({
+    slots: slots || [],
+    preferences: preferences || [],
   });
 
   const { question, index } = nextQuestion(ledger);
@@ -148,6 +159,7 @@ export default async function InterviewPage() {
         total={INTERVIEW_QUESTIONS.length}
         context={context}
         aboutMePriors={aboutMePriors}
+        priorAnswers={priorAnswers}
         destination={destination}
       />
     </>
