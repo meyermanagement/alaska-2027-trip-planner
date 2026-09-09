@@ -377,37 +377,44 @@ export default function WelcomeForm({
           when not to. You can add more later on the Family screen.
         </p>
         {pets.length > 0 && (
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-4">
             {pets.map((row, i) => (
-              <div className="flex items-center gap-2" key={i}>
-                <input
-                  className="field flex-1"
-                  value={row.name}
-                  onChange={(e) => setPet(i, { name: e.target.value })}
-                  placeholder="Their name"
-                  maxLength={60}
-                />
-                <select
-                  className="field"
-                  value={row.species}
-                  onChange={(e) => setPet(i, { species: e.target.value })}
-                  aria-label="Species"
-                >
-                  {SPECIES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {speciesLabel(s.id)}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => removePet(i)}
-                  disabled={busy}
-                  aria-label={`Remove animal ${i + 1}`}
-                >
-                  Remove
-                </button>
+              <div
+                className="rounded-lg border border-line/60 p-3 space-y-2"
+                key={i}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    className="field flex-1"
+                    value={row.name}
+                    onChange={(e) => setPet(i, { name: e.target.value })}
+                    placeholder="Their name"
+                    maxLength={60}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => removePet(i)}
+                    disabled={busy}
+                    aria-label={`Remove animal ${i + 1}`}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <label className="block text-xs font-semibold text-ink-soft">
+                  What kind
+                  <select
+                    className="field mt-1 text-sm"
+                    value={row.species}
+                    onChange={(e) => setPet(i, { species: e.target.value })}
+                  >
+                    {SPECIES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {speciesLabel(s.id)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             ))}
           </div>
@@ -429,7 +436,7 @@ export default function WelcomeForm({
           disabled={!canSave}
           onClick={save}
         >
-          {busy ? "Saving…" : "Save and start the interview"}
+          {busy ? "Saving…" : "Save and continue to About you"}
         </button>
         {practice && (
           <a href="/interview-check" className="btn btn-ghost">
@@ -516,6 +523,15 @@ function WelcomePreview({ preview }) {
       <p className="mt-4 text-xs text-ink-soft">
         Nothing was written. Your real family, people and animals are unchanged.
       </p>
+
+      <div className="mt-4">
+        <a
+          href="/interview-check/about-you"
+          className="btn btn-primary px-4 py-2 text-sm"
+        >
+          Continue to About you
+        </a>
+      </div>
     </div>
   );
 }

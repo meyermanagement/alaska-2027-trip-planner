@@ -1197,11 +1197,11 @@ function Recap({ answers }) {
       )}
 
       <div className="mt-10 flex flex-wrap items-center gap-2">
-        <a href="/interview-check" className="btn btn-primary">
-          Back to practice
+        <a href="/interview-check/proof" className="btn btn-primary">
+          Continue to the proof screen
         </a>
-        <a href="/family" className="btn btn-ghost">
-          Back to Family
+        <a href="/interview-check" className="btn btn-ghost">
+          Back to practice
         </a>
       </div>
       <p className="mt-6 text-xs text-ink-soft">

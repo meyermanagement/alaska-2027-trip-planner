@@ -417,6 +417,14 @@ export default function AboutYouForm({
             Nothing was written to your own page. Your real About you is
             unchanged.
           </p>
+          <div className="mt-4">
+            <a
+              href="/interview-check/interview"
+              className="btn btn-primary px-4 py-2 text-sm"
+            >
+              Continue to the interview
+            </a>
+          </div>
         </div>
       )}
 
