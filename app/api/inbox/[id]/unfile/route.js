@@ -84,14 +84,23 @@ export async function POST(request, { params }) {
   // the parsed rows kept. Approved-but-not-linked rows (e.g. a parsed row
   // that was later approved by hand) are left alone -- they are not what
   // the auto-file added.
+  //
+  // Rows the auto-file merged INTO instead of inserting are kept as well:
+  // the itinerary row was already on the trip before the message arrived,
+  // and deleting it would take pre-existing data with it. The trade-off is
+  // that a merge changed some fields (start_time, notes, etc.) that undo
+  // cannot roll back without a before-image, and we don't keep one. The
+  // family can hand-edit; the alternative -- accidentally deleting an
+  // existing reservation on undo -- is much worse.
   const { data: approvedRows } = await supabase
     .from("inbox_parsed_items")
-    .select("id, approved_item_id")
+    .select("id, approved_item_id, merged_into_existing")
     .eq("message_id", id)
     .eq("status", "approved")
     .not("approved_item_id", "is", null);
 
   const itineraryIds = (approvedRows || [])
+    .filter((r) => !r.merged_into_existing)
     .map((r) => r.approved_item_id)
     .filter(Boolean);
   const parsedIds = (approvedRows || []).map((r) => r.id);
@@ -108,6 +117,7 @@ export async function POST(request, { params }) {
         approved_item_id: null,
         approved_at: null,
         approved_by: null,
+        merged_into_existing: false,
       })
       .in("id", parsedIds);
   }
