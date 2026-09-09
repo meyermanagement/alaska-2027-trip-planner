@@ -64,7 +64,7 @@ export async function GET(request) {
           .eq("is_person", true),
       ]);
       const empty = !fam?.home_address && (peopleCount || 0) === 0;
-      if (empty) return NextResponse.redirect(`${origin}/welcome`);
+      if (empty) return NextResponse.redirect(`${origin}/welcome/meet-aly`);
 
       // A non-owner signing in for the first time is walked through their own
       // file before they land anywhere else: About me, then Favorite moments,
