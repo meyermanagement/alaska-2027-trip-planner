@@ -87,19 +87,10 @@ export default function AfterInterviewClient({
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="section-label text-ink-soft">
-          {demo ? "Practice \u00b7 After the interview" : "You're in"}
-        </p>
+        <p className="section-label text-ink-soft">You're in</p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
           Here's what Aly already put on your trips.
         </h1>
-        {demo && (
-          <p className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-3 text-xs italic text-ink-soft">
-            You're in practice. The trip cards below are for a stand-in
-            family (a couple with a nine-year-old and two tentative trips)
-            so nothing on your own file is used or changed.
-          </p>
-        )}
         <p className="text-base leading-relaxed text-ink-soft">
           You just answered ten questions. Aly took each one and rolled it
           into your real upcoming trips. These aren't examples. They're
@@ -243,7 +234,7 @@ export default function AfterInterviewClient({
           }
           className="btn btn-primary px-4 py-2 text-sm"
         >
-          {demo ? "Back to practice" : "Take me to my trips"}
+          Take me to my trips
         </button>
         <p className="text-xs italic text-ink-soft">
           Aly is right there in every trip. Ask her anything, any time.

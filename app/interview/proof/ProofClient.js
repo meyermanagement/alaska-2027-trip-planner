@@ -55,19 +55,10 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <p className="section-label text-ink-soft">
-          {demo ? "Practice \u00b7 Proof" : "Proof"}
-        </p>
+        <p className="section-label text-ink-soft">Proof</p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
           Watch the same question, answered two ways.
         </h1>
-        {demo && (
-          <p className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-3 text-xs italic text-ink-soft">
-            You're in practice. The comparison below runs against a stand-in
-            family (a couple with a nine-year-old going to Reykjavik) so
-            nothing on your own file is touched.
-          </p>
-        )}
         <p className="text-base leading-relaxed text-ink-soft">
           Aly is answering one real question about your next trip. On the
           left is what she would say if she knew nothing about you. On the
@@ -192,7 +183,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           }
           className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
-          {demo ? "Back to practice" : "Show me what Aly did with all this"}
+          Show me what Aly did with all this
         </button>
       </div>
     </div>

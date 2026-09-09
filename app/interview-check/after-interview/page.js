@@ -6,7 +6,7 @@ import TopBar from "@/components/TopBar";
 import AfterInterviewClient from "../../welcome/after-interview/AfterInterviewClient";
 
 export const metadata = {
-  title: "Practice \u00b7 After the interview \u00b7 Alyeska",
+  title: "After the interview \u00b7 Alyeska",
 };
 
 /**
@@ -30,17 +30,7 @@ export default async function InterviewCheckAfterInterviewPage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
-        <h1 className="font-display text-3xl font-semibold">
-          Practice: after the interview
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          The last onboarding screen -- what Aly already put on the
-          family's trips, plus one open question the primary can ask her
-          before landing in the app.
-        </p>
-        <div className="mt-6">
-          <AfterInterviewClient demo backHref="/interview-check" />
-        </div>
+        <AfterInterviewClient demo backHref="/interview-check" />
       </main>
     </>
   );

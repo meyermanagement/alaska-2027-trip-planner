@@ -6,7 +6,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import NextStepsChecklist from "@/components/NextStepsChecklist";
 
-export const metadata = { title: "Practice: next steps · Alyeska" };
+export const metadata = { title: "Next steps · Alyeska" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -30,27 +30,15 @@ export default async function InterviewCheckNextStepsPage() {
   return (
     <>
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
-        <h1 className="font-display text-3xl font-semibold">
-          Practice: three things worth doing next
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          A new family sees this screen once, right after Favorite moments.
-          Nothing on it is actionable -- it is telling them what is worth doing
-          before their first trip. This is that same screen; the button just
-          drops you back into practice.
-        </p>
-
+        <NextStepsChecklist
+          continueLabel="Back to practice"
+          onContinue={null}
+          eyebrow=""
+        />
         <div className="mt-6">
-          <NextStepsChecklist
-            continueLabel="Back to practice"
-            onContinue={null}
-            eyebrow=""
-          />
-          <div className="mt-6">
-            <Link href="/interview-check" className="btn btn-ghost">
-              Back to practice
-            </Link>
-          </div>
+          <Link href="/interview-check" className="btn btn-ghost">
+            Back to practice
+          </Link>
         </div>
       </main>
     </>

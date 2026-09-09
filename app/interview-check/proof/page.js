@@ -5,7 +5,7 @@ import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import ProofClient from "../../interview/proof/ProofClient";
 
-export const metadata = { title: "Practice \u00b7 Interview proof \u00b7 Alyeska" };
+export const metadata = { title: "Interview proof \u00b7 Alyeska" };
 
 /**
  * The interview proof step, mounted for the practice hub.
@@ -30,17 +30,7 @@ export default async function InterviewCheckProofPage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
-        <h1 className="font-display text-3xl font-semibold">
-          Practice: interview proof
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          The screen that appears right after the ten interview questions.
-          One real question about your next trip, answered twice by the
-          same model -- once with your interview folded in, once without.
-        </p>
-        <div className="mt-6">
-          <ProofClient demo backHref="/interview-check" />
-        </div>
+        <ProofClient demo backHref="/interview-check" />
       </main>
     </>
   );

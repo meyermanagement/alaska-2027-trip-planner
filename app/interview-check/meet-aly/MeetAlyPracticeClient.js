@@ -11,9 +11,6 @@ import MeetAly from "@/components/MeetAly";
 export default function MeetAlyPracticeClient() {
   const router = useRouter();
   return (
-    <MeetAly
-      onContinue={() => router.push("/interview-check")}
-      continueLabel="Back to practice"
-    />
+    <MeetAly onContinue={() => router.push("/interview-check")} />
   );
 }

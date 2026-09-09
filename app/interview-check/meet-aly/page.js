@@ -5,7 +5,7 @@ import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import MeetAlyPracticeClient from "./MeetAlyPracticeClient";
 
-export const metadata = { title: "Practice \u00b7 Meet Aly \u00b7 Alyeska" };
+export const metadata = { title: "Meet Aly \u00b7 Alyeska" };
 
 /**
  * The Meet Aly intro, mounted for the practice hub.
@@ -29,17 +29,7 @@ export default async function InterviewCheckMeetAlyPage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
-        <h1 className="font-display text-3xl font-semibold">
-          Practice: Meet Aly
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          The first screen a brand-new primary sees, before the family
-          form. The demo always runs against stand-in families -- nothing
-          on your own file is touched.
-        </p>
-        <div className="mt-6">
-          <MeetAlyPracticeClient />
-        </div>
+        <MeetAlyPracticeClient />
       </main>
     </>
   );

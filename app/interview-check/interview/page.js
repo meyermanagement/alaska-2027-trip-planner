@@ -8,7 +8,7 @@ import { INTERVIEW_QUESTIONS } from "@/lib/travelers/interview";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 import InterviewBody from "../../interview/InterviewBody";
 
-export const metadata = { title: "Practice interview · Alyeska" };
+export const metadata = { title: "Interview · Alyeska" };
 
 /**
  * The nine-question interview, answered by the primary, saving nothing.

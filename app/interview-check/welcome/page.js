@@ -6,7 +6,7 @@ import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import WelcomeForm from "../../welcome/WelcomeForm";
 
-export const metadata = { title: "Practice welcome · Alyeska" };
+export const metadata = { title: "Welcome · Alyeska" };
 
 /**
  * The welcome form, rehearsed by the primary, saving nothing.
@@ -31,14 +31,6 @@ export default async function InterviewCheckWelcomePage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-        <h1 className="font-display text-3xl font-semibold">
-          Practice: welcome form
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          The screen a brand-new family sees before Aly asks anything else. Fill
-          it in as though your family were new; the button will show what would
-          have been written without touching your real file.
-        </p>
         <WelcomeForm
           familyId={access.familyId}
           myName={access.travelerName || ""}

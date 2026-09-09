@@ -606,7 +606,7 @@ export default function InterviewBody({
     <div className="flex min-h-[70vh] w-full flex-col items-center justify-center">
       <p className="section-label mb-2 self-start text-ink-soft">
         Question {index + 1} of {total}
-        {mode === "practice" && " · Practice"}
+
       </p>
 
       {loading ? (

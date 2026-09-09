@@ -429,22 +429,18 @@ export default function WelcomeForm({
           disabled={!canSave}
           onClick={save}
         >
-          {busy
-            ? "Saving…"
-            : practice
-              ? "Show what would save"
-              : "Save and start the interview"}
+          {busy ? "Saving…" : "Save and start the interview"}
         </button>
         {practice && (
           <a href="/interview-check" className="btn btn-ghost">
             Back to practice
           </a>
         )}
-        <p className="text-xs text-ink-soft">
-          {practice
-            ? "Nothing gets written. Your real family is unchanged."
-            : "You can change or add more on the Family screen after this."}
-        </p>
+        {!practice && (
+          <p className="text-xs text-ink-soft">
+            You can change or add more on the Family screen after this.
+          </p>
+        )}
       </div>
       {error && <p className="text-sm text-rose">{error}</p>}
       {preview && <WelcomePreview preview={preview} />}
