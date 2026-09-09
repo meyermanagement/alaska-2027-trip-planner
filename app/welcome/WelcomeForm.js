@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { SPECIES, speciesLabel } from "@/lib/pets/pets";
 import { GENDERS } from "@/lib/travelers/profile";
 import HomePicker, { locateHome } from "@/components/HomePicker";
+import AlyKnowsSidebar from "@/components/AlyKnowsSidebar";
 
 /**
  * The first-login form.
@@ -251,7 +252,8 @@ export default function WelcomeForm({
   }
 
   return (
-    <div className="mt-6 space-y-6">
+    <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="space-y-6">
       <section className="card p-4">
         <label className="section-label block" htmlFor="welcome-family-name">
           What should we call this family?
@@ -446,6 +448,14 @@ export default function WelcomeForm({
       </div>
       {error && <p className="text-sm text-rose">{error}</p>}
       {preview && <WelcomePreview preview={preview} />}
+      </div>
+      <AlyKnowsSidebar
+        familyName={name}
+        address={address}
+        located={located}
+        people={people}
+        pets={pets}
+      />
     </div>
   );
 }

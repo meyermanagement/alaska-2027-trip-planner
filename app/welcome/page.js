@@ -81,7 +81,7 @@ export default async function WelcomePage() {
   // Trips onward, where they have something to point at. This screen and its
   // three siblings all render bare pages for the same reason.
   return (
-    <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+    <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
       <h1 className="font-display text-3xl font-semibold">
         Welcome to Alyeska
       </h1>

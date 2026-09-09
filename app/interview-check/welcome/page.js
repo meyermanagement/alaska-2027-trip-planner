@@ -30,7 +30,7 @@ export default async function InterviewCheckWelcomePage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
         <h1 className="font-display text-3xl font-semibold">
           Practice: welcome form
         </h1>
