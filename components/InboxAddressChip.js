@@ -34,10 +34,14 @@ export default function InboxAddressChip({ address, note }) {
       <button
         type="button"
         onClick={onCopy}
-        className="inline-flex items-center gap-1.5 rounded-full bg-sand px-2.5 py-1 font-mono text-[0.72rem] text-ink transition hover:bg-sand-deep"
+        className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full bg-sand px-2.5 py-1 text-left font-mono text-[0.72rem] text-ink transition hover:bg-sand-deep"
         aria-label={`Copy ${address} to clipboard`}
       >
-        <span>{address}</span>
+        {/* A monospaced address plus the word Copy is wider than the column
+            this chip sits in on a narrow phone, and it is narrower still on the
+            next-steps rows, which are indented by a compass mark. Wrapping
+            inside the pill keeps the whole address on screen. */}
+        <span className="break-all">{address}</span>
         <span
           aria-hidden="true"
           className="text-[0.65rem] uppercase tracking-[0.08em] text-ink-faint"

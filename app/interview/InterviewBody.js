@@ -684,8 +684,8 @@ export default function InterviewBody({
             // next screen: /interview/proof runs the same real question about
             // their upcoming trip twice, once with the answers folded in and
             // once without, so the ten questions they just answered become
-            // a difference they can read. From there /welcome/after-interview
-            // carries them onward to the trip builder.
+            // a difference they can read. From there the button on the proof
+            // screen carries them into the trip builder.
             router.push("/interview/proof");
             return;
           }

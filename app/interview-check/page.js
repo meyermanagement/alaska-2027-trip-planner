@@ -77,12 +77,7 @@ export default async function InterviewCheckPage() {
           <PracticeTile
             href="/interview-check/proof"
             title="Interview proof"
-            body="The screen right after the interview: one real question about your next trip, answered twice by the same model, once with the interview folded in and once without."
-          />
-          <PracticeTile
-            href="/interview-check/after-interview"
-            title="After the interview"
-            body="The last onboarding screen for a primary: a per-trip note from Aly about what she'll be doing on each trip, plus one open box to ask her a real question before landing in the app."
+            body="The last onboarding screen for a primary: one real question about where the family is going, answered twice by the same model, once with the interview folded in and once without."
           />
           <PracticeTile
             href="/interview-check/next-steps"

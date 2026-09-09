@@ -26,29 +26,49 @@ import InboxAddressChip from "@/components/InboxAddressChip";
  * no idea where the address lives; the address itself, copyable, is the whole
  * instruction. It is passed in rather than read here because this component is
  * shared with the practice hub and has no session of its own.
+ *
+ * Each row is a title, one line saying what the thing is, and two or three
+ * short points. It used to be a title over a five-line paragraph, and three of
+ * those stacked was a wall of text on a screen nobody is obliged to read -- the
+ * reasons a family would care were buried mid-sentence. Broken up, the reasons
+ * are what the eye lands on, and a row can be skimmed in a second.
  */
 
 const ITEMS = [
   {
     key: "wallet",
-    title: "Fill in your Wallet, cards and travel documents",
-    body: "Passports, loyalty numbers, TSA PreCheck, insurance -- the things a booking form always asks for and you can never find. Once they are in your Wallet, Aly can quote them back when a form needs them, and knows a passport is close to expiring before it costs a trip. Add your credit cards and rewards programs too, and she will tell you which card to put a booking on and when points beat paying cash -- which is where this pays for itself.",
+    title: "Fill in your Wallet",
+    lead: "Passports, cards, loyalty numbers, insurance.",
+    points: [
+      "Booking forms stop being a hunt for numbers you cannot find",
+      "Aly warns you about a passport expiry before it costs a trip",
+      "She names the card to book on, and when points beat paying cash",
+    ],
   },
   {
     key: "forwarding",
-    title: "Forward trip confirmations to your Aly address",
-    body: "This address is yours. Forward a hotel, flight, tour or car confirmation to it and Aly reads it, adds it to the right trip and updates it if anything changes -- no re-typing dates, times or confirmation numbers. Adding it to your contacts now is the one thing that makes the rest of it automatic.",
+    title: "Forward trip confirmations",
+    lead: "This address is yours. Save it to your contacts now.",
     // Shown only if the address somehow is not ready. Every family gets one
     // from a trigger on insert, so this should not appear -- but "This address
     // is yours" with no address under it would be worse than the general
     // sentence, so the general sentence stays available.
-    bodyWithoutAddress:
-      "Each family has a personal Alyeska email address, on your Family screen. Forward a hotel, flight, tour or car confirmation to it and Aly reads it, adds it to the right trip and updates it if anything changes -- no re-typing dates, times or confirmation numbers.",
+    leadWithoutAddress:
+      "Every family gets its own Alyeska address, on the Family screen.",
+    points: [
+      "Forward a hotel, flight, tour or car and it lands on the right trip",
+      "Changes update themselves, with no dates or numbers to re-type",
+      "It is the one thing that makes the rest of this automatic",
+    ],
   },
   {
     key: "past",
     title: "Add trips you have already taken",
-    body: "Even a rough list of past trips gives Aly something to compare a next one to. A restaurant you loved in Copenhagen is a real answer when we go somewhere similar, and a hotel you did not is a real reason to steer around a chain.",
+    lead: "A rough list is enough. Dates and places, nothing more.",
+    points: [
+      "A restaurant you loved becomes a real answer somewhere similar",
+      "A hotel you did not becomes a chain Aly steers you around",
+    ],
   },
 ];
 
@@ -81,7 +101,7 @@ export default function NextStepsChecklist({
   inboxAddress = "",
   continueLabel = "Take me to the trip builder",
   headline = "Three things worth doing next",
-  intro = "You have set the shape of your family and told Aly a little about yourself. Before your first trip, these three things make every answer Aly gives you fit better -- add what you can when you can. Nothing here is required to keep going.",
+  intro = "None of it is required to keep going. Each one makes Aly's answers fit your family better.",
   eyebrow = "Welcome to Alyeska",
 }) {
   return (
@@ -104,14 +124,27 @@ export default function NextStepsChecklist({
               <p className="font-display text-lg font-semibold text-ink">
                 {item.title}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                {item.bodyWithoutAddress && !inboxAddress
-                  ? item.bodyWithoutAddress
-                  : item.body}
+              <p className="mt-0.5 text-sm leading-relaxed text-ink">
+                {item.leadWithoutAddress && !inboxAddress
+                  ? item.leadWithoutAddress
+                  : item.lead}
               </p>
               {item.key === "forwarding" && inboxAddress && (
                 <InboxAddressChip address={inboxAddress} note="Your address:" />
               )}
+              <ul className="mt-2 space-y-1">
+                {item.points.map((point) => (
+                  <li
+                    key={point}
+                    className="flex gap-2 text-sm leading-relaxed text-ink-soft"
+                  >
+                    <span aria-hidden="true" className="select-none text-teal">
+                      &bull;
+                    </span>
+                    <span className="min-w-0">{point}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </li>
         ))}

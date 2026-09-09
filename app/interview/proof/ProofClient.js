@@ -11,9 +11,9 @@ import { runToStandIn } from "@/lib/practice/session";
  * On mount, kicks off two model calls in parallel via the /api/interview
  * /proof endpoint and paints them into a side-by-side card. The primary
  * can re-roll on a different category (food or day) to see the same
- * proof against another question. The button at the bottom carries them
- * onward to the after-interview screen (what Aly already put on your
- * trips + ask a real question).
+ * proof against another question. This is the last onboarding screen, so the
+ * button at the bottom carries them into the trip builder, or to the trip list
+ * when the family already has one.
  *
  * Both answers arrive as plan rows rather than paragraphs -- see the endpoint
  * for why -- and are laid out as an itinerary: the hour, the choice, and
@@ -130,12 +130,13 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         <h1 className="font-display text-3xl font-semibold leading-tight">
           Watch the same question, answered two ways.
         </h1>
+        {/* One sentence. Everything this paragraph used to explain -- which
+            side is which, that the model is the same, that the reasons sit
+            under the choices -- is already said by the two column headers and
+            by the plans themselves. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly is answering one real question about somewhere you're going. On
-          the left is what she would say if she knew nothing about you. On the
-          right is what she says with everything you just told her folded in.
-          Same question, same model. Under every choice is the reason it won; on
-          the right, those reasons are your own answers doing the work.
+          Same model both times. The only difference is that one of them knows
+          what you just told her.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
@@ -296,27 +297,31 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           </div>
 
           <p className="text-xs italic text-ink-soft">
-            Aly is a model. Both answers are her best guess in the moment;
-            she'll say different things on different runs. What's stable is that
-            the right-hand answer will keep fitting your family and the
-            left-hand answer will keep fitting nobody in particular.
+            Aly will say different things on different runs. What stays true is
+            which of these two fits your family.
           </p>
         </>
       )}
 
       <div className="flex flex-wrap gap-2 border-t border-sand-deep pt-5">
+        {/* This used to open one more onboarding screen, which said what Aly
+            would do and offered one more question to ask her. Two demos in a
+            row before the family had done anything, when the thing they need
+            next is a trip. So the proof screen is the last one, and this button
+            is the first real piece of work: the trip builder when there is no
+            trip yet, the trip list when there already is one. */}
         <button
           type="button"
-          onClick={() =>
-            router.push(
-              demo
-                ? backHref || "/interview-check"
-                : "/welcome/after-interview",
-            )
-          }
+          onClick={() => {
+            if (demo) {
+              router.push(backHref || "/interview-check");
+              return;
+            }
+            router.push(data?.onCalendar ? "/trips" : "/trips/new");
+          }}
           className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
-          Show me what Aly did with all this
+          {demo || data?.onCalendar ? "Take me to my trips" : "Plan our trip"}
         </button>
       </div>
     </div>

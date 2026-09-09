@@ -29,18 +29,17 @@ export default async function ProofPage() {
   if (!access?.familyId) redirect("/welcome");
   if (access.level !== PRIMARY) redirect("/family");
 
-  // The proof step is only useful when there is a real trip to anchor on
-  // AND the primary has actually finished the interview (otherwise Aly's
-  // "with preferences" answer would be identical to the "without" one).
-  // The client handles the "no trip yet" case by naming "your next trip"
-  // and showing a friendlier caveat, but a family with zero interview
-  // answers is sent onward to next-steps instead of into a blank demo.
+  // The proof step needs the primary to have actually answered something,
+  // otherwise Aly's "with your interview" answer is the same answer as the one
+  // beside it. The client handles having no trip by asking where the family is
+  // thinking of going; a family with zero interview answers has nothing to
+  // prove and goes to Family, where the launcher that opens the interview is.
   const { count: prefCount } = await supabase
     .from("travel_preferences")
     .select("id", { count: "exact", head: true })
     .eq("family_id", access.familyId)
     .in("source", ["interview", "interview_extract", "interview_promoted"]);
-  if ((prefCount || 0) === 0) redirect("/welcome/after-interview");
+  if ((prefCount || 0) === 0) redirect("/family");
 
   return (
     <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">

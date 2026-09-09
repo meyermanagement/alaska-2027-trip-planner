@@ -2,13 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { clearRun, describeRun, readRun, runHasContent } from "@/lib/practice/session";
+import {
+  clearRun,
+  describeRun,
+  readRun,
+  runHasContent,
+} from "@/lib/practice/session";
 
 /**
  * What the current rehearsal is holding, and a way to empty it.
  *
  * The practice chain carries whatever a person types from screen to screen so
- * Aly's answers on the proof and after-interview screens are about the family
+ * Aly's answers on the proof screen are about the family
  * they invented rather than the built-in stand-in. That carrying is invisible
  * by design -- there is no save confirmation, because nothing is saved -- and
  * invisible state that changes what a model says is the kind of thing that
@@ -55,9 +60,9 @@ export default function RunPanel() {
       </ul>
       <p className="mt-3 text-sm leading-relaxed text-ink-soft">
         The screens after the welcome form work from this, so Aly&rsquo;s
-        answers on the proof and after-interview screens are about this family
-        rather than a stand-in. It lives in this browser tab only, and closing
-        the tab throws it away.
+        answers on the proof screen are about this family rather than a
+        stand-in. It lives in this browser tab only, and closing the tab throws
+        it away.
       </p>
       <div className="mt-3">
         <button
