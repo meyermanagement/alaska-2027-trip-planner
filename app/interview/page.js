@@ -35,12 +35,14 @@ export default async function InterviewPage() {
   if (!familyId) redirect("/welcome");
   if (access.level !== PRIMARY) redirect("/family");
 
+  const today = new Date().toISOString().slice(0, 10);
   const [
     { data: preferences },
     { data: facts },
     { data: slots },
     { data: pets },
     { data: travelers },
+    { data: upcomingTrips },
   ] = await Promise.all([
     supabase
       .from("travel_preferences")
@@ -65,6 +67,14 @@ export default async function InterviewPage() {
       )
       .eq("family_id", familyId)
       .eq("is_person", true),
+    supabase
+      .from("trips")
+      .select("id, destination, name, start_date, status")
+      .eq("family_id", familyId)
+      .gte("start_date", today)
+      .neq("status", "past")
+      .order("start_date", { ascending: true })
+      .limit(1),
   ]);
 
   const entries = ledgerFor(null, {
@@ -121,6 +131,14 @@ export default async function InterviewPage() {
   // request.
   if (!question) redirect("/family");
 
+  const upcoming = (upcomingTrips || [])[0] || null;
+  // The anchor for the running-summary panel: destination if the trip has
+  // one, otherwise the trip's name ("Alaska 2027" is still better than
+  // "your next trip"). Falls back to the neutral phrase when nothing is on
+  // the calendar. The summary helper handles the fallback itself.
+  const destination =
+    (upcoming?.destination || upcoming?.name || "").trim() || null;
+
   return (
     <>
       <InterviewBody
@@ -130,6 +148,7 @@ export default async function InterviewPage() {
         total={INTERVIEW_QUESTIONS.length}
         context={context}
         aboutMePriors={aboutMePriors}
+        destination={destination}
       />
     </>
   );

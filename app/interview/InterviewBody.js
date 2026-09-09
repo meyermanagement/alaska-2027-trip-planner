@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import CompassLoader from "@/components/CompassLoader";
 import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
 import { personalizeReasons } from "@/lib/travelers/interviewPersonalize";
+import { summaryForAnswer } from "@/lib/travelers/runningSummary";
 
 // The minimum a Compass loader is on screen between questions. The write and
 // the next-question calculation take a few hundred milliseconds; anything
@@ -138,6 +139,7 @@ export default function InterviewBody({
   total,
   context,
   aboutMePriors,
+  destination = null,
 }) {
   const router = useRouter();
   const [slot, setSlot] = useState(startSlot);
@@ -592,8 +594,13 @@ export default function InterviewBody({
     return <Recap answers={answers} />;
   }
 
+  const summaryLines = answers
+    .map((a) => ({ slot: a.slot, text: summaryForAnswer(a, destination) }))
+    .filter((row) => row.text);
+
   return (
-    <div className="mx-auto flex min-h-[70vh] w-full max-w-2xl flex-col items-center justify-center px-4 py-10">
+    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 lg:grid-cols-[minmax(0,42rem)_minmax(0,20rem)]">
+    <div className="flex min-h-[70vh] w-full flex-col items-center justify-center">
       <p className="section-label mb-2 self-start text-ink-soft">
         Question {index + 1} of {total}
         {mode === "practice" && " · Practice"}
@@ -793,6 +800,25 @@ export default function InterviewBody({
           </div>
         </div>
       )}
+    </div>
+    {summaryLines.length > 0 && (
+      <aside className="hidden self-start rounded-2xl border border-sand-deep bg-sand-soft/60 p-4 lg:sticky lg:top-4 lg:block">
+        <p className="section-label text-ink-soft">What Aly now knows</p>
+        <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+          One line every time you answer. This is what she'll do because of it.
+        </p>
+        <div className="mt-3 space-y-2">
+          {summaryLines.map((row) => (
+            <p
+              key={row.slot}
+              className="rounded-lg border border-sand-deep bg-white p-3 text-sm leading-relaxed text-ink"
+            >
+              {row.text}
+            </p>
+          ))}
+        </div>
+      </aside>
+    )}
     </div>
   );
 }
