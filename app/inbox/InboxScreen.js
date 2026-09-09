@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
 
 /**
@@ -226,12 +227,16 @@ export default function InboxScreen({
               const tripName = trip?.name || "a trip";
               const subject = m.subject || "(no subject)";
               const href = trip ? tripPath(trip, "itinerary") : null;
-              const rowBusy =
-                undoBusyId === m.id || clearBusyId === m.id;
+              const isClearing = clearBusyId === m.id;
+              const isUndoing = undoBusyId === m.id;
+              const rowBusy = isClearing || isUndoing;
               return (
                 <li
                   key={m.id}
-                  className="flex flex-col gap-2 rounded-xl border border-[var(--line)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                  aria-busy={rowBusy || undefined}
+                  className={`flex flex-col gap-2 rounded-xl border border-[var(--line)] bg-white p-3 transition-opacity duration-200 sm:flex-row sm:items-center sm:justify-between ${
+                    rowBusy ? "opacity-60" : ""
+                  }`}
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm text-ink">{subject}</div>
@@ -243,7 +248,11 @@ export default function InboxScreen({
                     {href ? (
                       <Link
                         href={href}
-                        className="rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm font-medium text-ink transition hover:border-teal hover:text-teal"
+                        aria-disabled={rowBusy || undefined}
+                        tabIndex={rowBusy ? -1 : undefined}
+                        className={`rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm font-medium text-ink transition hover:border-teal hover:text-teal ${
+                          rowBusy ? "pointer-events-none opacity-60" : ""
+                        }`}
                       >
                         Go to trip
                       </Link>
@@ -252,17 +261,31 @@ export default function InboxScreen({
                       type="button"
                       onClick={() => handleClearAutoFile(m.id)}
                       disabled={rowBusy}
-                      className="rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal disabled:cursor-progress disabled:opacity-60"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal disabled:cursor-progress disabled:opacity-60"
                     >
-                      {clearBusyId === m.id ? "Clearing\u2026" : "Clear"}
+                      {isClearing ? (
+                        <>
+                          <Spinner className="h-3.5 w-3.5" />
+                          <span>{"Clearing\u2026"}</span>
+                        </>
+                      ) : (
+                        "Clear"
+                      )}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleUndoAutoFile(m.id)}
                       disabled={rowBusy}
-                      className="rounded-lg px-2 py-1 text-xs text-ink-soft underline underline-offset-2 transition hover:text-teal disabled:cursor-progress disabled:opacity-60"
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-soft underline underline-offset-2 transition hover:text-teal disabled:cursor-progress disabled:opacity-60"
                     >
-                      {undoBusyId === m.id ? "Undoing\u2026" : "Undo"}
+                      {isUndoing ? (
+                        <>
+                          <Spinner className="h-3 w-3" />
+                          <span>{"Undoing\u2026"}</span>
+                        </>
+                      ) : (
+                        "Undo"
+                      )}
                     </button>
                   </div>
                 </li>
