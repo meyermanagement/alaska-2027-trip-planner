@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
+import { inboxAddressFor } from "@/lib/inbox/address";
 import NextStepsChecklist from "@/components/NextStepsChecklist";
 
 export const metadata = { title: "Next steps · Alyeska" };
@@ -23,6 +24,16 @@ export default async function InterviewCheckNextStepsPage() {
   if (!access?.familyId) redirect("/welcome");
   if (access.level !== PRIMARY) redirect("/trips");
 
+  // The real address, on the practice copy too. Practice never writes, and
+  // reading the family's own forwarding address writes nothing -- while a
+  // stand-in address here would be the one thing on this screen somebody
+  // might actually copy down, and it would not work.
+  const { data: household } = await supabase
+    .from("families")
+    .select("inbox_local_part")
+    .eq("id", access.familyId)
+    .maybeSingle();
+
   // No TopBar here on purpose. The real /welcome/next-steps is a walkthrough
   // step with no menu and no Ask Aly button; the practice copy has to feel
   // like the same screen, so the NavTabs disc and the Ask Aly button stay
@@ -34,6 +45,7 @@ export default async function InterviewCheckNextStepsPage() {
           continueLabel="Back to practice"
           onContinue={null}
           eyebrow=""
+          inboxAddress={inboxAddressFor(household?.inbox_local_part)}
         />
         <div className="mt-6">
           <Link href="/interview-check" className="btn btn-ghost">

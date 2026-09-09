@@ -1379,9 +1379,9 @@ function Recap({ answers }) {
 // in in any order. A blank row is always kept at the bottom so there is always
 // somewhere to type without hunting for an add button, and each non-empty row
 // gets a small remove control so a stray line does not have to be saved. A
-// short strip of example chips seeds the box for somebody who freezes at the
-// question -- tapping one appends it to the first empty row rather than
-// overwriting whatever the primary has already typed.
+// short strip of example chips sits underneath for somebody who freezes at the
+// question, showing the kind of thing that belongs in the box; they are not
+// tappable, because the answer has to be the family's own memory.
 //
 // The panel keeps its state at the parent level (`moments` on InterviewBody),
 // which is why setMoments is passed in rather than kept here. That way the
@@ -1446,23 +1446,36 @@ function MomentsPanel({
         </div>
       ))}
 
-      {/* Read-only prompts, not chips. A favorite moment is the family's own
-          memory, so pasting one of these in verbatim would put a stranger's
-          sentence on the person's page and teach Aly something that never
-          happened. They are here to show the kind of thing that belongs in
-          the box, and that is all they do. */}
+      {/* Chip-shaped, and deliberately not tappable. A favorite moment is the
+          family's own memory, so pasting one of these in verbatim would put a
+          stranger's sentence on the person's page and teach Aly something that
+          never happened -- which is why there is no onClick here and these are
+          spans rather than buttons.
+
+          They keep the chip shape because that is what tells somebody at a
+          glance that these are specimens of the answer rather than instructions
+          about it: a run of short rounded phrases reads as "things of the kind
+          you are being asked for" in a way that a bulleted list of sentences
+          does not. The border is dashed and there is no hover state, so the
+          shape says sample and the surface says do not press. */}
       {examples.length > 0 && (
         <div className="mt-1">
           <p className="section-label text-ink-soft">
             The kind of thing that goes here
           </p>
-          <ul className="mt-1 space-y-1">
+          <div className="mt-2 flex flex-wrap gap-2">
             {examples.map((line) => (
-              <li key={line} className="text-sm text-ink-soft">
+              <span
+                key={line}
+                className="rounded-full border border-dashed border-sand-deep bg-white/60 px-3 py-1.5 text-left text-sm text-ink-soft"
+              >
                 {line}
-              </li>
+              </span>
             ))}
-          </ul>
+          </div>
+          <p className="mt-2 text-xs text-ink-faint">
+            Examples, not options. Yours should be your own.
+          </p>
         </div>
       )}
     </div>

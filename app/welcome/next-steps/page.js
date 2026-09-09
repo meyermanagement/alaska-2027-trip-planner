@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
+import { inboxAddressFor } from "@/lib/inbox/address";
 import NextStepsBody from "./NextStepsBody";
 
 export const metadata = { title: "Three things worth doing next · Alyeska" };
@@ -28,9 +29,21 @@ export default async function WelcomeNextStepsPage() {
   if (!access?.familyId) redirect("/welcome");
   if (access?.can?.isSecondary) redirect("/trips");
 
+  // The forwarding row shows the family's own address, so it has to be read
+  // here. A family that predates the auto-generating trigger could have none,
+  // which the checklist handles by falling back to the general sentence.
+  const { data: household } = await supabase
+    .from("families")
+    .select("inbox_local_part")
+    .eq("id", access.familyId)
+    .maybeSingle();
+
   return (
     <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
-      <NextStepsBody nextHref="/trips" />
+      <NextStepsBody
+        nextHref="/trips"
+        inboxAddress={inboxAddressFor(household?.inbox_local_part)}
+      />
     </main>
   );
 }

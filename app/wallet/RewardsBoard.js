@@ -560,14 +560,35 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
         </div>
       )}
 
+      {/* The empty state used to explain only the mechanics -- pick a brand and
+          the earning rules come filled in -- which answers "how do I add one"
+          for somebody who has not yet decided they want to. The reason to
+          bother is that this screen is what turns a drawer full of cards into
+          an answer about which one to pay with, and none of that is visible
+          until the first card exists: the What to pay with panel and the Ask
+          how to pay button both only appear once there is something to reason
+          over. So the payoff is stated here, where the decision is made. */}
       {groups.length === 0 && !form && (
         <div className="card p-6">
           <h2 className="font-display text-lg font-semibold">
             Start with what you already carry
           </h2>
-          <p className="mt-1 text-sm text-ink-soft">
-            Pick one and the earning rules and rough point values come filled
-            in, ready to correct. You can add a balance now or later.
+          <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+            This is the part of the app that pays for itself. Add the credit
+            cards in your wallet and the programs you are already in, and Aly
+            can answer the question that actually saves money: which card to put
+            this booking on, and whether points beat cash on this one. She reads
+            earning rules, point values, status and annual credits together, so
+            a hotel night can come out of points while the flight goes on the
+            card that earns most on airfare, and a credit you forgot you had
+            gets spent before it expires.
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+            Add one and two things appear above: a What to pay with panel for
+            each kind of spending, and a button to ask her about a specific
+            purchase. Pick a brand and the earning rules and rough point values
+            come filled in, ready to correct. You can add a balance now or
+            later.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {CATALOG.slice(0, 8).map((entry) => (
