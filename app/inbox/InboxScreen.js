@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { tripPath } from "@/lib/trips/route";
 
 /**
  * The screen a family reads their inbox on.
@@ -41,6 +43,26 @@ export default function InboxScreen({
   const [busyId, setBusyId] = useState(null);
   const [copied, setCopied] = useState(false);
   const [undoBusyId, setUndoBusyId] = useState(null);
+  const [clearBusyId, setClearBusyId] = useState(null);
+
+  async function handleClearAutoFile(messageId) {
+    setClearBusyId(messageId);
+    try {
+      const res = await fetch(`/api/inbox/${messageId}/dismiss`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        window.alert(body.error || "We could not clear that. Try again.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("We could not reach the server. Try again.");
+    } finally {
+      setClearBusyId(null);
+    }
+  }
 
   async function handleUndoAutoFile(messageId) {
     setUndoBusyId(messageId);
@@ -203,10 +225,13 @@ export default function InboxScreen({
               const trip = m.trips;
               const tripName = trip?.name || "a trip";
               const subject = m.subject || "(no subject)";
+              const href = trip ? tripPath(trip, "itinerary") : null;
+              const rowBusy =
+                undoBusyId === m.id || clearBusyId === m.id;
               return (
                 <li
                   key={m.id}
-                  className="flex flex-col gap-1 rounded-xl border border-[var(--line)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-xl border border-[var(--line)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm text-ink">{subject}</div>
@@ -214,14 +239,32 @@ export default function InboxScreen({
                       Filed to {tripName}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleUndoAutoFile(m.id)}
-                    disabled={undoBusyId === m.id}
-                    className="shrink-0 rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal disabled:cursor-progress disabled:opacity-60"
-                  >
-                    {undoBusyId === m.id ? "Undoing\u2026" : "Undo"}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {href ? (
+                      <Link
+                        href={href}
+                        className="rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm font-medium text-ink transition hover:border-teal hover:text-teal"
+                      >
+                        Go to trip
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => handleClearAutoFile(m.id)}
+                      disabled={rowBusy}
+                      className="rounded-xl border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal disabled:cursor-progress disabled:opacity-60"
+                    >
+                      {clearBusyId === m.id ? "Clearing\u2026" : "Clear"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUndoAutoFile(m.id)}
+                      disabled={rowBusy}
+                      className="rounded-lg px-2 py-1 text-xs text-ink-soft underline underline-offset-2 transition hover:text-teal disabled:cursor-progress disabled:opacity-60"
+                    >
+                      {undoBusyId === m.id ? "Undoing\u2026" : "Undo"}
+                    </button>
+                  </div>
                 </li>
               );
             })}
