@@ -299,17 +299,26 @@ export default function AboutYouForm({
               key={p.key}
               className="space-y-2 rounded-2xl border border-sand-deep bg-white p-4 shadow-sm sm:p-5"
             >
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="flex items-baseline gap-2">
-                  <span
+              {/*
+                The label is the heading of the card, so it is sized like one.
+                It used to be text-sm semibold sharing a baseline with the "1 of
+                4" counter, which made it weigh the same as the sentence in the
+                box underneath and left the counter reading first. Now the
+                counter is a small line above it and the question is the largest
+                thing in the card, so what you are being asked for is legible
+                before you read anything else.
+              */}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p
                     aria-hidden="true"
-                    className="text-xs font-semibold uppercase tracking-wide text-ink-faint"
+                    className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-ink-faint"
                   >
                     {idx + 1} of {ABOUT_ME_MICRO_PROMPTS.length}
-                  </span>
+                  </p>
                   <label
                     htmlFor={`about-${p.key}`}
-                    className="text-sm font-semibold text-ink"
+                    className="mt-0.5 block font-display text-lg font-semibold leading-snug text-ink"
                   >
                     {p.label}
                   </label>
@@ -317,7 +326,7 @@ export default function AboutYouForm({
                 {isFlashed && (
                   <span
                     aria-live="polite"
-                    className="text-xs font-semibold text-teal"
+                    className="shrink-0 pt-1 text-xs font-semibold text-teal"
                   >
                     Just added
                   </span>
@@ -424,7 +433,9 @@ export default function AboutYouForm({
       )}
       {done && practice && (
         <div className="mt-4 rounded-2xl border border-teal/40 bg-teal-soft/40 p-4">
-          <p className="section-label text-teal">What would have been saved</p>
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+            What would have been saved
+          </p>
           <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
             {aboutMeFromParts(parts) ||
               "(A blank paragraph, which stays blank.)"}
