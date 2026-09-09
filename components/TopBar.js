@@ -4,6 +4,7 @@ import { countNeedingAttention, todayISO } from "@/lib/reminders";
 import { loadHeaderNotices } from "@/lib/tips/load";
 import { isOnTrip, resolveAccess } from "@/lib/travelers/access";
 import CurrentTripBanner from "./CurrentTripBanner";
+import InboxBanner from "./InboxBanner";
 import NavTabs from "./NavTabs";
 import PassportWarning from "./PassportWarning";
 import TipStrip from "./TipStrip";
@@ -22,7 +23,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [{ data: rows }, notices, access] = await Promise.all([
+  const [{ data: rows }, notices, access, inboxPending] = await Promise.all([
     supabase
       .from("predeparture_tasks")
       .select("due_date, timing, priority, trips(start_date, end_date, status)")
@@ -31,8 +32,20 @@ export default async function TopBar({ askHref, showAsk = true }) {
     // Which menu items to draw. Read here with everything else rather than on
     // each screen, so the menu cannot differ from one page to the next.
     resolveAccess(supabase, user),
+    // The count of unfiled inbox messages, so every page can announce that
+    // there is mail waiting rather than making the person go find it. A head
+    // count of ids, no columns beyond what the row_estimate needs, and RLS is
+    // on the table so the count is already scoped to this person's family --
+    // there is no family_id filter on the query itself for the same reason.
+    // Anonymous callers get an error from RLS rather than a real count; the
+    // banner reads zero either way and does not draw.
+    supabase
+      .from("inbox_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
   ]);
   const attention = countNeedingAttention(rows || [], today);
+  const inboxCount = inboxPending?.count || 0;
 
   // A secondary traveler has no read access to travel documents -- probed as Veda,
   // traveler_documents returns nothing at all -- so the passport check sees an
@@ -107,6 +120,11 @@ export default async function TopBar({ askHref, showAsk = true }) {
         today={today}
       />
       <PassportWarning warnings={warnings} />
+      {/* Under the passport band on purpose. A passport that will not last the
+          trip is a trip-ending problem and belongs at the top; unfiled mail is
+          one tap of work and should not shout over it. The banner hides itself
+          when the person is already on /inbox. */}
+      <InboxBanner count={inboxCount} />
       <TipStrip tips={urgent} today={today} />
     </>
   );
