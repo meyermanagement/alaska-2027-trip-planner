@@ -1258,25 +1258,6 @@ function MomentsPanel({
     });
   };
 
-  const addExample = (line) => {
-    setMoments((rows) => {
-      const next = rows.slice();
-      // Find the first empty row and drop the example there. If every row is
-      // full, append a new one with the example so nothing already typed gets
-      // stomped.
-      const emptyAt = next.findIndex((r) => !r.trim());
-      if (emptyAt === -1) {
-        next.push(line);
-        next.push("");
-      } else {
-        next[emptyAt] = line;
-        // If that was the trailing blank row, add a fresh blank after it.
-        if (emptyAt === next.length - 1) next.push("");
-      }
-      return next;
-    });
-  };
-
   return (
     <div className="mt-6 flex flex-col gap-3">
       {moments.map((row, i) => (
@@ -1303,21 +1284,23 @@ function MomentsPanel({
         </div>
       ))}
 
+      {/* Read-only prompts, not chips. A favorite moment is the family's own
+          memory, so pasting one of these in verbatim would put a stranger's
+          sentence on the person's page and teach Aly something that never
+          happened. They are here to show the kind of thing that belongs in
+          the box, and that is all they do. */}
       {examples.length > 0 && (
         <div className="mt-1">
-          <p className="section-label text-ink-soft">Suggestions</p>
-          <div className="mt-1 flex flex-wrap gap-2">
+          <p className="section-label text-ink-soft">
+            The kind of thing that goes here
+          </p>
+          <ul className="mt-1 space-y-1">
             {examples.map((line) => (
-              <button
-                key={line}
-                type="button"
-                onClick={() => addExample(line)}
-                className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
-              >
+              <li key={line} className="text-sm text-ink-soft">
                 {line}
-              </button>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
     </div>
