@@ -17,6 +17,7 @@ import {
   looksLikeAddress,
   lookUpAddress,
 } from "@/lib/places/street";
+import { anchorKey, homeAnchor, ipAnchor } from "@/lib/places/anchor";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -56,7 +57,26 @@ export async function GET(request) {
   // this cache is shared by everyone on the instance and a home address is not.
   if (q.length < 2) return NextResponse.json({ places: [] });
 
-  const key = `${q.toLowerCase()}|${near.toLowerCase()}|${category}`;
+  // Where this search leans when the trip cannot say. Worked out before the
+  // cache is consulted, because the same words typed from two different places
+  // are two different questions and must not share an answer.
+  //
+  // A box with a destination behind it needs none of this -- the trip is a far
+  // better anchor than either of these -- so the home row is only read when
+  // there is no destination, keeping the common path at the same cost it was.
+  let fallback = null;
+  if (!near) {
+    const { data: family } = await supabase
+      .from("families")
+      .select("home_lat, home_lon")
+      .not("home_lat", "is", null)
+      .limit(1);
+    fallback = homeAnchor(family?.[0]) || ipAnchor(request.headers);
+  }
+
+  const key = `${q.toLowerCase()}|${near.toLowerCase()}|${category}|${anchorKey(
+    fallback,
+  )}`;
   const cached = results.get(key);
   if (cached) {
     return NextResponse.json({ places: cached, cached: true });
@@ -95,6 +115,12 @@ export async function GET(request) {
       points.set(pointKey, stops);
     }
   }
+  // With no destination, or with a destination that meant nothing to the
+  // geocoder, the fallback stands in as the single stop. Putting it in `stops`
+  // rather than only in the Photon bias means the ranking measures against it
+  // too, so a nearby answer that came back eighth still rises -- which is the
+  // half that actually reorders the list.
+  if (!stops.length && fallback) stops = [fallback];
   const bias = biasPoint(stops);
 
   // A typed house number and the free geocoder, asked at the same time. Google
