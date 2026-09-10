@@ -248,7 +248,13 @@ export async function POST(req) {
   const upcoming = demo ? standIn.trips[0] || null : (trips || [])[0] || null;
   const onCalendar = (upcoming?.destination || upcoming?.name || "").trim();
   const typed = cleanDestination(body?.destination);
-  const destination = onCalendar || typed;
+  // Typed wins over the calendar. The calendar used to win, which meant a
+  // family with a trip booked could not ask the same question about anywhere
+  // else -- the picker on the screen would set a place and get their own trip
+  // back. Their trip is still what the screen opens on, because `typed` is
+  // empty until they pick something.
+  const destination = typed || onCalendar;
+  const usingCalendar = Boolean(onCalendar) && !typed;
 
   // No trip and nothing typed yet: say so instead of inventing a destination.
   // The client turns this into one question rather than a spinner, and asks
@@ -264,7 +270,7 @@ export async function POST(req) {
   }
 
   const question = QUESTIONS[category](
-    onCalendar
+    usingCalendar
       ? `We're going to ${destination} soon.`
       : `We're thinking about ${destination} for our next trip.`,
   );
@@ -312,8 +318,16 @@ export async function POST(req) {
     ok: true,
     destination,
     // Lets the screen say the plan is about a trip being considered rather than
-    // one on the calendar, which is the honest framing during onboarding.
+    // one on the calendar, which is the honest framing during onboarding, and
+    // decides whether the button at the bottom goes to the trip list or the
+    // trip builder. True whenever the family has a trip at all, even when this
+    // particular answer was about somewhere else they picked.
     onCalendar: Boolean(onCalendar),
+    // The trip on their calendar, so the picker can offer it as the place to
+    // come back to after a detour.
+    calendarDestination: onCalendar || null,
+    // Whether this pair of answers is about that trip.
+    answeringCalendar: usingCalendar,
     tripName: upcoming?.name || null,
     category,
     question,

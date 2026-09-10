@@ -69,9 +69,7 @@ function PlanRows({ rows, fallback, tone }) {
 }
 
 /**
- * Places to offer when the family has no trip on the calendar yet, which on
- * this screen is nearly everybody: trips are created after the interview, not
- * before it.
+ * Places to offer as the trip the comparison is about.
  *
  * A blank box works, but it asks a person to invent a destination in the middle
  * of being shown something, and whatever they type sets the quality of the one
@@ -79,6 +77,12 @@ function PlanRows({ rows, fallback, tone }) {
  * consider, and between them they pull the two answers apart for different
  * reasons -- a city, a beach, a park, cold weather, and a trip where the
  * lodging is the plan. Typing their own is still right there underneath.
+ *
+ * Offered in both states, not only on the empty-calendar one. A family that
+ * does have a trip booked was getting no picker at all, which meant one
+ * comparison about one place and no way to try another -- and the returning
+ * primary who reaches this screen from the family page is exactly the person
+ * most likely to want a second look at it.
  */
 const SUGGESTED_PLACES = [
   { label: "Paris", destination: "Paris, France" },
@@ -194,7 +198,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           className="flex flex-wrap items-center gap-2"
           aria-label="Question category"
         >
-          <span className="section-label text-ink-soft">Ask about:</span>
+          <span className="section-label text-ink-soft">Ask her:</span>
           <button
             type="button"
             onClick={() => setCategory("food")}
@@ -217,6 +221,56 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           >
             What to do
           </button>
+        </nav>
+      )}
+
+      {/* The place the comparison is about, switchable. When the family has a
+          trip on the calendar it leads the row, so picking somewhere else is
+          plainly a detour rather than a change to their trip. */}
+      {!loading && !error && data && !data.needsDestination && (
+        <nav
+          className="flex flex-wrap items-center gap-2"
+          aria-label="Which trip to ask about"
+        >
+          <span className="section-label text-ink-soft">Ask about:</span>
+          {data.calendarDestination && (
+            <button
+              type="button"
+              onClick={() => {
+                setPlace("");
+                setDestination("");
+              }}
+              aria-pressed={!destination}
+              className={`rounded-full border px-3 py-1.5 text-sm ${
+                destination
+                  ? "border-sand-deep bg-white text-ink-soft"
+                  : "border-teal bg-teal text-white"
+              }`}
+            >
+              {data.calendarDestination}
+            </button>
+          )}
+          {SUGGESTED_PLACES.map((option) => {
+            const on = destination === option.destination;
+            return (
+              <button
+                key={option.destination}
+                type="button"
+                onClick={() => {
+                  setPlace(option.destination);
+                  setDestination(option.destination);
+                }}
+                aria-pressed={on}
+                className={`rounded-full border px-3 py-1.5 text-sm ${
+                  on
+                    ? "border-teal bg-teal text-white"
+                    : "border-sand-deep bg-white text-ink-soft"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </nav>
       )}
 
