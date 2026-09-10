@@ -514,7 +514,7 @@ export default function Tasks({
                         </p>
                       )}
                     </div>
-                    <div className="no-print flex shrink-0 items-center gap-2">
+                    <div className="no-print -mr-1.5 flex shrink-0 items-center gap-0.5">
                       {!task.is_done && eventFromTask(task, trip) && (
                         <AddToCalendar
                           compact
@@ -524,7 +524,7 @@ export default function Tasks({
                       {!readOnly && (
                         <button
                           onClick={() => startEdit(task)}
-                          className="text-xs font-bold uppercase tracking-wide text-teal transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                          className="flex h-11 min-w-11 items-center justify-center rounded-full px-2 text-xs font-bold uppercase tracking-wide text-teal transition hover:bg-teal-soft sm:h-10 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                           aria-label={`Edit ${task.title}`}
                         >
                           Edit
@@ -533,10 +533,20 @@ export default function Tasks({
                       {!readOnly && (
                         <button
                           onClick={() => remove(task)}
-                          className="text-xs font-semibold text-ink-soft/60 transition hover:text-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-ink-soft/70 transition hover:bg-rose/10 hover:text-rose sm:h-10 sm:w-10 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                           aria-label={`Remove ${task.title}`}
                         >
-                          ✕
+                          <svg
+                            viewBox="0 0 20 20"
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M5 5l10 10M15 5 5 15" />
+                          </svg>
                         </button>
                       )}
                     </div>
