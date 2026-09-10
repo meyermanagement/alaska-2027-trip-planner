@@ -128,7 +128,15 @@ function maskNumber(value) {
   return `•••• ${text.slice(-4)}`;
 }
 
-export default function RewardsBoard({ familyId, travelers, programs }) {
+export default function RewardsBoard({
+  familyId,
+  travelers,
+  programs,
+  // The read failed rather than came back empty. Everything below still works
+  // -- adding a program writes fine -- but the list is not to be believed, so
+  // the screen says that instead of implying the wallet is bare.
+  unreadable = false,
+}) {
   const supabase = createClient();
   const router = useRouter();
   // Whether What to pay with is open. Held rather than left to the browser so the
@@ -446,6 +454,11 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
                 </>
               )}
             </>
+          ) : unreadable ? (
+            <span className="font-semibold text-amber">
+              I could not read your programs just now, so this list is unread,
+              not empty. Reload the page.
+            </span>
           ) : (
             "Nothing added yet."
           )}
@@ -568,7 +581,7 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           until the first card exists: the What to pay with panel and the Ask
           how to pay button both only appear once there is something to reason
           over. So the payoff is stated here, where the decision is made. */}
-      {groups.length === 0 && !form && (
+      {groups.length === 0 && !form && !unreadable && (
         <div className="card p-6">
           <h2 className="font-display text-lg font-semibold">
             Start with what you already carry

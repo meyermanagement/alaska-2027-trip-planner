@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
@@ -30,19 +31,33 @@ export default async function RewardsPage() {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: travelers }, { data: programs }] = await Promise.all([
-    supabase
-      .from("travelers")
-      .select("id, name, sort_order, is_person")
-      .eq("is_person", true)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("rewards_programs")
-      .select("*")
-      .order("kind", { ascending: true })
-      .order("sort_order", { ascending: true })
-      .order("brand", { ascending: true }),
-  ]);
+  const [{ data: travelers }, { data: programs, error: programsError }] =
+    await Promise.all([
+      supabase
+        .from("travelers")
+        .select("id, name, sort_order, is_person")
+        .eq("is_person", true)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("rewards_programs")
+        .select("*")
+        .order("kind", { ascending: true })
+        .order("sort_order", { ascending: true })
+        .order("brand", { ascending: true }),
+    ]);
+
+  // A read that failed and a wallet that is empty are not the same thing, and
+  // until now they looked identical on screen: the error was dropped on the
+  // floor and the board was handed an empty list, so twenty-one saved programs
+  // read as "Nothing added yet". Pass the failure through and let the board say
+  // so. Logged as well, because the cause is usually in the request.
+  if (programsError) {
+    console.error("[wallet] could not read rewards_programs", {
+      family: familyId,
+      code: programsError.code,
+      message: programsError.message,
+    });
+  }
 
   // The Wallet's own advice: what to do about the programs they hold, and which
   // welcome offer is worth opening for. Both scopes into one list, because a
@@ -54,6 +69,13 @@ export default async function RewardsPage() {
     .eq("family_id", familyId)
     .in("scope", WALLET_SCOPES)
     .eq("status", "active");
+
+  // How many documents are on file, so the link to them can say whether there
+  // is anything behind it. Count only -- the Wallet never reads a number off a
+  // passport.
+  const { count: docCount } = await supabase
+    .from("traveler_documents")
+    .select("id", { count: "exact", head: true });
 
   // Has anybody ever asked? "No tips" and "not looked yet" want different words,
   // and a cleared tip still counts as having looked.
@@ -67,14 +89,28 @@ export default async function RewardsPage() {
     <>
       <TopBar />
       <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-        <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">Wallet</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Every program the family belongs to, what the balances are, and what
-            each credit card earns. I read all of it when I plan, so I can say
-            when a stay is worth paying for with points and which card to put a
-            booking on.
-          </p>
+        <div className="mb-6 sm:flex sm:items-start sm:justify-between sm:gap-6">
+          <div>
+            <h1 className="font-display text-3xl font-semibold">Wallet</h1>
+            <p className="mt-1 text-sm text-ink-soft">
+              Every program the family belongs to, what the balances are, and
+              what each credit card earns. I read all of it when I plan, so I
+              can say when a stay is worth paying for with points and which card
+              to put a booking on.
+            </p>
+          </div>
+          {/* Passport numbers, Global Entry, licenses and the membership numbers
+              themselves are kept on each person rather than here, and this is
+              the screen people come to looking for them. */}
+          <Link
+            href="/family"
+            className="btn btn-ghost mt-4 w-full shrink-0 sm:mt-1 sm:w-auto"
+          >
+            Travel documents
+            {docCount ? (
+              <span className="font-normal text-ink-faint">{docCount}</span>
+            ) : null}
+          </Link>
         </div>
         <ProTips
           tips={tips || []}
@@ -95,6 +131,7 @@ export default async function RewardsPage() {
           familyId={familyId}
           travelers={travelers || []}
           programs={programs || []}
+          unreadable={Boolean(programsError)}
         />
         {/* Said once, at the bottom, rather than on every card. A welcome offer
             is a moving target and the only page that is authoritative about it is
