@@ -2,7 +2,13 @@ import { Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import BootVeil from "@/components/BootVeil";
 import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
-import { BAND_COOKIE, DEFAULT_SKIN, SKINS, SKIN_COOKIE } from "@/lib/skins";
+import {
+  BAND_COOKIE,
+  BOOT_COOKIE,
+  DEFAULT_SKIN,
+  SKINS,
+  SKIN_COOKIE,
+} from "@/lib/skins";
 
 // One editorial serif for names and headings, one quiet sans for everything
 // else. Loaded properly rather than falling back to whatever the device has.
@@ -88,6 +94,15 @@ var band=/(?:^|; )${BAND_COOKIE}=1/.test(document.cookie);
 var bar=band?bars[id][2]:bars[id][0];
 var d=document.documentElement;
 d.dataset.skin=id;
+// Which opening this load gets. The full one -- compass, wordmark, tagline --
+// is an arrival, and it was playing on every document load, which on a day of
+// testing is several times an hour. So it runs once per browser session and
+// every load after it gets the short one: a compass crossing a map, held only
+// as long as the page needs. Decided here because the veil is in the first
+// frame of HTML and cannot wait for hydration to learn which one it is.
+var opened=/(?:^|; )${BOOT_COOKIE}=1/.test(document.cookie);
+d.dataset.boot=opened?"quick":"full";
+if(!opened)document.cookie="${BOOT_COOKIE}=1;path=/;samesite=lax";
 d.style.colorScheme=bars[id][1]?"dark":"light";
 var paint=function(){var t=document.querySelectorAll('meta[name="theme-color"]');
 // Nothing rendered one, so this is where the tag comes from. Made here in the
@@ -109,7 +124,15 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       data-skin={DEFAULT_SKIN}
+      data-boot="full"
       className={`${displayFace.variable} ${sansFace.variable}`}
+      /* The script below rewrites both of these attributes before React ever
+         runs, which is the whole point of it -- and React, finding the document
+         it is hydrating already changed, warned that it would not patch them up.
+         It should not: the script is right and the server could not have known
+         either value. Rendering the defaults here and suppressing the check says
+         so, and means the no-script case still has a skin and an opening. */
+      suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: applySkin }} />

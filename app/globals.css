@@ -224,6 +224,68 @@ html[data-booted] #boot-veil {
   }
 }
 
+/* Which of the two openings this load gets. Decided by the script in the head
+   from a session cookie, so it is on <html> before the first paint and neither
+   veil is ever shown for a frame and taken away. Nothing set the attribute --
+   no script ran -- falls to the full one, which is the opening that does not
+   depend on anything having worked. */
+.boot-quick {
+  display: none;
+}
+
+html[data-boot="quick"] .boot-quick {
+  display: block;
+}
+
+html[data-boot="quick"] .boot-mark {
+  display: none;
+}
+
+/* The short veil comes down faster than the full one, and its fail-safe has to
+   come sooner too: eight seconds of a hidden error is a long time to look at a
+   compass crossing a map for the fourth time this hour. */
+html[data-boot="quick"] #boot-veil {
+  animation: boot-failsafe 0s linear 3.4s forwards;
+}
+
+.boot-quick {
+  color: var(--color-teal);
+}
+
+.boot-quick svg {
+  /* Wider than the mark is tall, because it is a map rather than an instrument,
+     and the route needs room to be a journey rather than a nudge. */
+  width: 11.5rem;
+  height: 6.9rem;
+  opacity: 0;
+  animation: boot-word 0.3s ease 0.06s forwards;
+}
+
+.quick-grid {
+  opacity: 0.16;
+}
+
+/* The route is drawn as a dashed line that runs -- the dashes travel with the
+   compass rather than sitting under it, which is what makes the pair read as
+   one thing moving instead of a dot sliding along a wire. */
+.quick-route {
+  stroke-dasharray: 3 5;
+  animation: quick-run 1.1s linear infinite;
+}
+
+/* The needle keeps its drift, on a shorter loop than the splash's. A compass
+   being carried is not steadier than one at rest. */
+.quick-needle {
+  transform-origin: 16px 16px;
+  animation: boot-drift 3.4s ease-in-out infinite;
+}
+
+@keyframes quick-run {
+  to {
+    stroke-dashoffset: -8;
+  }
+}
+
 .boot-mark {
   display: flex;
   flex-direction: column;
@@ -844,6 +906,20 @@ html[data-booted] #boot-veil {
   .boot-word,
   .boot-tag {
     opacity: 1;
+    animation: none;
+  }
+
+  /* The short veil keeps its map and loses its journey: the dashes stop running
+     and the needle stops drifting. The compass itself is left wherever the
+     motion put it, which is the start of the route, because animateMotion with
+     nothing driving it holds its first position. */
+  .boot-quick svg {
+    opacity: 1;
+    animation: none;
+  }
+
+  .quick-route,
+  .quick-needle {
     animation: none;
   }
 
