@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import MomentsEditor from "@/components/MomentsEditor";
+import AboutSections from "@/components/AboutSections";
 import DocumentPicker from "@/components/DocumentPicker";
 import ExtractedFieldsStrip from "@/components/ExtractedFieldsStrip";
 import { readFileFields } from "@/lib/documents/read";
@@ -16,7 +17,8 @@ import { syncPackingForTraveler } from "@/lib/packing/roster";
 import { ageToday } from "@/lib/travelers/ages";
 import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
-  ABOUT_ME_PLACEHOLDER,
+  aboutMeFromParts,
+  splitAboutMe,
   GENDERS,
   GENDER_VALUES,
   MOBILITY_AIDS,
@@ -58,6 +60,10 @@ export default function People({
   // animals alike, so it cannot live inside either list.
   only = null,
   picker = null,
+  // The household's coordinates, handed down to the About-you questions inside
+  // the person editor so the sports drawer offers this family's local teams.
+  homeLat = null,
+  homeLon = null,
   addOpen = false,
   onAddDone = null,
 }) {
@@ -606,6 +612,8 @@ export default function People({
             {editingPerson === person.id && (
               <PersonForm
                 person={person}
+                homeLat={homeLat}
+                homeLon={homeLon}
                 onCancel={() => setEditingPerson(null)}
                 onSave={(values) => savePerson(person.id, values)}
               />
@@ -818,6 +826,8 @@ export default function People({
         <div className="card p-5">
           <h2 className="font-display text-lg font-semibold">Add someone</h2>
           <PersonForm
+            homeLat={homeLat}
+            homeLon={homeLon}
             onCancel={closeAdd}
             onSave={async (values) => {
               const out = await savePerson(null, values);
@@ -1526,7 +1536,7 @@ function ProfileLines({ person }) {
   );
 }
 
-function PersonForm({ person, onCancel, onSave }) {
+function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
   const [form, setForm] = useState({
     name: person?.name || "",
     email: person?.email || "",
@@ -1550,32 +1560,19 @@ function PersonForm({ person, onCancel, onSave }) {
     // Typed as one line and stored as a list, so what somebody types reads back
     // the way they typed it while the record stays comparable between people.
     languages: languageField(person?.languages),
-    // Their own paragraph. Kept exactly as typed, including the line breaks:
-    // somebody describing themselves writes in sentences, and tidying it into one
-    // line would change how it reads back to them.
-    about_me: person?.about_me || "",
   });
+  // Their own paragraph, held as the five boxes it was written in rather than as
+  // one field. The same questions the About-you screen asks, so the person who
+  // fills this in on somebody else's behalf is answering what that person would
+  // have been asked themselves. Loaded back out of the stored paragraph, and
+  // stitched back into one on save.
+  const [aboutParts, setAboutParts] = useState(() =>
+    splitAboutMe(person?.about_me || ""),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
-  // About me grows to fit the sentence. A fixed-height textarea meant a long
-  // paragraph became a two-line box with an inner scrollbar - and this is the
-  // one field on the form where the whole point is that Aly and the family
-  // will read every word of it, so scrolling three lines at a time inside a
-  // four-row box is exactly the wrong shape. The box starts around four rows
-  // (the size it used to be) and expands with the content instead.
-  const aboutRef = useRef(null);
-  useEffect(() => {
-    const el = aboutRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    // Plus the border, because the height set here is a border-box height
-    // while scrollHeight is not - without it the box sits two pixels short
-    // and the last line clips.
-    const border = el.offsetHeight - el.clientHeight;
-    el.style.height = `${el.scrollHeight + border}px`;
-  }, [form.about_me]);
   const toggleAid = (value) =>
     setForm((prev) => ({
       ...prev,
@@ -1607,10 +1604,31 @@ function PersonForm({ person, onCancel, onSave }) {
       mobility_aids: cleanAids(form.mobility_aids),
       accessibility_notes: form.accessibility_notes.trim() || null,
       languages: parseLanguages(form.languages),
-      about_me: form.about_me.trim() || null,
+      about_me: aboutMeFromParts(aboutParts) || null,
     });
     setBusy(false);
-    if (message) setError(message);
+    if (message) {
+      setError(message);
+      return;
+    }
+    // The paragraph is also what Aly's interview priors are extracted from, and
+    // that extraction needs a server with the model key on it. The row write
+    // above already stored the words; this asks the About-you route to read them
+    // again and refresh the priors, so editing somebody's paragraph here does
+    // not leave Aly holding the answers implied by the paragraph it replaced.
+    // Best-effort on purpose: the words are saved either way.
+    const paragraph = aboutMeFromParts(aboutParts);
+    if (person?.id && paragraph !== String(person?.about_me || "").trim()) {
+      try {
+        await fetch("/api/about-you/save", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ traveler_id: person.id, paragraph }),
+        });
+      } catch {
+        // The paragraph is stored. Stale priors are not worth an error here.
+      }
+    }
   }
 
   return (
@@ -1698,25 +1716,19 @@ function PersonForm({ person, onCancel, onSave }) {
 
       <div className="space-y-2 border-t border-teal/30 pt-3">
         <p className="section-label">In their own words</p>
-        <label className="block text-xs font-semibold">
-          About me (optional)
-          <textarea
-            ref={aboutRef}
-            className="field mt-1 min-h-24 overflow-hidden text-sm"
-            rows={4}
-            placeholder={ABOUT_ME_PLACEHOLDER}
-            value={form.about_me}
-            onChange={set("about_me")}
-          />
-          <span className="mt-1 block font-normal text-ink-soft">
-            This is where {form.name.trim() || "this person"} is described as a
-            person — what they do, what they&rsquo;re into, the places and
-            subjects that pull at them. Aly reads it before she answers, so the
-            more it sounds like them, the better the advice fits. How they
-            travel — pace, food, early or late — is asked separately in the
-            interview.
-          </span>
-        </label>
+        <p className="text-xs text-ink-soft">
+          The same five questions {form.name.trim() || "this person"} would be
+          asked on their own About you screen. Answer any of them and skip the
+          rest.
+        </p>
+        <AboutSections
+          parts={aboutParts}
+          setParts={setAboutParts}
+          homeLat={homeLat}
+          homeLon={homeLon}
+          idPrefix={`person-about-${person?.id || "new"}`}
+          className="mt-1"
+        />
       </div>
 
       {person?.id && (

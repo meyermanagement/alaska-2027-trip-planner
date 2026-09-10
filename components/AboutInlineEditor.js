@@ -1,65 +1,77 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { ABOUT_ME_PLACEHOLDER } from "@/lib/travelers/profile";
+import { useEffect, useState } from "react";
+import { aboutMeFromParts, splitAboutMe } from "@/lib/travelers/profile";
+import AboutSections from "@/components/AboutSections";
 
-// A compact About-me editor that lives inline on the Preferences screen when a
-// specific person is chosen. Same paragraph the interview writes and the
-// person's edit screen writes, edited in place with a Save button and a
-// visible confirmation.
+// The About-me editor that lives inside the Preferences screen's drawer when a
+// person is chosen. Same five questions as the About-you screen, in place.
 //
-// Kept deliberately smaller than the /about-you page: no examples, no prompts,
-// no navigation. That page is a whole-screen affair for the first-run
-// experience where the goal is to earn a real paragraph from somebody who has
-// never written one. Here, the paragraph already exists (or does not), and the
-// job is to fix a word or add a sentence without leaving the screen.
+// It used to be one unlabelled textarea with a sentence of prose above it
+// telling somebody what sort of thing to type. That was the weaker half of a
+// split: the good version of this question -- five labelled boxes with chip
+// drawers under them -- existed only on the screen a person sees on their first
+// sign-in, while the screen people actually come back to had the box. The
+// questions are a shared component now, so the drawer holds the same thing the
+// page does.
 //
-// Writes go directly to travelers.about_me. RLS decides whether the current
-// user can edit this row -- the same rule that governs the person's own edit
-// page and the about-you page.
+// An existing paragraph is read back into the five boxes it was written in, and
+// anything the split does not recognise -- a paragraph Aly wrote out of the
+// interview, free text typed before the headings existed -- lands whole in the
+// last box, where it can be cut up or left alone.
+//
+// Saving goes through the About-you route rather than straight to the table, so
+// the same request that stores the words also refreshes the interview priors
+// Aly reads. Writing the column from the browser, which is what this did
+// before, left those priors describing the paragraph that was just replaced.
 export default function AboutInlineEditor({
   travelerId,
   travelerName,
   initial,
+  homeLat = null,
+  homeLon = null,
 }) {
   const saved = String(initial || "").trim();
-  const [text, setText] = useState(saved);
+  const [parts, setParts] = useState(() => splitAboutMe(saved));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedAt, setSavedAt] = useState(0);
-  const ref = useRef(null);
 
-  // Auto-grow the textarea so a real paragraph doesn't disappear behind a
-  // scroll bar. Same trick the person-edit form uses.
+  // If the parent hands us a new person (whose changes), reset the boxes.
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [text]);
-
-  // If the parent hands us a new person (whose changes), reset the field.
-  useEffect(() => {
-    setText(String(initial || "").trim());
+    setParts(splitAboutMe(String(initial || "").trim()));
     setError("");
     setSavedAt(0);
   }, [travelerId, initial]);
 
-  const dirty = text.trim() !== saved;
+  const paragraph = aboutMeFromParts(parts);
+  const dirty = paragraph !== saved;
 
   async function save() {
     setBusy(true);
     setError("");
-    const supabase = createClient();
-    const { error: dbError } = await supabase
-      .from("travelers")
-      .update({ about_me: text.trim() || null })
-      .eq("id", travelerId)
-      .select("id");
+    let response;
+    try {
+      response = await fetch("/api/about-you/save", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ traveler_id: travelerId, paragraph }),
+      });
+    } catch (fetchError) {
+      setBusy(false);
+      setError(
+        fetchError?.message || "That did not save. Try again in a moment.",
+      );
+      return;
+    }
+    const payload = await response.json().catch(() => ({}));
     setBusy(false);
-    if (dbError) {
-      setError(dbError.message || "That did not save. Try again in a moment.");
+    if (!response.ok) {
+      setError(
+        response.status === 403
+          ? "That did not save. Ask a primary traveler in the family to write this one."
+          : payload?.error || "That did not save. Try again in a moment.",
+      );
       return;
     }
     setSavedAt(Date.now());
@@ -68,20 +80,17 @@ export default function AboutInlineEditor({
   const name = String(travelerName || "this person").trim() || "this person";
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-xs text-ink-soft">
-        A paragraph in {name}&rsquo;s own voice: what they do, what
-        they&rsquo;re into, the places and subjects that pull at them. Aly reads
-        it before every answer she writes.
+        The same five questions {name} would be asked on their own About you
+        screen. Aly reads the answers before every answer she writes.
       </p>
-      <textarea
-        ref={ref}
-        className="field min-h-24 overflow-hidden text-sm"
-        rows={4}
-        placeholder={ABOUT_ME_PLACEHOLDER}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        disabled={busy}
+      <AboutSections
+        parts={parts}
+        setParts={setParts}
+        homeLat={homeLat}
+        homeLon={homeLon}
+        idPrefix={`pref-about-${travelerId}`}
       />
       <div className="flex items-center gap-3">
         <button

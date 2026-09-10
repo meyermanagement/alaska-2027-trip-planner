@@ -1,13 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ABOUT_ME_CHIP_GROUPS,
-  ABOUT_ME_MICRO_PROMPTS,
-  aboutMeFromParts,
-} from "@/lib/travelers/profile";
-import { buildSportsChipItems } from "@/lib/travelers/sports";
+import { aboutMeFromParts, splitAboutMe } from "@/lib/travelers/profile";
+import AboutSections from "@/components/AboutSections";
 import DictationHint from "@/components/DictationHint";
 import { patchRun, readRun } from "@/lib/practice/session";
 
@@ -26,10 +22,13 @@ import { patchRun, readRun } from "@/lib/practice/session";
  * standard they hold a room to, whether they only book what other people rated
  * highly, whether they drink, and whether they are up at five or up at ten.
  *
- * Existing paragraphs are not migrated. The screen starts empty on purpose --
- * the four prompts are the answer to why the old paragraphs were thin, and
- * pre-filling the first box with a dropped paragraph would carry the old shape
- * forward. What the person types here overwrites whatever was there.
+ * A paragraph that is already stored loads back into the boxes it was written
+ * in, because this screen is reachable from Settings and from the Family tab
+ * long after the first sign-in, and a screen that opens blank and saves over
+ * what is there is a trap. Anything the split does not recognise -- a paragraph
+ * Aly wrote out of the interview, free text typed before the headings existed --
+ * lands whole in the last box, where it can be cut up or left alone. Nothing is
+ * dropped.
  *
  * For a secondary traveler this screen is the whole of their record. Every
  * other column on their row is refused by the database, so the screen says so
@@ -58,6 +57,9 @@ export default function AboutYouForm({
   // instead of a generic "the NFL" that could belong to anyone. Null when
   // the family has no geocoded home (rare -- the welcome screen geocodes it)
   // in which case the drawer falls back to the general sports list.
+  // The paragraph already stored on this traveler, split back into the five
+  // boxes. Blank for a first visit and for practice.
+  initial = "",
   homeLat = null,
   homeLon = null,
   // Where a first-run user lands after Save or Skip. Defaults to /trips --
@@ -66,13 +68,14 @@ export default function AboutYouForm({
   // page with nothing on it. Ignored on the ordinary Settings-driven visit.
   nextHref = "/trips",
 }) {
-  const [parts, setParts] = useState(() =>
-    Object.fromEntries(ABOUT_ME_MICRO_PROMPTS.map((p) => [p.key, ""])),
-  );
+  // A paragraph already on the row is read back into the five boxes it was
+  // written in, so coming back to this screen from Settings is an edit rather
+  // than a blank page that silently replaces what is there. Empty on a first
+  // sign-in, and empty on a practice run, which never reads the database.
+  const [parts, setParts] = useState(() => splitAboutMe(initial));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
-  const [openGroup, setOpenGroup] = useState(null);
 
   // Whose name the heading greets. Real visits greet the signed-in traveler.
   // A practice visit greets the first person from the practice run, because
@@ -88,96 +91,6 @@ export default function AboutYouForm({
     setPracticeName((run.people || [])[0]?.name || "");
   }, [practice]);
   const heading = practice ? practiceName : name;
-
-  // Chip feedback -- when a chip is tapped, its key goes into justAdded so the
-  // chip renders as "✓ added" for a moment. And the target prompt key goes
-  // into flashedPrompt so the box the sentence landed in gets a teal ring and
-  // the "Just added" strapline for the same window. Both clear on a timer,
-  // and re-tapping a chip resets the timer so somebody tapping fast still
-  // sees the confirmation.
-  const [justAdded, setJustAdded] = useState({}); // { "live:Broadway": timerId }
-  const [flashedPrompt, setFlashedPrompt] = useState(null); // "love" | "into" | ...
-  const chipTimersRef = useRef(new Map());
-  const flashTimerRef = useRef(null);
-  const promptRefs = useRef({});
-
-  // Clean up any pending timers on unmount so a fast navigation does not leave
-  // setState calls firing against an unmounted component.
-  useEffect(() => {
-    const chipTimers = chipTimersRef.current;
-    const flashTimer = flashTimerRef;
-    return () => {
-      chipTimers.forEach((id) => clearTimeout(id));
-      chipTimers.clear();
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-    };
-  }, []);
-
-  // Append a sentence to the target prompt box, focus and scroll it into view,
-  // flash the box, and mark the chip as added. Everything the user needs to
-  // notice happens on this one call.
-  const appendToPrompt = useCallback((targetKey, sentence, chipId) => {
-    const clean = String(sentence || "").trim();
-    if (!clean) return;
-
-    setParts((prev) => {
-      const existing = String(prev[targetKey] || "").replace(/\s+$/, "");
-      const next = existing ? `${existing} ${clean}` : clean;
-      return { ...prev, [targetKey]: next };
-    });
-
-    // On the next tick, after React writes the new value: bring the box into
-    // view and put the caret at the end so somebody who is skimming can see
-    // exactly what landed.
-    setTimeout(() => {
-      const el = promptRefs.current[targetKey];
-      if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Move the caret to the end without stealing focus from the chip button
-      // -- taking focus on mobile pops the keyboard, which hides the very box
-      // we are trying to point at. The caret still moves, so a subsequent tap
-      // on the box lands at the end.
-      const end = el.value.length;
-      try {
-        el.setSelectionRange(end, end);
-      } catch {
-        // Some browsers throw on setSelectionRange for a textarea that has
-        // not been focused yet. Not a real error, ignore.
-      }
-    }, 0);
-
-    // Flash the prompt for 1600ms; latest tap wins.
-    setFlashedPrompt(targetKey);
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = setTimeout(() => {
-      setFlashedPrompt((current) => (current === targetKey ? null : current));
-      flashTimerRef.current = null;
-    }, 1600);
-
-    // Mark the specific chip as added for 1600ms. Keyed by group+item so
-    // repeated taps of the same chip re-arm cleanly.
-    if (chipId) {
-      const existing = chipTimersRef.current.get(chipId);
-      if (existing) clearTimeout(existing);
-      const id = setTimeout(() => {
-        setJustAdded((prev) => {
-          if (!(chipId in prev)) return prev;
-          const next = { ...prev };
-          delete next[chipId];
-          return next;
-        });
-        chipTimersRef.current.delete(chipId);
-      }, 1600);
-      chipTimersRef.current.set(chipId, id);
-      setJustAdded((prev) => ({ ...prev, [chipId]: true }));
-    }
-  }, []);
-
-  function addChip(group, item) {
-    const chipId = `${group.key}:${item}`;
-    const sentence = `${group.prefix} ${item}.`;
-    appendToPrompt(group.target, sentence, chipId);
-  }
 
   const hasAnyText = Object.values(parts).some((v) => String(v).trim());
 
@@ -246,19 +159,6 @@ export default function AboutYouForm({
 
   const router = useRouter();
 
-  // Fill the sports chip group with local teams first, general sports after.
-  // The rest of ABOUT_ME_CHIP_GROUPS is used as-is; only "sports" is dynamic.
-  // Done once per render (cheap: it's a haversine over ~50 metros) so a
-  // family that later edits their home address on Settings sees the drawer
-  // update the next time they open this page.
-  const chipGroups = ABOUT_ME_CHIP_GROUPS.map((g) =>
-    g.key === "sports"
-      ? { ...g, items: buildSportsChipItems(homeLat, homeLon) }
-      : g,
-  );
-  const chipsFor = (targetKey) =>
-    chipGroups.filter((g) => g.target === targetKey);
-
   return (
     <>
       <h1 className="font-display text-3xl font-semibold">
@@ -291,140 +191,13 @@ export default function AboutYouForm({
         as another line of the same section. Cards give each question its own
         stage.
       */}
-      <div className="mt-4 space-y-4">
-        {ABOUT_ME_MICRO_PROMPTS.map((p, idx) => {
-          const groups = chipsFor(p.key);
-          const isFlashed = flashedPrompt === p.key;
-          return (
-            <section
-              key={p.key}
-              className="space-y-2 rounded-2xl border border-sand-deep bg-white p-4 shadow-sm sm:p-5"
-            >
-              {/*
-                The label is the heading of the card, so it is sized like one.
-                It used to be text-sm semibold sharing a baseline with the "1 of
-                4" counter, which made it weigh the same as the sentence in the
-                box underneath and left the counter reading first. Now the
-                counter is a small line above it and the question is the largest
-                thing in the card, so what you are being asked for is legible
-                before you read anything else.
-              */}
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p
-                    aria-hidden="true"
-                    className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-ink-faint"
-                  >
-                    {idx + 1} of {ABOUT_ME_MICRO_PROMPTS.length}
-                  </p>
-                  <label
-                    htmlFor={`about-${p.key}`}
-                    className="mt-0.5 block font-display text-lg font-semibold leading-snug text-ink"
-                  >
-                    {p.label}
-                  </label>
-                </div>
-                {isFlashed && (
-                  <span
-                    aria-live="polite"
-                    className="shrink-0 pt-1 text-xs font-semibold text-teal"
-                  >
-                    Just added
-                  </span>
-                )}
-              </div>
-              <textarea
-                id={`about-${p.key}`}
-                ref={(el) => {
-                  promptRefs.current[p.key] = el;
-                }}
-                className={`field text-sm leading-relaxed transition-colors ${
-                  isFlashed
-                    ? "border-teal ring-2 ring-teal/30 bg-teal-soft/25"
-                    : ""
-                }`}
-                rows={4}
-                placeholder={p.placeholder}
-                value={parts[p.key]}
-                onChange={(e) =>
-                  setParts((prev) => ({ ...prev, [p.key]: e.target.value }))
-                }
-              />
-
-              {groups.length > 0 && (
-                <div className="space-y-1.5">
-                  {groups.map((group) => {
-                    const isOpen = openGroup === group.key;
-                    return (
-                      <div
-                        key={group.key}
-                        className="rounded-xl border border-sand-deep bg-sand/30"
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenGroup(isOpen ? null : group.key)
-                          }
-                          aria-expanded={isOpen}
-                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs font-semibold text-ink"
-                        >
-                          <span>
-                            {group.label}{" "}
-                            <span className="font-normal text-ink-soft">
-                              — tap to add
-                            </span>
-                          </span>
-                          <span
-                            aria-hidden="true"
-                            className="text-ink-soft transition-transform"
-                            style={{
-                              transform: isOpen
-                                ? "rotate(90deg)"
-                                : "rotate(0deg)",
-                            }}
-                          >
-                            ›
-                          </span>
-                        </button>
-                        {isOpen && (
-                          <div className="border-t border-sand-deep px-3 py-2.5">
-                            <ul className="flex flex-wrap gap-1.5">
-                              {group.items.map((item) => {
-                                const chipId = `${group.key}:${item}`;
-                                const added = !!justAdded[chipId];
-                                return (
-                                  <li key={item}>
-                                    <button
-                                      type="button"
-                                      onClick={() => addChip(group, item)}
-                                      aria-label={
-                                        added
-                                          ? `${item} added to ${p.label}`
-                                          : `Add ${item} to ${p.label}`
-                                      }
-                                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                                        added
-                                          ? "border-teal bg-teal text-on-accent"
-                                          : "border-teal/40 bg-white text-ink hover:border-teal hover:bg-teal-soft/40"
-                                      }`}
-                                    >
-                                      {added ? `✓ ${item} added` : `+ ${item}`}
-                                    </button>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
+      <AboutSections
+        parts={parts}
+        setParts={setParts}
+        homeLat={homeLat}
+        homeLon={homeLon}
+        className="mt-4"
+      />
 
       {error && <p className="mt-4 text-sm font-semibold text-rose">{error}</p>}
       {done && !first && !practice && (

@@ -205,6 +205,8 @@ export default async function PeoplePage() {
           pets={pets || []}
           tripPets={tripPets || []}
           ledgers={ledgers}
+          homeLat={household?.home_lat ?? null}
+          homeLon={household?.home_lon ?? null}
         />
       </main>
       <AskAlyGeneral />

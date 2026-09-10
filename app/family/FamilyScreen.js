@@ -20,6 +20,10 @@ import Pets from "./Pets";
  */
 export default function FamilyScreen({
   familyId,
+  // Where the household lives, passed through to the person editor so the
+  // "Sports and teams" drawer on the About-you questions offers local teams.
+  homeLat = null,
+  homeLon = null,
   userId,
   userEmail,
   travelers = [],
@@ -82,6 +86,8 @@ export default function FamilyScreen({
         rosters={rosters}
         warnings={warnings}
         ledgers={ledgers}
+        homeLat={homeLat}
+        homeLon={homeLon}
         picker={band}
         only={onPerson ? id : ""}
         addOpen={picked === "new-person"}

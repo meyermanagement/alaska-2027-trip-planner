@@ -65,6 +65,10 @@ export default function Preferences({
   familyId,
   travelers,
   preferences: initial,
+  // The household's coordinates, handed to the About-you questions in each
+  // person's drawer so the sports drawer offers this family's teams.
+  homeLat = null,
+  homeLon = null,
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -612,6 +616,8 @@ export default function Preferences({
                               travelerId={person.id}
                               travelerName={name}
                               initial={person.about_me || ""}
+                              homeLat={homeLat}
+                              homeLon={homeLon}
                             />
                           </div>
                         )}

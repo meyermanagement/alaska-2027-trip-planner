@@ -35,19 +35,28 @@ export default async function PreferencesPage() {
   if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
 
-  const [{ data: preferences }, { data: people }] = await Promise.all([
-    supabase
-      .from("travel_preferences")
-      .select("*")
-      .order("topic", { ascending: true, nullsFirst: false })
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("travelers")
-      .select("id, name, sort_order, about_me")
-      .eq("is_person", true)
-      .order("sort_order", { ascending: true }),
-  ]);
+  // The household row comes along for its coordinates: the About-you questions
+  // inside each person's drawer fill their "Sports and teams" drawer with this
+  // family's local teams rather than a generic list.
+  const [{ data: preferences }, { data: people }, { data: household }] =
+    await Promise.all([
+      supabase
+        .from("travel_preferences")
+        .select("*")
+        .order("topic", { ascending: true, nullsFirst: false })
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("travelers")
+        .select("id, name, sort_order, about_me")
+        .eq("is_person", true)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("families")
+        .select("home_lat, home_lon")
+        .eq("id", familyId)
+        .maybeSingle(),
+    ]);
 
   return (
     <>
@@ -61,6 +70,8 @@ export default async function PreferencesPage() {
           familyId={familyId}
           travelers={people || []}
           preferences={preferences || []}
+          homeLat={household?.home_lat ?? null}
+          homeLon={household?.home_lon ?? null}
         />
       </main>
       <AskAlyGeneral />
