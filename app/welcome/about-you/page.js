@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
+import AlyIntro from "@/components/AlyIntro";
 import AboutYouForm from "./AboutYouForm";
 
 export const metadata = { title: "About you · Alyeska" };
@@ -24,6 +25,13 @@ export const dynamic = "force-dynamic";
 //
 // After this step comes /welcome/moments. Both together stamp welcomed_at so
 // the flow never runs again for this person.
+
+// What Aly does with the paragraph, said in her own voice before the box.
+const JOINER_LINES = [
+  "I read it before every answer I give about this family, so it is the fastest way to stop me guessing about you.",
+  "How you like a day to run tells me when to start one and when to leave a gap in it.",
+  "What you would rather avoid is worth as much as what you like -- I will plan around it instead of offering it.",
+];
 
 export default async function WelcomeAboutYouPage() {
   const supabase = await createClient();
@@ -52,15 +60,16 @@ export default async function WelcomeAboutYouPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
-      <p className="section-label">Welcome to Alyeska</p>
-      <h1 className="mt-1 font-display text-3xl font-semibold">
-        About you, {me.name}
-      </h1>
-      <p className="mt-3 text-sm text-ink-soft">
-        Before Aly starts answering, take a minute on your own file. This is
-        what the person who set up the family wrote about you. Keep it, add to
-        it, or say it in your own words -- whichever reads most like you.
-      </p>
+      {/* Same block, same voice, as Meet Aly and the welcome form. Somebody
+          joining a family that already exists meets Aly here rather than on
+          the first screen, so this is the one place she gets to introduce what
+          she does with the paragraph. */}
+      <AlyIntro
+        eyebrow="About you"
+        headline={`First, tell me about you, ${me.name}.`}
+        lead="Whoever set up the family wrote the paragraph below about you. Keep it, add to it, or say it in your own words -- whichever reads most like you."
+        does={JOINER_LINES}
+      />
       <div className="mt-6">
         <AboutYouForm
           initialAbout={me.about_me || ""}

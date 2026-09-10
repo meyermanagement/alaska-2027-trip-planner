@@ -5,7 +5,7 @@ import { Housing, Needle } from "@/components/CompassLoader";
 import { useBooted, useRevealed } from "@/components/reveal";
 
 /**
- * The top of the family form, said by Aly.
+ * The top of a first-run screen, said by Aly.
  *
  * The screen before this one is Meet Aly, where she introduces herself in the
  * first person and says what she looks after. Then the family arrived at a form
@@ -19,6 +19,11 @@ import { useBooted, useRevealed } from "@/components/reveal";
  * answers. The lines are the same three things the form collects, in the same
  * order the cards below appear, because a form is easier to fill in when the
  * reason for each field arrived before the field did.
+ *
+ * The same block heads the About you screens, with its own heading and its own
+ * three lines, so a family walking the first-run chain hears one voice from Meet
+ * Aly through to the interview instead of an assistant on the first screen and a
+ * product on the next two.
  *
  * The mark, the word-at-a-time heading and the hairline are the same ma- motion
  * as Meet Aly, imported from components/reveal.js, so this reads as the second
@@ -44,7 +49,7 @@ const DOES = [
   "Any animals in the family, because a trip with a dog in it is a different trip.",
 ];
 
-export default function WelcomeIntro({
+export default function AlyIntro({
   headline = "Now tell me who I am planning for.",
   eyebrow = "Welcome",
   lead = "Three quick things and I can be useful straight away.",

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { aboutMeFromParts, splitAboutMe } from "@/lib/travelers/profile";
 import AboutSections from "@/components/AboutSections";
+import AlyIntro from "@/components/AlyIntro";
 import DictationHint from "@/components/DictationHint";
 import { patchRun, readRun } from "@/lib/practice/session";
 
@@ -41,6 +42,16 @@ import { patchRun, readRun } from "@/lib/practice/session";
  * one sitting -- but the question comes back next time they sign in, because
  * until it is answered every recommendation the app makes is generic.
  */
+// What Aly does with the five answers, said before the boxes appear, so the
+// reason for a question arrives before the question. Three lines rather than
+// five: the list is an argument for filling the form in, not a table of
+// contents for it.
+const ABOUT_LINES = [
+  "The standard you hold a room to, so I stop offering you places you would walk out of.",
+  "Whether you go by what other people rated, so I know how hard to argue for somewhere nobody has reviewed yet.",
+  "Whether you drink, and whether you are up at five or up at ten, so a day I plan starts and ends when yours does.",
+];
+
 export default function AboutYouForm({
   travelerId,
   name,
@@ -161,18 +172,34 @@ export default function AboutYouForm({
 
   return (
     <>
-      <h1 className="font-display text-3xl font-semibold">
-        {first
-          ? heading
-            ? `Before you start, ${heading} — tell me about you`
-            : "Before you start — tell me about you"
-          : "About you"}
-      </h1>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        Five short questions about you, not about a trip. Answer the ones that
-        come easily and skip the rest — the more you say, the less Aly has to
-        guess.
-      </p>
+      {/*
+        On the first-run chain -- and in practice, which walks the same chain --
+        Aly asks for this herself, in the block that heads Meet Aly and the
+        welcome form, so the voice does not change between one screen and the
+        next. A later visit from Settings or the Family tab is somebody coming
+        back to edit a field, not a conversation, and gets the plain heading.
+      */}
+      {first || practice ? (
+        <AlyIntro
+          eyebrow="About you"
+          headline={
+            heading
+              ? `Now tell me about you, ${heading}.`
+              : "Now tell me about you."
+          }
+          lead="Five short questions about you, not about a trip. Answer the ones that come easily and skip the rest."
+          does={ABOUT_LINES}
+        />
+      ) : (
+        <>
+          <h1 className="font-display text-3xl font-semibold">About you</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
+            Five short questions about you, not about a trip. Answer the ones
+            that come easily and skip the rest — the more you say, the less I
+            have to guess.
+          </p>
+        </>
+      )}
 
       {secondary && (
         <p className="mt-3 max-w-2xl rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm leading-relaxed text-ink-soft">
@@ -202,7 +229,7 @@ export default function AboutYouForm({
       {error && <p className="mt-4 text-sm font-semibold text-rose">{error}</p>}
       {done && !first && !practice && (
         <p className="mt-4 text-sm font-semibold text-teal">
-          Saved. Aly will use this from her next answer on.
+          Saved. I will use this from my next answer on.
         </p>
       )}
       {done && practice && (

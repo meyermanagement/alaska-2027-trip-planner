@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import WelcomeIntro from "@/components/WelcomeIntro";
+import AlyIntro from "@/components/AlyIntro";
 import WelcomeForm from "../../welcome/WelcomeForm";
 
 export const metadata = { title: "Welcome · Alyeska" };
@@ -29,7 +29,7 @@ export default async function InterviewCheckWelcomePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-      <WelcomeIntro />
+      <AlyIntro />
       <WelcomeForm
         familyId={access.familyId}
         myName={access.travelerName || ""}

@@ -64,14 +64,14 @@ export default function AboutYouForm({ initialAbout, travelerName }) {
     <form onSubmit={saveAndContinue} className="space-y-3">
       {initialAbout ? (
         <p className="rounded-lg border border-sand-deep bg-sand-soft/60 px-3 py-2 text-xs text-ink-soft">
-          Below is what the family owner wrote about {travelerName}. Nothing is
-          erased if you leave it -- add a line, rewrite a sentence, or move on
+          Below is what the family owner wrote about {travelerName}. I erase
+          nothing if you leave it -- add a line, rewrite a sentence, or move on
           as you like.
         </p>
       ) : (
         <p className="rounded-lg border border-sand-deep bg-sand-soft/60 px-3 py-2 text-xs text-ink-soft">
-          No one has written About {travelerName} yet. This is the place to say
-          who you are as a traveler -- Aly reads it before every answer.
+          Nobody has written About {travelerName} yet. This is the place to say
+          who you are as a traveler -- I read it before every answer.
         </p>
       )}
 
