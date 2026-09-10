@@ -41,9 +41,9 @@ const DEADLINE_MS = 22000;
 // than on the family, which is the one thing this screen is trying to show.
 const QUESTIONS = {
   food: (lead) =>
-    `${lead} Plan our food for a normal evening of the trip, not the evening we arrive. Where are we eating, roughly when, and why that and not something else?`,
+    `${lead ? `${lead} ` : ""}Plan our food for a normal evening of the trip, not the evening we arrive. Where are we eating, roughly when, and why that and not something else?`,
   day: (lead) =>
-    `${lead} Plan an average day there, not the day we arrive. Where are we going, roughly when, and why that and not something else?`,
+    `${lead ? `${lead} ` : ""}Plan an average day of the trip, not the day we arrive. Where are we going, roughly when, and why that and not something else?`,
 };
 
 /**
@@ -208,29 +208,38 @@ export async function POST(req) {
   // reshape a real family's proof screen.
   const standIn = demo ? resolveStandIn(body?.standIn) : null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  // A rehearsal reads nothing about the real family. Everything its prompt
+  // needs is in the run the client carried, so the queries below are skipped
+  // outright rather than run and discarded -- a practice screen should be
+  // provably about the stand-in and about nothing that is already saved.
   const [{ data: family }, { data: prefs }, { data: people }, { data: pets }] =
-    await Promise.all([
-      supabase
-        .from("families")
-        .select("home_address")
-        .eq("id", access.familyId)
-        .maybeSingle(),
-      supabase
-        .from("travel_preferences")
-        .select("id, slot, body, reason, source")
-        .eq("family_id", access.familyId)
-        .in("source", ["interview", "interview_extract", "interview_promoted"]),
-      supabase
-        .from("travelers")
-        .select("id, name, date_of_birth")
-        .eq("family_id", access.familyId)
-        .eq("is_person", true),
-      supabase
-        .from("pets")
-        .select("id, name, species")
-        .eq("family_id", access.familyId),
-    ]);
+    demo
+      ? [{}, {}, {}, {}]
+      : await Promise.all([
+          supabase
+            .from("families")
+            .select("home_address")
+            .eq("id", access.familyId)
+            .maybeSingle(),
+          supabase
+            .from("travel_preferences")
+            .select("id, slot, body, reason, source")
+            .eq("family_id", access.familyId)
+            .in("source", [
+              "interview",
+              "interview_extract",
+              "interview_promoted",
+            ]),
+          supabase
+            .from("travelers")
+            .select("id, name, date_of_birth")
+            .eq("family_id", access.familyId)
+            .eq("is_person", true),
+          supabase
+            .from("pets")
+            .select("id, name, species")
+            .eq("family_id", access.familyId),
+        ]);
 
   // The destination is whatever the person named on the screen, and nothing
   // else. This route used to look up the family's next trip and answer about
@@ -257,7 +266,12 @@ export async function POST(req) {
     });
   }
 
-  const question = QUESTIONS[category](
+  // Two forms of the same question. The model gets the destination spelled out
+  // in a leading sentence; the screen shows the question without it, because
+  // the place is already named on the picker directly above the card and
+  // printing it twice made the screen read like it was asking two things.
+  const question = QUESTIONS[category]("");
+  const prompt = QUESTIONS[category](
     `We're thinking about ${destination} for our next trip.`,
   );
 
@@ -286,14 +300,14 @@ export async function POST(req) {
   const [withoutRes, withRes] = await Promise.all([
     generate({
       system: withoutSystem,
-      messages: [{ role: "user", text: question }],
+      messages: [{ role: "user", text: prompt }],
       tools: [],
       grounded: false,
       deadline,
     }).catch(() => null),
     generate({
       system: withSystem,
-      messages: [{ role: "user", text: question }],
+      messages: [{ role: "user", text: prompt }],
       tools: [],
       grounded: false,
       deadline,
