@@ -70,13 +70,6 @@ export default async function RewardsPage() {
     .in("scope", WALLET_SCOPES)
     .eq("status", "active");
 
-  // How many documents are on file, so the link to them can say whether there
-  // is anything behind it. Count only -- the Wallet never reads a number off a
-  // passport.
-  const { count: docCount } = await supabase
-    .from("traveler_documents")
-    .select("id", { count: "exact", head: true });
-
   // Has anybody ever asked? "No tips" and "not looked yet" want different words,
   // and a cleared tip still counts as having looked.
   const { count: everLooked } = await supabase
@@ -101,15 +94,19 @@ export default async function RewardsPage() {
           </div>
           {/* Passport numbers, Global Entry, licenses and the membership numbers
               themselves are kept on each person rather than here, and this is
-              the screen people come to looking for them. */}
+              the screen people come to looking for them. Phrased as the question
+              they arrived with rather than as a place name, because somebody who
+              already knew documents lived on Family would not be standing here.
+
+              It used to carry a count of the documents on file. A question and a
+              number answer two different things, and the number needed a whole
+              extra read of traveler_documents to say something nobody was asking
+              on this screen, so both are gone. */}
           <Link
             href="/family"
             className="btn btn-ghost mt-4 w-full shrink-0 sm:mt-1 sm:w-auto"
           >
-            Travel documents
-            {docCount ? (
-              <span className="font-normal text-ink-faint">{docCount}</span>
-            ) : null}
+            Looking for travel documents?
           </Link>
         </div>
         <ProTips
