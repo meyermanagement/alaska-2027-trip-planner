@@ -31,6 +31,30 @@ export async function GET(request) {
     );
   }
 
+  // A code carried through the OAuth round trip, spent here. The sign-up
+  // trigger can only see a code that arrived as sign-up metadata, which is the
+  // email-and-password path only, so somebody who tapped Continue with Google
+  // used to arrive with an account and no family. The login screen puts their
+  // code on the redirect and this spends it before anything else looks at
+  // their membership. The function refuses anybody who already belongs to a
+  // family, so a stale code in a bookmarked URL does nothing.
+  const signupCode = searchParams.get("signup_code");
+  if (signupCode) {
+    const { data: outcome } = await supabase.rpc("redeem_signup_code", {
+      p_code: signupCode,
+    });
+    // A code that turned out to be wrong is worth saying out loud rather than
+    // dropping them on /join to guess at it. They are signed in either way, so
+    // the message goes back to the login screen with their account made.
+    if (outcome === "invalid") {
+      return NextResponse.redirect(
+        `${origin}/login?error=${encodeURIComponent(
+          "That code was not recognized, or it has already been used. Your account is made, so ask for a fresh code and sign in again.",
+        )}`,
+      );
+    }
+  }
+
   // A person whose email was added to the family's People list gets their seat
   // here, on the way in — no invite code to type. The function is a no-op for
   // anyone already linked, and returns null for an email nobody has listed.

@@ -3,13 +3,31 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function GoogleButton({ next = "/trips", onError }) {
+/**
+ * signupCode rides along on the callback URL when somebody is starting a new
+ * family this way. Google sign-in has no metadata hook the way the
+ * email-and-password form does, so the code cannot be handed to the sign-up
+ * trigger; the callback spends it against the new session instead. Without
+ * this, anybody who tapped the fastest way in arrived with no family and a
+ * code they could not use anywhere.
+ */
+export default function GoogleButton({
+  next = "/trips",
+  signupCode,
+  disabled = false,
+  onError,
+}) {
   const [busy, setBusy] = useState(false);
 
   async function signIn() {
     setBusy(true);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const code = String(signupCode || "")
+      .trim()
+      .toUpperCase();
+    const redirectTo =
+      `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` +
+      (code ? `&signup_code=${encodeURIComponent(code)}` : "");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -28,7 +46,7 @@ export default function GoogleButton({ next = "/trips", onError }) {
     <button
       type="button"
       onClick={signIn}
-      disabled={busy}
+      disabled={busy || disabled}
       className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-teal disabled:opacity-60"
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">

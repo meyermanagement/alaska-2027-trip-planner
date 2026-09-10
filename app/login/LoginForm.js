@@ -41,6 +41,15 @@ export default function LoginForm() {
         return;
       }
 
+      // The code field lives above both buttons rather than inside this form,
+      // so the browser will not enforce it for us. An account made without a
+      // code has no family and nowhere to land, which is worth stopping here.
+      if (!inviteCode.trim()) {
+        setError("Enter the code you were sent to start a new family.");
+        setBusy(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -83,20 +92,7 @@ export default function LoginForm() {
         </p>
       )}
 
-      <GoogleButton next={next} onError={setError} />
-      <p className="mt-2 text-center text-xs text-ink-soft">
-        Fastest way in — no password to remember.
-      </p>
-
-      <div className="my-5 flex items-center gap-3">
-        <span className="h-px flex-1 bg-sand-deep" />
-        <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
-          or use email
-        </span>
-        <span className="h-px flex-1 bg-sand-deep" />
-      </div>
-
-      <div className="mb-5 flex rounded-xl bg-sand p-1 text-sm font-semibold">
+      <div className="mb-4 flex rounded-xl bg-sand p-1 text-sm font-semibold">
         <button
           type="button"
           onClick={() => {
@@ -119,8 +115,51 @@ export default function LoginForm() {
             mode === "signup" ? "bg-white text-teal shadow-sm" : "text-ink-soft"
           }`}
         >
-          Join the family
+          Start a new family
         </button>
+      </div>
+
+      {/* The code sits above both ways in, not inside the email form, because
+          it is the thing that decides which family the account lands in --
+          whichever button they end up pressing. Google sign-in has no metadata
+          hook, so GoogleButton carries this on the callback URL and the
+          callback spends it there. */}
+      {mode === "signup" && (
+        <label className="mb-4 block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Signup or invite code
+          </span>
+          <input
+            className="field font-mono uppercase"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            placeholder="ALY-XXXX-XXXX"
+          />
+          <span className="mt-1 block text-xs text-ink-soft">
+            A signup code opens a new family. A family invite code joins one
+            that already exists.
+          </span>
+        </label>
+      )}
+
+      <GoogleButton
+        next={next}
+        signupCode={mode === "signup" ? inviteCode : ""}
+        disabled={mode === "signup" && !inviteCode.trim()}
+        onError={setError}
+      />
+      <p className="mt-2 text-center text-xs text-ink-soft">
+        {mode === "signup" && !inviteCode.trim()
+          ? "Enter your code above to start a new family this way."
+          : "Fastest way in — no password to remember."}
+      </p>
+
+      <div className="my-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-sand-deep" />
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          or use email
+        </span>
+        <span className="h-px flex-1 bg-sand-deep" />
       </div>
 
       <form onSubmit={onSubmit} className="space-y-3">
@@ -171,25 +210,6 @@ export default function LoginForm() {
             }
           />
         </label>
-
-        {mode === "signup" && (
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-              Signup or invite code
-            </span>
-            <input
-              className="field font-mono uppercase"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              placeholder="ALY-XXXX-XXXX"
-              required
-            />
-            <span className="mt-1 block text-xs text-ink-soft">
-              A signup code opens a new family. A family invite code joins an
-              existing one.
-            </span>
-          </label>
-        )}
 
         <button className="btn btn-primary w-full" disabled={busy}>
           {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
