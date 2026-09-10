@@ -133,14 +133,21 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         {/* Which side is which is already said by the two column headers, and
             the reason printed under each choice speaks for itself once you are
             looking at it. What is left is the pair of facts the screen cannot
-            show: that the question is a real one about a real trip, and that
-            nothing but the interview differs between the two answers. That
-            second fact used to be carried by the word model, which asks a
-            family on their first screen to know what a model is. */}
+            show: that the question is about a place the family is really
+            thinking about, and that nothing but the interview differs between
+            the two answers. That second fact used to be carried by the word
+            model, which asks a family on their first screen to know what a
+            model is.
+
+            Next trip, not your trip: this screen runs immediately after the
+            interview, which for a family signing in for the first time is
+            before they have made a single trip. Most people who see this have
+            an empty calendar and are about to type a place into the box
+            below. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly answers one real question about your trip twice. Nothing changes
-          between the two answers except whether she knows what you just told
-          her.
+          Aly answers the same question about your next trip twice. Nothing
+          changes between the two answers except whether she knows what you just
+          told her.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
@@ -155,34 +162,40 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         )}
       </header>
 
-      <nav
-        className="flex flex-wrap items-center gap-2"
-        aria-label="Question category"
-      >
-        <span className="section-label text-ink-soft">Ask about:</span>
-        <button
-          type="button"
-          onClick={() => setCategory("food")}
-          className={`rounded-full border px-3 py-1.5 text-sm ${
-            category === "food"
-              ? "border-teal bg-teal text-white"
-              : "border-sand-deep bg-white text-ink-soft"
-          }`}
+      {/* Which kind of question comes second. A family with nothing on the
+          calendar has to name a place before where to eat or what to do means
+          anything, so the toggle waits until the box below has been answered
+          rather than sitting above it. */}
+      {!data?.needsDestination && (
+        <nav
+          className="flex flex-wrap items-center gap-2"
+          aria-label="Question category"
         >
-          Where to eat
-        </button>
-        <button
-          type="button"
-          onClick={() => setCategory("day")}
-          className={`rounded-full border px-3 py-1.5 text-sm ${
-            category === "day"
-              ? "border-teal bg-teal text-white"
-              : "border-sand-deep bg-white text-ink-soft"
-          }`}
-        >
-          What to do
-        </button>
-      </nav>
+          <span className="section-label text-ink-soft">Ask about:</span>
+          <button
+            type="button"
+            onClick={() => setCategory("food")}
+            className={`rounded-full border px-3 py-1.5 text-sm ${
+              category === "food"
+                ? "border-teal bg-teal text-white"
+                : "border-sand-deep bg-white text-ink-soft"
+            }`}
+          >
+            Where to eat
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategory("day")}
+            className={`rounded-full border px-3 py-1.5 text-sm ${
+              category === "day"
+                ? "border-teal bg-teal text-white"
+                : "border-sand-deep bg-white text-ink-soft"
+            }`}
+          >
+            What to do
+          </button>
+        </nav>
+      )}
 
       {/* No trip on the calendar and no destination given yet. Asked as one
           question rather than assumed, because the answer is the difference
