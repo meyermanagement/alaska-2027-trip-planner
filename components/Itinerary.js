@@ -34,6 +34,7 @@ import {
 } from "@/lib/format";
 import Stars from "@/components/Stars";
 import { canReviewNow, reviewTarget } from "@/lib/reviews/when";
+import { taskCovering } from "@/lib/tasks/bookingMatch";
 import DayBrief from "@/components/DayBrief";
 import DayDone from "@/components/DayDone";
 import { dayIsDone } from "@/lib/day/done";
@@ -1127,15 +1128,27 @@ export default function Itinerary({
     [index, railKeys],
   );
 
-  // Tasks made from an itinerary item keep a link back to it, so the button
-  // can show what has already been handed off to the Tasks tab.
+  // What is already being tracked for each unbooked item, so the buttons below
+  // can stay quiet about the ones that are. A task made from the itinerary keeps
+  // a link back to its item and is the reliable answer. A task somebody typed by
+  // hand keeps no link at all, so it is recognized by what its title means -- see
+  // lib/tasks/bookingMatch. Before that second test existed this map saw only the
+  // linked ones, and the control below cheerfully filed a second copy of all seven
+  // booking tasks on the Alaska trip beside the ones written in August.
   const taskByItem = useMemo(() => {
     const map = new Map();
+    items.forEach((item) => {
+      if (item.status !== "needs_booking") return;
+      const found = taskCovering(item, tasks);
+      if (found) map.set(item.id, found);
+    });
     tasks.forEach((t) => {
-      if (t.itinerary_item_id) map.set(t.itinerary_item_id, t);
+      if (t.itinerary_item_id && !map.has(t.itinerary_item_id)) {
+        map.set(t.itinerary_item_id, t);
+      }
     });
     return map;
-  }, [tasks]);
+  }, [items, tasks]);
   const [taskBusyId, setTaskBusyId] = useState(null);
   const [reviewBusy, setReviewBusy] = useState(null);
 
