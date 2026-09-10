@@ -27,6 +27,7 @@ import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
 import { lookSummary } from "@/lib/tips/run";
+import { lookedToday } from "@/lib/tips/tip";
 import { onTipResolved } from "@/lib/tips/cleared";
 import { isComing } from "@/lib/pets/pets";
 import CoverQueue from "./CoverQueue";
@@ -513,15 +514,12 @@ export default function TripView({
     if (readOnly) return false;
     if (isDraftTrip(info)) return false;
     if (past) return false;
-    if (!lastLookedAt) return true;
+    // Not looked since local midnight. A look yesterday afternoon and one at
+    // 8am today should both count as "once a day", so the boundary is the wall
+    // clock's midnight rather than a rolling 24 hours. Shared with the Wallet,
+    // which runs the same gate on its own look.
+    if (!lookedToday(lastLookedAt)) return true;
     const looked = Date.parse(lastLookedAt);
-    if (!Number.isFinite(looked)) return true;
-    // Local midnight of today. A look yesterday afternoon and one at 8am
-    // today should both count as "once a day", so the boundary is the wall
-    // clock's midnight, not a rolling 24 hours.
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    if (looked < startOfToday.getTime()) return true;
     // Newest itinerary edit. If the trip changed after the last look, the
     // advice may no longer fit -- a flight added at 6am wants the check to
     // notice by 6:01.

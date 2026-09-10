@@ -35,6 +35,33 @@ const MODEL_BUDGET_MS = 95000;
 const bad = (message, status = 400) =>
   NextResponse.json({ error: message }, { status });
 
+/**
+ * Remember that the Wallet was looked at.
+ *
+ * The Wallet screen runs this look on open rather than waiting to be asked, and
+ * this stamp is the only thing stopping it running on every open -- two grounded
+ * model calls, several times a day, for answers that have not changed since
+ * breakfast. It moves on any successful answer, including the honest "nothing
+ * worth telling you" and the empty-Wallet reply, because the question the screen
+ * asks is whether anybody looked today and not whether the look found something.
+ *
+ * Deliberately not fatal. A look that ran, found something and saved it, then
+ * failed to move a timestamp, has done the useful part; the cost of the failure
+ * is one extra look tomorrow, which is not worth throwing the answer away for.
+ * It is logged so the once-a-day gate silently degrading is findable.
+ */
+async function stampLooked(supabase, familyId) {
+  const { error } = await supabase
+    .from("families")
+    .update({ wallet_looked_at: new Date().toISOString() })
+    .eq("id", familyId);
+  if (error) {
+    console.error(
+      `[tips/wallet] wallet_looked_at NOT saved family=${familyId}: ${error.message}`,
+    );
+  }
+}
+
 export async function POST(request) {
   const startedAt = Date.now();
   let body;
@@ -108,6 +135,7 @@ export async function POST(request) {
   // the question somebody with nothing asks, and the offers pass answers it -- the
   // brief and the rules switch to a first-card footing rather than refusing.
   if (!programs?.length && scope === "wallet") {
+    await stampLooked(supabase, familyId);
     return NextResponse.json({
       step: scope,
       done: true,
@@ -203,6 +231,8 @@ export async function POST(request) {
       produced.dropped.length
     } ms=${Date.now() - startedAt}`,
   );
+
+  await stampLooked(supabase, familyId);
 
   return NextResponse.json({
     step: scope,

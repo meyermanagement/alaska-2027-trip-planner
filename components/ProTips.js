@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { useRouter } from "next/navigation";
-import { compareTips, tipWhen } from "@/lib/tips/tip";
+import { compareTips, lookedToday, tipWhen } from "@/lib/tips/tip";
 import { lookSummary, runLook } from "@/lib/tips/run";
 import { formatFullDay } from "@/lib/format";
 import { Spinner } from "./LinkPending";
@@ -35,6 +35,20 @@ export default function ProTips({
   // Whether this place has ever been looked at, which is the difference between
   // "no tips" and "no tips yet" — two states that deserve different words.
   everLooked = false,
+  // Whether opening this screen should run the look on its own, rather than
+  // waiting to be asked. Off everywhere by default, and on where the screen
+  // itself is the reason to look: the Wallet, which the family opens to find out
+  // whether a credit is going unused or points are about to lapse, and where
+  // asking them to remember a button is asking them to remember the thing the
+  // screen was supposed to notice for them.
+  //
+  // Held to once a day by lastLookedAt below, the same gate the trip page uses.
+  // A look is two grounded model calls here and most of a minute; running it on
+  // every open would spend the day's budget re-answering breakfast.
+  autoLook = false,
+  // When a look last ran here, so the once-a-day gate can be judged against the
+  // reader's own midnight rather than the server's.
+  lastLookedAt = null,
   // What one press of the button should cover. A trip-level look is worth walking
   // the whole trip — the trip itself, the packing list, the next few bookings —
   // because nobody is going to press a button on thirty itinerary cards. Left
@@ -97,6 +111,7 @@ export default function ProTips({
   const [landed, setLanded] = useState([]);
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef(0);
+  const autoRanRef = useRef(false);
 
   // A look writes its tips to the database, not to this component, so the way
   // they arrive on screen is the server sending the list down again. That only
@@ -278,6 +293,19 @@ export default function ProTips({
   const offersLook = Boolean(
     (canLook ?? Boolean(tripId)) && !compact && canLookHere,
   );
+
+  // The same look the button runs, started on its own, once per visit. The ref
+  // is what keeps it once: this component is remounted by a route change but
+  // re-rendered constantly, and a look that fires twice costs twice.
+  useEffect(() => {
+    if (!autoLook) return;
+    if (!offersLook) return;
+    if (autoRanRef.current) return;
+    if (busy) return;
+    if (lookedToday(lastLookedAt)) return;
+    autoRanRef.current = true;
+    look();
+  }, [autoLook, offersLook, busy, lastLookedAt, look]);
 
   // After the hooks, so a person's level changing does not change how many of
   // them run.
