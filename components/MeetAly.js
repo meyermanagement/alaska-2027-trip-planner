@@ -7,14 +7,21 @@ import {
   DEMO_QUESTION,
   DEMO_DESTINATION,
 } from "@/lib/welcome/meetAlyDemo";
+import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
 
 /**
  * Meet Aly -- the first screen a brand-new primary sees.
  *
- * A one-paragraph introduction in Aly's voice, a live demonstration of the
- * one thing she does that a search box cannot (give different answers to
- * different families), and a small "ask her something else" box that runs
- * the same demonstration on the primary's own question.
+ * A one-paragraph introduction in Aly's voice, a short list of what she looks
+ * after besides the itinerary, a live demonstration of the one thing she does
+ * that a search box cannot (give different answers to different families), and
+ * a small "ask her something else" box that runs the same demonstration on the
+ * primary's own question.
+ *
+ * The list of abilities comes before the demonstration on purpose. A family
+ * that reads only the demonstration concludes this is a cleverer way to get
+ * trip ideas, and then finds the wallet, the packing lists, the budget, the
+ * reminders and the on-trip answers by accident weeks later.
  *
  * The demo pair is fixed strings so the first screen paints instantly and
  * never fails. The optional live box below is the model doing the same
@@ -90,15 +97,55 @@ export default function MeetAly({
           </div>
         </div>
         <p className="text-base leading-relaxed text-ink">
-          I plan your family's trips. I remember who you travel with, what you
-          like, and what you skip -- so my answers fit you, not a generic
-          traveler.
+          I look after your family's travel -- the trip itself, and everything
+          around it. I remember who you travel with, what you like, and what you
+          skip, so my answers fit you and not a generic traveler.
         </p>
         <p className="text-sm leading-relaxed text-ink-soft">
           What you tell me stays on your family's file, never sold. You can read
           or delete any of it on the Family and Preferences pages.
         </p>
       </header>
+
+      {/* What she does besides plan the days. Seven short lines, no icons and
+          no links: nothing here is tappable yet because the family has no
+          account, and a row that looks like a button and does nothing is worse
+          than a row that plainly reads as a sentence. */}
+      <section
+        aria-labelledby="meet-aly-abilities-heading"
+        className="space-y-3"
+      >
+        <h2
+          id="meet-aly-abilities-heading"
+          className="font-display text-lg font-semibold text-ink"
+        >
+          What I look after
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {ALY_ABILITIES.map((a, i) => (
+            <article
+              key={a.key}
+              // An odd number of cards leaves a hole at the end of a two-column
+              // grid, so the last one takes the whole row instead of sitting
+              // beside nothing.
+              className={`rounded-xl border border-sand-deep bg-white p-4 ${
+                i === ALY_ABILITIES.length - 1 && ALY_ABILITIES.length % 2
+                  ? "sm:col-span-2"
+                  : ""
+              }`}
+            >
+              {/* Spelled out rather than section-label: that rule is unlayered
+                  in globals.css and would win over the teal. */}
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+                {a.heading}
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+                {a.body}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section
         aria-labelledby="meet-aly-demo-heading"
