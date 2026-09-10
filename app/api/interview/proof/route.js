@@ -251,6 +251,14 @@ export async function POST(req) {
 
   const body = await req.json().catch(() => null);
   const demo = Boolean(body?.demo);
+  // The same question with the family struck out of the prompt, so whoever is
+  // testing the chain can read what the answer looks like without an interview
+  // and judge whether the real one is actually different. It is only ever an
+  // internal comparison, so it is accepted in practice and nowhere else: on a
+  // real family's proof screen the generic column was the straw man this screen
+  // stopped showing, and there is no reason to spend a model call on it or to
+  // let a caller ask for one.
+  const generic = demo && Boolean(body?.generic);
   // In practice mode the caller may carry the family they typed while
   // walking the practice chain. Merged over the built-in stand-in, so a
   // half-finished run still produces a complete prompt. Ignored outright
@@ -331,6 +339,8 @@ export async function POST(req) {
   const prefsText = demo
     ? standInPrefsLines(standIn).join("\n")
     : preferencesLines(prefs).join("\n");
+  const genericSystem = `${baseSystem}\n\nYou know nothing about the family beyond the place they named. Answer as you would for anybody who asked about ${destination}, and let each WHY stand on the choice itself.`;
+
   const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nEvery WHY must name the specific thing about this family that drove the choice -- the preference, the age, the limit, the hour they said they get up. "Well reviewed" and "a local favorite" are not reasons here; those are what the answer looks like without an interview. If a preference rules something out, the WHY may say what you are avoiding and why.`;
 
   const deadline = Date.now() + DEADLINE_MS;
@@ -339,7 +349,7 @@ export async function POST(req) {
   // than an empty card, because there is no longer a second answer to carry the
   // screen on its own.
   const withRes = await generate({
-    system: withSystem,
+    system: generic ? genericSystem : withSystem,
     messages: [{ role: "user", text: prompt }],
     tools: [],
     grounded: false,
@@ -352,6 +362,7 @@ export async function POST(req) {
     ok: true,
     destination,
     demo,
+    generic,
     // Lets the proof screen say whose answers it worked from, so a person
     // who typed a family into practice can tell their run reached the
     // prompt rather than guessing from the wording of the answer.
@@ -364,6 +375,6 @@ export async function POST(req) {
     withPrefsRows: parsed.day,
     packRows: parsed.pack,
     tipRows: parsed.tips,
-    preferenceCount: prefsText ? prefsText.split("\n").length : 0,
+    preferenceCount: generic || !prefsText ? 0 : prefsText.split("\n").length,
   });
 }

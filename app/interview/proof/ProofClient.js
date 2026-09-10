@@ -34,6 +34,13 @@ import { runToStandIn } from "@/lib/practice/session";
  * answers drove it, which is the same proof said once, in the answer they
  * actually want.
  *
+ * That generic answer is still worth reading when the point is to check the
+ * chain rather than to be convinced by it, so on a rehearsal -- and only on a
+ * rehearsal -- there is a button under the answer that asks the same question
+ * with the family struck out of the prompt. It costs a model call, so it is
+ * asked for rather than run for everybody, and it is drawn plainly instead of
+ * in the teal the family's own answer gets.
+ *
  * The answer arrives as plan rows rather than a paragraph -- see the endpoint
  * for why -- laid out as the slot, the choice, and underneath it the reason that
  * choice won. The reason line is the whole point of the screen, so it gets its
@@ -232,6 +239,45 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
   // changing it re-runs the pair.
   const [place, setPlace] = useState("");
   const [destination, setDestination] = useState("");
+  // The same question with the family struck out, asked on request and only in
+  // practice. It is the answer this screen used to show beside the real one to
+  // argue with it, kept as something to fetch deliberately rather than
+  // something every family pays for: whoever is testing the chain needs to see
+  // that the interview actually moved the answer, and the only honest way to
+  // check that is to read both.
+  const [generic, setGeneric] = useState(null);
+  const [genericBusy, setGenericBusy] = useState(false);
+  const [genericError, setGenericError] = useState("");
+
+  // A new place or a retry makes the generic answer stale, since it was about
+  // the old one. Dropped rather than left sitting under a plan it does not
+  // match.
+  useEffect(() => {
+    setGeneric(null);
+    setGenericError("");
+  }, [attempt, destination]);
+
+  async function askGeneric() {
+    setGenericBusy(true);
+    setGenericError("");
+    try {
+      const res = await fetch("/api/interview/proof", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ demo: true, generic: true, destination }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!json?.ok) {
+        setGenericError(json?.error || "That didn't come through.");
+        return;
+      }
+      setGeneric(json);
+    } catch {
+      setGenericError("That didn't come through.");
+    } finally {
+      setGenericBusy(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -510,6 +556,75 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             </p>
           </div>
         </>
+      )}
+
+      {/* Practice only, and the last thing on the screen. The same question
+          without the family in the prompt, so whoever is walking the chain can
+          see how far the interview moved the answer instead of taking the
+          reason lines' word for it. Deliberately plain and sand-colored rather
+          than the teal the real answer gets: it is a reference reading, not
+          something the family is being shown. */}
+      {demo && !loading && !error && data && !data.needsDestination && (
+        <section
+          className="space-y-3 border-t border-sand-deep pt-5"
+          {...(armed ? { "data-ma-shown": "1" } : {})}
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={askGeneric}
+              disabled={genericBusy}
+              className="btn btn-ghost px-4 py-2 text-sm disabled:opacity-60"
+            >
+              {genericBusy
+                ? "Asking without the interview\u2026"
+                : generic
+                  ? "Ask again without the interview"
+                  : "Answer without the interview"}
+            </button>
+            <p className="text-xs text-ink-soft">
+              Internal reference. The same question with nothing known about the
+              family, for comparing against the answer above. Practice only.
+            </p>
+          </div>
+
+          {genericError && (
+            <p className="text-sm text-ink">
+              {genericError}{" "}
+              <button
+                type="button"
+                className="ml-1 underline underline-offset-4"
+                onClick={askGeneric}
+              >
+                Try again
+              </button>
+            </p>
+          )}
+
+          {generic && (
+            <article className="flex flex-col gap-2 rounded-2xl border border-sand-deep bg-sand-soft/60 p-4">
+              <header>
+                <p className="section-label text-ink-soft">
+                  A day in {generic.destination}, knowing nothing
+                </p>
+                <p className="mt-1 text-xs italic text-ink-soft">
+                  No family, no preferences, no ages. Not shown to anybody
+                  outside practice.
+                </p>
+              </header>
+              <PlanRows
+                rows={generic.withPrefsRows}
+                fallback={generic.withPrefs}
+              />
+              {generic.packRows?.length > 0 && (
+                <Extras label="Pack for that day" rows={generic.packRows} />
+              )}
+              {generic.tipRows?.length > 0 && (
+                <Extras label="Pro tips" rows={generic.tipRows} />
+              )}
+            </article>
+          )}
+        </section>
       )}
 
       <div
