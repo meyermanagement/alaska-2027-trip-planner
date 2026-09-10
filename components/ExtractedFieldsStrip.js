@@ -105,7 +105,7 @@ export default function ExtractedFieldsStrip({
   if (status === "reading") {
     return (
       <div className="rounded-xl border border-teal/30 bg-teal-soft/40 p-3 text-xs text-ink-soft">
-        <p aria-live="polite">Reading the scan…</p>
+        <p aria-live="polite">Aly is reading the scan…</p>
       </div>
     );
   }
@@ -114,8 +114,8 @@ export default function ExtractedFieldsStrip({
     return (
       <div className="rounded-xl border border-amber/40 bg-amber/10 p-3 text-xs text-ink">
         <p aria-live="polite">
-          I could not read this one. {error || ""} You can still fill the fields
-          in by hand.
+          Aly could not read this one. {error || ""} You can still fill the
+          fields in by hand.
         </p>
         <div className="mt-2">
           <button
@@ -142,7 +142,7 @@ export default function ExtractedFieldsStrip({
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-teal/30 bg-teal-soft/40 p-3 text-xs text-ink-soft">
-        <p>I did not find any fields worth filling in from this scan.</p>
+        <p>Aly did not find any fields worth filling in from this scan.</p>
         <div className="mt-2">
           <button
             type="button"
@@ -168,7 +168,7 @@ export default function ExtractedFieldsStrip({
     <div className="rounded-xl border border-teal/30 bg-teal-soft/40 p-3">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-ink">
-          I read this from the scan
+          Aly read this from the scan
         </p>
         {confidenceNote && (
           <p className="text-[11px] text-ink-soft">{confidenceNote}</p>

@@ -488,10 +488,10 @@ export default function People({
           <span className="font-semibold">
             Snap passports, licenses and IDs with the phone.
           </span>{" "}
-          I read the number and expiry off the scan so you do not have to type
-          them, and every file you save stays cached on the phone — the scan
-          opens at the check-in desk with no signal, and the app itself runs on
-          the plane.
+          Aly reads the number and expiry off the scan so you do not have to
+          type them, and every file you save stays cached on the phone — the
+          scan opens at the check-in desk with no signal, and the app itself
+          runs on the plane.
         </p>
       </div>
 
@@ -787,9 +787,9 @@ export default function People({
                     </span>{" "}
                     Snap {person.name === "You" ? "your" : `${person.name}'s`}{" "}
                     passport, license or ID with the phone camera and Add
-                    document. I read the number and expiry off the scan so you
-                    do not have to type them, and the file itself stays on the
-                    phone — openable at the check-in desk with no signal.
+                    document. Aly reads the number and expiry off the scan so
+                    you do not have to type them, and the file itself stays on
+                    the phone — openable at the check-in desk with no signal.
                   </p>
                 </div>
               )}
@@ -1476,8 +1476,8 @@ function MissingAboutMe({ person, isMe, onEdit }) {
       <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
         A paragraph in {possessive} own voice about what {isMe ? "you" : "they"}
         {isMe ? " enjoy" : " enjoy"} and what {isMe ? "you" : "they"} would
-        rather skip. I read this before I answer anything for{" "}
-        {isMe ? "you" : subject}, and without it every suggestion I make is a
+        rather skip. Aly reads this before she answers anything for{" "}
+        {isMe ? "you" : subject}, and without it every suggestion she makes is a
         suggestion for nobody in particular.
       </p>
       {isMe ? (
@@ -1680,7 +1680,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           )}
         </label>
         <p className="text-xs text-ink-soft sm:col-span-2">
-          Gender helps me with the ordinary things — what to pack, who shares a
+          Gender helps Aly with the ordinary things — what to pack, who shares a
           room, what a dress code means in practice. It is not what a passport
           says: travel documents carry their own sex field, printed by whoever
           issued them, and the app never fills that in from this.
@@ -1736,13 +1736,15 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           <MomentsEditor
             travelerId={person.id}
             travelerName={form.name.trim() || person.name}
-            help={`Small, real memories from ${form.name.trim() || person.name || "this person"}'s life -- the kind of thing you would tell a friend about at dinner. I read these before every answer I write, so the truer they sound, the better the advice fits.`}
+            help={`Small, real memories from ${form.name.trim() || person.name || "this person"}'s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes, so the truer they sound, the better the advice fits.`}
           />
         </div>
       )}
 
       <div className="space-y-3 border-t border-teal/30 pt-3">
-        <p className="section-label">What I need to make the advice specific</p>
+        <p className="section-label">
+          What Aly needs to make the advice specific
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-xs font-semibold">
             Cell phone provider (optional)

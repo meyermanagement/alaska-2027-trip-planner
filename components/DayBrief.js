@@ -295,7 +295,7 @@ export default function DayBrief({
                 <i />
               </span>
               <span aria-live="polite">
-                Looking into {pending === 1 ? "it" : "the day"}…
+                Aly is looking into {pending === 1 ? "it" : "the day"}…
               </span>
             </span>
           ) : (

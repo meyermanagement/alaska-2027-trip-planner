@@ -544,9 +544,9 @@ export default function TripBoard({
           ) : (
             <p className="card p-5 text-sm text-ink-soft">
               Nothing sketched out yet. Press “Trip builder”, say what you have
-              in mind, and I will build it with you — a place, roughly when, and
-              whatever else you feel like telling me. It stays here until you
-              move it across.
+              in mind, and Aly will build it with you — a place, roughly when,
+              and whatever else you feel like telling her. It stays here until
+              you move it across.
             </p>
           )}
         </Section>
@@ -593,7 +593,7 @@ export default function TripBoard({
                 </span>
               </summary>
               <p className="mt-2 text-sm text-ink-soft">
-                Put away, and still counted. These trips keep teaching me what
+                Put away, and still counted. These trips keep teaching Aly what
                 the family likes and still seed the packing lists of the trips
                 to come.
               </p>

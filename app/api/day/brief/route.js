@@ -128,7 +128,7 @@ export async function POST(request) {
         error:
           error?.timedOut === true
             ? "The search took too long. Try again in a moment."
-            : "I could not look into today just now.",
+            : "Aly could not look into today just now.",
       },
       { status: 502 },
     );

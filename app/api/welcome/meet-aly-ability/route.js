@@ -56,7 +56,7 @@ export async function POST(req) {
     const answer = (result?.text || "").trim();
     if (!answer) {
       return NextResponse.json(
-        { error: "I could not reply this time." },
+        { error: "Aly did not reply this time." },
         { status: 502 },
       );
     }

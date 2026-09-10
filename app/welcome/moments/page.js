@@ -44,8 +44,8 @@ export default async function WelcomeMomentsPage() {
         Your favorite moments
       </h1>
       <p className="mt-3 text-sm text-ink-soft">
-        Small, real memories from your life. I read these before every answer I
-        write -- the more they sound like you, the better the advice fits.
+        Small, real memories from your life. Aly reads these before every answer
+        she writes -- the more they sound like you, the better the advice fits.
         Anything the family owner wrote about you is here to edit, keep, or
         remove.
       </p>

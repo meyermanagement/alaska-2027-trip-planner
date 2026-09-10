@@ -46,7 +46,7 @@ function TemplatesHeader({ hasFamily, hasBase }) {
       >
         <span className="font-semibold">+ Create packing template</span>
         <span className="mt-0.5 text-xs text-ink-soft">
-          I build it with you
+          Aly builds it with you
         </span>
       </button>
     </div>

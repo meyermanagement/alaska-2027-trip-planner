@@ -244,9 +244,9 @@ export default function DraftView({
               All six have an answer.{" "}
               {trip?.start_date && trip?.end_date
                 ? approximate
-                  ? "Move it across whenever you are ready — the penciled-in dates become the real ones, so settle them with me first if they are still a guess."
+                  ? "Move it across whenever you are ready — the penciled-in dates become the real ones, so settle them with Aly first if they are still a guess."
                   : "Move it across whenever you are ready."
-                : "It needs a first and last day before it can move across — ask me to work the dates out."}
+                : "It needs a first and last day before it can move across — ask Aly to work the dates out."}
             </p>
           )}
 
@@ -296,8 +296,8 @@ export default function DraftView({
           What this trip is made of
         </h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Seven rough answers make a trip. Press one and I will work it out with
-          you — details come later.
+          Seven rough answers make a trip. Press one and Aly will work it out
+          with you — details come later.
         </p>
 
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -428,7 +428,7 @@ export default function DraftView({
         {days.length === 0 ? (
           <p className="mt-3 rounded-2xl border-2 border-dashed border-[var(--line-strong)] bg-sand/40 p-5 text-sm leading-relaxed text-ink-soft">
             Nothing on the days yet. That is normal for a draft — once there is
-            a place and roughly a when, I can put a shape to it in one go, and
+            a place and roughly a when, Aly can put a shape to it in one go, and
             then it is yours to argue with.
           </p>
         ) : (

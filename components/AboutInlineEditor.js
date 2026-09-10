@@ -83,7 +83,7 @@ export default function AboutInlineEditor({
     <div className="space-y-3">
       <p className="text-xs text-ink-soft">
         The same five questions {name} would be asked on their own About you
-        screen. I read the answers before every answer I write.
+        screen. Aly reads the answers before every answer she writes.
       </p>
       <AboutSections
         parts={parts}

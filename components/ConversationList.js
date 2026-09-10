@@ -343,7 +343,7 @@ function SearchResults({ query, results, searching, onPick, me = null }) {
       <p className="text-sm text-ink-soft">
         {searching
           ? "Searching…"
-          : `Nothing matching “${query}” in anything you have asked me.`}
+          : `Nothing matching “${query}” in anything you have asked her.`}
       </p>
     );
   }

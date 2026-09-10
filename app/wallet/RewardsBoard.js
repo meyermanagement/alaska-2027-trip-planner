@@ -588,9 +588,9 @@ export default function RewardsBoard({
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-ink-soft">
             This is the part of the app that pays for itself. Add the credit
-            cards in your wallet and the programs you are already in, and I can
-            answer the question that actually saves money: which card to put
-            this booking on, and whether points beat cash on this one. I read
+            cards in your wallet and the programs you are already in, and Aly
+            can answer the question that actually saves money: which card to put
+            this booking on, and whether points beat cash on this one. She reads
             earning rules, point values, status and annual credits together, so
             a hotel night can come out of points while the flight goes on the
             card that earns most on airfare, and a credit you forgot you had
@@ -598,7 +598,7 @@ export default function RewardsBoard({
           </p>
           <p className="mt-2 text-sm leading-relaxed text-ink-soft">
             Add one and two things appear above: a What to pay with panel for
-            each kind of spending, and a button to ask me about a specific
+            each kind of spending, and a button to ask her about a specific
             purchase. Pick a brand, or type any name and press Look it up, and
             the earning rules and rough point values come filled in, ready to
             correct. You can add a balance now or later.
@@ -1300,7 +1300,7 @@ function ProgramForm({
         </legend>
         <p className="text-xs text-ink-soft">
           One line per rule: how many points per dollar, and on what. This is
-          what lets me say which card to put a hotel or a flight on.
+          what lets Aly say which card to put a hotel or a flight on.
         </p>
         {values.earn_rules.map((rule, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">

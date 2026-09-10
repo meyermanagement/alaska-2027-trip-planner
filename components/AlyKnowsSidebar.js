@@ -113,19 +113,19 @@ function ageOnDate(dob, when) {
 function ageBandNote(age) {
   if (age == null) return null;
   if (age < 2) {
-    return "Under two on most trips -- I will flag lap-infant rules on any flight you plan.";
+    return "Under two on most trips -- Aly will flag lap-infant rules on any flight you plan.";
   }
   if (age < 10) {
-    return `I will keep afternoons open and avoid dinner reservations after 7 PM by default.`;
+    return `Aly will keep afternoons open and avoid dinner reservations after 7 PM by default.`;
   }
   if (age < 13) {
-    return `I can offer kid-focused choices and adult ones side by side.`;
+    return `Aly can offer kid-focused choices and adult ones side by side.`;
   }
   if (age < 18) {
-    return `A teenager on the trip -- I will suggest slots with room to disagree with the plan.`;
+    return `A teenager on the trip -- Aly will suggest slots with room to disagree with the plan.`;
   }
   if (age >= 65) {
-    return `I will surface walking distances and elevator access on hotels and attractions.`;
+    return `Aly will surface walking distances and elevator access on hotels and attractions.`;
   }
   return null;
 }
@@ -145,13 +145,13 @@ function petLine(name, species) {
   if (!cleanName) return null;
   const sp = String(species || "pet").toLowerCase();
   const article = /^[aeiou]/.test(sp) ? "an" : "a";
-  return `${cleanName} is ${article} ${sp}. For a trip ${cleanName} is not on, I will remind you about boarding two weeks out.`;
+  return `${cleanName} is ${article} ${sp}. For a trip ${cleanName} is not on, Aly will remind you about boarding two weeks out.`;
 }
 
 function familyNameLine(name) {
   const cleanName = (name || "").trim();
   if (!cleanName) return null;
-  return `I will call you the ${cleanName.replace(/\s+Family$/i, "")} family in email and on the morning reminder.`;
+  return `Aly will call you the ${cleanName.replace(/\s+Family$/i, "")} family in email and on the morning reminder.`;
 }
 
 export default function AlyKnowsSidebar({
@@ -174,12 +174,12 @@ export default function AlyKnowsSidebar({
       if (airports && airports.length > 0) {
         rows.push({
           key: "airports",
-          text: `Nearest airports: ${airports.join(", ")}. I will price flights from those first.`,
+          text: `Nearest airports: ${airports.join(", ")}. Aly will price flights from those first.`,
         });
       } else {
         rows.push({
           key: "home",
-          text: "Home saved. I will use it to work out drive time and airport options for every trip.",
+          text: "Home saved. Aly will use it to work out drive time and airport options for every trip.",
         });
       }
       const timezone = morningEmailPhrase(state);
@@ -201,15 +201,15 @@ export default function AlyKnowsSidebar({
 
   return (
     <aside className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-4 lg:sticky lg:top-4">
-      <p className="section-label text-ink-soft">What I know so far</p>
+      <p className="section-label text-ink-soft">What Aly knows so far</p>
       <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-        Every field you type appears here as something I am already doing with
-        it. Nothing here needs a save -- these are my notes as you go.
+        Every field you type appears here as something Aly is already doing with
+        it. Nothing here needs a save -- these are her notes as you go.
       </p>
       <div className="mt-3 space-y-2">
         {facts.length === 0 ? (
           <p className="text-sm italic text-ink-faint">
-            As soon as you type a name or a home, I will start taking notes
+            As soon as you type a name or a home, Aly will start taking notes
             here.
           </p>
         ) : (

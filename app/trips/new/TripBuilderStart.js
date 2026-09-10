@@ -67,7 +67,7 @@ export default function TripBuilderStart() {
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
         Say it however it is in your head — a place, a rough time of year, the
-        one thing you want to do. I ask about whatever is missing, and you do
+        one thing you want to do. Aly asks about whatever is missing, and you do
         not need dates.
       </p>
 
@@ -116,7 +116,7 @@ export default function TripBuilderStart() {
           A trip is seven things
         </p>
         <p className="mt-1 text-xs text-ink-soft">
-          I will work through these with you. Rough answers are fine — the
+          Aly will work through these with you. Rough answers are fine — the
           details come later, on the trip itself.
         </p>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
