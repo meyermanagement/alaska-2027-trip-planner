@@ -7,7 +7,7 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
 /**
  * Meet Aly -- the first screen a brand-new primary sees.
  *
- * Two acts, in the order a person reads them:
+ * Three acts, in the order a person reads them:
  *
  *   1. Aly says hello, in her own voice, once.
  *   2. What she looks after -- one panel of short lines, not eight separate
@@ -15,6 +15,10 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
  *      inside one bordered panel read as a list of jobs. Every line carries the
  *      question a family actually has about it, and tapping the question has
  *      Aly answer it live, before this family has an account or a trip.
+ *   3. The promise -- the company line, and who stays in charge -- immediately
+ *      above the button in. Said last on purpose: the same words at the top of
+ *      the screen would be a slogan somebody has to take on trust, and after
+ *      eight specific jobs they are a summary of what was just read.
  *
  * There used to be a third act: one question -- where to eat on a Friday night
  * in Paris -- answered four ways for four invented families, with a box under
@@ -506,6 +510,34 @@ export default function MeetAly({
         {...(booted && footShown ? { "data-ma-shown": "1" } : {})}
       >
         <div className="ma-rule h-px bg-sand-deep" />
+        {/* 3. The promise, last.
+
+            The company line, arriving after the eight jobs rather than before
+            them, because a promise made at the top of a screen is a slogan and
+            the same words after eight specific claims are a summary of what was
+            just read. The short form on purpose: the full version reaches at
+            home and at work as well, and this app is only away yet, so the
+            screen says the part it can keep and leaves the rest to the company
+            that grows into it.
+
+            The second half is the half a family needs on their first screen.
+            Something that plans your trip, packs for you and watches your
+            passport is only a relief if it cannot act on its own, so what she
+            has your back with and what stays yours are said in the same
+            breath, immediately above the button that takes them in. */}
+        <p
+          className="ma-in mt-6 font-display text-xl leading-snug text-ink"
+          style={{ animationDelay: "0.05s" }}
+        >
+          Aly has your back. You stay in control.
+        </p>
+        <p
+          className="ma-in mt-1.5 text-sm leading-relaxed text-ink-soft"
+          style={{ animationDelay: "0.12s" }}
+        >
+          I keep the details in view and hand you the draft. Nothing is booked,
+          bought or sent unless you do it.
+        </p>
         <button
           type="button"
           onClick={onContinue}
