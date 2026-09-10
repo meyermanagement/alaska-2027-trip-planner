@@ -10,8 +10,8 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
  * Two acts, in the order a person reads them:
  *
  *   1. Aly says hello, in her own voice, once.
- *   2. What she looks after -- one panel of short lines, not eight separate
- *      boxes. Eight bordered cards read as a wall and get skipped; eight lines
+ *   2. What she looks after -- one panel of short lines, not nine separate
+ *      boxes. Nine bordered cards read as a wall and get skipped; nine lines
  *      inside one bordered panel read as a list of jobs. Every line carries the
  *      question a family actually has about it, and tapping the question has
  *      Aly answer it live, before this family has an account or a trip.
@@ -52,7 +52,7 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
  * ---- Copy ---------------------------------------------------------------
  *
  * Deliberately thin. The screen has to argue that Aly is not a search box, and
- * the eight lines and their questions are the argument, so anything that says
+ * the nine lines and their questions are the argument, so anything that says
  * in prose what a line already says is cut. For the same reason the line about
  * what happens to what you tell her sits beside the button at the bottom, where
  * somebody about to commit is the one who wants it, rather than interrupting
@@ -241,7 +241,7 @@ function ThinkingMark() {
 }
 
 /**
- * The question under one of the eight lines, and whatever Aly has said about it.
+ * The question under one of the nine lines, and whatever Aly has said about it.
  *
  * Deliberately a button with the question written on it rather than an icon or
  * the whole row being tappable. A person reading the line has a specific thing
@@ -429,16 +429,16 @@ export default function MeetAly({
         </div>
       </header>
 
-      {/* 2. What she looks after. One panel of eight lines in
+      {/* 2. What she looks after. One panel of nine lines in
           two columns, with hairlines between them instead of a border each:
-          the same eight facts, read as one list of jobs rather than as a wall
+          the same nine facts, read as one list of jobs rather than as a wall
           of cards.
 
           Every line is also a question. Under each one sits the thing a person
           actually wants to know about it, and tapping that asks Aly the
           question and she answers it right there, live, before this family has
-          an account or a trip. Eight claims a stranger can interrogate is a
-          different thing from eight claims a stranger has to take on faith,
+          an account or a trip. Nine claims a stranger can interrogate is a
+          different thing from nine claims a stranger has to take on faith,
           and it is most of the difference between reading about somebody and
           being introduced to them. */}
       <section
