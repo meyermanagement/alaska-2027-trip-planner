@@ -587,7 +587,7 @@ export default function InterviewBody({
       const ok = await saveCurrent();
       setLoading(false);
       if (!ok) {
-        setError("That answer could not be saved. Try again.");
+        setError("I could not save that answer. Try again.");
         return;
       }
     }
@@ -701,7 +701,7 @@ export default function InterviewBody({
           question.kind === "options"
         ) {
           setLoading(false);
-          setError("Pick one of the two, or type what fits better.");
+          setError("Pick one of these, or type what fits better.");
           return;
         }
         remember();
@@ -747,7 +747,7 @@ export default function InterviewBody({
           setTimeout(() => {
             setLoading(false);
             setError(
-              payload?.error || "That answer could not be saved. Try again.",
+              payload?.error || "I could not save that answer. Try again.",
             );
           }, wait);
           return;
@@ -786,7 +786,7 @@ export default function InterviewBody({
         const wait = Math.max(0, HOLD_MS - (Date.now() - started));
         setTimeout(() => {
           setLoading(false);
-          setError("Something on our end got in the way. Try again.");
+          setError("Something on my end got in the way. Try again.");
         }, wait);
       }
     },
@@ -824,7 +824,7 @@ export default function InterviewBody({
 
         {loading ? (
           <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-teal">
-            <CompassLoader size={72} label="Working on the next question." />
+            <CompassLoader size={72} label="Working out what to ask next." />
             <p className="text-sm text-ink-soft">One moment.</p>
           </div>
         ) : (
@@ -846,23 +846,24 @@ export default function InterviewBody({
                   Only tick what is actually true.
                 </p>
                 <p className="mt-1">
-                  Short answers are fine. A blank is fine. If you pick something
-                  too specific because it sounded good, Aly will plan around it
-                  and a later suggestion might come back a little off.
+                  Short answers are fine and a blank is fine. If you pick
+                  something too specific because it sounded good, I will plan
+                  around it, and a suggestion further down the line will come
+                  back a little off.
                 </p>
               </div>
             )}
             {aboutMePrior && (
               <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
                 <p className="font-display text-ink">
-                  You mentioned this on About you.
+                  You told me this on About you.
                 </p>
                 <p className="mt-1 italic">
                   &ldquo;{aboutMePrior.quote}&rdquo;
                 </p>
                 <p className="mt-2">
-                  So {aboutMePrior.label} is picked below. Save and continue to
-                  agree, pick another if we have it wrong, or{" "}
+                  So I have picked {aboutMePrior.label} below. Save and continue
+                  to agree, pick another if I have it wrong, or{" "}
                   <a
                     href="/about-you"
                     className="text-teal underline underline-offset-4"
@@ -886,13 +887,13 @@ export default function InterviewBody({
                 <p className="font-display text-ink">
                   {inferred.strength === "sure"
                     ? "You have already answered this one."
-                    : "This one Aly can probably guess."}
+                    : "I think I can guess this one."}
                 </p>
                 <p className="mt-1">{inferred.because}</p>
                 <p className="mt-2">
                   {inferred.strength === "sure"
-                    ? "So it is picked below. Save and continue to agree, or pick another if we have it wrong."
-                    : "So it is picked below as a guess. Save and continue to agree, or pick another if we have it wrong."}
+                    ? "So I have picked it below. Save and continue to agree, or pick another if I have it wrong."
+                    : "So I have picked it below as a guess. Save and continue to agree, or pick another if I have it wrong."}
                 </p>
               </div>
             )}
@@ -1049,10 +1050,9 @@ export default function InterviewBody({
       </div>
       {summaryLines.length > 0 && (
         <aside className="hidden self-start rounded-2xl border border-sand-deep bg-sand-soft/60 p-4 lg:sticky lg:top-4 lg:block">
-          <p className="section-label text-ink-soft">What Aly now knows</p>
+          <p className="section-label text-ink-soft">What I know so far</p>
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-            One line every time you answer. This is what she'll do because of
-            it.
+            One line every time you answer, saying what I will do about it.
           </p>
           <div className="mt-3 space-y-2">
             {summaryLines.map((row) => (
@@ -1322,8 +1322,8 @@ function WhyPanel({
     <div className="mt-4 rounded-2xl border border-teal/30 bg-teal-soft/25 p-4">
       <p className="font-display text-lg text-ink">Why? (Optional.)</p>
       <p className="mt-1 text-sm text-ink-soft">
-        Tap any that fit. Each one gets saved as its own line on your
-        Preferences page.
+        Tap any that fit. I save each one as its own line on your Preferences
+        page.
       </p>
       {primary.length > 0 && (
         <div className="mt-3">
@@ -1384,10 +1384,10 @@ function Recap({ answers }) {
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
       <p className="section-label text-ink-soft">Practice interview</p>
       <h1 className="mt-1 font-display text-3xl text-ink">
-        What Aly would have learned
+        What I would have learned
       </h1>
       <p className="mt-2 text-ink-soft">
-        Nothing was saved. This is what would have been written down if this had
+        Nothing was saved. This is what I would have written down if that had
         been the real interview.
       </p>
 
@@ -1396,7 +1396,7 @@ function Recap({ answers }) {
           Answered ({answered.length})
         </h2>
         {answered.length === 0 ? (
-          <p className="mt-2 text-ink-soft">Nothing answered.</p>
+          <p className="mt-2 text-ink-soft">You answered nothing.</p>
         ) : (
           <ul className="mt-3 space-y-3">
             {answered.map((a) => (
@@ -1449,8 +1449,8 @@ function Recap({ answers }) {
         </a>
       </div>
       <p className="mt-6 text-xs text-ink-soft">
-        Aly also asks about the shape of the household on the welcome form and
-        for a paragraph on each person on About you. Both can be rehearsed from
+        I also ask about the shape of the household on the welcome form, and for
+        a paragraph about each person on About you. You can rehearse both from
         the practice hub.
       </p>
     </div>
