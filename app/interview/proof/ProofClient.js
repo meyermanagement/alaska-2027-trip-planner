@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompassLoader from "@/components/CompassLoader";
+import { useBooted, useRevealed } from "@/components/reveal";
 import { runToStandIn } from "@/lib/practice/session";
 
 /**
@@ -37,6 +38,36 @@ import { runToStandIn } from "@/lib/practice/session";
  * for why -- laid out as the slot, the choice, and underneath it the reason that
  * choice won. The reason line is the whole point of the screen, so it gets its
  * own line rather than being tucked into the same sentence as the choice.
+ *
+ * ---- Voice --------------------------------------------------------------
+ *
+ * Aly says all of it, in the first person. The screen used to narrate her --
+ * "Aly picks a meal", "the things you just told her", "Aly will choose
+ * differently on different runs" -- which is odd on the one screen whose entire
+ * argument is that she listened to this family personally. A third party
+ * vouching for her is weaker than her saying what she did and why, and it
+ * contradicted both the heading, which was already hers, and the reason lines
+ * in the answer, which are written by her in the first person. So the whole
+ * screen speaks with one voice: I pick, you told me, I will choose differently.
+ *
+ * The screen used to carry an extra line on a rehearsal saying it was a
+ * rehearsal and whose answers it worked from. It was scaffolding for whoever was
+ * testing the chain, sitting directly under the one sentence that matters, and
+ * the answer itself already names the family it was written for. Gone.
+ *
+ * ---- Motion -------------------------------------------------------------
+ *
+ * The same ma- system as Meet Aly, imported from components/reveal.js: nothing
+ * hidden until JavaScript is running, nothing moving until the boot veil has
+ * lifted, and each block waiting until it is on screen. The heading rises a
+ * word at a time the way her greeting does.
+ *
+ * The answer is the exception, and deliberately so. It is not revealed on
+ * scroll, because it did not exist a second ago -- it arrives when the model
+ * finishes, in place, under a loader the family has been watching. So the card
+ * is uncovered top-edge first on ma-write, the way a line of writing appears,
+ * and the rows inside it come in one after another. Aly is writing it while
+ * they watch rather than sliding a finished thing into place.
  */
 
 /**
@@ -46,10 +77,13 @@ import { runToStandIn } from "@/lib/practice/session";
  * a prose answer is still a real answer. The reason line is dropped when a row
  * came back without one instead of leaving an empty line under the choice.
  */
-function PlanRows({ rows, fallback }) {
+function PlanRows({ rows, fallback, at = 0 }) {
   if (!rows?.length) {
     return (
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
+      <p
+        className="ma-in whitespace-pre-wrap text-sm leading-relaxed text-ink"
+        style={{ animationDelay: `${at}s` }}
+      >
         {fallback || "(no answer)"}
       </p>
     );
@@ -64,7 +98,8 @@ function PlanRows({ rows, fallback }) {
       {rows.map((row, i) => (
         <li
           key={`${row.when}-${i}`}
-          className={i > 0 ? "border-t border-teal/30 pt-3" : ""}
+          className={`ma-in ${i > 0 ? "border-t border-teal/30 pt-3" : ""}`}
+          style={{ animationDelay: `${at + i * 0.11}s` }}
         >
           <p className={slot}>{row.when}</p>
           <p className="mt-0.5 text-sm font-medium leading-snug text-ink">
@@ -90,16 +125,30 @@ function PlanRows({ rows, fallback }) {
  * under it, since "which part of the day needs it" is a phrase and not the
  * sentence a choice gets.
  */
-function Extras({ label, rows, note }) {
+function Extras({ label, rows, note, at = 0 }) {
   return (
     <section className="mt-3 border-t border-teal/30 pt-3">
-      <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.09em] text-teal">
+      <h2
+        className="ma-in text-[0.7rem] font-semibold uppercase tracking-[0.09em] text-teal"
+        style={{ animationDelay: `${at}s` }}
+      >
         {label}
       </h2>
-      {note && <p className="mt-0.5 text-xs italic text-ink-soft">{note}</p>}
+      {note && (
+        <p
+          className="ma-in mt-0.5 text-xs italic text-ink-soft"
+          style={{ animationDelay: `${at + 0.06}s` }}
+        >
+          {note}
+        </p>
+      )}
       <ul className="mt-1.5 space-y-1.5">
         {rows.map((row, i) => (
-          <li key={`${row.what}-${i}`} className="text-sm leading-snug">
+          <li
+            key={`${row.what}-${i}`}
+            className="ma-in text-sm leading-snug"
+            style={{ animationDelay: `${at + 0.12 + i * 0.07}s` }}
+          >
             <span className="font-medium text-ink">{row.what}</span>
             {row.why && (
               <span className="text-ink-soft">
@@ -141,8 +190,36 @@ const SUGGESTED_PLACES = [
   },
 ];
 
+/**
+ * When each part of a block moves, in seconds after that block is on screen.
+ * Same shape as MeetAly's own beats: the eyebrow, then the heading rising a word
+ * at a time, then the sentence under it.
+ */
+const BEAT = {
+  eyebrow: 0.12,
+  headline: 0.24,
+  word: 0.075,
+  intro: 0.62,
+  chip: 0.1,
+  chipStep: 0.045,
+  // Inside the answer: the card uncovers itself first, so the rows start once
+  // it is most of the way open rather than racing it.
+  plan: 0.34,
+  pack: 0.72,
+  tips: 0.92,
+  caveat: 1.05,
+};
+
 export default function ProofClient({ demo = false, backHref = null } = {}) {
   const router = useRouter();
+  // Armed in an effect, so with JavaScript off nothing is hidden. Everything
+  // waits on the boot veil the way Meet Aly does, so a cold open does not spend
+  // the sequence behind the splash.
+  const [armed, setArmed] = useState(false);
+  const booted = useBooted();
+  const [head, headShown] = useRevealed("0px");
+  const [foot, footShown] = useRevealed();
+  useEffect(() => setArmed(true), []);
   // Bumped to re-ask the same question after a failure. There is no category
   // to nudge any more: one question covers all four slots.
   const [attempt, setAttempt] = useState(0);
@@ -197,12 +274,33 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     };
   }, [attempt, demo, destination]);
 
+  const headline = "Here is a day, planned around what you just told me.";
+
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <p className="section-label text-ink-soft">Proof</p>
+    <div className="space-y-6" {...(armed ? { "data-ma-armed": "1" } : {})}>
+      <header
+        className="space-y-2"
+        ref={head}
+        {...(booted && headShown ? { "data-ma-shown": "1" } : {})}
+      >
+        <p
+          className="ma-fade section-label text-ink-soft"
+          style={{ animationDelay: `${BEAT.eyebrow}s` }}
+        >
+          Proof
+        </p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
-          Here is a day, planned around what you just told me.
+          {headline.split(" ").map((word, i) => (
+            <span className="ma-line" key={`${word}-${i}`}>
+              <span
+                className="ma-word"
+                style={{ animationDelay: `${BEAT.headline + i * BEAT.word}s` }}
+              >
+                {word}
+              </span>
+              {"\u00a0"}
+            </span>
+          ))}
         </h1>
         {/* What the reasons under each choice cannot say for themselves is
             what the four choices are, and that the place is one this family
@@ -212,23 +310,15 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             after the interview, before the family has made a single trip, so
             there is nothing to look up. Everyone who sees it names a place in
             the box below or takes one of the five offered. */}
-        <p className="text-base leading-relaxed text-ink-soft">
-          Name a place and Aly picks a meal, something to do, how you get
-          around, and where you stay, then packs for that day and tells you what
+        <p
+          className="ma-in text-base leading-relaxed text-ink-soft"
+          style={{ animationDelay: `${BEAT.intro}s` }}
+        >
+          Name a place and I will pick a meal, something to do, how you get
+          around, and where you stay, then pack for that day and tell you what
           to watch out for &mdash; saying each time which of your own answers
-          made her choose it.
+          made me choose it.
         </p>
-        {/* A rehearsal answers about a stand-in family, and which stand-in it
-            is changes what the right-hand answer should look like. Saying so
-            here is what lets somebody tell a working run from one that
-            quietly fell back to the built-in family. */}
-        {demo && (
-          <p className="text-sm leading-relaxed text-ink-soft">
-            {data?.standInCustom
-              ? "This is a rehearsal, answered about the family you typed on the way here."
-              : "This is a rehearsal, answered about a stand-in family. Walk the practice chain from the welcome form to use your own answers instead."}
-          </p>
-        )}
       </header>
 
       {/* The place the answer is about, still switchable after the first
@@ -239,9 +329,10 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         <nav
           className="flex flex-wrap items-center gap-2"
           aria-label="Which place to ask about"
+          {...(armed ? { "data-ma-shown": "1" } : {})}
         >
           <span className="section-label text-ink-soft">Ask about:</span>
-          {SUGGESTED_PLACES.map((option) => {
+          {SUGGESTED_PLACES.map((option, i) => {
             const on = destination === option.destination;
             return (
               <button
@@ -252,7 +343,10 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                   setDestination(option.destination);
                 }}
                 aria-pressed={on}
-                className={`rounded-full border px-3 py-1.5 text-sm ${
+                style={{
+                  animationDelay: `${BEAT.chip + i * BEAT.chipStep}s`,
+                }}
+                className={`ma-chip rounded-full border px-3 py-1.5 text-sm ${
                   on
                     ? "border-teal bg-teal text-white"
                     : "border-sand-deep bg-white text-ink-soft"
@@ -336,10 +430,10 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
 
       {loading && !data?.needsDestination && (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-teal">
-          <CompassLoader size={64} label="Aly is planning a day there." />
+          <CompassLoader size={64} label="I am planning a day there." />
           <p className="text-sm text-ink-soft">
             Four choices, what to pack for them, and the reason for each. This
-            takes a moment.
+            takes me a moment.
           </p>
         </div>
       )}
@@ -361,19 +455,32 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         <>
           {/* One card, full width. It was half a screen when there was a
               generic answer beside it to argue with. */}
-          <article className="flex flex-col gap-2 rounded-2xl border-2 border-teal bg-teal-soft/30 p-4">
+          <article
+            className="ma-write flex flex-col gap-2 rounded-2xl border-2 border-teal bg-teal-soft/30 p-4"
+            {...(armed ? { "data-ma-shown": "1" } : {})}
+          >
             <header>
               {/* Same cascade trap as the slot labels above: section-label
                   would override the teal, so the label is spelled out. */}
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+              <p
+                className="ma-in text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal"
+                style={{ animationDelay: `${BEAT.plan - 0.12}s` }}
+              >
                 A day in {data.destination}
               </p>
-              <p className="mt-1 text-xs italic text-ink-soft">
-                Based on the {data.preferenceCount || "several"} things you just
-                told her.
+              <p
+                className="ma-in mt-1 text-xs italic text-ink-soft"
+                style={{ animationDelay: `${BEAT.plan - 0.06}s` }}
+              >
+                Built from the {data.preferenceCount || "several"} things you
+                just told me.
               </p>
             </header>
-            <PlanRows rows={data.withPrefsRows} fallback={data.withPrefs} />
+            <PlanRows
+              rows={data.withPrefsRows}
+              fallback={data.withPrefs}
+              at={BEAT.plan}
+            />
             {/* Left out rather than headed and empty when a run came back
                 without these rows, which is the honest thing for a screen whose
                 whole job is showing what Aly can actually do. */}
@@ -381,22 +488,35 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               <Extras
                 label="Pack for that day"
                 rows={data.packRows}
-                note="Not a generic list -- each line says which part of the day needs it."
+                note="Each line says which part of the day needs it."
+                at={BEAT.pack}
               />
             )}
             {data.tipRows?.length > 0 && (
-              <Extras label="Pro tips" rows={data.tipRows} />
+              <Extras label="Pro tips" rows={data.tipRows} at={BEAT.tips} />
             )}
           </article>
 
-          <p className="text-xs italic text-ink-soft">
-            Aly will choose differently on different runs. What stays true is
-            that every choice comes from something you told her.
-          </p>
+          {/* The flag has to sit on an ancestor: the ma- rules animate a
+              descendant of a shown block, so an element that marks itself shown
+              stays hidden. */}
+          <div {...(armed ? { "data-ma-shown": "1" } : {})}>
+            <p
+              className="ma-in text-xs italic text-ink-soft"
+              style={{ animationDelay: `${BEAT.caveat}s` }}
+            >
+              Ask me again and I will choose differently. What stays true is
+              that every choice comes from something you told me.
+            </p>
+          </div>
         </>
       )}
 
-      <div className="flex flex-wrap gap-2 border-t border-sand-deep pt-5">
+      <div
+        className="flex flex-wrap gap-2 border-t border-sand-deep pt-5"
+        ref={foot}
+        {...(booted && footShown ? { "data-ma-shown": "1" } : {})}
+      >
         {/* This used to open one more onboarding screen, which said what Aly
             would do and offered one more question to ask her. Two demos in a
             row before the family had done anything, when the thing they need
@@ -412,7 +532,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             }
             router.push("/trips/new");
           }}
-          className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
+          className="ma-cta btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
           {demo ? "Take me to my trips" : "Plan our trip"}
         </button>
