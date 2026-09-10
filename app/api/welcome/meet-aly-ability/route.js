@@ -3,9 +3,10 @@ import { generate } from "@/lib/agent/llm";
 import { ALY_ABILITIES, ABILITY_SYSTEM } from "@/lib/welcome/alyAbilities";
 
 /**
- * One of the seven things Aly looks after, asked about on the Meet Aly screen.
+ * One of the eight things Aly looks after, asked about on the Meet Aly screen.
  *
- * The seven lines on that screen are claims: she keeps your points, she builds
+ * The eight lines on that screen are claims: she plans the days, she keeps your
+ * points, she builds
  * the packing list, she watches the budget. This endpoint is what turns any one
  * of them into something a family can interrogate before they have an account
  * -- they tap the line, she answers the question they actually have about it,
@@ -22,7 +23,7 @@ import { ALY_ABILITIES, ABILITY_SYSTEM } from "@/lib/welcome/alyAbilities";
  * Writes nothing. Needs no auth, on purpose: the practice hub and the real
  * first run both reach it before there is a family to attach anything to. A
  * failure comes back as an error string the row shows quietly and drops -- the
- * seven lines are still there and still true whether or not Aly gets to
+ * eight lines are still there and still true whether or not Aly gets to
  * elaborate, so nothing on this screen depends on the call succeeding.
  */
 

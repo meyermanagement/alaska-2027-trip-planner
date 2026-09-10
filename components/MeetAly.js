@@ -16,8 +16,8 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
  *
  *   1. Aly says hello, in her own voice, once.
  *   2. What she looks after besides the itinerary -- one panel of short lines,
- *      not seven separate boxes. Seven bordered cards read as a wall and get
- *      skipped; seven lines inside one bordered panel read as a list of jobs.
+ *      not eight separate boxes. Eight bordered cards read as a wall and get
+ *      skipped; eight lines inside one bordered panel read as a list of jobs.
  *   3. The demonstration: the same question answered four ways, and directly
  *      underneath it the box that runs the same demonstration live on the
  *      primary's own question. The example and the live version belong to one
@@ -102,17 +102,72 @@ const BEAT = {
 };
 
 /**
+ * True once the boot veil has lifted off the page.
+ *
+ * This is the whole reason the screen's opening sequence was invisible. The
+ * veil in the layout covers everything for the first five and a half seconds of
+ * a cold open, and it sits at z-index 90 over a page that is already mounted
+ * and already on screen -- so the hero's observer fired immediately, the
+ * compass drew itself, the needle swung in and the greeting finished speaking,
+ * all of it behind a splash, and the veil lifted onto a settled screen. An
+ * introduction nobody can see is not an introduction.
+ *
+ * The veil announces itself by setting data-booted on <html>, so that is what
+ * this watches. Three ways out, because the screen must never be stuck waiting:
+ * the flag may already be set by the time this mounts on a warm navigation,
+ * there may be no veil in the document at all, and the stylesheet lifts the
+ * veil on its own at eight seconds if the veil's own component never ran.
+ */
+function useBooted() {
+  const [booted, setBooted] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (root.dataset.booted || !document.getElementById("boot-veil")) {
+      setBooted(true);
+      return;
+    }
+    // A beat after the flag, not on it: the veil takes 420ms to fade, and the
+    // compass drawing itself through a dissolving splash is the one part of the
+    // sequence worth waiting a fifth of a second for a clear page to show.
+    let settle = null;
+    const done = () => {
+      mo.disconnect();
+      clearTimeout(failsafe);
+      settle = setTimeout(() => setBooted(true), 240);
+    };
+    const mo = new MutationObserver(() => {
+      if (root.dataset.booted) done();
+    });
+    mo.observe(root, { attributes: true, attributeFilter: ["data-booted"] });
+    const failsafe = setTimeout(done, 8200);
+    return () => {
+      mo.disconnect();
+      clearTimeout(failsafe);
+      if (settle) clearTimeout(settle);
+    };
+  }, []);
+
+  return booted;
+}
+
+/**
  * True once the returned ref's element has been on screen. Fires once and
  * forgets: a block that has arrived does not arrive again on the way back up.
  *
- * Starts true where there is no observer to ask, so an old browser gets the
- * screen rather than a blank one.
+ * A browser with no observer to ask is treated as already revealed on its first
+ * effect, so an old browser gets the screen rather than a blank one -- but never
+ * on the first render, because the server has to agree with it.
  */
 function useRevealed(rootMargin = "-12% 0px -8% 0px") {
   const ref = useRef(null);
-  const [shown, setShown] = useState(
-    typeof IntersectionObserver === "undefined",
-  );
+  // Always false on the first render, on the server and in the browser alike.
+  // Reading IntersectionObserver here instead made the server send the markup
+  // with the block already revealed and the browser hydrate it as not revealed,
+  // which React reports as a hydration mismatch and does not patch up. The
+  // no-observer case is handled in the effect below, where it is a browser fact
+  // rather than a rendering one.
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
     if (shown) return;
@@ -204,7 +259,7 @@ function ThinkingMark() {
 }
 
 /**
- * The question under one of the seven lines, and whatever Aly has said about it.
+ * The question under one of the eight lines, and whatever Aly has said about it.
  *
  * Deliberately a button with the question written on it rather than an icon or
  * the whole row being tappable. A person reading the line has a specific thing
@@ -273,6 +328,11 @@ export default function MeetAly({
   // anything. Before this, and forever in a browser with scripting off, the
   // screen is plainly visible.
   useEffect(() => setArmed(true), []);
+
+  // Nothing moves while the boot veil is still over the page. Every block's
+  // reveal is the observer AND this, so a section the family scrolls to later
+  // is unaffected and the hero waits for the splash instead of playing under it.
+  const booted = useBooted();
 
   const [heroRef, heroShown] = useRevealed("0px");
   const [abilitiesRef, abilitiesShown] = useRevealed();
@@ -357,7 +417,10 @@ export default function MeetAly({
       {practice && <p className="section-label text-ink-soft">Practice</p>}
 
       {/* 1. The greeting. */}
-      <header ref={heroRef} {...(heroShown ? { "data-ma-shown": "1" } : {})}>
+      <header
+        ref={heroRef}
+        {...(booted && heroShown ? { "data-ma-shown": "1" } : {})}
+      >
         <div className="flex items-start gap-4">
           <BuildingMark />
           <div>
@@ -417,21 +480,21 @@ export default function MeetAly({
         </div>
       </header>
 
-      {/* 2. What she does besides plan the days. One panel of seven lines in
+      {/* 2. What she looks after. One panel of eight lines in
           two columns, with hairlines between them instead of a border each:
-          the same seven facts, read as one list of jobs rather than as a wall
+          the same eight facts, read as one list of jobs rather than as a wall
           of cards.
 
           Every line is also a question. Under each one sits the thing a person
           actually wants to know about it, and tapping that asks Aly the
           question and she answers it right there, live, before this family has
-          an account or a trip. Seven claims a stranger can interrogate is a
-          different thing from seven claims a stranger has to take on faith,
+          an account or a trip. Eight claims a stranger can interrogate is a
+          different thing from eight claims a stranger has to take on faith,
           and it is most of the difference between reading about somebody and
           being introduced to them. */}
       <section
         ref={abilitiesRef}
-        {...(abilitiesShown ? { "data-ma-shown": "1" } : {})}
+        {...(booted && abilitiesShown ? { "data-ma-shown": "1" } : {})}
         aria-labelledby="meet-aly-abilities-heading"
         className="rounded-2xl border border-sand-deep bg-white p-5 sm:p-6"
       >
@@ -494,7 +557,10 @@ export default function MeetAly({
         aria-labelledby="meet-aly-demo-heading"
         className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-5 sm:p-6"
       >
-        <div ref={demoRef} {...(demoShown ? { "data-ma-shown": "1" } : {})}>
+        <div
+          ref={demoRef}
+          {...(booted && demoShown ? { "data-ma-shown": "1" } : {})}
+        >
           <p
             className="ma-fade section-label text-ink-soft"
             style={{ animationDelay: `${BEAT.demoHeading}s` }}
@@ -558,7 +624,7 @@ export default function MeetAly({
             family's own question rather than as a separate feature. */}
         <div
           ref={askRef}
-          {...(askShown ? { "data-ma-shown": "1" } : {})}
+          {...(booted && askShown ? { "data-ma-shown": "1" } : {})}
           className="mt-6 pt-5"
         >
           <div
@@ -632,7 +698,10 @@ export default function MeetAly({
         </div>
       </section>
 
-      <div ref={footRef} {...(footShown ? { "data-ma-shown": "1" } : {})}>
+      <div
+        ref={footRef}
+        {...(booted && footShown ? { "data-ma-shown": "1" } : {})}
+      >
         <div className="ma-rule h-px bg-sand-deep" />
         <button
           type="button"
