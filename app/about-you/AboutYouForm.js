@@ -269,19 +269,15 @@ export default function AboutYouForm({
           : "About you"}
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        Five short questions about you rather than about a trip. Answer any that
-        come easily and skip the rest — Aly reads them together before she
-        suggests anything. The more you say in your own words, the less she has
-        to guess: what you love doing, what you are fussy about, whether you
-        drink, what wears you out.
+        Five short questions about you, not about a trip. Answer the ones that
+        come easily and skip the rest — the more you say, the less Aly has to
+        guess.
       </p>
 
       {secondary && (
         <p className="mt-3 max-w-2xl rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm leading-relaxed text-ink-soft">
-          These five questions are the one thing about yourself you can change
-          here. Your name, your email and your travel documents are looked after
-          by a primary traveler in the family — ask them if any of those need
-          fixing. What you write below is yours.
+          What you write below is yours. Your name, email and travel documents
+          are looked after by a primary traveler in the family.
         </p>
       )}
 
