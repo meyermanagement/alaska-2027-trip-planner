@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
+import WelcomeIntro from "@/components/WelcomeIntro";
 import WelcomeForm from "./WelcomeForm";
 
 export const metadata = { title: "Welcome · Alyeska" };
@@ -82,14 +83,7 @@ export default async function WelcomePage() {
   // three siblings all render bare pages for the same reason.
   return (
     <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
-      <h1 className="font-display text-3xl font-semibold">
-        Welcome to Alyeska
-      </h1>
-      <p className="mt-2 text-sm text-ink-soft">
-        Three quick things and Aly can start being useful right away: where you
-        live, who else travels with you, and any animals that are part of the
-        family.
-      </p>
+      <WelcomeIntro />
       <WelcomeForm
         familyId={access.familyId}
         familyName={family?.name || ""}

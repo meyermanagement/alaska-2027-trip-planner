@@ -262,131 +262,57 @@ export default function WelcomeForm({
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="space-y-6">
-      <section className="card p-4">
-        <label className="section-label block" htmlFor="welcome-family-name">
-          What should we call this family?
-        </label>
-        <p className="mt-1 text-xs text-ink-soft">
-          The name Aly and the app use when they talk about your family. You can
-          change it later on the Family screen.
-        </p>
-        <input
-          id="welcome-family-name"
-          className="field mt-2"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Rivera Family"
-          maxLength={60}
-        />
-      </section>
-
-      <section className="card p-4">
-        <label className="section-label block" htmlFor="welcome-home">
-          Where the family lives
-        </label>
-        <p className="mt-1 text-xs text-ink-soft">
-          Start typing and pick from the list, so we can put a point on it. If
-          the list does not have it, whatever you type will still save.
-        </p>
-        <div className="mt-2">
-          <HomePicker
-            value={address}
-            onChange={setAddress}
-            onLocated={(place) => {
-              setLocated(place);
-              setAddress(place.address);
-            }}
+        <section className="card p-4">
+          <label className="section-label block" htmlFor="welcome-family-name">
+            What should we call this family?
+          </label>
+          <p className="mt-1 text-xs text-ink-soft">
+            What I will call you when I talk about your family. You can change
+            it later on the Family screen.
+          </p>
+          <input
+            id="welcome-family-name"
+            className="field mt-2"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Rivera Family"
+            maxLength={60}
           />
-        </div>
-      </section>
+        </section>
 
-      <section className="card p-4">
-        <p className="section-label">Who else is in the family</p>
-        <p className="mt-1 text-xs text-ink-soft">
-          The first row is you. Everyone else is added as a secondary traveler:
-          they can see trips they are on and check off their own packing and
-          tasks, and can be given a full login later. Date of birth and gender
-          are both optional -- Aly uses them for the ordinary things (age tells
-          her a ten-year-old is on the trip, gender helps with what to pack and
-          who shares a room). You can add more people or edit these later on the
-          Family screen.
-        </p>
-        <div className="mt-3 space-y-4">
-          {people.map((row, i) => (
-            <div
-              className="rounded-lg border border-line/60 p-3 space-y-2"
-              key={i}
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  className="field flex-1"
-                  value={row.name}
-                  onChange={(e) => setPerson(i, { name: e.target.value })}
-                  placeholder={i === 0 ? "Your name" : "Their name"}
-                  maxLength={60}
-                />
-                {i > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => removePerson(i)}
-                    disabled={busy}
-                    aria-label={`Remove person ${i + 1}`}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <label className="block text-xs font-semibold text-ink-soft">
-                  Date of birth (optional)
-                  <input
-                    type="date"
-                    className="field mt-1 text-sm"
-                    value={row.dob || ""}
-                    onChange={(e) => setPerson(i, { dob: e.target.value })}
-                    max={new Date().toISOString().slice(0, 10)}
-                  />
-                </label>
-                <label className="block text-xs font-semibold text-ink-soft">
-                  Gender (optional)
-                  <select
-                    className="field mt-1 text-sm"
-                    value={row.gender || ""}
-                    onChange={(e) => setPerson(i, { gender: e.target.value })}
-                  >
-                    <option value="">Not recorded</option>
-                    {GENDERS.map((g) => (
-                      <option key={g.value} value={g.value}>
-                        {g.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm mt-3"
-          onClick={addPerson}
-          disabled={busy}
-        >
-          {people.length === 1 ? "Add somebody else" : "Add another person"}
-        </button>
-      </section>
+        <section className="card p-4">
+          <label className="section-label block" htmlFor="welcome-home">
+            Where the family lives
+          </label>
+          <p className="mt-1 text-xs text-ink-soft">
+            Start typing and pick from the list, so I can put a point on it. If
+            the list does not have it, whatever you type will still save.
+          </p>
+          <div className="mt-2">
+            <HomePicker
+              value={address}
+              onChange={setAddress}
+              onLocated={(place) => {
+                setLocated(place);
+                setAddress(place.address);
+              }}
+            />
+          </div>
+        </section>
 
-      <section className="card p-4">
-        <p className="section-label">Animals in the family</p>
-        <p className="mt-1 text-xs text-ink-soft">
-          Add one row per animal, with a name and what kind. Even the ones that
-          always stay home -- it helps Aly know when to ask about a sitter and
-          when not to. You can add more later on the Family screen.
-        </p>
-        {pets.length > 0 && (
+        <section className="card p-4">
+          <p className="section-label">Who else is in the family</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            The first row is you. Everyone else is added as a secondary
+            traveler: they can see trips they are on and check off their own
+            packing and tasks, and can be given a full login later. Date of
+            birth and gender are both optional -- I use them for the ordinary
+            things (age tells me a ten-year-old is on the trip, gender helps
+            with what to pack and who shares a room). You can add more people or
+            edit these later on the Family screen.
+          </p>
           <div className="mt-3 space-y-4">
-            {pets.map((row, i) => (
+            {people.map((row, i) => (
               <div
                 className="rounded-lg border border-line/60 p-3 space-y-2"
                 key={i}
@@ -395,70 +321,144 @@ export default function WelcomeForm({
                   <input
                     className="field flex-1"
                     value={row.name}
-                    onChange={(e) => setPet(i, { name: e.target.value })}
-                    placeholder="Their name"
+                    onChange={(e) => setPerson(i, { name: e.target.value })}
+                    placeholder={i === 0 ? "Your name" : "Their name"}
                     maxLength={60}
                   />
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => removePet(i)}
-                    disabled={busy}
-                    aria-label={`Remove animal ${i + 1}`}
-                  >
-                    Remove
-                  </button>
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => removePerson(i)}
+                      disabled={busy}
+                      aria-label={`Remove person ${i + 1}`}
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
-                <label className="block text-xs font-semibold text-ink-soft">
-                  What kind
-                  <select
-                    className="field mt-1 text-sm"
-                    value={row.species}
-                    onChange={(e) => setPet(i, { species: e.target.value })}
-                  >
-                    {SPECIES.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {speciesLabel(s.id)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="block text-xs font-semibold text-ink-soft">
+                    Date of birth (optional)
+                    <input
+                      type="date"
+                      className="field mt-1 text-sm"
+                      value={row.dob || ""}
+                      onChange={(e) => setPerson(i, { dob: e.target.value })}
+                      max={new Date().toISOString().slice(0, 10)}
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-ink-soft">
+                    Gender (optional)
+                    <select
+                      className="field mt-1 text-sm"
+                      value={row.gender || ""}
+                      onChange={(e) => setPerson(i, { gender: e.target.value })}
+                    >
+                      <option value="">Not recorded</option>
+                      {GENDERS.map((g) => (
+                        <option key={g.value} value={g.value}>
+                          {g.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
             ))}
           </div>
-        )}
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm mt-3"
-          onClick={addPet}
-          disabled={busy}
-        >
-          {pets.length === 0 ? "Add an animal" : "Add another animal"}
-        </button>
-      </section>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm mt-3"
+            onClick={addPerson}
+            disabled={busy}
+          >
+            {people.length === 1 ? "Add somebody else" : "Add another person"}
+          </button>
+        </section>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!canSave}
-          onClick={save}
-        >
-          {busy ? "Saving…" : "Save and continue to About you"}
-        </button>
-        {practice && (
-          <a href="/interview-check" className="btn btn-ghost">
-            Back to practice
-          </a>
-        )}
-        {!practice && (
-          <p className="text-xs text-ink-soft">
-            You can change or add more on the Family screen after this.
+        <section className="card p-4">
+          <p className="section-label">Animals in the family</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Add one row per animal, with a name and what kind. Even the ones
+            that always stay home -- it tells me when to ask about a sitter and
+            when not to. You can add more later on the Family screen.
           </p>
-        )}
-      </div>
-      {error && <p className="text-sm text-rose">{error}</p>}
-      {preview && <WelcomePreview preview={preview} />}
+          {pets.length > 0 && (
+            <div className="mt-3 space-y-4">
+              {pets.map((row, i) => (
+                <div
+                  className="rounded-lg border border-line/60 p-3 space-y-2"
+                  key={i}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="field flex-1"
+                      value={row.name}
+                      onChange={(e) => setPet(i, { name: e.target.value })}
+                      placeholder="Their name"
+                      maxLength={60}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => removePet(i)}
+                      disabled={busy}
+                      aria-label={`Remove animal ${i + 1}`}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <label className="block text-xs font-semibold text-ink-soft">
+                    What kind
+                    <select
+                      className="field mt-1 text-sm"
+                      value={row.species}
+                      onChange={(e) => setPet(i, { species: e.target.value })}
+                    >
+                      {SPECIES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {speciesLabel(s.id)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm mt-3"
+            onClick={addPet}
+            disabled={busy}
+          >
+            {pets.length === 0 ? "Add an animal" : "Add another animal"}
+          </button>
+        </section>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!canSave}
+            onClick={save}
+          >
+            {busy ? "Saving…" : "Save and continue to About you"}
+          </button>
+          {practice && (
+            <a href="/interview-check" className="btn btn-ghost">
+              Back to practice
+            </a>
+          )}
+          {!practice && (
+            <p className="text-xs text-ink-soft">
+              You can change or add more on the Family screen after this.
+            </p>
+          )}
+        </div>
+        {error && <p className="text-sm text-rose">{error}</p>}
+        {preview && <WelcomePreview preview={preview} />}
       </div>
       <AlyKnowsSidebar
         familyName={name}
