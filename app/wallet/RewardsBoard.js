@@ -586,9 +586,9 @@ export default function RewardsBoard({ familyId, travelers, programs }) {
           <p className="mt-2 text-sm leading-relaxed text-ink-soft">
             Add one and two things appear above: a What to pay with panel for
             each kind of spending, and a button to ask me about a specific
-            purchase. Pick a brand and the earning rules and rough point values
-            come filled in, ready to correct. You can add a balance now or
-            later.
+            purchase. Pick a brand, or type any name and press Look it up, and
+            the earning rules and rough point values come filled in, ready to
+            correct. You can add a balance now or later.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {CATALOG.slice(0, 8).map((entry) => (
@@ -875,6 +875,74 @@ function fromCatalog(entry) {
   };
 }
 
+/** api.example.com/thing → example.com, for crediting a page in a few characters. */
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+/** What arrived, in the order somebody would notice it. */
+function filledSummary(entry) {
+  const bits = [];
+  if (entry.earn_rules?.length)
+    bits.push(
+      `${entry.earn_rules.length} earning rule${entry.earn_rules.length === 1 ? "" : "s"}`,
+    );
+  if (entry.credits?.length)
+    bits.push(
+      `${entry.credits.length} statement credit${entry.credits.length === 1 ? "" : "s"}`,
+    );
+  if (entry.point_value_cents !== null && entry.point_value_cents !== undefined)
+    bits.push("a rough value per point");
+  if (entry.annual_fee !== null && entry.annual_fee !== undefined)
+    bits.push("the annual fee");
+  if (entry.tiers) bits.push("the status levels");
+  if (entry.expiry_note) bits.push("when points expire");
+  if (bits.length < 2) return bits.join("");
+  return `${bits.slice(0, -1).join(", ")} and ${bits[bits.length - 1]}`;
+}
+
+const isBlank = (v) => v === "" || v === null || v === undefined;
+
+/**
+ * A looked-up program → form values. On a new row everything found is taken; on
+ * one that already exists only the blanks are filled, because the family may
+ * have corrected a rate by hand and a lookup is not entitled to overwrite that.
+ */
+function withLookup(values, entry, sources, { replace }) {
+  const next = { ...values };
+  const take = (key, value) => {
+    if (isBlank(value)) return;
+    if (!replace && !isBlank(values[key])) return;
+    next[key] = value;
+  };
+  take("kind", entry.kind);
+  take("program_name", entry.program_name);
+  take("currency_label", entry.currency_label);
+  take("point_value_cents", entry.point_value_cents);
+  take("annual_fee", entry.annual_fee);
+  take("perks", entry.perks);
+  take("expiry_note", entry.expiry_note);
+  if (replace || values.earn_rules.length === 0)
+    next.earn_rules = normalizeRules(entry.earn_rules);
+  if (replace || values.credits.length === 0)
+    next.credits = normalizeCredits(entry.credits);
+  const credited = (sources || [])
+    .map((s) => hostOf(s.url))
+    .filter(Boolean)
+    .slice(0, 3);
+  const where = credited.length
+    ? credited.join(", ")
+    : "the program's own pages";
+  const when = entry.as_of ? ` in ${entry.as_of}` : "";
+  const provenance = `Read off ${where}${when}. Worth checking against your own account.`;
+  if (isBlank(values.notes)) next.notes = provenance;
+  return next;
+}
+
 function ProgramForm({
   values,
   isNew,
@@ -887,10 +955,80 @@ function ProgramForm({
   const set = (patch) => onChange({ ...values, ...patch });
   const isCard = values.kind === "credit_card";
   const grouped = catalogByKind();
+  // What a lookup came back with, kept so the status ladder can be shown beside
+  // the status field for a program the app does not ship an entry for.
+  const [found, setFound] = useState(null);
+  const [looking, setLooking] = useState(false);
+  const [lookupNote, setLookupNote] = useState(null);
+
+  async function lookUp() {
+    const name = values.brand.trim();
+    if (name.length < 2) {
+      setLookupNote({ tone: "warn", text: "Type the name first." });
+      return;
+    }
+    // One the app already ships is free and instant, so it never becomes a
+    // search. Typing \"IHG One Rewards\" gets the same answer as picking it.
+    const known = catalogEntry(name);
+    if (known) {
+      onChange({ ...values, ...fromCatalog(known) });
+      setFound({ tiers: known.tiers || null });
+      setLookupNote({
+        tone: "ok",
+        text: `I already have ${known.brand} on file, so that is filled in.`,
+        sources: known.source
+          ? [{ title: hostOf(known.source), url: known.source }]
+          : [],
+      });
+      return;
+    }
+    setLooking(true);
+    setLookupNote(null);
+    try {
+      const res = await fetch("/api/wallet/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brand: name, kind: values.kind }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLookupNote({
+          tone: "warn",
+          text: data.error || "I could not look that one up just now.",
+        });
+        return;
+      }
+      if (!data.found) {
+        setLookupNote({
+          tone: "warn",
+          text: `I could not find a program called \u201c${name}\u201d. Check the name, or fill it in yourself.`,
+        });
+        return;
+      }
+      const entry = data.entry;
+      setFound(entry);
+      onChange(withLookup(values, entry, data.sources, { replace: isNew }));
+      const filled = filledSummary(entry);
+      setLookupNote({
+        tone: "ok",
+        text: filled
+          ? `Filled in ${filled}. Correct anything that looks wrong.`
+          : "Not much came back on that one. Fill in what you know.",
+        sources: data.sources || [],
+      });
+    } catch {
+      setLookupNote({
+        tone: "warn",
+        text: "I could not look that one up just now.",
+      });
+    } finally {
+      setLooking(false);
+    }
+  }
   // The program's ladder, shown beside the status field where it answers a
   // question. It used to be seeded into "Perks worth remembering", where it read
   // as a level the family held — and Aly read it that way too.
-  const ladder = catalogEntry(values.brand)?.tiers || null;
+  const ladder = catalogEntry(values.brand)?.tiers || found?.tiers || null;
 
   return (
     <form
@@ -957,18 +1095,69 @@ function ProgramForm({
             ))}
           </select>
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Name
+        <div className="block">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
+              Name
+            </span>
+            <input
+              className="field"
+              required
+              value={values.brand}
+              onChange={(e) => {
+                // The note and the ladder are about the name that was looked
+                // up, so they go the moment the name is something else.
+                if (lookupNote) setLookupNote(null);
+                if (found) setFound(null);
+                set({ brand: e.target.value });
+              }}
+              placeholder="Marriott Bonvoy"
+            />
+          </label>
+          <button
+            type="button"
+            className="btn btn-ghost mt-2 w-full sm:w-auto"
+            disabled={looking || values.brand.trim().length < 2}
+            onClick={lookUp}
+          >
+            {looking ? "Looking it up\u2026" : "Look it up"}
+          </button>
+          <span className="mt-1 block text-xs text-ink-soft">
+            {looking
+              ? "Reading the program's own pages. This takes a few seconds."
+              : isNew
+                ? "I read the program's pages and fill in the earning rules, credits, tiers and a rough value per point."
+                : "Fills in anything still blank. Nothing you have already typed is touched."}
           </span>
-          <input
-            className="field"
-            required
-            value={values.brand}
-            onChange={(e) => set({ brand: e.target.value })}
-            placeholder="Marriott Bonvoy"
-          />
-        </label>
+          {lookupNote && (
+            <span
+              className={`mt-1 block text-xs ${
+                lookupNote.tone === "warn" ? "text-amber" : "text-teal"
+              }`}
+            >
+              {lookupNote.text}
+              {lookupNote.sources?.length > 0 && (
+                <>
+                  {" "}
+                  {lookupNote.sources.slice(0, 3).map((s, i) => (
+                    <a
+                      key={s.url || i}
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                    >
+                      {hostOf(s.url) || s.title}
+                      {i < Math.min(lookupNote.sources.length, 3) - 1
+                        ? ", "
+                        : ""}
+                    </a>
+                  ))}
+                </>
+              )}
+            </span>
+          )}
+        </div>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
             Whose account
