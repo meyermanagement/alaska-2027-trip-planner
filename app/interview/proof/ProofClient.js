@@ -130,13 +130,16 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         <h1 className="font-display text-3xl font-semibold leading-tight">
           Watch the same question, answered two ways.
         </h1>
-        {/* One sentence. Everything this paragraph used to explain -- which
-            side is which, that the model is the same, that the reasons sit
-            under the choices -- is already said by the two column headers and
-            by the plans themselves. */}
+        {/* Two sentences. Which side is which is already said by the two
+            column headers, so this does not repeat it. What the headers cannot
+            say is that the question is a real one about a real trip, that the
+            model is the same on both sides, and that the reason under each
+            choice is the part worth reading. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          Same model both times. The only difference is that one of them knows
-          what you just told her.
+          Aly is answering one real question about somewhere you&rsquo;re going,
+          twice, with the same model. The only difference is that one of the two
+          knows what you just told her, and under every choice is the reason it
+          won.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
