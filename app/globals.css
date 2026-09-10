@@ -249,23 +249,41 @@ html[data-boot="quick"] #boot-veil {
 }
 
 .boot-quick {
+  /* The whole veil, not a card in the middle of it. */
+  position: absolute;
+  inset: 0;
   color: var(--color-teal);
-}
-
-.boot-quick svg {
-  /* Taller than it is wide, and sized off the height of the screen rather than
-     the width, because a phone has height to spare and it is height that makes
-     this read as a screen at work rather than a small emblem that has gone
-     wrong. The width cap is only there to keep it off the edges on a laptop. */
-  height: min(74vh, 32rem);
-  width: auto;
-  max-width: 88vw;
   opacity: 0;
   animation: boot-word 0.3s ease 0.06s forwards;
 }
 
 .quick-grid {
-  opacity: 0.16;
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      currentColor 0 1px,
+      transparent 1px 4.75rem
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      currentColor 0 1px,
+      transparent 1px 4.75rem
+    );
+}
+
+.boot-quick svg {
+  /* The full veil. The frame is portrait and keeps its proportions, so on a
+     phone the route runs very nearly the whole height of the screen and on a
+     laptop it is as tall as the window with room either side -- and either way
+     the mark is scaled by the same amount, so it grows with the map instead of
+     sitting on it at a fixed size. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* The route is drawn as a dashed line that runs -- the dashes travel with the
@@ -1040,7 +1058,7 @@ html[data-boot="quick"] #boot-veil {
      the needle stops drifting, and the mark is parked halfway along the route
      rather than at either end, so the map still reads as a crossing in progress
      rather than as one that never started. */
-  .boot-quick svg {
+  .boot-quick {
     opacity: 1;
     animation: none;
   }

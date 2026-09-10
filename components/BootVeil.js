@@ -184,9 +184,12 @@ function Housing({ live }) {
 // has to run on. A transform on a group is the one thing every browser here
 // agrees about, and it is also the one the reduced motion query can reach.
 //
-// Portrait, because a phone is, and the route serpentines up the screen rather
-// than crossing it: on a landscape map the whole thing had to shrink to the
-// width of the phone and read as a small emblem instead of a screen at work.
+// It fills the screen. The graticule is a pair of repeating gradients on a layer
+// of its own, so it runs to all four edges whatever the shape of the window, and
+// the route is drawn in a portrait frame that is scaled to fit inside the veil --
+// as tall as the screen is, near enough, with the mark growing with it. Sizing
+// the drawing in rems, however generously, always left it an emblem floating in
+// the middle of a phone; this is a map with something moving on it.
 //
 // The needle points the way the mark is going and turns through the bends, which
 // is the second set of sampled numbers: the tangent of the curve at each of
@@ -197,13 +200,12 @@ const ROUTE = "M40 348C40 296 152 300 152 248S48 196 48 140S150 92 150 36";
 function QuickVeil() {
   return (
     <div className="boot-quick" aria-hidden="true">
+      {/* Lines of latitude and longitude, edge to edge, faint enough to read as
+          paper rather than as a grid to be counted. Gradients rather than lines
+          in the drawing below, because the drawing keeps its proportions and the
+          graticule must not: it has a whole window to cover. */}
+      <div className="quick-grid" />
       <svg viewBox="0 0 200 380" fill="none">
-        {/* Lines of latitude and longitude, faint enough to read as paper rather
-            than as a grid to be counted. */}
-        <g className="quick-grid" stroke="currentColor" strokeWidth="0.9">
-          <path d="M62 12V368M100 12V368M138 12V368" />
-          <path d="M14 76H186M14 152H186M14 228H186M14 304H186" />
-        </g>
         {/* Where it started and where it is going. The far one is hollow, so the
             pair reads as a journey with a direction rather than two dots. */}
         <circle cx="40" cy="348" r="4.5" fill="currentColor" opacity="0.5" />
