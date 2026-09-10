@@ -477,6 +477,35 @@ html[data-booted] #boot-veil {
   }
 }
 
+/* Meet Aly -- the first screen a family sees. Everything on it arrives in one
+   downward sequence: the greeting, then what Aly looks after, then the four
+   families answering the same question, then the box that lets you ask your
+   own. One keyframe, with each element's place in the sequence set inline as a
+   delay, so a block that sits lower on the page also moves later without a
+   second animation to keep in step with. Nothing here loops; the screen
+   settles in about a second and then holds still, because a first screen that
+   keeps moving is a first screen nobody finishes reading. */
+.meet-aly-in {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: meet-aly-in 0.5s ease-out both;
+}
+
+@keyframes meet-aly-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meet-aly-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes boot-draw {
   to {
     stroke-dashoffset: 0;
