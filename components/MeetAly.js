@@ -2,45 +2,35 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Needle, RING_LEN, BEZEL } from "@/components/CompassLoader";
-import {
-  DEMO_FAMILIES,
-  DEMO_QUESTION,
-  DEMO_DESTINATION,
-} from "@/lib/welcome/meetAlyDemo";
 import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
 
 /**
  * Meet Aly -- the first screen a brand-new primary sees.
  *
- * Three acts, in the order a person reads them:
+ * Two acts, in the order a person reads them:
  *
  *   1. Aly says hello, in her own voice, once.
- *   2. What she looks after besides the itinerary -- one panel of short lines,
- *      not eight separate boxes. Eight bordered cards read as a wall and get
- *      skipped; eight lines inside one bordered panel read as a list of jobs.
- *   3. The demonstration: the same question answered four ways, and directly
- *      underneath it the box that runs the same demonstration live on the
- *      primary's own question. The example and the live version belong to one
- *      section, because they are the same argument twice -- once prepared and
- *      once proved.
+ *   2. What she looks after -- one panel of short lines, not eight separate
+ *      boxes. Eight bordered cards read as a wall and get skipped; eight lines
+ *      inside one bordered panel read as a list of jobs. Every line carries the
+ *      question a family actually has about it, and tapping the question has
+ *      Aly answer it live, before this family has an account or a trip.
  *
- * The abilities come before the demonstration on purpose. A family that reads
- * only the demonstration concludes this is a cleverer way to get trip ideas,
- * and then finds the wallet, the packing lists, the budget, the reminders and
- * the on-trip answers by accident weeks later.
- *
- * The demo pair is fixed strings so the first screen paints instantly and
- * never fails. The live box below is the model doing the same job in front of
- * the primary, on demand, so what looked like polish is proven to be real.
+ * There used to be a third act: one question -- where to eat on a Friday night
+ * in Paris -- answered four ways for four invented families, with a box under
+ * it that ran the same demonstration live on the primary's own question. It
+ * argued the right thing, that Aly answers the same question differently
+ * depending on who is asking, but it argued it with strangers. The per-line
+ * questions make the same argument about this family's own screen and about
+ * things the app actually does, so the invented families are gone.
  *
  * ---- Motion -------------------------------------------------------------
  *
  * This is the screen the whole app gets judged on, so nothing on it simply
  * appears. The mark builds itself and finds north, the greeting rises a word
  * at a time out of a clipped line, each hairline in the panel draws west to
- * east, each family's facts pop in as small hard objects, and a live answer is
- * uncovered from its top edge the way a line of writing appears rather than
- * sliding in from somewhere.
+ * east, and an answer Aly has just written is uncovered from its top edge the
+ * way a line of writing appears rather than sliding in from somewhere.
  *
  * The part that matters most is when all of that runs. Every block waits until
  * it is actually on screen, because an animation that played while it was
@@ -62,11 +52,11 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
  * ---- Copy ---------------------------------------------------------------
  *
  * Deliberately thin. The screen has to argue that Aly is not a search box, and
- * the demonstration is the argument, so anything that says in prose what the
- * four columns already show is cut -- including the sentence that used to tell
- * people to compare them. For the same reason the line about what happens to
- * what you tell her sits beside the button at the bottom, where somebody about
- * to commit is the one who wants it, rather than interrupting the hello.
+ * the eight lines and their questions are the argument, so anything that says
+ * in prose what a line already says is cut. For the same reason the line about
+ * what happens to what you tell her sits beside the button at the bottom, where
+ * somebody about to commit is the one who wants it, rather than interrupting
+ * the hello.
  *
  * onContinue is the escape hatch: the button below moves the primary to the
  * next screen (the welcome form in real mode, back to the practice hub in
@@ -91,14 +81,6 @@ const BEAT = {
   abilityHeading: 0,
   abilityRow: 0.12,
   abilityStep: 0.055,
-  demoHeading: 0,
-  demoCard: 0.14,
-  demoCardStep: 0.09,
-  chip: 0.26, // after the card it sits in
-  chipStep: 0.07,
-  answer: 0.34,
-  ask: 0.2,
-  liveStep: 0.11,
 };
 
 /**
@@ -287,14 +269,13 @@ function AbilityQuestion({ ability, state, onAsk, delay }) {
       >
         {ability.ask}
       </button>
+      {/* The turning needle rather than the three dots: this is the one wait
+          left on the screen and it is a real one, so it gets the mark the rest
+          of the app uses for work actually happening. */}
       {open && state?.busy && (
-        <p className="mt-2 text-ink-faint">
-          <span className="aly-dots" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span className="sr-only">Aly is thinking</span>
+        <p className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
+          <ThinkingMark />
+          Aly is thinking
         </p>
       )}
       {open && state?.answer && (
@@ -314,10 +295,6 @@ export default function MeetAly({
   continueLabel = "Take me in",
   practice = false,
 }) {
-  const [question, setQuestion] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [answer, setAnswer] = useState(null);
-  const [error, setError] = useState("");
   const [armed, setArmed] = useState(false);
   // One entry per line the family has poked at, keyed by ability. Answers are
   // kept once fetched, so tapping a line shut and open again is instant and
@@ -336,8 +313,6 @@ export default function MeetAly({
 
   const [heroRef, heroShown] = useRevealed("0px");
   const [abilitiesRef, abilitiesShown] = useRevealed();
-  const [demoRef, demoShown] = useRevealed();
-  const [askRef, askShown] = useRevealed();
   const [footRef, footShown] = useRevealed();
 
   /**
@@ -383,32 +358,6 @@ export default function MeetAly({
         ...t,
         [a.key]: { open: true, error: "That did not go through." },
       }));
-    }
-  }
-
-  async function ask() {
-    const q = question.trim();
-    if (!q || q.length < 3 || busy) return;
-    setBusy(true);
-    setError("");
-    setAnswer(null);
-    try {
-      const res = await fetch("/api/welcome/meet-aly-demo", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: q }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(data?.error || "Aly did not reply this time.");
-        setBusy(false);
-        return;
-      }
-      setAnswer({ answers: data.answers || {}, question: q });
-      setBusy(false);
-    } catch {
-      setError("That did not go through. Try again in a moment.");
-      setBusy(false);
     }
   }
 
@@ -549,152 +498,6 @@ export default function MeetAly({
               </article>
             );
           })}
-        </div>
-      </section>
-
-      {/* 3. The demonstration, and the live version of it, in one section. */}
-      <section
-        aria-labelledby="meet-aly-demo-heading"
-        className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-5 sm:p-6"
-      >
-        <div
-          ref={demoRef}
-          {...(booted && demoShown ? { "data-ma-shown": "1" } : {})}
-        >
-          <p
-            className="ma-fade section-label text-ink-soft"
-            style={{ animationDelay: `${BEAT.demoHeading}s` }}
-          >
-            The same question, four families
-          </p>
-          <h2
-            id="meet-aly-demo-heading"
-            className="ma-in mt-1 font-display text-lg font-semibold leading-snug text-ink"
-            style={{ animationDelay: `${BEAT.demoHeading + 0.06}s` }}
-          >
-            &ldquo;{DEMO_QUESTION}&rdquo;
-            <span className="text-ink-soft"> &mdash; {DEMO_DESTINATION}</span>
-          </h2>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {DEMO_FAMILIES.map((f, i) => {
-              const at = BEAT.demoCard + i * BEAT.demoCardStep;
-              return (
-                <article
-                  key={f.key}
-                  className="ma-in flex flex-col rounded-xl border border-sand-deep bg-white p-4"
-                  style={{ animationDelay: `${at}s` }}
-                >
-                  <p className="font-display text-base font-semibold text-ink">
-                    {f.heading}
-                  </p>
-                  {/* The two facts as chips rather than a bulleted list: they
-                      are what Aly knows about this family, not points she is
-                      making, and the shape says so before the words are read.
-                      Two rows' worth of height whether they wrap or not, so
-                      the rule above the answers sits at the same place in
-                      every card and the four answers can be read across. */}
-                  <div className="mt-2 flex min-h-[3.25rem] flex-wrap content-start gap-1.5">
-                    {f.facts.map((fact, j) => (
-                      <span
-                        key={fact}
-                        className="ma-chip rounded-full border border-sand-deep bg-sand-soft/70 px-2 py-0.5 text-[0.7rem] leading-relaxed text-ink-soft"
-                        style={{
-                          animationDelay: `${at + BEAT.chip + j * BEAT.chipStep}s`,
-                        }}
-                      >
-                        {fact}
-                      </span>
-                    ))}
-                  </div>
-                  <p
-                    className="ma-fade mt-3 border-t border-sand-deep pt-3 text-sm leading-relaxed text-ink"
-                    style={{ animationDelay: `${at + BEAT.answer}s` }}
-                  >
-                    {f.answer}
-                  </p>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* The live version, inside the same section and under the same four
-            families, so it reads as the demonstration being run again on the
-            family's own question rather than as a separate feature. */}
-        <div
-          ref={askRef}
-          {...(booted && askShown ? { "data-ma-shown": "1" } : {})}
-          className="mt-6 pt-5"
-        >
-          <div
-            className="ma-rule mb-5 h-px bg-sand-deep"
-            style={{ animationDelay: "0s" }}
-          />
-          <h3
-            className="ma-in font-display text-base font-semibold text-ink"
-            style={{ animationDelay: `${BEAT.ask}s` }}
-          >
-            Ask something of your own
-          </h3>
-          <label htmlFor="meet-aly-question" className="sr-only">
-            Your question
-          </label>
-          <textarea
-            id="meet-aly-question"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            rows={2}
-            maxLength={240}
-            placeholder={`e.g. "Where should we eat on a Friday night in Paris?"`}
-            className="ma-in mt-2 w-full rounded-lg border border-sand-deep bg-white p-3 text-sm text-ink transition-colors duration-200 placeholder:text-ink-faint focus:border-teal focus:outline-none"
-            style={{ animationDelay: `${BEAT.ask + 0.08}s` }}
-          />
-          <div
-            className="ma-in mt-2 flex flex-wrap items-center gap-3"
-            style={{ animationDelay: `${BEAT.ask + 0.14}s` }}
-          >
-            <button
-              type="button"
-              onClick={ask}
-              disabled={busy || question.trim().length < 3}
-              className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm transition-transform duration-150 active:scale-[0.97]"
-            >
-              {busy ? (
-                <span className="inline-flex items-center gap-2">
-                  Thinking
-                  <ThinkingMark />
-                </span>
-              ) : (
-                "Ask Aly"
-              )}
-            </button>
-            {error && <p className="text-xs text-terra-deep">{error}</p>}
-          </div>
-
-          {answer && (
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {DEMO_FAMILIES.map((f, i) => (
-                <article
-                  // Keyed on the question as well as the family, so asking a
-                  // second thing remounts the four cards and they are written
-                  // out again instead of silently swapping their text.
-                  key={`${answer.question}::${f.key}`}
-                  className="ma-write rounded-xl border border-teal/30 bg-white p-4"
-                  // Uncovered top edge first, in the same left-to-right
-                  // order the examples arrived in.
-                  style={{ animationDelay: `${i * BEAT.liveStep}s` }}
-                >
-                  <p className="font-display text-base font-semibold text-ink">
-                    {f.heading}
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
-                    {answer.answers[f.key] || "(no answer this time)"}
-                  </p>
-                </article>
-              ))}
-            </div>
-          )}
         </div>
       </section>
 
