@@ -68,6 +68,29 @@ function PlanRows({ rows, fallback, tone }) {
   );
 }
 
+/**
+ * Places to offer when the family has no trip on the calendar yet, which on
+ * this screen is nearly everybody: trips are created after the interview, not
+ * before it.
+ *
+ * A blank box works, but it asks a person to invent a destination in the middle
+ * of being shown something, and whatever they type sets the quality of the one
+ * comparison the screen gets to make. These five are places families actually
+ * consider, and between them they pull the two answers apart for different
+ * reasons -- a city, a beach, a park, cold weather, and a trip where the
+ * lodging is the plan. Typing their own is still right there underneath.
+ */
+const SUGGESTED_PLACES = [
+  { label: "Paris", destination: "Paris, France" },
+  { label: "Maui", destination: "Maui, Hawaii" },
+  { label: "Disney World", destination: "Walt Disney World, Florida" },
+  { label: "Iceland", destination: "Reykjavik, Iceland" },
+  {
+    label: "Safari in South Africa",
+    destination: "a safari out of Johannesburg, South Africa",
+  },
+];
+
 export default function ProofClient({ demo = false, backHref = null } = {}) {
   const router = useRouter();
   const [category, setCategory] = useState("food");
@@ -215,11 +238,30 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           >
             Where are you thinking of going?
           </label>
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="Somewhere to start with"
+          >
+            {SUGGESTED_PLACES.map((option) => (
+              <button
+                key={option.destination}
+                type="button"
+                onClick={() => {
+                  setPlace(option.destination);
+                  setDestination(option.destination);
+                }}
+                className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <input
             id="proof-place"
             value={place}
             onChange={(e) => setPlace(e.target.value)}
-            placeholder="Alaska, Curacao, Orlando, anywhere"
+            placeholder="Or type anywhere else"
             maxLength={60}
             autoComplete="off"
             className="w-full rounded-xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
