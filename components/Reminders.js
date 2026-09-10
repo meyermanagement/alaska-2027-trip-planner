@@ -29,6 +29,7 @@ import {
   dueInfo,
   isHigh,
   matchesDueFilter,
+  needsAttention,
   sortReminders,
 } from "@/lib/reminders";
 import { tripPath } from "@/lib/trips/route";
@@ -219,12 +220,17 @@ export default function Reminders({
                 {list.length}
               </span>
             </div>
+            {/* The red edge marks the same rows the menu's red number counts, so
+                the two cannot disagree. It used to mark every high priority task,
+                which on a trip a year out was most of the page and told nobody
+                anything; the bars beside each title still say how much it
+                matters. */}
             <ul>
               {list.map((row) => (
                 <li
                   key={row.task.id}
                   className={`border-b border-sand/80 px-4 py-3 last:border-0 ${
-                    isHigh(row.task)
+                    needsAttention(row, today)
                       ? "bg-rose/[0.04] shadow-[inset_3px_0_0_0_var(--color-rose)]"
                       : ""
                   }`}
