@@ -524,7 +524,13 @@ export default function MeetAly({
             Something that plans your trip, packs for you and watches your
             passport is only a relief if it cannot act on its own, so what she
             has your back with and what stays yours are said in the same
-            breath, immediately above the button that takes them in. */}
+            breath, immediately above the button that takes them in.
+
+            Both halves say every part rather than naming one. An earlier version
+            promised nothing would be booked, bought or sent, which read as a
+            promise about spending money and left the rest of the trip unspoken -
+            she also moves days about, rewrites packing lists and files papers,
+            and none of that happens on its own either. */}
         <p
           className="ma-in mt-6 font-display text-xl leading-snug text-ink"
           style={{ animationDelay: "0.05s" }}
@@ -535,8 +541,8 @@ export default function MeetAly({
           className="ma-in mt-1.5 text-sm leading-relaxed text-ink-soft"
           style={{ animationDelay: "0.12s" }}
         >
-          I keep the details in view and hand you the draft. Nothing is booked,
-          bought or sent unless you do it.
+          I keep every part of the trip in view and hand you the draft. Nothing
+          is changed, booked, paid or sent unless you do it.
         </p>
         <button
           type="button"
