@@ -11,13 +11,19 @@ import {
 /**
  * The interview-proof endpoint.
  *
- * Runs the same real trip question twice: once as if Aly knew nothing
- * about the family, and once with the interview answers folded into the
- * system prompt. Both answers are returned so the client can render them
- * side by side. The point is that the interview earns itself in front of
- * the primary right after they finish it, on their actual next trip,
- * against the actual model they'll be using -- not in an abstract
- * "your preferences have been saved" toast.
+ * Answers one real trip question with the interview answers folded into the
+ * system prompt. The point is that the interview earns itself in front of the
+ * primary right after they finish it, about a place they actually named,
+ * against the actual model they'll be using -- not in an abstract "your
+ * preferences have been saved" toast.
+ *
+ * It used to run the same question twice, the second time as if Aly knew
+ * nothing about the family, so the client could show the two side by side. The
+ * generic column was a straw man the family did not ask for, it halved the
+ * width of the answer they did ask for, and it doubled the wait and the spend
+ * on the slowest screen in onboarding. Every row of the real answer already
+ * names the preference that drove it, which is the same proof without paying
+ * for a second opinion nobody wanted.
  *
  * Kept as a POST so a retry can re-ask without cache trouble.
  *
@@ -25,7 +31,7 @@ import {
  * trip -- a meal, an activity, how the family gets around, and where they
  * sleep -- because those four are the decisions a person can immediately
  * judge, and because a food answer and a day answer shown one at a time made
- * the reader choose which comparison to look at instead of seeing the spread.
+ * the reader choose which one to look at instead of seeing the spread.
  * The question set stays server-side, so nothing a caller sends chooses it.
  */
 
@@ -58,15 +64,13 @@ function cleanDestination(value) {
     .slice(0, 60);
 }
 
-// Both answers come back as a plan rather than a paragraph.
+// The answer comes back as a plan rather than a paragraph.
 //
 // The screen exists to show that the interview changed the recommendation, and
-// a paragraph makes that comparison hard work: the reader has to hold two
-// pieces of prose side by side and find the sentence that differs. Rows make
-// the difference structural instead. The same three or four slots appear in
-// both columns, so a person reads down one column and across to the other and
-// sees that the eight o'clock reservation became a six o'clock one, and the
-// reason column says which of their own answers did that.
+// a paragraph buries that: the reason a choice was made ends up in the middle
+// of a sentence about the choice. Rows make it structural instead -- the slot,
+// the choice, and the reason on its own line, so a person reads four decisions
+// and four reasons rather than hunting for them.
 //
 // The shape is pipe-delimited on purpose. It survives a model that ignores
 // markdown instructions, it parses without a JSON mode the deadline can't
@@ -75,13 +79,10 @@ function cleanDestination(value) {
 // wholly non-compliant answer is shown as prose instead of as nothing.
 //
 // Four rows, fixed and in order: a meal, a thing to do, how the family moves
-// around, a place to sleep. Fixed slots are what make the two columns
-// comparable at a glance -- the same four questions, answered twice, so the eye
-// travels across a row and sees that the eight o'clock reservation became a six
-// o'clock one and the metro pass became a taxi. A model left to choose its own
-// rows fills them with waking up and getting back to the hotel, and those rows
-// come back identical in both columns, which makes the screen look like the
-// interview changed less than it did.
+// around, a place to sleep. Fixed slots are what keep the answer a set of
+// decisions somebody can judge. A model left to choose its own rows fills them
+// with waking up and getting back to the hotel, which are not decisions and
+// carry no reason worth reading.
 const SLOTS = ["Meal", "Something to do", "Getting around", "Where you stay"];
 
 const PLAN_SHAPE = `Answer as a plan, not a paragraph. Exactly four rows, one per line, in exactly this shape:
@@ -272,8 +273,6 @@ export async function POST(req) {
 
   const baseSystem = `You are Aly, a travel assistant. Answer in American English. No emoji, no source citations. Do not preface with "great question" or similar. Do not caveat with "of course, this depends on your preferences" -- just answer.\n\n${PLAN_SHAPE}`;
 
-  const withoutSystem = `${baseSystem}\n\nYou do not know anything about the family asking. Choose the way a general travel article would choose -- named places, common picks, the safe recommendation. Each WHY should be the reason an article would give: that it is well reviewed, famous, central, a classic. Do not invent a family to justify a choice.`;
-
   const familyLinesText = demo
     ? standInFamilyLines(standIn).join("\n")
     : familyLines({
@@ -288,26 +287,16 @@ export async function POST(req) {
 
   const deadline = Date.now() + DEADLINE_MS;
 
-  // Two calls in parallel. If either fails, we still show the other; the
-  // client renders a plain fallback for the missing side rather than an
-  // error, because the point of the screen is comparison and one side is
-  // still comparison-with-a-known-empty.
-  const [withoutRes, withRes] = await Promise.all([
-    generate({
-      system: withoutSystem,
-      messages: [{ role: "user", text: prompt }],
-      tools: [],
-      grounded: false,
-      deadline,
-    }).catch(() => null),
-    generate({
-      system: withSystem,
-      messages: [{ role: "user", text: prompt }],
-      tools: [],
-      grounded: false,
-      deadline,
-    }).catch(() => null),
-  ]);
+  // One call. A failure returns null and the client shows its own retry rather
+  // than an empty card, because there is no longer a second answer to carry the
+  // screen on its own.
+  const withRes = await generate({
+    system: withSystem,
+    messages: [{ role: "user", text: prompt }],
+    tools: [],
+    grounded: false,
+    deadline,
+  }).catch(() => null);
 
   return NextResponse.json({
     ok: true,
@@ -317,11 +306,9 @@ export async function POST(req) {
     // who typed a family into practice can tell their run reached the
     // prompt rather than guessing from the wording of the answer.
     standInCustom: Boolean(standIn?.custom),
-    without: (withoutRes?.text || "").trim(),
     withPrefs: (withRes?.text || "").trim(),
     // Parsed rows for the itinerary render. Empty when the model ignored the
     // shape, which is the client's cue to fall back to the raw text above.
-    withoutRows: planRows(withoutRes?.text),
     withPrefsRows: planRows(withRes?.text),
     preferenceCount: prefsText ? prefsText.split("\n").length : 0,
   });

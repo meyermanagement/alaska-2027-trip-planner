@@ -8,34 +8,39 @@ import { runToStandIn } from "@/lib/practice/session";
 /**
  * The client shell for the interview proof step.
  *
- * On mount, kicks off two model calls in parallel via the /api/interview
- * /proof endpoint and paints them into a side-by-side card. This is the last
- * onboarding screen, so the button at the bottom carries them into the trip
- * builder.
+ * On mount, asks the /api/interview/proof endpoint for a day in a place the
+ * family names and paints the answer. This is the last onboarding screen, so
+ * the button at the bottom carries them into the trip builder.
  *
- * One question, four answers each side: a meal, something to do, how the family
- * gets around, and where it stays. Those four arrive together rather than as
- * separate things to pick between, because a person asked to choose which
- * comparison to look at mostly looks at one and leaves.
+ * One question, four answers: a meal, something to do, how the family gets
+ * around, and where it stays. Those four arrive together rather than as separate
+ * things to pick between, because a person asked to choose which one to look at
+ * mostly looks at one and leaves.
  *
- * Both answers arrive as plan rows rather than paragraphs -- see the endpoint
- * for why -- and are laid out the same way: the slot, the choice, and
- * underneath it the reason that choice won. The reason line is the whole point
- * of the screen, so it is given its own line rather than tucked into the same
- * sentence as the choice, and both columns carry the same four slots in the
- * same order, so the eye can travel across a row and see what the interview
- * moved.
+ * This screen used to show the same question answered twice, side by side: once
+ * by an Aly who knew nothing about the family, and once with the interview
+ * folded in. The left-hand column was there to prove the right-hand one had
+ * changed. It cost half the width, a second model call, and the reader's first
+ * job on the screen was to compare two things instead of reading one -- and the
+ * column it was compared against was deliberately generic writing that nobody
+ * asked for. The reasons under each choice already say which of their own
+ * answers drove it, which is the same proof said once, in the answer they
+ * actually want.
+ *
+ * The answer arrives as plan rows rather than a paragraph -- see the endpoint
+ * for why -- laid out as the slot, the choice, and underneath it the reason that
+ * choice won. The reason line is the whole point of the screen, so it gets its
+ * own line rather than being tucked into the same sentence as the choice.
  */
 
 /**
- * One column's answer, as an itinerary.
+ * The answer, as an itinerary.
  *
  * Falls back to the raw paragraph when the model ignored the row shape, because
- * a prose answer is still a real answer and the comparison survives it. The
- * reason line is dropped when a row came back without one instead of leaving an
- * empty line under the choice.
+ * a prose answer is still a real answer. The reason line is dropped when a row
+ * came back without one instead of leaving an empty line under the choice.
  */
-function PlanRows({ rows, fallback, tone }) {
+function PlanRows({ rows, fallback }) {
   if (!rows?.length) {
     return (
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
@@ -43,20 +48,17 @@ function PlanRows({ rows, fallback, tone }) {
       </p>
     );
   }
-  const rule = tone === "with" ? "border-teal/30" : "border-sand-deep";
   // Not the section-label class. That rule is unlayered in globals.css and so
   // wins the cascade over any Tailwind text color, which would quietly render
-  // both columns' slot labels in the same gray and lose half the point of the
-  // pair.
-  const slot = `text-[0.7rem] font-semibold uppercase tracking-[0.09em] ${
-    tone === "with" ? "text-teal" : "text-ink-soft"
-  }`;
+  // the slot labels in gray however they are classed here.
+  const slot =
+    "text-[0.7rem] font-semibold uppercase tracking-[0.09em] text-teal";
   return (
     <ol className="space-y-3">
       {rows.map((row, i) => (
         <li
           key={`${row.when}-${i}`}
-          className={`${i > 0 ? `border-t ${rule} pt-3` : ""}`}
+          className={i > 0 ? "border-t border-teal/30 pt-3" : ""}
         >
           <p className={slot}>{row.when}</p>
           <p className="mt-0.5 text-sm font-medium leading-snug text-ink">
@@ -74,18 +76,18 @@ function PlanRows({ rows, fallback, tone }) {
 }
 
 /**
- * Places to offer as the trip the comparison is about.
+ * Places to offer as the trip the answer is about.
  *
  * A blank box works, but it asks a person to invent a destination in the middle
  * of being shown something, and whatever they type sets the quality of the one
- * comparison the screen gets to make. These five are places families actually
+ * answer the screen gets to give. These five are places families actually
  * consider, and between them they pull the two answers apart for different
  * reasons -- a city, a beach, a park, cold weather, and a trip where the
  * lodging is the plan. Typing their own is still right there underneath.
  *
  * Offered in both states, not only on the empty-calendar one. A family that
  * does have a trip booked was getting no picker at all, which meant one
- * comparison about one place and no way to try another -- and the returning
+ * answer about one place and no way to try another -- and the returning
  * primary who reaches this screen from the family page is exactly the person
  * most likely to want a second look at it.
  */
@@ -123,12 +125,12 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     fetch("/api/interview/proof", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      // A rehearsal carries whatever family was typed on the way here, so
-      // the "with what you told me" side answers about that family rather
-      // than the built-in stand-in. Read at fetch time rather than held in
-      // state, so a person who steps back, changes an answer, and returns
-      // gets the changed answer in the comparison. Null on a real visit and
-      // on an untouched rehearsal, and ignored by the endpoint either way.
+      // A rehearsal carries whatever family was typed on the way here, so the
+      // answer is about that family rather than the built-in stand-in. Read at
+      // fetch time rather than held in state, so a person who steps back,
+      // changes an answer, and returns gets the changed answer. Null on a real
+      // visit and on an untouched rehearsal, and ignored by the endpoint either
+      // way.
       body: JSON.stringify({
         demo,
         destination: destination || null,
@@ -161,29 +163,24 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
       <header className="space-y-2">
         <p className="section-label text-ink-soft">Proof</p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
-          Watch the same question, answered two ways.
+          Here is a day, planned around what you just told me.
         </h1>
-        {/* Which side is which is already said by the two column headers, and
-            the reason printed under each choice speaks for itself once you are
-            looking at it. What is left is the pair of facts the screen cannot
-            show: that the question is about a place the family is really
-            thinking about, and that nothing but the interview differs between
-            the two answers. That second fact used to be carried by the word
-            model, which asks a family on their first screen to know what a
-            model is.
+        {/* What the reasons under each choice cannot say for themselves is
+            what the four choices are, and that the place is one this family
+            picked rather than a worked example. Both fit in a sentence.
 
             A place they pick, not their trip: this screen runs immediately
             after the interview, before the family has made a single trip, so
             there is nothing to look up. Everyone who sees it names a place in
             the box below or takes one of the five offered. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          For a place you pick, Aly chooses a meal, something to do, how you get
-          around, and where you stay &mdash; twice. Nothing changes between the
-          two answers except whether she knows what you just told her.
+          Name a place and Aly picks a meal, something to do, how you get
+          around, and where you stay &mdash; and says which of your own answers
+          made her choose it.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
-            here is what lets somebody tell a working comparison from one that
+            here is what lets somebody tell a working run from one that
             quietly fell back to the built-in family. */}
         {demo && (
           <p className="text-sm leading-relaxed text-ink-soft">
@@ -194,7 +191,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         )}
       </header>
 
-      {/* The place the comparison is about, still switchable after the first
+      {/* The place the answer is about, still switchable after the first
           answer. Nothing here comes from the trips table: this screen runs
           while the family is being built and has no trips yet, so the place is
           always something the person named. */}
@@ -299,12 +296,9 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
 
       {loading && !data?.needsDestination && (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-teal">
-          <CompassLoader
-            size={64}
-            label="Aly is answering the same question twice."
-          />
+          <CompassLoader size={64} label="Aly is planning a day there." />
           <p className="text-sm text-ink-soft">
-            Two answers, side by side. This takes a moment.
+            Four choices and the reason for each. This takes a moment.
           </p>
         </div>
       )}
@@ -324,46 +318,26 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
 
       {!loading && !error && data && !data.needsDestination && (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            <article className="flex flex-col gap-2 rounded-2xl border border-sand-deep bg-white p-4">
-              <header>
-                <p className="section-label text-ink-soft">
-                  Aly, knowing nothing about you
-                </p>
-                <p className="mt-1 text-xs italic text-ink-soft">
-                  What a general travel article would say.
-                </p>
-              </header>
-              <PlanRows
-                rows={data.withoutRows}
-                fallback={data.without}
-                tone="without"
-              />
-            </article>
-
-            <article className="flex flex-col gap-2 rounded-2xl border-2 border-teal bg-teal-soft/30 p-4">
-              <header>
-                {/* Same cascade trap as the hour above: section-label would
-                    override the teal, so the label is spelled out here. */}
-                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
-                  Aly, with your interview
-                </p>
-                <p className="mt-1 text-xs italic text-ink-soft">
-                  Based on the {data.preferenceCount || "several"} things you
-                  just told her.
-                </p>
-              </header>
-              <PlanRows
-                rows={data.withPrefsRows}
-                fallback={data.withPrefs}
-                tone="with"
-              />
-            </article>
-          </div>
+          {/* One card, full width. It was half a screen when there was a
+              generic answer beside it to argue with. */}
+          <article className="flex flex-col gap-2 rounded-2xl border-2 border-teal bg-teal-soft/30 p-4">
+            <header>
+              {/* Same cascade trap as the slot labels above: section-label
+                  would override the teal, so the label is spelled out. */}
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+                A day in {data.destination}
+              </p>
+              <p className="mt-1 text-xs italic text-ink-soft">
+                Based on the {data.preferenceCount || "several"} things you just
+                told her.
+              </p>
+            </header>
+            <PlanRows rows={data.withPrefsRows} fallback={data.withPrefs} />
+          </article>
 
           <p className="text-xs italic text-ink-soft">
-            Aly will say different things on different runs. What stays true is
-            which of these two fits your family.
+            Aly will choose differently on different runs. What stays true is
+            that every choice comes from something you told her.
           </p>
         </>
       )}
