@@ -178,46 +178,55 @@ function Housing({ live }) {
 // is being fetched and the app knows where it is going -- so it is a graticule,
 // a route between two points, and the mark travelling it.
 //
-// The travel is a CSS keyframe walking the mark through nine points sampled off
-// that same route, not an SVG animateMotion and not an offset-path. The first
-// stopped on an iPhone; the second is younger than some of the phones this has
-// to run on. A transform on a group is the one thing every browser here agrees
-// about, and it is also the one the reduced motion query can reach.
-const ROUTE = "M24 150C80 150 92 96 150 92S250 60 296 34";
+// The travel is a CSS keyframe walking the mark through thirteen points sampled
+// off that same route, not an SVG animateMotion and not an offset-path. The
+// first stopped on an iPhone; the second is younger than some of the phones this
+// has to run on. A transform on a group is the one thing every browser here
+// agrees about, and it is also the one the reduced motion query can reach.
+//
+// Portrait, because a phone is, and the route serpentines up the screen rather
+// than crossing it: on a landscape map the whole thing had to shrink to the
+// width of the phone and read as a small emblem instead of a screen at work.
+//
+// The needle points the way the mark is going and turns through the bends, which
+// is the second set of sampled numbers: the tangent of the curve at each of
+// those thirteen points, applied to the needle inside a housing that stays put.
+// It is a compass being carried, not one being read.
+const ROUTE = "M40 348C40 296 152 300 152 248S48 196 48 140S150 92 150 36";
 
 function QuickVeil() {
   return (
     <div className="boot-quick" aria-hidden="true">
-      <svg viewBox="0 0 320 180" fill="none">
+      <svg viewBox="0 0 200 380" fill="none">
         {/* Lines of latitude and longitude, faint enough to read as paper rather
             than as a grid to be counted. */}
-        <g className="quick-grid" stroke="currentColor" strokeWidth="0.75">
-          <path d="M80 8V172M160 8V172M240 8V172" />
-          <path d="M12 45H308M12 90H308M12 135H308" />
+        <g className="quick-grid" stroke="currentColor" strokeWidth="0.9">
+          <path d="M62 12V368M100 12V368M138 12V368" />
+          <path d="M14 76H186M14 152H186M14 228H186M14 304H186" />
         </g>
         {/* Where it started and where it is going. The far one is hollow, so the
             pair reads as a journey with a direction rather than two dots. */}
-        <circle cx="24" cy="150" r="4" fill="currentColor" opacity="0.5" />
+        <circle cx="40" cy="348" r="4.5" fill="currentColor" opacity="0.5" />
         <circle
-          cx="296"
-          cy="34"
-          r="5"
+          cx="150"
+          cy="36"
+          r="5.5"
           stroke="currentColor"
-          strokeWidth="1.6"
+          strokeWidth="1.7"
           opacity="0.55"
         />
         <path
           className="quick-route"
           d={ROUTE}
           stroke="currentColor"
-          strokeWidth="1.8"
+          strokeWidth="2"
           strokeLinecap="round"
           opacity="0.42"
         />
-        {/* Three groups, each holding one thing: the outer one is moved along
-            the route by the stylesheet, the middle one carries the mark's own
-            offset, the inner one drifts. Stacking them is what keeps a CSS
-            keyframe from having to know about a scale it did not set. */}
+        {/* Four groups, each holding exactly one thing, because two animations
+            cannot share a transform: the outer one is walked along the route,
+            the next carries the mark's own offset, the third turns the needle to
+            the heading, and the innermost one lets it drift. */}
         <g className="quick-travel">
           <g transform="translate(-16 -16)">
             <circle
@@ -228,9 +237,11 @@ function QuickVeil() {
               stroke="var(--disc-edge)"
               strokeWidth="1"
             />
-            {/* Four cardinals only. Sixteen graduations at this size is a
-                smudge, and the housing on the full opening already earns them
-                on a screen where the mark is the whole point. */}
+            {/* Four cardinals, and they stay where they are while the needle
+                turns -- north is the one thing on this picture that does not
+                move. Sixteen graduations at this size is a smudge, and the
+                housing on the full opening already earns them on a screen where
+                the mark is the whole point. */}
             <g stroke="currentColor" strokeLinecap="round">
               <path d="M16 1 16 4.4" strokeWidth="1.7" opacity="0.72" />
               <path
@@ -239,13 +250,15 @@ function QuickVeil() {
                 opacity="0.44"
               />
             </g>
-            <g className="quick-needle">
-              <path
-                fillRule="evenodd"
-                fill="currentColor"
-                transform="translate(16 16) scale(0.72) translate(-16 -16)"
-                d="M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z"
-              />
+            <g className="quick-heading">
+              <g className="quick-needle">
+                <path
+                  fillRule="evenodd"
+                  fill="currentColor"
+                  transform="translate(16 16) scale(0.72) translate(-16 -16)"
+                  d="M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z"
+                />
+              </g>
             </g>
           </g>
         </g>

@@ -253,12 +253,13 @@ html[data-boot="quick"] #boot-veil {
 }
 
 .boot-quick svg {
-  /* Wider than the mark is tall, because it is a map rather than an instrument,
-     and the route needs room to be a journey rather than a nudge. It takes
-     nearly the width of the screen: at emblem size on a phone it read as
-     something small that had gone wrong rather than as a screen doing work. */
-  width: min(86vw, 34rem);
-  height: auto;
+  /* Taller than it is wide, and sized off the height of the screen rather than
+     the width, because a phone has height to spare and it is height that makes
+     this read as a screen at work rather than a small emblem that has gone
+     wrong. The width cap is only there to keep it off the edges on a laptop. */
+  height: min(74vh, 32rem);
+  width: auto;
+  max-width: 88vw;
   opacity: 0;
   animation: boot-word 0.3s ease 0.06s forwards;
 }
@@ -276,10 +277,26 @@ html[data-boot="quick"] #boot-veil {
 }
 
 /* The needle keeps its drift, on a shorter loop than the splash's. A compass
-   being carried is not steadier than one at rest. */
+   being carried is not steadier than one at rest.
+
+   fill-box, so both of these turn about the needle's own middle. The default
+   reference box for an SVG element is the whole viewBox, which would have swung
+   the needle about a corner of the map. */
+.quick-needle,
+.quick-heading {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 .quick-needle {
-  transform-origin: 16px 16px;
   animation: boot-drift 3.4s ease-in-out infinite;
+}
+
+/* The needle turns to the heading: the tangent of the route at each of the same
+   points the mark is walked through, so it leads into every bend and comes out
+   of it pointing the new way. */
+.quick-heading {
+  animation: quick-heading 4.2s linear infinite;
 }
 
 /* The mark walks the route on nine points sampled off the same curve the dashed
@@ -289,36 +306,104 @@ html[data-boot="quick"] #boot-veil {
    Not animateMotion, which stopped on an iPhone, and not offset-path, which is
    younger than some of the phones this runs on. */
 .quick-travel {
-  animation: quick-travel 3.4s ease-in-out infinite alternate;
+  /* One direction, and it fades in at the near point and out at the far one
+     rather than running out and back. Out and back meant the needle spent half
+     its time pointing behind itself; a hard loop blinked, and a blink is the one
+     thing a veil covering a blank moment cannot afford. */
+  /* Linear, because the points were sampled at even steps along the curve: an
+     ease on top of them would slow and hurry between every pair of them. */
+  animation: quick-travel 4.2s linear infinite;
 }
 
 @keyframes quick-travel {
   0% {
-    transform: translate(24px, 150px);
+    opacity: 0;
+    transform: translate(40px, 348px);
   }
-  12.5% {
-    transform: translate(59.2px, 141.5px);
+  7% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  8.333% {
+    transform: translate(57.5px, 317.8px);
+  }
+  16.67% {
+    transform: translate(96px, 298px);
   }
   25% {
-    transform: translate(86.2px, 122.5px);
+    transform: translate(134.5px, 278.2px);
   }
-  37.5% {
-    transform: translate(113.7px, 102.8px);
+  33.33% {
+    transform: translate(152px, 248px);
+  }
+  41.67% {
+    transform: translate(135.8px, 217.1px);
   }
   50% {
-    transform: translate(150px, 92px);
+    transform: translate(100px, 195.5px);
   }
-  62.5% {
-    transform: translate(190.8px, 84.9px);
+  58.33% {
+    transform: translate(64.2px, 173.2px);
+  }
+  66.67% {
+    transform: translate(48px, 140px);
   }
   75% {
-    transform: translate(227.5px, 71.2px);
+    transform: translate(63.9px, 108px);
   }
-  87.5% {
-    transform: translate(261.9px, 53.5px);
+  83.33% {
+    transform: translate(99px, 88px);
+  }
+  91.67% {
+    transform: translate(134.1px, 68px);
   }
   100% {
-    transform: translate(296px, 34px);
+    opacity: 0;
+    transform: translate(150px, 36px);
+  }
+}
+
+@keyframes quick-heading {
+  0% {
+    transform: rotate(0deg);
+  }
+  8.333% {
+    transform: rotate(53.6deg);
+  }
+  16.67% {
+    transform: rotate(66.8deg);
+  }
+  25% {
+    transform: rotate(53.6deg);
+  }
+  33.33% {
+    transform: rotate(0deg);
+  }
+  41.67% {
+    transform: rotate(-50deg);
+  }
+  50% {
+    transform: rotate(-62.6deg);
+  }
+  58.33% {
+    transform: rotate(-48.3deg);
+  }
+  66.67% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(50.1deg);
+  }
+  83.33% {
+    transform: rotate(64.8deg);
+  }
+  91.67% {
+    transform: rotate(50.1deg);
+  }
+  100% {
+    transform: rotate(0deg);
   }
 }
 
@@ -967,7 +1052,11 @@ html[data-boot="quick"] #boot-veil {
 
   .quick-travel {
     animation: none;
-    transform: translate(150px, 92px);
+    transform: translate(48px, 140px);
+  }
+
+  .quick-heading {
+    animation: none;
   }
 
   /* One word, standing still. The turn is the whole animation, so there is
