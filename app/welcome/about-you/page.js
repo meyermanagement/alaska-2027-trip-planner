@@ -61,7 +61,6 @@ export default async function WelcomeAboutYouPage() {
         eyebrow="About you"
         headline={`First, tell me about you, ${me.name}.`}
         lead="Whoever set up the family wrote the paragraph below about you. Keep it, add to it, or say it in your own words. I read it before every answer."
-        does={[]}
       />
       <div className="mt-6">
         <AboutYouForm

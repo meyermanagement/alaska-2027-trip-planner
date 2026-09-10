@@ -178,7 +178,6 @@ export default function AboutYouForm({
               : "Now tell me about you."
           }
           lead="Five short questions about you, not about a trip. Skip any that do not come easily."
-          does={[]}
         />
       ) : (
         <>

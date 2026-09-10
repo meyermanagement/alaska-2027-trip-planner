@@ -15,16 +15,21 @@ import { useBooted, useRevealed } from "@/components/reveal";
  * room, and the first thing they were asked to do was data entry for somebody
  * else's software.
  *
- * So she asks for it herself, and says what she does with each of the three
- * answers. The lines are the same three things the form collects, in the same
- * order the cards below appear, because a form is easier to fill in when the
- * reason for each field arrived before the field did.
+ * So she asks for it herself: her mark, her heading, and one line saying why it
+ * is worth two minutes. Nothing more. An earlier version listed what she does
+ * with each of the three answers, which read well in isolation and badly in
+ * place -- the cards below already say what home, the family and the animals are
+ * for, in her voice, right next to the fields, and on a phone the list pushed the
+ * first field off the screen to explain a field nobody had reached yet.
  *
- * The same block heads the About you screens, with its own heading and one line
- * of lead, so a family walking the first-run chain hears one voice from Meet Aly
- * through to the interview instead of an assistant on the first screen and a
- * product on the next two. Those screens pass no lines: the five boxes below
- * already say what each answer is for, and the list said it twice.
+ * The same block heads both About you screens with their own heading and lead,
+ * so a family walking the first-run chain hears one voice from Meet Aly through
+ * to the interview instead of an assistant on the first screen and a product on
+ * the next two.
+ *
+ * `does` is still here, unused by any caller, for a screen whose fields cannot
+ * explain themselves where they are. Passing lines to a form that can is the
+ * mistake this comment exists to prevent.
  *
  * The mark, the word-at-a-time heading and the hairline are the same ma- motion
  * as Meet Aly, imported from components/reveal.js, so this reads as the second
@@ -44,17 +49,11 @@ const BEAT = {
   rule: 0.62,
 };
 
-const DOES = [
-  "Where you live tells me how early to get you out the door, and what the drive or the flight actually costs you.",
-  "Who travels with you is who I pack for, book rooms for, and check entry rules for.",
-  "Any animals in the family, because a trip with a dog in it is a different trip.",
-];
-
 export default function AlyIntro({
   headline = "Now tell me who I am planning for.",
   eyebrow = "Welcome",
   lead = "Three quick things and I can be useful straight away.",
-  does = DOES,
+  does = [],
 }) {
   const [armed, setArmed] = useState(false);
   const booted = useBooted();
