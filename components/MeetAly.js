@@ -59,7 +59,7 @@ export default function MeetAly({
         setBusy(false);
         return;
       }
-      setAnswer({ adults: data.adults, family: data.family, question: q });
+      setAnswer({ answers: data.answers || {}, question: q });
       setBusy(false);
     } catch {
       setError("That did not go through. Try again in a moment.");
@@ -106,7 +106,7 @@ export default function MeetAly({
       >
         <div className="mb-4">
           <p className="section-label text-ink-soft">
-            The same question, two families
+            The same question, four families
           </p>
           <h2
             id="meet-aly-demo-heading"
@@ -120,24 +120,16 @@ export default function MeetAly({
           {DEMO_FAMILIES.map((f) => (
             <article
               key={f.key}
-              className="flex flex-col gap-3 rounded-xl border border-sand-deep bg-white p-4"
+              className="flex flex-col gap-2 rounded-xl border border-sand-deep bg-white p-4"
             >
-              <header>
-                <p className="section-label text-ink-soft">{f.heading}</p>
-              </header>
-              <ul className="space-y-1 text-xs text-ink-soft">
+              <p className="section-label text-ink-soft">{f.heading}</p>
+              <ul className="space-y-0.5 text-xs text-ink-soft">
                 {f.facts.map((fact) => (
                   <li key={fact}>&middot; {fact}</li>
                 ))}
               </ul>
-              <div className="mt-1 space-y-2 border-t border-sand-deep pt-3 text-sm leading-relaxed text-ink">
-                <p>{f.answer.opening}</p>
-                {f.answer.lines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-              <p className="mt-1 text-xs italic text-ink-soft">
-                Why this way: {f.answer.whyThisWay}
+              <p className="mt-1 border-t border-sand-deep pt-3 text-sm leading-relaxed text-ink">
+                {f.answer}
               </p>
             </article>
           ))}
@@ -156,7 +148,7 @@ export default function MeetAly({
             Ask something of your own
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-            She answers twice, for the same two families.
+            She answers once for each of the same four families.
           </p>
         </div>
         <label htmlFor="meet-aly-question" className="sr-only">
@@ -168,7 +160,7 @@ export default function MeetAly({
           onChange={(e) => setQuestion(e.target.value)}
           rows={2}
           maxLength={240}
-          placeholder={`e.g. "Where should we eat our first night in Lisbon?"`}
+          placeholder={`e.g. "Where should we eat on a Friday night in Paris?"`}
           className="w-full rounded-lg border border-sand-deep bg-sand-soft/40 p-3 text-sm text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
         />
         <div className="flex flex-wrap items-center gap-3">
@@ -185,22 +177,17 @@ export default function MeetAly({
 
         {answer && (
           <div className="grid gap-4 pt-2 md:grid-cols-2">
-            <article className="rounded-xl border border-sand-deep bg-sand-soft/50 p-4 text-sm leading-relaxed text-ink">
-              <p className="section-label text-ink-soft">
-                Two adults, slow mornings
-              </p>
-              <p className="mt-2 whitespace-pre-wrap">
-                {answer.adults || "(no answer)"}
-              </p>
-            </article>
-            <article className="rounded-xl border border-sand-deep bg-sand-soft/50 p-4 text-sm leading-relaxed text-ink">
-              <p className="section-label text-ink-soft">
-                Family with a nine-year-old, packed mornings
-              </p>
-              <p className="mt-2 whitespace-pre-wrap">
-                {answer.family || "(no answer)"}
-              </p>
-            </article>
+            {DEMO_FAMILIES.map((f) => (
+              <article
+                key={f.key}
+                className="rounded-xl border border-sand-deep bg-sand-soft/50 p-4 text-sm leading-relaxed text-ink"
+              >
+                <p className="section-label text-ink-soft">{f.heading}</p>
+                <p className="mt-2 whitespace-pre-wrap">
+                  {answer.answers[f.key] || "(no answer this time)"}
+                </p>
+              </article>
+            ))}
           </div>
         )}
       </section>
