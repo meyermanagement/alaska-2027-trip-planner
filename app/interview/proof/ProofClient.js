@@ -130,16 +130,17 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         <h1 className="font-display text-3xl font-semibold leading-tight">
           Watch the same question, answered two ways.
         </h1>
-        {/* Two sentences. Which side is which is already said by the two
-            column headers, so this does not repeat it. What the headers cannot
-            say is that the question is a real one about a real trip, that the
-            model is the same on both sides, and that the reason under each
-            choice is the part worth reading. */}
+        {/* Which side is which is already said by the two column headers, and
+            the reason printed under each choice speaks for itself once you are
+            looking at it. What is left is the pair of facts the screen cannot
+            show: that the question is a real one about a real trip, and that
+            nothing but the interview differs between the two answers. That
+            second fact used to be carried by the word model, which asks a
+            family on their first screen to know what a model is. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly answers one real question about your trip twice, using the same
-          model both times. The only thing that changes is whether she knows
-          what you just told her, and every choice comes with the reason she
-          picked it.
+          Aly answers one real question about your trip twice. Nothing changes
+          between the two answers except whether she knows what you just told
+          her.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
