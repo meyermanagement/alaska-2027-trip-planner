@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import GoogleButton from "@/components/GoogleButton";
 
+/** The first hop after a password sign-in: see app/auth/land/route.js. */
+function landing(next) {
+  return `/auth/land?next=${encodeURIComponent(next)}`;
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -36,7 +41,10 @@ export default function LoginForm() {
         // Same email-to-person link the Google callback does, for the password
         // route in.
         await supabase.rpc("claim_traveler_seat");
-        router.replace(next);
+        // Through /auth/land rather than straight to the page, because whether
+        // this person has met Aly yet can only be answered on the server. Going
+        // direct is what dropped a brand-new household on an empty Trips page.
+        router.replace(landing(next));
         router.refresh();
         return;
       }
@@ -64,7 +72,7 @@ export default function LoginForm() {
       if (error) throw error;
 
       if (data.session) {
-        router.replace(next);
+        router.replace(landing(next));
         router.refresh();
       } else {
         setNotice(
