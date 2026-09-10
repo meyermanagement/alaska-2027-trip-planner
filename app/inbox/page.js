@@ -110,8 +110,8 @@ export default async function InboxPage() {
     supabase
       .from("inbox_messages")
       .select(
-          "id, subject, from_email, from_name, filed_trip_id, auto_filed_at, trips!inbox_messages_filed_trip_id_fkey (id, name, slug, public_id)",
-        )
+        "id, subject, from_email, from_name, filed_trip_id, auto_filed_at, trips!inbox_messages_filed_trip_id_fkey (id, name, slug, public_id)",
+      )
       .eq("family_id", familyId)
       .eq("auto_filed", true)
       .gte("auto_filed_at", undoCutoffISO)
@@ -125,21 +125,37 @@ export default async function InboxPage() {
   const ids = (pending || []).map((m) => m.id);
   let attachments = [];
   let parsedItems = [];
+  // A staged insurance policy, if the extractor found one. At most one per
+  // message, and read separately from the items because it is a different
+  // kind of answer: a policy does not become an itinerary row, it becomes a
+  // family record the trip points at.
+  let parsedPolicies = [];
   if (ids.length) {
-    const [{ data: att }, { data: pi }] = await Promise.all([
+    const [{ data: att }, { data: pi }, { data: pp }] = await Promise.all([
       supabase
         .from("inbox_attachments")
         .select("id, message_id, mime_type, size_bytes, original_filename")
         .in("message_id", ids),
       supabase
         .from("inbox_parsed_items")
-        .select("id, message_id, category, title, item_date, confidence, status")
+        .select(
+          "id, message_id, category, title, item_date, confidence, status",
+        )
         .in("message_id", ids)
         .eq("status", "pending")
         .order("sort_order", { ascending: true }),
+      supabase
+        .from("inbox_parsed_policies")
+        .select(
+          "id, message_id, kind, provider, plan_name, policy_number, coverage_start, coverage_end, emergency_phone, covers, premium, medical_limit, evacuation_limit, insured_names, confidence",
+        )
+        .in("message_id", ids)
+        .is("approved_at", null)
+        .order("created_at", { ascending: true }),
     ]);
     attachments = att || [];
     parsedItems = pi || [];
+    parsedPolicies = pp || [];
   }
 
   // Earliest date each auto-filed message wrote an itinerary row on, so the
@@ -185,6 +201,7 @@ export default async function InboxPage() {
           messages={pending || []}
           attachments={attachments}
           parsedItems={parsedItems}
+          parsedPolicies={parsedPolicies}
           autoFiled={autoFiledWithDate}
           upcomingTrips={upcoming}
           pastTrips={past}

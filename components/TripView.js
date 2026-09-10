@@ -23,6 +23,7 @@ import Packing from "./Packing";
 import Tasks from "./Tasks";
 import Notes from "./Notes";
 import Budget from "./Budget";
+import Insurance from "./Insurance";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
@@ -114,6 +115,11 @@ const TABS = [
   // Money comes after the two lists it is worked out from and after the tasks,
   // because it is the tab you go to on purpose rather than the one you live on.
   { id: "budget", label: "Budget" },
+  // Insurance keeps the budget company behind the Money door. It is not a cost
+  // -- an annual plan is bought once and covers three trips -- but it is the
+  // other half of the same subject: one tab is what the trip costs, the other
+  // is what happens when it goes wrong.
+  { id: "insurance", label: "Insurance" },
   { id: "notes", label: "Notes" },
 ];
 
@@ -139,7 +145,7 @@ const TAB_GROUPS = [
   { id: "g-trip", label: "Trip", tabs: ["overview", "notes"] },
   { id: "g-days", label: "Days", tabs: ["itinerary"] },
   { id: "g-ready", label: "Getting ready", tabs: ["packing", "tasks", "tips"] },
-  { id: "g-money", label: "Money", tabs: ["budget"] },
+  { id: "g-money", label: "Money", tabs: ["budget", "insurance"] },
 ];
 
 export default function TripView({
@@ -198,7 +204,11 @@ export default function TripView({
     : TABS;
   const [tab, setTab] = useState("overview");
   // The four doors, holding only the leaves this reader is allowed to see: a
-  // secondary traveler loses Notes and Budget, which empties Money entirely.
+  // secondary traveler loses Notes and Budget, so their Money door holds
+  // Insurance alone. That is deliberate rather than an oversight -- what the
+  // trip cost is not their business, but the evacuation number is, and a minor
+  // stuck in a clinic abroad should be able to read the policy without waiting
+  // on a parent's phone.
   const groups = useMemo(
     () =>
       TAB_GROUPS.map((g) => ({
@@ -895,6 +905,14 @@ export default function TripView({
             costs={costs}
             onChange={() => refetch("trip_costs")}
             onTripChange={() => refetch("itinerary_items")}
+            readOnly={readOnly}
+          />
+        )}
+        {tab === "insurance" && (
+          <Insurance
+            trip={info}
+            people={people}
+            going={going}
             readOnly={readOnly}
           />
         )}

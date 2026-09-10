@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { coverLabel } from "@/lib/insurance/policy";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
 
@@ -33,6 +34,7 @@ export default function InboxScreen({
   messages,
   attachments,
   parsedItems,
+  parsedPolicies = [],
   autoFiled = [],
   upcomingTrips,
   pastTrips,
@@ -104,6 +106,17 @@ export default function InboxScreen({
     return m;
   }, [parsedItems]);
 
+  // At most one staged policy per message, so a plain lookup rather than a
+  // list. A message either carried a booking or a policy; the extractor does
+  // not return both, because an email is one or the other.
+  const policyByMessage = useMemo(() => {
+    const m = new Map();
+    for (const p of parsedPolicies || []) {
+      if (!m.has(p.message_id)) m.set(p.message_id, p);
+    }
+    return m;
+  }, [parsedPolicies]);
+
   const travelerById = useMemo(() => {
     const m = new Map();
     for (const t of travelers) m.set(t.id, t);
@@ -118,6 +131,32 @@ export default function InboxScreen({
     } catch {
       // Older browsers -- do nothing rather than crashing. The address is
       // visible on the strip so the person can still copy it by selection.
+    }
+  }
+
+  // Filing a policy is a different write from filing a booking -- it creates
+  // a family record, links whichever trip was named, matches the people it
+  // covers, and copies the certificate under the policy so it is there on a
+  // plane -- so it is a different route rather than an extra flag.
+  async function filePolicy(id, tripId, travelerIds) {
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/inbox/${id}/file-policy`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          trip_id: tripId || null,
+          traveler_ids: travelerIds || [],
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setOpenId(null);
+      setMode(null);
+      router.refresh();
+    } catch (e) {
+      window.alert("Could not save that policy: " + (e?.message || e));
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -406,6 +445,7 @@ export default function InboxScreen({
                     past={pastTrips}
                     travelers={travelers}
                     parsedItems={parsedByMessage.get(m.id) || []}
+                    policy={policyByMessage.get(m.id) || null}
                     needsTraveler={isUnknown && !m.attributed_traveler_id}
                     initialTravelerId={m.attributed_traveler_id || ""}
                     busy={busyId === m.id}
@@ -415,6 +455,9 @@ export default function InboxScreen({
                     }}
                     onConfirm={(tripId, travelerId, approveIds) =>
                       fileMessage(m.id, tripId, travelerId, approveIds)
+                    }
+                    onConfirmPolicy={(tripId, travelerIds) =>
+                      filePolicy(m.id, tripId, travelerIds)
                     }
                   />
                 )}
@@ -440,16 +483,48 @@ export default function InboxScreen({
   );
 }
 
+/** Printed names to the family's people, the same two passes the server uses. */
+function matchInsured(names, people) {
+  const norm = (s) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const printed = (Array.isArray(names) ? names : []).map(norm).filter(Boolean);
+  if (!printed.length) return [];
+  return people
+    .filter((person) => {
+      const name = norm(person.name);
+      if (!name) return false;
+      const words = name.split(" ");
+      return printed.some(
+        (line) =>
+          line === name ||
+          words.every((word) => line.split(" ").includes(word)) ||
+          line.split(" ").includes(words[0]),
+      );
+    })
+    .map((person) => person.id);
+}
+
 function FilePicker({
   upcoming,
   past,
   travelers,
   parsedItems,
+  // A staged insurance policy, when the extractor decided the mail was one.
+  // Its presence changes what filing means: the trip becomes optional,
+  // because an annual plan bought in January belongs to the family before it
+  // belongs to any particular trip, and there is nothing to tick -- a policy
+  // is one thing, and unticking it would just be Cancel.
+  policy = null,
   needsTraveler,
   initialTravelerId,
   busy,
   onCancel,
   onConfirm,
+  onConfirmPolicy,
 }) {
   const [tripId, setTripId] = useState("");
   const [travelerId, setTravelerId] = useState(initialTravelerId);
@@ -473,20 +548,45 @@ function FilePicker({
     });
   }
 
-  const canConfirm = Boolean(tripId) && (!needsTraveler || travelerId);
+  // Who the certificate names, matched against the family and shown as ticks
+  // so a wrong match is corrected before it is saved rather than after. Aly
+  // reading "MEYER/VEDA" off a certificate and quietly attaching it to the
+  // wrong child is the kind of mistake nobody checks until it matters.
+  const [covered, setCovered] = useState(() =>
+    policy ? new Set(matchInsured(policy.insured_names, travelers)) : new Set(),
+  );
+
+  function toggleCovered(id) {
+    setCovered((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // A policy can always be filed. It needs no trip -- an annual plan is
+  // attached later -- and it needs no sender attribution, because who
+  // forwarded it says nothing about who it covers, and the ticks above
+  // already answer that.
+  const canConfirm = policy
+    ? true
+    : Boolean(tripId) && (!needsTraveler || travelerId);
   const approvedCount = approved.size;
 
   return (
     <div className="border-t border-[var(--line)] bg-sand/40 p-4">
       <div className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
-        Which trip
+        {policy ? "Which trip it covers" : "Which trip"}
       </div>
       <select
         value={tripId}
         onChange={(e) => setTripId(e.target.value)}
         className="mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-sm text-ink"
       >
-        <option value="">Pick a trip</option>
+        <option value="">
+          {policy ? "Not yet — just save the policy" : "Pick a trip"}
+        </option>
         {upcoming.length > 0 && (
           <optgroup label="Upcoming">
             {upcoming.map((t) => (
@@ -507,7 +607,7 @@ function FilePicker({
         )}
       </select>
 
-      {needsTraveler && (
+      {needsTraveler && !policy && (
         <>
           <div className="mt-3 text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
             Who forwarded it
@@ -525,6 +625,77 @@ function FilePicker({
             ))}
           </select>
         </>
+      )}
+
+      {policy && (
+        <div className="mt-4">
+          <div className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+            The policy Aly read
+          </div>
+          <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2.5 text-sm text-ink">
+            <p className="font-medium">
+              {policy.provider}
+              {policy.plan_name ? ` · ${policy.plan_name}` : ""}
+            </p>
+            <p className="mt-0.5 text-xs text-ink-soft">
+              {policy.kind === "annual" ? "Annual plan" : "Bought for one trip"}
+              {policy.policy_number ? ` · ${policy.policy_number}` : ""}
+              {policy.coverage_start
+                ? ` · covers ${policy.coverage_start}${policy.coverage_end ? ` to ${policy.coverage_end}` : " onward"}`
+                : ""}
+            </p>
+            {policy.emergency_phone ? (
+              <p className="mt-1 text-xs text-ink-soft">
+                24-hour line {policy.emergency_phone}
+              </p>
+            ) : null}
+            {Array.isArray(policy.covers) && policy.covers.length ? (
+              <p className="mt-1 text-xs text-ink-soft">
+                {policy.covers.map((c) => coverLabel(c)).join(", ")}
+              </p>
+            ) : null}
+            {policy.confidence === "low" ? (
+              <p className="mt-1.5 text-xs text-amber">
+                Aly was not confident about this one. Worth checking the numbers
+                against the email before you file it.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mt-3 text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+            Who it covers
+          </div>
+          {Array.isArray(policy.insured_names) &&
+          policy.insured_names.length ? (
+            <p className="mt-1 text-xs text-ink-soft">
+              The email names {policy.insured_names.join(", ")}.
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-ink-soft">
+              The email did not say. Tick whoever it is for.
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {travelers.map((t) => {
+              const on = covered.has(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => toggleCovered(t.id)}
+                  aria-pressed={on}
+                  className={`rounded-full px-3 py-1 text-sm transition ${
+                    on
+                      ? "border border-teal bg-teal text-on-accent"
+                      : "border border-[var(--line)] bg-white text-ink-soft hover:border-teal/60"
+                  }`}
+                >
+                  {t.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {parsedItems.length > 0 && (
@@ -582,15 +753,21 @@ function FilePicker({
           type="button"
           disabled={!canConfirm || busy}
           onClick={() =>
-            onConfirm(tripId, travelerId || null, Array.from(approved))
+            policy
+              ? onConfirmPolicy(tripId || null, Array.from(covered))
+              : onConfirm(tripId, travelerId || null, Array.from(approved))
           }
           className="rounded-lg bg-teal px-4 py-1.5 text-sm font-medium text-on-accent transition disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy
             ? "Filing…"
-            : approvedCount > 0
-              ? `File and add ${approvedCount} ${approvedCount === 1 ? "item" : "items"}`
-              : "File on this trip"}
+            : policy
+              ? tripId
+                ? "Save the policy on this trip"
+                : "Save the policy"
+              : approvedCount > 0
+                ? `File and add ${approvedCount} ${approvedCount === 1 ? "item" : "items"}`
+                : "File on this trip"}
         </button>
       </div>
     </div>
