@@ -11,7 +11,7 @@ import {
 } from "@/lib/travelers/interviewPersonalize";
 import { inferAnswer } from "@/lib/travelers/interviewInference";
 import { summaryForAnswer } from "@/lib/travelers/runningSummary";
-import { patchRun, runToStandIn } from "@/lib/practice/session";
+import { patchRun, readRun, runToStandIn } from "@/lib/practice/session";
 import {
   resolveStandIn,
   standInPetsRows,
@@ -205,6 +205,56 @@ export default function InterviewBody({
   // Null means it genuinely does not know and should ask cold.
   const inferred = useMemo(() => inferAnswer(slot, priorMap), [slot, priorMap]);
 
+  // What the About-you paragraph already settles about this question, checked
+  // against the options this question actually offers. A prior whose value is
+  // not one of them -- a model that answered with a label, a question whose
+  // options were reworded since the paragraph was read -- is dropped rather
+  // than pre-picking nothing and leaving a card claiming otherwise.
+  // Practice runs on the same paragraph, read from the practice run rather
+  // than the database. Nothing was saved when it was typed, so nothing was
+  // extracted then either; the route below reads the paragraph and returns the
+  // priors without storing anything. Fetched once per mount, because the
+  // paragraph cannot change while the interview is on screen.
+  const [practicePriors, setPracticePriors] = useState(null);
+  useEffect(() => {
+    if (mode !== "practice") return;
+    const paragraph = (readRun()?.aboutMe || "").trim();
+    if (!paragraph) return;
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/about-you/priors", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ paragraph }),
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (live && json?.priors && typeof json.priors === "object") {
+          setPracticePriors(json.priors);
+        }
+      } catch {
+        // A rehearsal that cannot reach the model asks its questions cold.
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [mode]);
+
+  const priorsInPlay =
+    mode === "practice" ? practicePriors || {} : aboutMePriors;
+
+  const aboutMePrior = useMemo(() => {
+    const prior = priorsInPlay && priorsInPlay[slot];
+    if (!prior?.value) return null;
+    const question = questionFor(slot);
+    if (question?.kind !== "options") return null;
+    const opt = (question.options || []).find((o) => o.value === prior.value);
+    if (!opt) return null;
+    return { ...prior, label: opt.label };
+  }, [priorsInPlay, slot]);
+
   // Practice mode writes no preference rows, so without this the answers a
   // person gives here would die with the component and the proof screen two
   // steps later would compare against the built-in stand-in preferences
@@ -316,18 +366,37 @@ export default function InterviewBody({
     setTouched(false);
   }, [slot]);
 
-  // A worked-out answer arrives with its option already picked, so agreeing is
-  // one tap on Save and continue rather than a pick and then a tap. Applied
-  // once per question: if the primary picks something else, this must not put
-  // the inference back on the next render.
+  // A question the app already knows the answer to arrives with its option
+  // picked, so agreeing is one tap on Save and continue rather than a pick and
+  // then a tap. Two sources, in order: the About-you paragraph, where the
+  // primary wrote the answer in their own words, and then anything worked out
+  // from earlier answers in this interview.
+  //
+  // Each source is applied once per question, so a primary who picks something
+  // else does not have the pre-pick put back on the next render. They are
+  // tracked apart because the paragraph can land late -- in practice mode it
+  // arrives from a fetch after the first question is already on screen -- and
+  // when it does it is allowed to replace an untouched worked-out pick. It is
+  // never allowed to replace an answer somebody gave: touched, or a pick
+  // restored by stepping back to a question already answered, both stand.
   const preFilledFor = useRef(null);
+  const aboutFilledFor = useRef(null);
   useEffect(() => {
-    if (!inferred) return;
+    if (!inferred?.value) return;
     if (preFilledFor.current === slot) return;
     preFilledFor.current = slot;
-    setChoice(inferred.value);
+    setChoice((current) => current || inferred.value);
     setTouched(false);
   }, [inferred, slot]);
+  useEffect(() => {
+    if (!aboutMePrior?.value) return;
+    if (aboutFilledFor.current === slot) return;
+    if (touched) return;
+    aboutFilledFor.current = slot;
+    setChoice((current) =>
+      !current || current === inferred?.value ? aboutMePrior.value : current,
+    );
+  }, [aboutMePrior, inferred, slot, touched]);
 
   // A question is only "worked out" while the pre-picked option is still the
   // one showing and nothing has been touched. Changing the answer and changing
@@ -337,9 +406,12 @@ export default function InterviewBody({
   // that card is already explaining this question, the worked-out card stays
   // out of the way rather than stacking a second explanation above the same
   // prompt. The pick still stands; only the second card is suppressed.
-  const aboutMeCovers = Boolean(aboutMePriors && aboutMePriors[slot]);
+  const aboutMeCovers = Boolean(aboutMePrior);
+  const confirmingAboutMe = Boolean(
+    aboutMePrior && !touched && choice === aboutMePrior.value,
+  );
   const confirmingInference = Boolean(
-    inferred && !touched && choice === inferred.value,
+    inferred && !touched && !confirmingAboutMe && choice === inferred.value,
   );
 
   // Every choice the primary makes by hand, so the pre-picked option can stop
@@ -458,8 +530,15 @@ export default function InterviewBody({
               // answers and agreed to rather than said outright, so the
               // preference row is stored as derived and carries the sentence
               // explaining where it came from.
-              derived: confirmingInference,
-              derivedBecause: confirmingInference ? inferred.because : null,
+              // A pick agreed to rather than made counts as derived either
+              // way; only the sentence differs, because "you wrote this" and
+              // "we worked this out" are not the same claim about the file.
+              derived: confirmingInference || confirmingAboutMe,
+              derivedBecause: confirmingAboutMe
+                ? `You said it on About you: “${aboutMePrior.quote}”`
+                : confirmingInference
+                  ? inferred.because
+                  : null,
             }),
           });
       if (res.ok) remember();
@@ -468,7 +547,9 @@ export default function InterviewBody({
       return false;
     }
   }, [
+    aboutMePrior,
     choice,
+    confirmingAboutMe,
     confirmingInference,
     hasAnswer,
     inferred,
@@ -771,16 +852,17 @@ export default function InterviewBody({
                 </p>
               </div>
             )}
-            {aboutMePriors && aboutMePriors[slot] && (
+            {aboutMePrior && (
               <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
                 <p className="font-display text-ink">
                   You mentioned this on About you.
                 </p>
                 <p className="mt-1 italic">
-                  &ldquo;{aboutMePriors[slot].quote}&rdquo;
+                  &ldquo;{aboutMePrior.quote}&rdquo;
                 </p>
                 <p className="mt-2">
-                  Aly is already planning around it. Confirm below or{" "}
+                  So {aboutMePrior.label} is picked below. Save and continue to
+                  agree, pick another if we have it wrong, or{" "}
                   <a
                     href="/about-you"
                     className="text-teal underline underline-offset-4"

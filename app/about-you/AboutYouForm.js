@@ -42,16 +42,6 @@ import { patchRun, readRun } from "@/lib/practice/session";
  * one sitting -- but the question comes back next time they sign in, because
  * until it is answered every recommendation the app makes is generic.
  */
-// What Aly does with the five answers, said before the boxes appear, so the
-// reason for a question arrives before the question. Three lines rather than
-// five: the list is an argument for filling the form in, not a table of
-// contents for it.
-const ABOUT_LINES = [
-  "The standard you hold a room to, so I stop offering you places you would walk out of.",
-  "Whether you go by what other people rated, so I know how hard to argue for somewhere nobody has reviewed yet.",
-  "Whether you drink, and whether you are up at five or up at ten, so a day I plan starts and ends when yours does.",
-];
-
 export default function AboutYouForm({
   travelerId,
   name,
@@ -187,16 +177,15 @@ export default function AboutYouForm({
               ? `Now tell me about you, ${heading}.`
               : "Now tell me about you."
           }
-          lead="Five short questions about you, not about a trip. Answer the ones that come easily and skip the rest."
-          does={ABOUT_LINES}
+          lead="Five short questions about you, not about a trip. Skip any that do not come easily."
+          does={[]}
         />
       ) : (
         <>
           <h1 className="font-display text-3xl font-semibold">About you</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            Five short questions about you, not about a trip. Answer the ones
-            that come easily and skip the rest — the more you say, the less I
-            have to guess.
+            Five short questions about you, not about a trip. Skip any that do
+            not come easily.
           </p>
         </>
       )}

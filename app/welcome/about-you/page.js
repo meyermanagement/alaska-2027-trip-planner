@@ -26,13 +26,6 @@ export const dynamic = "force-dynamic";
 // After this step comes /welcome/moments. Both together stamp welcomed_at so
 // the flow never runs again for this person.
 
-// What Aly does with the paragraph, said in her own voice before the box.
-const JOINER_LINES = [
-  "I read it before every answer I give about this family, so it is the fastest way to stop me guessing about you.",
-  "How you like a day to run tells me when to start one and when to leave a gap in it.",
-  "What you would rather avoid is worth as much as what you like -- I will plan around it instead of offering it.",
-];
-
 export default async function WelcomeAboutYouPage() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
@@ -67,8 +60,8 @@ export default async function WelcomeAboutYouPage() {
       <AlyIntro
         eyebrow="About you"
         headline={`First, tell me about you, ${me.name}.`}
-        lead="Whoever set up the family wrote the paragraph below about you. Keep it, add to it, or say it in your own words -- whichever reads most like you."
-        does={JOINER_LINES}
+        lead="Whoever set up the family wrote the paragraph below about you. Keep it, add to it, or say it in your own words. I read it before every answer."
+        does={[]}
       />
       <div className="mt-6">
         <AboutYouForm

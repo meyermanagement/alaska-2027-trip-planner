@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { extractAboutMePriors } from "@/lib/travelers/extractAboutMePriors";
 
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
@@ -61,9 +62,25 @@ export async function PATCH(request) {
   // it reads back the way it was typed.
   const nextValue = raw.trim() ? raw : null;
 
+  // The interview reads about_me_priors to pre-pick the questions the
+  // paragraph already answers, so the two have to be written together. Doing
+  // it here as well as on the five-box save means somebody who joined an
+  // existing family -- the only people who reach this route -- gets the same
+  // pre-picked interview as the primary instead of being asked everything
+  // cold. Best-effort: an extraction that throws still saves the paragraph.
+  let priors = {};
+  if (nextValue) {
+    try {
+      priors = await extractAboutMePriors(nextValue);
+    } catch (err) {
+      console.warn("welcome about_me: extraction threw", err?.message || err);
+      priors = {};
+    }
+  }
+
   const { data, error } = await supabase
     .from("travelers")
-    .update({ about_me: nextValue })
+    .update({ about_me: nextValue, about_me_priors: priors })
     .eq("family_id", familyId)
     .eq("user_id", user.id)
     .eq("is_person", true)

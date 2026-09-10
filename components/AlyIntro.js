@@ -20,10 +20,11 @@ import { useBooted, useRevealed } from "@/components/reveal";
  * order the cards below appear, because a form is easier to fill in when the
  * reason for each field arrived before the field did.
  *
- * The same block heads the About you screens, with its own heading and its own
- * three lines, so a family walking the first-run chain hears one voice from Meet
- * Aly through to the interview instead of an assistant on the first screen and a
- * product on the next two.
+ * The same block heads the About you screens, with its own heading and one line
+ * of lead, so a family walking the first-run chain hears one voice from Meet Aly
+ * through to the interview instead of an assistant on the first screen and a
+ * product on the next two. Those screens pass no lines: the five boxes below
+ * already say what each answer is for, and the list said it twice.
  *
  * The mark, the word-at-a-time heading and the hairline are the same ma- motion
  * as Meet Aly, imported from components/reveal.js, so this reads as the second
@@ -114,17 +115,19 @@ export default function AlyIntro({
           {lead}
         </p>
 
-        <ul className="space-y-1.5">
-          {does.map((line, i) => (
-            <li
-              key={line}
-              className="ma-in text-sm leading-relaxed text-ink-soft"
-              style={{ animationDelay: `${BEAT.line + i * BEAT.lineStep}s` }}
-            >
-              {line}
-            </li>
-          ))}
-        </ul>
+        {Array.isArray(does) && does.length > 0 && (
+          <ul className="space-y-1.5">
+            {does.map((line, i) => (
+              <li
+                key={line}
+                className="ma-in text-sm leading-relaxed text-ink-soft"
+                style={{ animationDelay: `${BEAT.line + i * BEAT.lineStep}s` }}
+              >
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div
           className="ma-rule h-px bg-sand-deep"
