@@ -178,58 +178,48 @@ function Housing({ live }) {
 // is being fetched and the app knows where it is going -- so it is a graticule,
 // a route between two points, and the mark travelling it.
 //
-// The travel is animateMotion rather than a CSS offset-path, for the same reason
-// the tagline turns on keyframes: SMIL runs while the document is still being
-// parsed, so the compass is already moving in the first frame, where CSS bound
-// to a class on a hydrated element would not be.
-const ROUTE = "M14 66C40 66 44 40 66 40S96 22 126 18";
+// The travel is a CSS keyframe walking the mark through nine points sampled off
+// that same route, not an SVG animateMotion and not an offset-path. The first
+// stopped on an iPhone; the second is younger than some of the phones this has
+// to run on. A transform on a group is the one thing every browser here agrees
+// about, and it is also the one the reduced motion query can reach.
+const ROUTE = "M24 150C80 150 92 96 150 92S250 60 296 34";
 
 function QuickVeil() {
   return (
     <div className="boot-quick" aria-hidden="true">
-      <svg viewBox="0 0 140 84" fill="none">
-        {/* Lines of latitude and longitude, faint enough to read as paper
-            rather than as a grid to be counted. */}
-        <g className="quick-grid" stroke="currentColor" strokeWidth="0.5">
-          <path d="M35 4V80M70 4V80M105 4V80" />
-          <path d="M8 21H132M8 42H132M8 63H132" />
+      <svg viewBox="0 0 320 180" fill="none">
+        {/* Lines of latitude and longitude, faint enough to read as paper rather
+            than as a grid to be counted. */}
+        <g className="quick-grid" stroke="currentColor" strokeWidth="0.75">
+          <path d="M80 8V172M160 8V172M240 8V172" />
+          <path d="M12 45H308M12 90H308M12 135H308" />
         </g>
         {/* Where it started and where it is going. The far one is hollow, so the
             pair reads as a journey with a direction rather than two dots. */}
-        <circle cx="14" cy="66" r="2.4" fill="currentColor" opacity="0.5" />
+        <circle cx="24" cy="150" r="4" fill="currentColor" opacity="0.5" />
         <circle
-          cx="126"
-          cy="18"
-          r="2.8"
+          cx="296"
+          cy="34"
+          r="5"
           stroke="currentColor"
-          strokeWidth="1.1"
+          strokeWidth="1.6"
           opacity="0.55"
         />
         <path
           className="quick-route"
           d={ROUTE}
           stroke="currentColor"
-          strokeWidth="1.2"
+          strokeWidth="1.8"
           strokeLinecap="round"
           opacity="0.42"
         />
-        {/* Two groups again, and for the same reason as the needle above: the
-            outer one carries the motion along the path, the inner one carries
-            the mark's own scale. One element cannot hold both. */}
+        {/* Three groups, each holding one thing: the outer one is moved along
+            the route by the stylesheet, the middle one carries the mark's own
+            offset, the inner one drifts. Stacking them is what keeps a CSS
+            keyframe from having to know about a scale it did not set. */}
         <g className="quick-travel">
-          <animateMotion
-            dur="2.9s"
-            repeatCount="indefinite"
-            path={ROUTE}
-            /* Out and back rather than a loop. A journey that ran to the far
-               point and reappeared at the near one blinked, and a blink is the
-               one thing a veil covering a blank moment cannot afford. */
-            keyPoints="0;1;0"
-            keyTimes="0;0.5;1"
-            calcMode="spline"
-            keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
-          />
-          <g transform="scale(0.56) translate(-16 -16)">
+          <g transform="translate(-16 -16)">
             <circle
               cx="16"
               cy="16"
@@ -239,8 +229,8 @@ function QuickVeil() {
               strokeWidth="1"
             />
             {/* Four cardinals only. Sixteen graduations at this size is a
-                smudge, and the housing above already earns them on a screen
-                where the mark is the whole point. */}
+                smudge, and the housing on the full opening already earns them
+                on a screen where the mark is the whole point. */}
             <g stroke="currentColor" strokeLinecap="round">
               <path d="M16 1 16 4.4" strokeWidth="1.7" opacity="0.72" />
               <path
@@ -283,17 +273,6 @@ export default function BootVeil() {
     };
 
     const cap = setTimeout(lift, quick ? QUICK_CAP_MS : CAP_MS);
-
-    // The compass travels on SMIL, which the stylesheet cannot reach: a media
-    // query can stop a CSS animation and has no opinion about animateMotion. So
-    // anybody who asked for less movement gets the clock stopped instead, which
-    // parks the mark at the start of the route with the map whole around it.
-    if (
-      quick &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    ) {
-      document.querySelector(".boot-quick svg")?.pauseAnimations?.();
-    }
 
     // Two frames after mount is the earliest the browser has actually painted
     // what hydration produced, and the fonts matter because lifting onto text

@@ -254,9 +254,11 @@ html[data-boot="quick"] #boot-veil {
 
 .boot-quick svg {
   /* Wider than the mark is tall, because it is a map rather than an instrument,
-     and the route needs room to be a journey rather than a nudge. */
-  width: 11.5rem;
-  height: 6.9rem;
+     and the route needs room to be a journey rather than a nudge. It takes
+     nearly the width of the screen: at emblem size on a phone it read as
+     something small that had gone wrong rather than as a screen doing work. */
+  width: min(86vw, 34rem);
+  height: auto;
   opacity: 0;
   animation: boot-word 0.3s ease 0.06s forwards;
 }
@@ -278,6 +280,46 @@ html[data-boot="quick"] #boot-veil {
 .quick-needle {
   transform-origin: 16px 16px;
   animation: boot-drift 3.4s ease-in-out infinite;
+}
+
+/* The mark walks the route on nine points sampled off the same curve the dashed
+   line is drawn from, and it goes out and back rather than round: a journey that
+   reached the far point and reappeared at the near one blinked, and a blink is
+   the one thing a veil covering a blank moment cannot afford.
+   Not animateMotion, which stopped on an iPhone, and not offset-path, which is
+   younger than some of the phones this runs on. */
+.quick-travel {
+  animation: quick-travel 3.4s ease-in-out infinite alternate;
+}
+
+@keyframes quick-travel {
+  0% {
+    transform: translate(24px, 150px);
+  }
+  12.5% {
+    transform: translate(59.2px, 141.5px);
+  }
+  25% {
+    transform: translate(86.2px, 122.5px);
+  }
+  37.5% {
+    transform: translate(113.7px, 102.8px);
+  }
+  50% {
+    transform: translate(150px, 92px);
+  }
+  62.5% {
+    transform: translate(190.8px, 84.9px);
+  }
+  75% {
+    transform: translate(227.5px, 71.2px);
+  }
+  87.5% {
+    transform: translate(261.9px, 53.5px);
+  }
+  100% {
+    transform: translate(296px, 34px);
+  }
 }
 
 @keyframes quick-run {
@@ -909,10 +951,10 @@ html[data-boot="quick"] #boot-veil {
     animation: none;
   }
 
-  /* The short veil keeps its map and loses its journey: the dashes stop running
-     and the needle stops drifting. The compass itself is left wherever the
-     motion put it, which is the start of the route, because animateMotion with
-     nothing driving it holds its first position. */
+  /* The short veil keeps its map and loses its journey: the dashes stop running,
+     the needle stops drifting, and the mark is parked halfway along the route
+     rather than at either end, so the map still reads as a crossing in progress
+     rather than as one that never started. */
   .boot-quick svg {
     opacity: 1;
     animation: none;
@@ -921,6 +963,11 @@ html[data-boot="quick"] #boot-veil {
   .quick-route,
   .quick-needle {
     animation: none;
+  }
+
+  .quick-travel {
+    animation: none;
+    transform: translate(150px, 92px);
   }
 
   /* One word, standing still. The turn is the whole animation, so there is
