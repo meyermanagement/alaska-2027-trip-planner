@@ -420,7 +420,11 @@ export default function MeetAly({
           </span>
           {[
             "I look after your family\u2019s travel \u2014 the trip itself, and everything around it.",
-            "I remember who you travel with, what you like, and what you skip, so my answers fit you and not a generic traveler.",
+            // Ends on the word it is about. The line used to finish "and not a
+            // generic traveler", which spent its last breath on somebody who is
+            // not in the room, and made a claim about other software rather than
+            // a promise to the person reading.
+            "I remember who you travel with, what you like, and what you skip, so every answer I give is meant for you.",
           ].map((line, i) => (
             <p
               key={line}
