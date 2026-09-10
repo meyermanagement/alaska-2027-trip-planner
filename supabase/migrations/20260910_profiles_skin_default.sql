@@ -1,0 +1,14 @@
+-- The app's default skin is Midnight Aurora, named once in lib/skins.js as
+-- DEFAULT_SKIN and painted onto <html> by the root layout before anything else
+-- runs. This column disagreed with it: profiles.skin defaulted to 'daybreak',
+-- so a brand-new profile row was stamped Daybreak Aurora whatever the app said.
+--
+-- The visible result on a first sign-in was both wrong and ugly. Middleware
+-- fills the skin cookie from the profile row, and the script in the document
+-- head reads that cookie, so a new account painted Midnight for one frame from
+-- the layout's data-skin and then flipped to Daybreak.
+--
+-- Existing rows are deliberately left alone. Anybody already in Daybreak either
+-- chose it or has been living in it, and repainting their whole app to settle an
+-- argument between two defaults is worse than the argument.
+alter table public.profiles alter column skin set default 'aurora';
