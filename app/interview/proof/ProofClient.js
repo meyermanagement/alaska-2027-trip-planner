@@ -166,13 +166,12 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             model, which asks a family on their first screen to know what a
             model is.
 
-            Next trip, not your trip: this screen runs immediately after the
-            interview, which for a family signing in for the first time is
-            before they have made a single trip. Most people who see this have
-            an empty calendar and are about to type a place into the box
-            below. */}
+            A place they pick, not their trip: this screen runs immediately
+            after the interview, before the family has made a single trip, so
+            there is nothing to look up. Everyone who sees it names a place in
+            the box below or takes one of the five offered. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly answers the same question about your next trip twice. Nothing
+          Aly answers the same question about a place you pick twice. Nothing
           changes between the two answers except whether she knows what you just
           told her.
         </p>
@@ -189,10 +188,9 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         )}
       </header>
 
-      {/* Which kind of question comes second. A family with nothing on the
-          calendar has to name a place before where to eat or what to do means
-          anything, so the toggle waits until the box below has been answered
-          rather than sitting above it. */}
+      {/* Which kind of question comes second. A place has to be named before
+          where to eat or what to do means anything, so the toggle waits until
+          the box below has been answered rather than sitting above it. */}
       {!data?.needsDestination && (
         <nav
           className="flex flex-wrap items-center gap-2"
@@ -224,32 +222,16 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         </nav>
       )}
 
-      {/* The place the comparison is about, switchable. When the family has a
-          trip on the calendar it leads the row, so picking somewhere else is
-          plainly a detour rather than a change to their trip. */}
+      {/* The place the comparison is about, still switchable after the first
+          answer. Nothing here comes from the trips table: this screen runs
+          while the family is being built and has no trips yet, so the place is
+          always something the person named. */}
       {!loading && !error && data && !data.needsDestination && (
         <nav
           className="flex flex-wrap items-center gap-2"
-          aria-label="Which trip to ask about"
+          aria-label="Which place to ask about"
         >
           <span className="section-label text-ink-soft">Ask about:</span>
-          {data.calendarDestination && (
-            <button
-              type="button"
-              onClick={() => {
-                setPlace("");
-                setDestination("");
-              }}
-              aria-pressed={!destination}
-              className={`rounded-full border px-3 py-1.5 text-sm ${
-                destination
-                  ? "border-sand-deep bg-white text-ink-soft"
-                  : "border-teal bg-teal text-white"
-              }`}
-            >
-              {data.calendarDestination}
-            </button>
-          )}
           {SUGGESTED_PLACES.map((option) => {
             const on = destination === option.destination;
             return (
@@ -271,11 +253,24 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               </button>
             );
           })}
+          {/* Back to the box, for a place that is not one of the five. Without
+              it, picking a suggestion is a one-way door: the form is gone and
+              the row only offers those five. */}
+          <button
+            type="button"
+            onClick={() => {
+              setPlace("");
+              setDestination("");
+            }}
+            className="rounded-full border border-sand-deep bg-white px-3 py-1.5 text-sm text-ink-soft underline underline-offset-4"
+          >
+            Somewhere else
+          </button>
         </nav>
       )}
 
-      {/* No trip on the calendar and no destination given yet. Asked as one
-          question rather than assumed, because the answer is the difference
+      {/* No destination named yet, which is where everybody starts. Asked as
+          one question rather than assumed, because the answer is the difference
           between a plan for a real place and a plan for "your next trip". */}
       {!loading && !error && data?.needsDestination && (
         <form
@@ -430,11 +425,11 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               router.push(backHref || "/interview-check");
               return;
             }
-            router.push(data?.onCalendar ? "/trips" : "/trips/new");
+            router.push("/trips/new");
           }}
           className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
-          {demo || data?.onCalendar ? "Take me to my trips" : "Plan our trip"}
+          {demo ? "Take me to my trips" : "Plan our trip"}
         </button>
       </div>
     </div>
