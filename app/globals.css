@@ -477,32 +477,308 @@ html[data-booted] #boot-veil {
   }
 }
 
-/* Meet Aly -- the first screen a family sees. Everything on it arrives in one
-   downward sequence: the greeting, then what Aly looks after, then the four
-   families answering the same question, then the box that lets you ask your
-   own. One keyframe, with each element's place in the sequence set inline as a
-   delay, so a block that sits lower on the page also moves later without a
-   second animation to keep in step with. Nothing here loops; the screen
-   settles in about a second and then holds still, because a first screen that
-   keeps moving is a first screen nobody finishes reading. */
-.meet-aly-in {
+/* Meet Aly -- the first screen a family sees, and the only one whose whole job
+   is to be believed. Everything on it is drawn or revealed rather than simply
+   present, in the order a person reads it, and each block waits until it is
+   actually on screen before it moves -- an animation that ran while it was
+   below the fold is an animation nobody saw, and a page that has already
+   finished moving by the time you scroll to it feels flatter than one that
+   never moved at all.
+
+   How the mechanism fits together. The component sets data-ma-armed on its
+   root once it has mounted, so a browser running no JavaScript gets the whole
+   screen plainly visible instead of a page of invisible blocks waiting for an
+   observer that will never fire. Inside an armed root, anything carrying an
+   ma- class starts hidden and only runs once an ancestor is marked
+   data-ma-shown, which the component's observer sets one block at a time.
+   Delays within a block are set inline next to the element they belong to.
+
+   Nothing loops except the needle while Aly is actually thinking. */
+
+[data-ma-armed] .ma-in,
+[data-ma-armed] .ma-word,
+[data-ma-armed] .ma-rule,
+[data-ma-armed] .ma-chip,
+[data-ma-armed] .ma-fade {
   opacity: 0;
-  transform: translateY(8px);
-  animation: meet-aly-in 0.5s ease-out both;
 }
 
-@keyframes meet-aly-in {
+[data-ma-armed] .ma-in {
+  transform: translateY(10px);
+}
+
+[data-ma-armed] .ma-word {
+  transform: translateY(105%);
+}
+
+[data-ma-armed] .ma-rule {
+  transform: scaleX(0);
+}
+
+[data-ma-armed] .ma-chip {
+  transform: scale(0.88);
+}
+
+/* The easing on everything that rises: out fast, settled slow, no overshoot.
+   The one place a spring belongs on this screen is the needle. */
+[data-ma-armed] [data-ma-shown] .ma-in {
+  animation: ma-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+[data-ma-armed] [data-ma-shown] .ma-fade {
+  animation: ma-fade 0.5s ease-out both;
+}
+
+/* Each word of the greeting rises out of a clipped line, slightly out of
+   focus until it lands. Reading is left to right, so the words arrive that
+   way, close enough together to read as one phrase being spoken rather than
+   four things being listed. */
+.ma-line {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.06em;
+}
+
+.ma-word {
+  display: inline-block;
+}
+
+[data-ma-armed] [data-ma-shown] .ma-word {
+  animation: ma-word 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The hairline above each thing Aly looks after draws itself west to east, so
+   the seven lines read as a list being written rather than a block appearing. */
+.ma-rule {
+  transform-origin: left center;
+}
+
+[data-ma-armed] [data-ma-shown] .ma-rule {
+  animation: ma-rule 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* A fact about a family pops rather than rises: it is a small hard object, and
+   two of them landing one after the other says these were looked up. */
+[data-ma-armed] [data-ma-shown] .ma-chip {
+  animation: ma-chip 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes ma-in {
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
+@keyframes ma-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ma-word {
+  0% {
+    opacity: 0;
+    transform: translateY(105%);
+    filter: blur(4px);
+  }
+
+  55% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes ma-rule {
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes ma-chip {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The mark in the greeting builds itself the way the boot splash's does: the
+   rim draws round from north, the sixteen marks drop in clockwise behind it,
+   and then the needle swings in off-heading and settles. Same instrument,
+   shorter run -- the splash has five seconds to fill and this has about one,
+   so the swing is one long approach and three decreasing overshoots instead of
+   the splash's five. */
+.ma-draw {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+}
+
+[data-ma-armed] [data-ma-shown] .ma-draw {
+  animation: ma-draw 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.ma-swing {
+  transform-origin: 16px 16px;
+  opacity: 0;
+}
+
+[data-ma-armed] [data-ma-shown] .ma-swing {
+  animation: ma-swing 1.15s ease-in-out both;
+}
+
+/* And then it never quite stops. A degree and a bit on a six-second loop, on
+   its own group so the drift composes with the swing above instead of
+   overwriting it, starting the moment the swing lands. A compass at rest is not
+   still, and a mark that freezes solid stops reading as an instrument -- which
+   on this screen matters more than anywhere else in the app, because the whole
+   point of the first minute is that somebody is here. */
+[data-ma-armed] [data-ma-shown] .ma-drift {
+  transform-origin: 16px 16px;
+  animation: boot-drift 6s ease-in-out 1.5s infinite;
+}
+
+/* The beat between her two lines. Aly's own thinking dots, sitting where the
+   next line is about to start and fading out as it arrives -- a person
+   introducing themselves pauses between sentences, and this is the pause made
+   visible. Absolutely placed so the pause costs no height and nothing on the
+   screen moves when it ends. */
+.ma-beat {
+  position: absolute;
+  left: 0;
+  top: 0.42em;
+  pointer-events: none;
+}
+
+[data-ma-armed] [data-ma-shown] .ma-beat {
+  animation: ma-beat 0.86s ease-out both;
+}
+
+@keyframes ma-beat {
+  0% {
+    opacity: 0;
+  }
+
+  20%,
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ma-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ma-swing {
+  0% {
+    opacity: 0;
+    transform: rotate(-118deg);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  48% {
+    transform: rotate(24deg);
+  }
+
+  68% {
+    transform: rotate(-9deg);
+  }
+
+  84% {
+    transform: rotate(3.4deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+}
+
+/* A live answer does not rise into place; it is uncovered, bottom edge first,
+   which is how a line of writing appears. The mask and the lift run together
+   so the card is arriving and being written at the same moment. */
+.ma-write {
+  clip-path: inset(0 0 100% 0);
+  opacity: 0;
+}
+
+[data-ma-armed] .ma-write {
+  animation: ma-write 0.66s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes ma-write {
+  0% {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* One ring, once, after the screen has settled: the way out of this screen
+   should be findable without the button nagging for the rest of the visit. */
+[data-ma-armed] [data-ma-shown] .ma-cta {
+  animation: ma-cta 1.5s ease-out 0.35s 1 both;
+}
+
+@keyframes ma-cta {
+  0% {
+    box-shadow: 0 0 0 0 rgba(27, 90, 76, 0.32);
+  }
+
+  70%,
+  100% {
+    box-shadow: 0 0 0 12px rgba(27, 90, 76, 0);
+  }
+}
+
+/* Somebody who has asked for less movement gets the same screen, fully
+   visible, all at once. The needle beside Thinking is the exception, and it
+   keeps its own reduced-motion treatment where it is defined. */
 @media (prefers-reduced-motion: reduce) {
-  .meet-aly-in {
+  [data-ma-armed] .ma-in,
+  [data-ma-armed] .ma-word,
+  [data-ma-armed] .ma-rule,
+  [data-ma-armed] .ma-chip,
+  [data-ma-armed] .ma-fade,
+  [data-ma-armed] .ma-write,
+  [data-ma-armed] .ma-draw,
+  [data-ma-armed] .ma-swing,
+  [data-ma-armed] [data-ma-shown] .ma-in,
+  [data-ma-armed] [data-ma-shown] .ma-word,
+  [data-ma-armed] [data-ma-shown] .ma-rule,
+  [data-ma-armed] [data-ma-shown] .ma-chip,
+  [data-ma-armed] [data-ma-shown] .ma-fade,
+  [data-ma-armed] [data-ma-shown] .ma-draw,
+  [data-ma-armed] [data-ma-shown] .ma-swing,
+  [data-ma-armed] [data-ma-shown] .ma-cta {
     animation: none;
     opacity: 1;
     transform: none;
+    clip-path: none;
+    stroke-dashoffset: 0;
+    box-shadow: none;
+    filter: none;
   }
 }
 

@@ -30,6 +30,12 @@ const BEZEL = [
   ["M10.26 2.14 10.68 3.16", 1, 0.34, 1.2],
 ];
 
+// The rim's circumference and the sixteen marks' path lengths, exported so a
+// screen that wants to draw the mark on rather than fade it in has the numbers
+// a stroke-dashoffset animation needs. Nothing else should be duplicating this
+// geometry.
+export { RING_LEN, BEZEL };
+
 // Exported so the after-welcome next-steps screen can draw the exact same
 // mark. `spin` controls whether the needle uses the drifting animation class:
 // the loader wants it, the checklist rows do not (they swing to north once,
