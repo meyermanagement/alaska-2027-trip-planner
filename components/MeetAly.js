@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Needle, RING_LEN, BEZEL } from "@/components/CompassLoader";
+import PledgeLink from "@/components/PledgeLink";
 import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
 
 /**
@@ -578,7 +579,8 @@ export default function MeetAly({
           style={{ animationDelay: "0.2s" }}
         >
           What you tell me stays on your family&rsquo;s file, never sold. You
-          can read or delete any of it on the Family and Preferences pages.
+          can read or delete any of it on the Family and Preferences pages.{" "}
+          <PledgeLink />.
         </p>
       </div>
     </div>
