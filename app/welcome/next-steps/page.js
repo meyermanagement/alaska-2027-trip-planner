@@ -5,14 +5,15 @@ import { resolveAccess } from "@/lib/travelers/access";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import NextStepsBody from "./NextStepsBody";
 
-export const metadata = { title: "Three things worth doing next · Alyeska" };
+export const metadata = { title: "Four things worth doing next · Alyeska" };
 export const dynamic = "force-dynamic";
 
 /**
  * The last screen of the first-login walkthrough.
  *
- * Comes after Favorite moments. Purely informational: three things worth doing
- * before or during a first trip -- Wallet, forwarding, past trips -- with a
+ * Comes after Favorite moments. Purely informational: four things worth doing
+ * before or during a first trip -- the rest of the family's own words, Wallet,
+ * forwarding, past trips -- with a
  * compass mark orienting into place for each row. Nothing here is required
  * and nothing is written; the button hands the family off to the trip builder,
  * which is where the old flow went straight from moments.

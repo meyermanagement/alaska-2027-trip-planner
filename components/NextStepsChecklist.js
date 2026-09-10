@@ -4,8 +4,9 @@ import { Housing, Needle } from "@/components/CompassLoader";
 import InboxAddressChip from "@/components/InboxAddressChip";
 
 /**
- * The shown-once informational screen after the welcome walkthrough. Three
- * things worth doing next -- Wallet, forwarding, past trips -- each drawn with
+ * The shown-once informational screen after the welcome walkthrough. Four
+ * things worth doing next -- the rest of the family's own words, Wallet,
+ * forwarding, past trips -- each drawn with
  * a small compass mark that orients into place one after the other, as a
  * checklist would tick itself off. Nothing on the screen is actionable: it is
  * telling the family what is worth doing before they move on to a first trip,
@@ -27,6 +28,14 @@ import InboxAddressChip from "@/components/InboxAddressChip";
  * instruction. It is passed in rather than read here because this component is
  * shared with the practice hub and has no session of its own.
  *
+ * The first row is the only one that says where to go and what to tap. The
+ * person who reaches this screen has just written their own paragraph and
+ * picked their own favorite moments, and nothing so far has told them those two
+ * questions exist for everybody else in the house -- so the row names the
+ * screen, the tap and the two questions rather than describing a benefit and
+ * leaving them to find it. The other three are places in the app somebody will
+ * arrive at anyway.
+ *
  * Each row is a title, one line saying what the thing is, and two or three
  * short points. It used to be a title over a five-line paragraph, and three of
  * those stacked was a wall of text on a screen nobody is obliged to read -- the
@@ -35,6 +44,16 @@ import InboxAddressChip from "@/components/InboxAddressChip";
  */
 
 const ITEMS = [
+  {
+    key: "others",
+    title: "Answer the same questions for everyone else",
+    lead: "Open Family, tap a person, and fill in their About you and their favorite moments.",
+    points: [
+      "The same five questions you just answered, on each person's card",
+      "Favorite moments sit on the same person: a trip they loved, and why",
+      "Until they are answered Aly plans around you and guesses at the rest",
+    ],
+  },
   {
     key: "wallet",
     title: "Fill in your Wallet",
@@ -100,7 +119,7 @@ export default function NextStepsChecklist({
   onContinue,
   inboxAddress = "",
   continueLabel = "Take me to the trip builder",
-  headline = "Three things worth doing next",
+  headline = "Four things worth doing next",
   intro = "None of it is required to keep going. Each one makes Aly's answers fit your family better.",
   eyebrow = "Welcome to Alyeska",
 }) {

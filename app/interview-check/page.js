@@ -81,8 +81,8 @@ export default async function InterviewCheckPage() {
           />
           <PracticeTile
             href="/interview-check/next-steps"
-            title="Three things worth doing next"
-            body="The screen a new family sees right after Favorite moments. Purely informational -- Wallet, forwarding trip confirmations, and adding past trips -- with a small compass mark orienting into place for each row."
+            title="Four things worth doing next"
+            body="The screen a new family sees right after Favorite moments. Purely informational -- answering About you and favorite moments for everybody else, the Wallet, forwarding trip confirmations, and adding past trips -- with a small compass mark orienting into place for each row."
           />
         </div>
 

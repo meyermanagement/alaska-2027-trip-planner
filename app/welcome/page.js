@@ -75,7 +75,7 @@ export default async function WelcomePage() {
   if (!nothingHere) redirect("/family");
 
   // Chromeless. No compass menu, no Ask Aly, no tip strip. The first-run
-  // chain -- welcome, then About you, then interview, then Three things
+  // chain -- welcome, then About you, then interview, then Four things
   // worth doing next -- deliberately keeps the app itself out of the way
   // until the family has said who they are. The menu and Ask Aly belong to
   // Trips onward, where they have something to point at. This screen and its
