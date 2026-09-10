@@ -50,8 +50,8 @@ export default function LogTripStart() {
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
         For the record, and for the next trip. Tell it however you remember it —
-        Aly writes it up as a finished trip, keeps the packing list you actually
-        used, and reads your notes back when you plan something similar.
+        I write it up as a finished trip, keep the packing list you actually
+        used, and read your notes back when you plan something similar.
       </p>
 
       {LOG_ASKS.map((ask) => (
@@ -136,7 +136,7 @@ export default function LogTripStart() {
           the app is about to start planning at them. */}
       <p className="mt-9 border-t border-[var(--line)] pt-5 text-xs leading-relaxed text-ink-soft">
         A logged trip lands in Past trips. Nothing about it goes on the family
-        calendar, nothing gets a countdown, and Aly will not suggest anything to
+        calendar, nothing gets a countdown, and I will not suggest anything to
         book — it is a record, not a plan.
       </p>
     </>

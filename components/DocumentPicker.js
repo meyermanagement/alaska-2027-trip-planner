@@ -101,8 +101,8 @@ export default function DocumentPicker({
         />
       </label>
       <p className="text-[11px] leading-snug text-ink-soft">
-        Take a photo or pick a PDF. Aly reads the number and expiry off the scan
-        and fills the fields below, and the file itself stays cached on the
+        Take a photo or pick a PDF. I read the number and expiry off the scan
+        and fill in the fields below, and the file itself stays cached on the
         phone so it opens at the desk with no signal.
       </p>
 

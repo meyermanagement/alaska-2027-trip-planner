@@ -191,8 +191,7 @@ function AbilityQuestion({ ability, state, onAsk, delay }) {
           of the app uses for work actually happening. */}
       {open && state?.busy && (
         <p className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
-          <ThinkingMark />
-          Aly is thinking
+          <ThinkingMark /> Thinking
         </p>
       )}
       {open && state?.answer && (
@@ -261,7 +260,7 @@ export default function MeetAly({
           ...t,
           [a.key]: {
             open: true,
-            error: data?.error || "Aly did not reply this time.",
+            error: data?.error || "I could not reply this time.",
           },
         }));
         return;

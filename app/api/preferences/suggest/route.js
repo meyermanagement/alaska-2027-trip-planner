@@ -147,7 +147,7 @@ export async function POST(request) {
   } catch (error) {
     const status = Number(error?.status) || 502;
     return bad(
-      error?.message || "Aly could not come up with anything just now.",
+      error?.message || "I could not come up with anything just now.",
       status >= 400 && status < 600 ? status : 502,
     );
   }

@@ -492,7 +492,7 @@ export default function Templates({
               role={nameError ? "alert" : undefined}
             >
               {nameError ||
-                "Renaming a list changes what it is called everywhere \u2014 on each trip that uses it, and in what Aly reads back to you. Nothing packed changes, and no trip loses the list."}
+                "Renaming a list changes what it is called everywhere \u2014 on each trip that uses it, and in what I read back to you. Nothing packed changes, and no trip loses the list."}
             </p>
           </form>
         ) : (
@@ -536,7 +536,7 @@ export default function Templates({
             Propose items automatically
           </button>
           <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
-            Aly reads what is on this list already and suggests what is missing.
+            I read what is on this list already and suggest what is missing.
             Each suggestion comes with a tick of its own, so you can take some
             and leave the rest.
           </p>

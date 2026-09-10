@@ -208,7 +208,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
     setProblem("");
     if (!trip.start_date || !trip.end_date) {
       setProblem(
-        "It needs a first and last day before it can move — ask Aly for dates, or set them under Edit trip.",
+        "It needs a first and last day before it can move — ask me for dates, or set them under Edit trip.",
       );
       return;
     }
@@ -536,7 +536,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
                     {things(packedCount)} on it{" "}
                     {packedCount === 1 ? "is" : "are"} already ticked off, so it
                     cannot be built again from scratch — that would throw away
-                    what you have done. Ask Aly for the pieces you want instead.
+                    what you have done. Ask me for the pieces you want instead.
                   </p>
                 )}
               </>
@@ -658,7 +658,7 @@ function MoveVeil({ busy, passed, name, building }) {
 
         <p className="mt-4 text-xs leading-relaxed text-ink-soft">
           {building
-            ? "Aly is reading what you packed on trips like this one, so this stage takes a few seconds. Every line of it is yours to change afterwards."
+            ? "I am reading what you packed on trips like this one, so this stage takes a few seconds. Every line of it is yours to change afterwards."
             : "Nothing to do but wait — this screen goes when the trip does."}
         </p>
       </div>

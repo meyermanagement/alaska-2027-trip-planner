@@ -573,7 +573,7 @@ export default function ChatPanel({
           ...m,
           {
             role: "assistant",
-            text: "Stopped waiting. If she had already finished, her answer will be here the next time you open this conversation.",
+            text: "Stopped waiting. If I had already finished, my answer will be here the next time you open this conversation.",
           },
         ]);
         // Asked again rather than retyped, and marked as a retry so the question
@@ -930,7 +930,7 @@ export default function ChatPanel({
             <p className="text-sm text-ink-soft">
               {trip ? (
                 <>
-                  Aly is working on{" "}
+                  I am working on{" "}
                   <span className="font-semibold text-ink">{trip.name}</span>
                   {SECTION_LABELS[focus]
                     ? `, and assumes you mean the ${SECTION_LABELS[focus].toLowerCase()} unless you say otherwise.`
@@ -938,24 +938,24 @@ export default function ChatPanel({
                 </>
               ) : focus === "rewards" ? (
                 <>
-                  Aly can see{" "}
+                  I can see{" "}
                   <span className="font-semibold text-ink">
                     every program and card
                   </span>{" "}
                   you have saved, and what each one earns. Ask what a balance is
-                  worth, or tell her a new one.
+                  worth, or tell me a new one.
                 </>
               ) : focus === "log_trip" ? (
                 <>
-                  Tell Aly about a trip you have{" "}
+                  Tell me about a trip you have{" "}
                   <span className="font-semibold text-ink">already taken</span>{" "}
-                  and she files it with your past trips. She keeps the packing
-                  list you used as you wrote it, and will not suggest anything
-                  to book.
+                  and I file it with your past trips. I keep the packing list
+                  you used as you wrote it, and will not suggest anything to
+                  book.
                 </>
               ) : focus === "new_trip" ? (
                 <>
-                  Tell Aly what you have in mind and she will build it with you,{" "}
+                  Tell me what you have in mind and I will build it with you,{" "}
                   <span className="font-semibold text-ink">
                     a piece at a time
                   </span>
@@ -964,10 +964,10 @@ export default function ChatPanel({
                 </>
               ) : (
                 <>
-                  Aly is looking across{" "}
+                  I am looking across{" "}
                   <span className="font-semibold text-ink">all your trips</span>
-                  . She can start a new one or remove one from here — open a
-                  trip to work on what is inside it.
+                  . I can start a new one or remove one from here — open a trip
+                  to work on what is inside it.
                 </>
               )}{" "}
               You approve every change before it saves.
@@ -1311,7 +1311,7 @@ export default function ChatPanel({
             <BubbleIcon className="mt-[0.15rem] h-3.5 w-3.5 shrink-0 text-teal" />
             <p className="text-xs leading-snug text-ink">
               <span className="font-semibold text-teal">
-                Aly is waiting on you:
+                I am waiting on you:
               </span>{" "}
               {asked}
             </p>

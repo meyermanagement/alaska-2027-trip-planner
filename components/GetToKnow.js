@@ -45,7 +45,7 @@ export default function GetToKnow({ person, ledger, self = false }) {
           under the lines it is a response to rather than between them. */}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="min-w-0 flex-1 basis-56">
-          <p className="section-label">What Aly knows</p>
+          <p className="section-label">What I know</p>
           <p className="mt-0.5 text-sm text-ink">
             {known}% of the questions that change advice
             {settled.length > 0 && (

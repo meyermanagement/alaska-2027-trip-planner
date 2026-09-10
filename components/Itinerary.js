@@ -1010,7 +1010,7 @@ export default function Itinerary({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setResearchError(data.error || "Aly could not look into today.");
+        setResearchError(data.error || "I could not look into today.");
         return;
       }
       await loadDay(selected, nextIdOnSelected, { force: true });

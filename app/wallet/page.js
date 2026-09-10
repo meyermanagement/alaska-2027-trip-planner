@@ -71,9 +71,9 @@ export default async function RewardsPage() {
           <h1 className="font-display text-3xl font-semibold">Wallet</h1>
           <p className="mt-1 text-sm text-ink-soft">
             Every program the family belongs to, what the balances are, and what
-            each credit card earns. Aly reads all of it when she plans, so she
-            can say when a stay is worth paying for with points and which card
-            to put a booking on.
+            each credit card earns. I read all of it when I plan, so I can say
+            when a stay is worth paying for with points and which card to put a
+            booking on.
           </p>
         </div>
         <ProTips
@@ -87,8 +87,8 @@ export default async function RewardsPage() {
           emptyLooked="Nothing worth telling you about the Wallet right now. Tips appear when a credit is going unused, points are about to lapse, a fee is coming round, or a welcome bonus on a card you do not hold is worth the spending you already have planned."
           emptyFresh={
             programs?.length
-              ? "Nothing here yet. Ask for a look and Aly will go through what you hold — expiring points, unspent credits, fees against the perks you actually use — and check what today's welcome offers are on cards you do not have."
-              : "Nothing saved here yet, which is fine — ask for a look anyway. With an empty Wallet Aly answers the beginner's question instead: which travel card to open first, why that one, what the bonus is today and what it costs to keep, read off the issuer's own page rather than remembered."
+              ? "Nothing here yet. Ask for a look and I will go through what you hold — expiring points, unspent credits, fees against the perks you actually use — and check what today's welcome offers are on cards you do not have."
+              : "Nothing saved here yet, which is fine — ask for a look anyway. With an empty Wallet I answer the beginner's question instead: which travel card to open first, why that one, what the bonus is today and what it costs to keep, read off the issuer's own page rather than remembered."
           }
         />
         <RewardsBoard
@@ -102,7 +102,7 @@ export default async function RewardsPage() {
         <p className="mt-6 text-[0.78rem] leading-relaxed text-ink-faint">
           Anything above about a card&rsquo;s welcome bonus was read off a page
           on the day it was found, and offers change without notice. Check the
-          issuer&rsquo;s own application page before you apply. Aly is a travel
+          issuer&rsquo;s own application page before you apply. I am a travel
           planner, not a financial advisor, and none of this is advice about
           your credit.
         </p>

@@ -64,7 +64,7 @@ export default function MomentsEditor({
   heading = "Favorite moments",
   // A short explainer read once at the top. Same story: different tone for
   // the two callers.
-  help = "Aly reads these before every answer she writes. A real moment in your own words is worth more than a tidy list of places.",
+  help = "I read these before every answer I write. A real moment in your own words is worth more than a tidy list of places.",
 }) {
   const [moments, setMoments] = useState([]);
   const [loaded, setLoaded] = useState(false);

@@ -171,8 +171,8 @@ export default async function ReviewsPage() {
             </h1>
             <p className="mt-1 text-sm text-ink-soft">
               What the family thought of the places they stayed, the things they
-              did and the meals they ate. Aly reads these when it suggests
-              somewhere new.
+              did and the meals they ate. I read these when I suggest somewhere
+              new.
             </p>
           </div>
           <HowRatingsWork />

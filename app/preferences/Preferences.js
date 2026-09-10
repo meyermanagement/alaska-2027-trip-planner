@@ -505,7 +505,7 @@ export default function Preferences({
         body: JSON.stringify({ mode, whose: whoseName }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Aly could not answer.");
+      if (!res.ok) throw new Error(data?.error || "I could not answer.");
       setStarter(Boolean(data.starter));
       setAskedFor(data.mode === "ideas" ? "ideas" : "missing");
       setIdeas(
@@ -515,7 +515,7 @@ export default function Preferences({
         })),
       );
     } catch (error) {
-      setAskError(error?.message || "Aly could not answer just now.");
+      setAskError(error?.message || "I could not answer just now.");
     }
     setAsking("");
   }
@@ -538,7 +538,7 @@ export default function Preferences({
             <p className="mt-1 max-w-2xl text-sm text-ink-soft">
               A paragraph or two about each person, and the small real memories
               from their life that make an answer feel like it was written for
-              them. Aly reads these before every answer.
+              them. I read these before every answer.
             </p>
           </div>
           <div className="space-y-3">
@@ -647,7 +647,7 @@ export default function Preferences({
                               travelerId={person.id}
                               travelerName={name}
                               heading=""
-                              help={`Small, real memories from ${name}\u2019s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes.`}
+                              help={`Small, real memories from ${name}\u2019s life -- the kind of thing you would tell a friend about at dinner. I read these before every answer I write.`}
                             />
                           </div>
                         )}
@@ -670,8 +670,8 @@ export default function Preferences({
             <p className="mt-1 max-w-2xl text-sm text-ink-soft">
               Anything worth remembering when we plan the next one — how we get
               around, what we will and will not sleep in, what a night is worth
-              to us. Write it however you like. Aly reads these when she
-              suggests things. Press one to change or delete it.
+              to us. Write it however you like. I read these when I suggest
+              things. Press one to change or delete it.
             </p>
           </div>
           <div className="no-print flex flex-wrap gap-2">
@@ -681,7 +681,7 @@ export default function Preferences({
               onClick={() => askAly("ideas")}
               disabled={Boolean(asking)}
             >
-              {asking === "ideas" ? "Aly is thinking…" : "Ask Aly for ideas"}
+              {asking === "ideas" ? "Thinking…" : "Ask Aly for ideas"}
             </button>
             <button
               type="button"
@@ -689,9 +689,7 @@ export default function Preferences({
               onClick={() => askAly("missing")}
               disabled={Boolean(asking)}
             >
-              {asking === "missing"
-                ? "Aly is thinking…"
-                : "Ask Aly what is missing"}
+              {asking === "missing" ? "Thinking…" : "Ask Aly what is missing"}
             </button>
             {!adding && (
               <button
@@ -732,23 +730,23 @@ export default function Preferences({
         {asking && (
           <p className="no-print mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm text-ink-soft">
             {asking === "ideas"
-              ? "Aly is drafting the decisions any trip needs an answer to, skipping anything already saved here. This takes a few seconds."
-              : "Aly is reading your trips, your reviews and what is already saved here, looking for the decisions she keeps having to guess at. This takes a few seconds."}
+              ? "I am drafting the decisions any trip needs an answer to, skipping anything already saved here. This takes a few seconds."
+              : "I am reading your trips, your reviews and what is already saved here, looking for the decisions I keep having to guess at. This takes a few seconds."}
           </p>
         )}
 
         {ideas && !asking && (
           <div className="no-print mt-4 space-y-3 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
             <div>
-              <span className="section-label">Aly&apos;s suggestions</span>
+              <span className="section-label">My suggestions</span>
               <p className="mt-1 text-sm text-ink-soft">
                 {ideas.length === 0
-                  ? "Nothing to add — everything Aly would want to know is already written down here."
+                  ? "Nothing to add — everything I would want to know is already written down here."
                   : askedFor === "ideas"
                     ? "The decisions any trip needs an answer to, drafted the ordinary way rather than picked out of your record. Change each one to what is actually true of you, or turn it down. Nothing is saved until you press Save."
                     : starter
-                      ? "There is not much saved about you yet, so these are not things Aly spotted — they are the decisions every trip needs an answer to, drafted the ordinary way. Change any of them to what is actually true of you, or turn them down. Nothing is saved until you press Save."
-                      : "Drafts, in your words, from what Aly already knows about you. Nothing is saved until you press Save, and you can change the wording first."}
+                      ? "There is not much saved about you yet, so these are not things I spotted — they are the decisions every trip needs an answer to, drafted the ordinary way. Change any of them to what is actually true of you, or turn them down. Nothing is saved until you press Save."
+                      : "Drafts, in your words, from what I already know about you. Nothing is saved until you press Save, and you can change the wording first."}
               </p>
             </div>
             {ideas.map((idea) => (

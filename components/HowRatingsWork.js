@@ -52,15 +52,15 @@ export default function HowRatingsWork({
           <p>
             These ratings are just for your family. Nothing here is shared
             publicly, and they are different from the public reviews you see on
-            Google or a booking site. Aly leans on them heavily when suggesting
+            Google or a booking site. I lean on them heavily when suggesting
             somewhere to stay, something to do or a place to eat, so be
             completely honest about what you thought.
           </p>
           <ul className="space-y-1.5">
             <li>
               <span className="font-semibold text-ink">5</span> — a favorite.
-              Reserved for the places you love. If Aly sees a five, it will try
-              to find something like it on the next trip.
+              Reserved for the places you love. If I see a five, I will try to
+              find something like it on the next trip.
             </li>
             <li>
               <span className="font-semibold text-ink">4</span> — you loved it

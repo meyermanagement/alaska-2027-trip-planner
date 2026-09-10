@@ -166,7 +166,7 @@ export default function Pets({
           The weight and the paperwork dates are the two that decide things: one
           sets whether a flight is even possible, the other can stop a pet at a
           counter. Whether one is coming is set on the trip itself, or just tell
-          Aly.
+          me.
         </p>
       </div>
 
@@ -194,8 +194,8 @@ export default function Pets({
       <div className="space-y-4">
         {!bare && rows.length === 0 && !adding && (
           <p className="text-sm text-ink-soft">
-            No pets yet. Add one and Aly will start taking them into account
-            when she looks for somewhere to stay.
+            No pets yet. Add one and I will take them into account when I look
+            for somewhere to stay.
           </p>
         )}
 

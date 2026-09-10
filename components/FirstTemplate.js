@@ -117,8 +117,8 @@ export default function FirstTemplate({ trips = [] }) {
             placeholder={TEMPLATE_EXAMPLES[0]}
           />
           <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-            Say it in a sentence — Aly works out the individual items and asks
-            about anything she is unsure of. For example: {TEMPLATE_EXAMPLES[1]}
+            Say it in a sentence — I work out the individual items and ask about
+            anything I am unsure of. For example: {TEMPLATE_EXAMPLES[1]}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -171,8 +171,8 @@ export default function FirstTemplate({ trips = [] }) {
             })}
           </div>
           <p className="mt-3 text-xs leading-relaxed text-ink-soft">
-            Aly reads that trip’s own packing list and builds the template from
-            it. The trip keeps everything it has.
+            I read that trip’s own packing list and build the template from it.
+            The trip keeps everything it has.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button

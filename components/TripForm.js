@@ -195,7 +195,7 @@ export default function TripForm({
         <h3 className="section-label">The picture on this trip</h3>
         <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
           {trip.cover_image_url
-            ? "Drawn for this trip from where and when it is. Ask for another if it is not right — or tell Aly what to change about it."
+            ? "Drawn for this trip from where and when it is. Ask for another if it is not right — or tell me what to change about it."
             : "There is no picture on this trip yet. The app will draw one from where and when the trip is: no photograph, no stock library, just a flat illustration of the place."}
         </p>
         <DrawCover trip={trip} className="mt-3 sm:max-w-56" />

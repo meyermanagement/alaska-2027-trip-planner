@@ -188,9 +188,9 @@ export default function InboxScreen({
         Inbox
       </h1>
       <p className="mt-2 text-sm text-ink-soft">
-        Forward booking confirmations to the address below and Aly will file
-        them onto the right trip. Airline confirmations, hotel bookings, the
-        rental car -- any one of them, from any address.
+        Forward booking confirmations to the address below and I will file them
+        onto the right trip. Airline confirmations, hotel bookings, the rental
+        car -- any one of them, from any address.
       </p>
 
       <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--line)] bg-sand p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -215,11 +215,9 @@ export default function InboxScreen({
         <section className="mt-6 rounded-2xl border border-[var(--line)] bg-sand p-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-ink">
-              Just filed by Aly
+              Just filed
             </h2>
-            <span className="text-xs text-ink-faint">
-              Undo good for a day
-            </span>
+            <span className="text-xs text-ink-faint">Undo good for a day</span>
           </div>
           <ul className="mt-3 space-y-2">
             {autoFiled.map((m) => {
@@ -307,7 +305,6 @@ export default function InboxScreen({
           </p>
         ) : null
       ) : (
-
         <div className="mt-6 space-y-3">
           {messages.map((m) => {
             const isOpen = openId === m.id;
@@ -536,8 +533,8 @@ function FilePicker({
             Add to the itinerary
           </div>
           <p className="mt-1 text-xs text-ink-soft">
-            Aly read these from the message. Untick anything that does not
-            belong on the trip; the rest become itinerary items when you file.
+            I read these from the message. Untick anything that does not belong
+            on the trip; the rest become itinerary items when you file.
           </p>
           <ul className="mt-2 space-y-1.5">
             {parsedItems.map((p) => {
@@ -606,9 +603,8 @@ function TrustPicker({ travelers, fromEmail, busy, onCancel, onConfirm }) {
   return (
     <div className="border-t border-[var(--line)] bg-sand/40 p-4">
       <div className="text-sm text-ink">
-        Link{" "}
-        <span className="font-mono text-ink">{fromEmail}</span> to a person in
-        the family. From now on, anything forwarded from that address will be
+        Link <span className="font-mono text-ink">{fromEmail}</span> to a person
+        in the family. From now on, anything forwarded from that address will be
         attributed to them.
       </div>
       <select
@@ -651,14 +647,12 @@ function TrustPicker({ travelers, fromEmail, busy, onCancel, onConfirm }) {
 // reading.
 function ParsedSummary({ status, items }) {
   if (status === "pending" || status === "running") {
-    return (
-      <div className="mt-2 text-xs text-ink-faint">Reading this one…</div>
-    );
+    return <div className="mt-2 text-xs text-ink-faint">Reading this one…</div>;
   }
   if (status === "failed") {
     return (
       <div className="mt-2 text-xs text-ink-faint">
-        Aly could not read this one. Filing it will keep the message on the trip
+        I could not read this one. Filing it will keep the message on the trip
         so you can read it there.
       </div>
     );
@@ -677,8 +671,8 @@ function ParsedSummary({ status, items }) {
 
   return (
     <div className="mt-2 text-xs text-teal">
-      Aly read {joinWithAnd(parts)} in this message. Filing it will stage them
-      for you to approve.
+      I read {joinWithAnd(parts)} in this message. Filing it will stage them for
+      you to approve.
     </div>
   );
 }
