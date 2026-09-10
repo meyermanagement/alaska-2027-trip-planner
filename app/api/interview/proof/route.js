@@ -19,32 +19,30 @@ import {
  * against the actual model they'll be using -- not in an abstract
  * "your preferences have been saved" toast.
  *
- * Kept as a POST so retries can vary the question without cache trouble.
- * The client picks a category ("food", "day") and the endpoint chooses
- * the prompt from a small local table -- open-ended and safe because the
- * question set is server-side, not caller-controlled.
+ * Kept as a POST so a retry can re-ask without cache trouble.
+ *
+ * There is one question, not a menu of them. It asks for four pieces of a
+ * trip -- a meal, an activity, how the family gets around, and where they
+ * sleep -- because those four are the decisions a person can immediately
+ * judge, and because a food answer and a day answer shown one at a time made
+ * the reader choose which comparison to look at instead of seeing the spread.
+ * The question set stays server-side, so nothing a caller sends chooses it.
  */
 
 const DEADLINE_MS = 22000;
 
 // The lead-in is separate from the question because at this point in onboarding
-// there is very often no trip to be going on. Nothing in the welcome chain
-// creates one -- it collects the family, then the interview -- so a family that
-// signed up today reaches this screen with an empty calendar, and the screen
-// used to paper over that by asking Aly about a destination literally named
-// "your next trip". Now the primary is asked where they are thinking of going
-// and the question is honest about being about a trip they do not have yet.
+// there is no trip to be going on. Nothing in the welcome chain creates one --
+// it collects the family, then the interview -- so the primary is asked where
+// they are thinking of going and the question is honest about being about a
+// trip they do not have yet.
 //
 // The question is also about an average day rather than the first one. An
 // arrival day is nobody's normal -- it is a late flight, a check-in and
 // whatever is still open -- so advice about it turns on the itinerary rather
 // than on the family, which is the one thing this screen is trying to show.
-const QUESTIONS = {
-  food: (lead) =>
-    `${lead ? `${lead} ` : ""}Plan our food for a normal evening of the trip, not the evening we arrive. Where are we eating, roughly when, and why that and not something else?`,
-  day: (lead) =>
-    `${lead ? `${lead} ` : ""}Plan an average day of the trip, not the day we arrive. Where are we going, roughly when, and why that and not something else?`,
-};
+const QUESTION = (lead) =>
+  `${lead ? `${lead} ` : ""}For an average day of the trip, not the day we arrive: pick us one meal, one thing to do, how we get around, and where we stay. For each one, say what you would choose and why that and not something else.`;
 
 /**
  * A destination the primary typed on the proof screen, made safe to interpolate.
@@ -76,19 +74,23 @@ function cleanDestination(value) {
 // breaking the render -- with the raw text still returned as a fallback so a
 // wholly non-compliant answer is shown as prose instead of as nothing.
 //
-// Highlights, not a timetable. Three rows, and each one has to be a choice
-// somebody could disagree with -- the restaurant, the hour, the thing skipped.
-// A four-row plan filled out to look complete spends a row on breakfast and
-// another on getting back to the hotel, and those rows are identical in both
-// columns, which makes the screen look like the interview changed less than
-// it did.
-const PLAN_SHAPE = `Answer as a plan, not a paragraph. Exactly three rows, one per line, in exactly this shape:
+// Four rows, fixed and in order: a meal, a thing to do, how the family moves
+// around, a place to sleep. Fixed slots are what make the two columns
+// comparable at a glance -- the same four questions, answered twice, so the eye
+// travels across a row and sees that the eight o'clock reservation became a six
+// o'clock one and the metro pass became a taxi. A model left to choose its own
+// rows fills them with waking up and getting back to the hotel, and those rows
+// come back identical in both columns, which makes the screen look like the
+// interview changed less than it did.
+const SLOTS = ["Meal", "Something to do", "Getting around", "Where you stay"];
 
-WHEN | WHAT | WHY
+const PLAN_SHAPE = `Answer as a plan, not a paragraph. Exactly four rows, one per line, in exactly this shape:
 
-WHEN is a clock time or a short label of at most four words. WHAT is the choice itself, named, at most ten words. WHY is one sentence, at most twenty words, saying why that choice and not another. Use the pipe character to separate the three parts. No bullets, no numbering, no headings, no blank lines, and nothing before the first row or after the last.
+SLOT | WHAT | WHY
 
-Give only the highlights of the day. Every row must be a real decision -- a named place, a chosen hour, something done instead of something else. Do not spend a row on waking up, breakfast, checking in, travel between stops, or going to bed unless that is itself the interesting choice.`;
+SLOT is one of ${SLOTS.join(", ")} -- use all four, once each, in that order. WHAT is the choice itself, named, at most twelve words, and may include a time when the hour is part of the choice. WHY is one sentence, at most twenty words, saying why that choice and not another. Use the pipe character to separate the three parts. No bullets, no numbering, no headings, no blank lines, and nothing before the first row or after the last.
+
+Every row must be a real decision somebody could disagree with -- a named restaurant, a named thing to do, a named way of getting around, a named kind of place to stay. Do not answer a row with a category when you could answer it with a choice.`;
 
 /**
  * The model's plan text, as rows the client can lay out.
@@ -199,7 +201,6 @@ export async function POST(req) {
   }
 
   const body = await req.json().catch(() => null);
-  const category = body?.category === "day" ? "day" : "food";
   const demo = Boolean(body?.demo);
   // In practice mode the caller may carry the family they typed while
   // walking the practice chain. Merged over the built-in stand-in, so a
@@ -260,18 +261,12 @@ export async function POST(req) {
     return NextResponse.json({
       ok: true,
       needsDestination: true,
-      category,
       demo,
       standInCustom: Boolean(standIn?.custom),
     });
   }
 
-  // Two forms of the same question. The model gets the destination spelled out
-  // in a leading sentence; the screen shows the question without it, because
-  // the place is already named on the picker directly above the card and
-  // printing it twice made the screen read like it was asking two things.
-  const question = QUESTIONS[category]("");
-  const prompt = QUESTIONS[category](
+  const prompt = QUESTION(
     `We're thinking about ${destination} for our next trip.`,
   );
 
@@ -317,8 +312,6 @@ export async function POST(req) {
   return NextResponse.json({
     ok: true,
     destination,
-    category,
-    question,
     demo,
     // Lets the proof screen say whose answers it worked from, so a person
     // who typed a family into practice can tell their run reached the

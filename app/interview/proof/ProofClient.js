@@ -9,18 +9,22 @@ import { runToStandIn } from "@/lib/practice/session";
  * The client shell for the interview proof step.
  *
  * On mount, kicks off two model calls in parallel via the /api/interview
- * /proof endpoint and paints them into a side-by-side card. The primary
- * can re-roll on a different category (food or day) to see the same
- * proof against another question. This is the last onboarding screen, so the
- * button at the bottom carries them into the trip builder, or to the trip list
- * when the family already has one.
+ * /proof endpoint and paints them into a side-by-side card. This is the last
+ * onboarding screen, so the button at the bottom carries them into the trip
+ * builder.
+ *
+ * One question, four answers each side: a meal, something to do, how the family
+ * gets around, and where it stays. Those four arrive together rather than as
+ * separate things to pick between, because a person asked to choose which
+ * comparison to look at mostly looks at one and leaves.
  *
  * Both answers arrive as plan rows rather than paragraphs -- see the endpoint
- * for why -- and are laid out as an itinerary: the hour, the choice, and
+ * for why -- and are laid out the same way: the slot, the choice, and
  * underneath it the reason that choice won. The reason line is the whole point
  * of the screen, so it is given its own line rather than tucked into the same
- * sentence as the choice, and the two columns share the row shape so the eye
- * can travel across a row and see what the interview moved.
+ * sentence as the choice, and both columns carry the same four slots in the
+ * same order, so the eye can travel across a row and see what the interview
+ * moved.
  */
 
 /**
@@ -42,8 +46,9 @@ function PlanRows({ rows, fallback, tone }) {
   const rule = tone === "with" ? "border-teal/30" : "border-sand-deep";
   // Not the section-label class. That rule is unlayered in globals.css and so
   // wins the cascade over any Tailwind text color, which would quietly render
-  // both columns' hours in the same gray and lose half the point of the pair.
-  const when = `text-[0.7rem] font-semibold uppercase tracking-[0.09em] tabular-nums ${
+  // both columns' slot labels in the same gray and lose half the point of the
+  // pair.
+  const slot = `text-[0.7rem] font-semibold uppercase tracking-[0.09em] ${
     tone === "with" ? "text-teal" : "text-ink-soft"
   }`;
   return (
@@ -53,7 +58,7 @@ function PlanRows({ rows, fallback, tone }) {
           key={`${row.when}-${i}`}
           className={`${i > 0 ? `border-t ${rule} pt-3` : ""}`}
         >
-          <p className={when}>{row.when}</p>
+          <p className={slot}>{row.when}</p>
           <p className="mt-0.5 text-sm font-medium leading-snug text-ink">
             {row.what}
           </p>
@@ -97,7 +102,9 @@ const SUGGESTED_PLACES = [
 
 export default function ProofClient({ demo = false, backHref = null } = {}) {
   const router = useRouter();
-  const [category, setCategory] = useState("food");
+  // Bumped to re-ask the same question after a failure. There is no category
+  // to nudge any more: one question covers all four slots.
+  const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -123,7 +130,6 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
       // gets the changed answer in the comparison. Null on a real visit and
       // on an untouched rehearsal, and ignored by the endpoint either way.
       body: JSON.stringify({
-        category,
         demo,
         destination: destination || null,
         standIn: demo ? runToStandIn() : null,
@@ -148,7 +154,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     return () => {
       cancelled = true;
     };
-  }, [category, demo, destination]);
+  }, [attempt, demo, destination]);
 
   return (
     <div className="space-y-6">
@@ -171,9 +177,9 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             there is nothing to look up. Everyone who sees it names a place in
             the box below or takes one of the five offered. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly answers the same question about a place you pick twice. Nothing
-          changes between the two answers except whether she knows what you just
-          told her.
+          For a place you pick, Aly chooses a meal, something to do, how you get
+          around, and where you stay &mdash; twice. Nothing changes between the
+          two answers except whether she knows what you just told her.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
@@ -187,40 +193,6 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           </p>
         )}
       </header>
-
-      {/* Which kind of question comes second. A place has to be named before
-          where to eat or what to do means anything, so the toggle waits until
-          the box below has been answered rather than sitting above it. */}
-      {!data?.needsDestination && (
-        <nav
-          className="flex flex-wrap items-center gap-2"
-          aria-label="Question category"
-        >
-          <span className="section-label text-ink-soft">Ask her:</span>
-          <button
-            type="button"
-            onClick={() => setCategory("food")}
-            className={`rounded-full border px-3 py-1.5 text-sm ${
-              category === "food"
-                ? "border-teal bg-teal text-white"
-                : "border-sand-deep bg-white text-ink-soft"
-            }`}
-          >
-            Where to eat
-          </button>
-          <button
-            type="button"
-            onClick={() => setCategory("day")}
-            className={`rounded-full border px-3 py-1.5 text-sm ${
-              category === "day"
-                ? "border-teal bg-teal text-white"
-                : "border-sand-deep bg-white text-ink-soft"
-            }`}
-          >
-            What to do
-          </button>
-        </nav>
-      )}
 
       {/* The place the comparison is about, still switchable after the first
           answer. Nothing here comes from the trips table: this screen runs
@@ -343,7 +315,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           <button
             type="button"
             className="ml-2 underline underline-offset-4"
-            onClick={() => setCategory(category)}
+            onClick={() => setAttempt((n) => n + 1)}
           >
             Try again
           </button>
@@ -352,21 +324,6 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
 
       {!loading && !error && data && !data.needsDestination && (
         <>
-          <section
-            aria-labelledby="proof-question-heading"
-            className="rounded-2xl border border-sand-deep bg-sand-soft/60 p-4"
-          >
-            <p className="section-label text-ink-soft">
-              The question Aly is answering
-            </p>
-            <p
-              id="proof-question-heading"
-              className="mt-1 font-display text-lg text-ink"
-            >
-              &ldquo;{data.question}&rdquo;
-            </p>
-          </section>
-
           <div className="grid gap-4 md:grid-cols-2">
             <article className="flex flex-col gap-2 rounded-2xl border border-sand-deep bg-white p-4">
               <header>
@@ -416,8 +373,8 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             would do and offered one more question to ask her. Two demos in a
             row before the family had done anything, when the thing they need
             next is a trip. So the proof screen is the last one, and this button
-            is the first real piece of work: the trip builder when there is no
-            trip yet, the trip list when there already is one. */}
+            is the first real piece of work: the trip builder, because a family
+            reaching the end of this sequence has no trip yet. */}
         <button
           type="button"
           onClick={() => {
