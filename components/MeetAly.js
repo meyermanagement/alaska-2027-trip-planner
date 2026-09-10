@@ -491,17 +491,27 @@ export default function MeetAly({
                 >
                   {a.heading}
                 </p>
-                <p
-                  className="ma-in mt-1 text-sm leading-relaxed text-ink-soft"
-                  style={{ animationDelay: `${at + 0.16}s` }}
-                >
-                  {a.body}
-                </p>
+                {/* Three bullets rather than a paragraph, and they come in one
+                    after another rather than as a block, so the list reads at
+                    the speed somebody is scanning it. The dot is drawn rather
+                    than a list marker, because a marker cannot be given the
+                    teal or held on the first line of a bullet that wraps. */}
+                <ul className="mt-1.5 space-y-1">
+                  {a.points.map((point, j) => (
+                    <li
+                      key={point}
+                      className="ma-in relative pl-3.5 text-sm leading-relaxed text-ink-soft before:absolute before:left-0 before:top-[0.6em] before:h-1 before:w-1 before:rounded-full before:bg-teal/60"
+                      style={{ animationDelay: `${at + 0.16 + j * 0.05}s` }}
+                    >
+                      {point}
+                    </li>
+                  ))}
+                </ul>
                 <AbilityQuestion
                   ability={a}
                   state={topics[a.key]}
                   onAsk={askAbility}
-                  delay={at + 0.22}
+                  delay={at + 0.34}
                 />
               </article>
             );

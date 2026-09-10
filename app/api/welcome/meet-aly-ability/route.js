@@ -37,7 +37,13 @@ export async function POST(req) {
     return NextResponse.json({ error: "Unknown topic." }, { status: 400 });
   }
 
-  const prompt = `The thing they tapped:\n\n${ability.heading}: ${ability.body}\n\nTheir question:\n\n"${ability.ask}"\n\nAnswer it.`;
+  // The bullets on the screen are the whole truth she is given, verbatim, so what
+  // she says back cannot outrun what the family just read.
+  const claim = [
+    ability.heading,
+    ...ability.points.map((point) => `- ${point}`),
+  ].join("\n");
+  const prompt = `The thing they tapped:\n\n${claim}\n\nTheir question:\n\n"${ability.ask}"\n\nAnswer it.`;
 
   try {
     const result = await generate({
