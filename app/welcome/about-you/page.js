@@ -11,8 +11,9 @@ export const dynamic = "force-dynamic";
 // The first step of the first-login walkthrough on a non-owner's own file.
 //
 // Somebody signing in for the first time -- Steph, Veda, a friend added by an
-// invite -- lands here after the auth callback checks their traveler row and
-// sees welcomed_at is null. The owner (the earliest family_members row in a
+// invite -- meets Aly first and arrives here from the button on that screen.
+// The auth callback is what routes them there, after checking their traveler
+// row and seeing welcomed_at is null. The owner (the earliest family_members row in a
 // household) had welcomed_at stamped at the migration, so they never come
 // through this door.
 //
@@ -53,14 +54,13 @@ export default async function WelcomeAboutYouPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
-      {/* Same block, same voice, as Meet Aly and the welcome form. Somebody
-          joining a family that already exists meets Aly here rather than on
-          the first screen, so this is the one place she gets to introduce what
-          she does with the paragraph. */}
+      {/* Same block, same voice, as Meet Aly and the welcome form. Aly has
+          already introduced herself on the screen before this one, so this
+          block only has to say what this step is for. */}
       <AlyIntro
         eyebrow="About you"
         headline={`First, tell me about you, ${me.name}.`}
-        lead="Whoever set up the family wrote the paragraph below about you. Keep it, add to it, or say it in your own words. I read it before every answer."
+        lead="Whoever set up the family wrote the paragraph below about you. Keep it, add to it, or say it in your own words."
       />
       <div className="mt-6">
         <AboutYouForm

@@ -66,12 +66,19 @@ export async function GET(request) {
       const empty = !fam?.home_address && (peopleCount || 0) === 0;
       if (empty) return NextResponse.redirect(`${origin}/welcome/meet-aly`);
 
-      // A non-owner signing in for the first time is walked through their own
-      // file before they land anywhere else: About me, then Favorite moments,
-      // then Home. The owner never sees this -- their traveler row is stamped
-      // welcomed_at at household creation time (see the migration). Everybody
-      // else gets the walkthrough once. Skipping stamps welcomed_at anyway so
-      // this never runs again for that person.
+      // A non-owner signing in for the first time meets Aly first, then is
+      // walked through their own file: About me, then Favorite moments, then
+      // Home. They are as new to the app as the person who created the
+      // household -- the only thing they did not do is fill in the family
+      // form -- so being handed straight to a form about themselves by a
+      // product they have never been introduced to is the wrong opening.
+      // Meet Aly sends them onward to About me rather than to the family
+      // form, since their family already exists.
+      //
+      // The owner never comes through this door -- their traveler row is
+      // stamped welcomed_at at household creation time (see the migration).
+      // Everybody else gets the walkthrough once. Skipping stamps
+      // welcomed_at anyway so this never runs again for that person.
       const { data: mySeat } = await supabase
         .from("travelers")
         .select("id, welcomed_at")
@@ -80,7 +87,7 @@ export async function GET(request) {
         .eq("is_person", true)
         .maybeSingle();
       if (mySeat?.id && !mySeat.welcomed_at) {
-        return NextResponse.redirect(`${origin}/welcome/about-you`);
+        return NextResponse.redirect(`${origin}/welcome/meet-aly`);
       }
     }
   }
