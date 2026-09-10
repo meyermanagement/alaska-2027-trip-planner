@@ -14,13 +14,17 @@ import { patchRun, readRun } from "@/lib/practice/session";
 /**
  * The About You page, which is a whole screen rather than a card.
  *
- * Four short prompts and one chip drawer that appends into the matching
- * prompt. The free-text paragraph is gone -- the nine-row
- * textarea was honest but hard, and every A/B of it ended in two sentences.
- * Now every input on the screen writes into a labelled box, and on save the
- * four boxes concatenate into the same about_me column so nothing downstream
- * changes. Aly still reads one block of text before every answer; the block is
- * just written in four bites with headings.
+ * Five short prompts and chip drawers that append into the matching prompt. The
+ * free-text paragraph is gone -- the nine-row textarea was honest but hard, and
+ * every A/B of it ended in two sentences. Now every input on the screen writes
+ * into a labelled box, and on save the boxes concatenate into the same about_me
+ * column so nothing downstream changes. Aly still reads one block of text before
+ * every answer; the block is just written in five bites with headings.
+ *
+ * The questions are about the person rather than about a trip. What somebody is
+ * like on a trip is mostly visible from the trip; what is not visible is the
+ * standard they hold a room to, whether they only book what other people rated
+ * highly, whether they drink, and whether they are up at five or up at ten.
  *
  * Existing paragraphs are not migrated. The screen starts empty on purpose --
  * the four prompts are the answer to why the old paragraphs were thin, and
@@ -260,20 +264,21 @@ export default function AboutYouForm({
       <h1 className="font-display text-3xl font-semibold">
         {first
           ? heading
-            ? `Before you start, ${heading} — what are you like on a trip?`
-            : "Before you start — what are you like on a trip?"
+            ? `Before you start, ${heading} — tell me about you`
+            : "Before you start — tell me about you"
           : "About you"}
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        Four short questions. Answer any that come easily and skip the rest —
-        Aly reads all of them together before she suggests anything. How you
-        travel — pace, food, early or late, where to spend the money — is asked
-        separately in the interview, so you don&rsquo;t have to say that here.
+        Five short questions about you rather than about a trip. Answer any that
+        come easily and skip the rest — Aly reads them together before she
+        suggests anything. The more you say in your own words, the less she has
+        to guess: what you love doing, what you are fussy about, whether you
+        drink, what wears you out.
       </p>
 
       {secondary && (
         <p className="mt-3 max-w-2xl rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm leading-relaxed text-ink-soft">
-          These four questions are the one thing about yourself you can change
+          These five questions are the one thing about yourself you can change
           here. Your name, your email and your travel documents are looked after
           by a primary traveler in the family — ask them if any of those need
           fixing. What you write below is yours.
@@ -283,7 +288,7 @@ export default function AboutYouForm({
       <DictationHint className="mt-5" />
 
       {/*
-        Each of the four prompts is its own card -- a sand-tinted panel with a
+        Each of the prompts is its own card -- a sand-tinted panel with a
         border, generous inside padding, and a clear gap between cards. Before
         this the sections were separated only by vertical rhythm, and with a
         chip drawer expanded under a prompt box the next prompt's label read
@@ -342,7 +347,7 @@ export default function AboutYouForm({
                     ? "border-teal ring-2 ring-teal/30 bg-teal-soft/25"
                     : ""
                 }`}
-                rows={3}
+                rows={4}
                 placeholder={p.placeholder}
                 value={parts[p.key]}
                 onChange={(e) =>
