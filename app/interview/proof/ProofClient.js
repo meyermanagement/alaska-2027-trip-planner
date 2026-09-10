@@ -136,10 +136,10 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             model is the same on both sides, and that the reason under each
             choice is the part worth reading. */}
         <p className="text-base leading-relaxed text-ink-soft">
-          Aly is answering one real question about somewhere you&rsquo;re going,
-          twice, with the same model. The only difference is that one of the two
-          knows what you just told her, and under every choice is the reason it
-          won.
+          Aly answers one real question about your trip twice, using the same
+          model both times. The only thing that changes is whether she knows
+          what you just told her, and every choice comes with the reason she
+          picked it.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
             is changes what the right-hand answer should look like. Saying so
