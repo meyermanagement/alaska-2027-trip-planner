@@ -17,6 +17,12 @@ import { runToStandIn } from "@/lib/practice/session";
  * things to pick between, because a person asked to choose which one to look at
  * mostly looks at one and leaves.
  *
+ * Under them, what to pack for that day and a couple of pro tips, both about the
+ * choices above rather than about the place in general. They sit inside the same
+ * card because they are consequences of the plan, not a second subject, and each
+ * one is asked to name the choice it belongs to -- the point being that a
+ * packing list only gets specific once something specific has been planned.
+ *
  * This screen used to show the same question answered twice, side by side: once
  * by an Aly who knew nothing about the family, and once with the interview
  * folded in. The left-hand column was there to prove the right-hand one had
@@ -72,6 +78,39 @@ function PlanRows({ rows, fallback }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+/**
+ * The packing lines or the tips, under the plan they came from.
+ *
+ * Deliberately lighter than the plan: no rules between the lines and no card of
+ * its own, because these follow from the four decisions above rather than
+ * standing beside them. The reason is on the same line as the thing rather than
+ * under it, since "which part of the day needs it" is a phrase and not the
+ * sentence a choice gets.
+ */
+function Extras({ label, rows, note }) {
+  return (
+    <section className="mt-3 border-t border-teal/30 pt-3">
+      <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.09em] text-teal">
+        {label}
+      </h2>
+      {note && <p className="mt-0.5 text-xs italic text-ink-soft">{note}</p>}
+      <ul className="mt-1.5 space-y-1.5">
+        {rows.map((row, i) => (
+          <li key={`${row.what}-${i}`} className="text-sm leading-snug">
+            <span className="font-medium text-ink">{row.what}</span>
+            {row.why && (
+              <span className="text-ink-soft">
+                {" "}
+                &mdash; {row.why.replace(/^--\s*/, "")}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -175,7 +214,8 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             the box below or takes one of the five offered. */}
         <p className="text-base leading-relaxed text-ink-soft">
           Name a place and Aly picks a meal, something to do, how you get
-          around, and where you stay &mdash; and says which of your own answers
+          around, and where you stay, then packs for that day and tells you what
+          to watch out for &mdash; saying each time which of your own answers
           made her choose it.
         </p>
         {/* A rehearsal answers about a stand-in family, and which stand-in it
@@ -298,7 +338,8 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-teal">
           <CompassLoader size={64} label="Aly is planning a day there." />
           <p className="text-sm text-ink-soft">
-            Four choices and the reason for each. This takes a moment.
+            Four choices, what to pack for them, and the reason for each. This
+            takes a moment.
           </p>
         </div>
       )}
@@ -333,6 +374,19 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               </p>
             </header>
             <PlanRows rows={data.withPrefsRows} fallback={data.withPrefs} />
+            {/* Left out rather than headed and empty when a run came back
+                without these rows, which is the honest thing for a screen whose
+                whole job is showing what Aly can actually do. */}
+            {data.packRows?.length > 0 && (
+              <Extras
+                label="Pack for that day"
+                rows={data.packRows}
+                note="Not a generic list -- each line says which part of the day needs it."
+              />
+            )}
+            {data.tipRows?.length > 0 && (
+              <Extras label="Pro tips" rows={data.tipRows} />
+            )}
           </article>
 
           <p className="text-xs italic text-ink-soft">

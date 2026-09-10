@@ -32,10 +32,23 @@ import {
  * sleep -- because those four are the decisions a person can immediately
  * judge, and because a food answer and a day answer shown one at a time made
  * the reader choose which one to look at instead of seeing the spread.
+ *
+ * The same call also returns what to pack for that day and a couple of pro
+ * tips, both tied to the choices it just made rather than to the destination in
+ * general. Packing and tips are two of the things the family was told Aly looks
+ * after on the way in, and a screen that proves she can plan a day but not
+ * mention either leaves those claims unproven. Asking for them in the same call
+ * is also what keeps them honest: a list written beside a named restaurant and
+ * a named activity can say what the activity needs, which is a different thing
+ * from a generic packing list for the city.
  * The question set stays server-side, so nothing a caller sends chooses it.
  */
 
-const DEADLINE_MS = 22000;
+// Raised from 22 seconds when the answer grew from four rows to nine. There is
+// only one model call on this screen now, so the extra room costs a slower
+// worst case rather than a second call's worth of waiting, and a run that times
+// out here loses the packing list and the tips as well as the plan.
+const DEADLINE_MS = 28000;
 
 // The lead-in is separate from the question because at this point in onboarding
 // there is no trip to be going on. Nothing in the welcome chain creates one --
@@ -85,13 +98,25 @@ function cleanDestination(value) {
 // carry no reason worth reading.
 const SLOTS = ["Meal", "Something to do", "Getting around", "Where you stay"];
 
-const PLAN_SHAPE = `Answer as a plan, not a paragraph. Exactly four rows, one per line, in exactly this shape:
+// The packing and tip rows come back in the same pipe shape as the plan, marked
+// by their own labels rather than sent as a second call. One call keeps the
+// screen's wait to one wait, and -- more to the point -- a model that has just
+// named the restaurant and the activity can pack for those; a separate call
+// would only know the city and would write the same list for anybody.
+const PACK_LABEL = "Pack";
+const TIP_LABEL = "Tip";
 
-SLOT | WHAT | WHY
+const PLAN_SHAPE = `Answer as a plan, not a paragraph. Exactly nine rows, one per line, each in this shape:
 
-SLOT is one of ${SLOTS.join(", ")} -- use all four, once each, in that order. WHAT is the choice itself, named, at most twelve words, and may include a time when the hour is part of the choice. WHY is one sentence, at most twenty words, saying why that choice and not another. Use the pipe character to separate the three parts. No bullets, no numbering, no headings, no blank lines, and nothing before the first row or after the last.
+LABEL | WHAT | WHY
 
-Every row must be a real decision somebody could disagree with -- a named restaurant, a named thing to do, a named way of getting around, a named kind of place to stay. Do not answer a row with a category when you could answer it with a choice.`;
+Use the pipe character to separate the three parts. No bullets, no numbering, no headings, no blank lines, and nothing before the first row or after the last.
+
+The first four rows are the day. LABEL is one of ${SLOTS.join(", ")} -- use all four, once each, in that order. WHAT is the choice itself, named, at most twelve words, and may include a time when the hour is part of the choice. WHY is one sentence, at most twenty words, saying why that choice and not another. Every one must be a real decision somebody could disagree with -- a named restaurant, a named thing to do, a named way of getting around, a named kind of place to stay. Do not answer a row with a category when you could answer it with a choice.
+
+The next three rows are packing. LABEL is ${PACK_LABEL}. WHAT is one thing to pack, at most eight words. WHY says which of the four choices above needs it, naming that choice. Pack for the day you just planned -- what the activity, the weather at that hour, the meal's dress code or the way of getting around actually demands. Do not list things every traveler packs anyway, like a passport, a phone charger or clothes.
+
+The last two rows are tips. LABEL is ${TIP_LABEL}. WHAT is the tip itself, at most fourteen words. WHY is why it matters here. Each tip must be about one of the four choices above and must name it -- when to book it, when to turn up, what to ask for, what will otherwise go wrong. Do not give general advice about the destination.`;
 
 /**
  * The model's plan text, as rows the client can lay out.
@@ -104,7 +129,7 @@ Every row must be a real decision somebody could disagree with -- a named restau
  * returns an empty array so the caller falls back to the raw text.
  *
  * @param text the model's reply
- * @returns [{ when, what, why }], at most five rows
+ * @returns [{ when, what, why }], at most twelve rows
  */
 function planRows(text) {
   return (
@@ -144,8 +169,31 @@ function planRows(text) {
         what: parts[1],
         why: parts.slice(2).join(" ").trim(),
       }))
-      .slice(0, 5)
+      .slice(0, 12)
   );
+}
+
+/**
+ * The parsed rows, split into the day, the packing list and the tips.
+ *
+ * Split here rather than in three parses of the same text, and split on the
+ * label rather than on position, because the failure that actually happens is a
+ * model that writes the nine rows in a different order or drops one. A row whose
+ * label is none of the eleven known ones is kept in the day, which is where a
+ * model inventing a fifth slot means it to go.
+ */
+function split(rows) {
+  const day = [];
+  const pack = [];
+  const tips = [];
+  for (const row of rows) {
+    const label = row.when.toLowerCase();
+    if (label.startsWith("pack")) pack.push(row);
+    else if (label.startsWith("tip") || label.startsWith("pro tip"))
+      tips.push(row);
+    else day.push(row);
+  }
+  return { day, pack: pack.slice(0, 4), tips: tips.slice(0, 3) };
 }
 
 function preferencesLines(prefs) {
@@ -298,6 +346,8 @@ export async function POST(req) {
     deadline,
   }).catch(() => null);
 
+  const parsed = split(planRows(withRes?.text));
+
   return NextResponse.json({
     ok: true,
     destination,
@@ -309,7 +359,11 @@ export async function POST(req) {
     withPrefs: (withRes?.text || "").trim(),
     // Parsed rows for the itinerary render. Empty when the model ignored the
     // shape, which is the client's cue to fall back to the raw text above.
-    withPrefsRows: planRows(withRes?.text),
+    // Packing and tips are separate lists so the client can head them and can
+    // leave a heading out entirely when a run came back without those rows.
+    withPrefsRows: parsed.day,
+    packRows: parsed.pack,
+    tipRows: parsed.tips,
     preferenceCount: prefsText ? prefsText.split("\n").length : 0,
   });
 }
