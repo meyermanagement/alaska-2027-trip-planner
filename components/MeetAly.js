@@ -526,15 +526,19 @@ export default function MeetAly({
             has your back with and what stays yours are said in the same
             breath, immediately above the button that takes them in.
 
-            The first half is about time, not tasks. Two earlier versions of it -
-            nothing booked, bought or sent, then every part of the trip in view -
-            both read as promises about getting a trip arranged, and arranging it
-            is the smallest part of what she does. The trip that matters is the
-            one being lived: the morning it rains, the ferry that moves, the tip
-            that arrives the day before it is useful, the packing list on the way
-            home. So the line names the span instead - first idea to the day you
-            are home - and the guarantee that follows covers changes before it
-            covers money, because changing something is what she mostly does. */}
+            The first half is about time, not tasks. Earlier versions promised
+            nothing would be booked, bought or sent, and then that every part of
+            the trip was in view, and both read as promises about getting a trip
+            arranged - which is the smallest part of what she does. The trip that
+            matters is the one being lived: the morning it rains, the ferry that
+            moves, the tip that arrives the day before it is useful, the list
+            that packs you for the way home. So it names the span and stops.
+
+            Length is a constraint here, not a preference. This paragraph fades
+            in with the button below it on a fixed delay, so a third line moves
+            the button and pushes the privacy line under the fold. Measured on
+            the rendered page: two lines at 390, 360 and 320 pixels wide. Any
+            rewrite past about seventy-eight characters breaks that at 320. */}
         <p
           className="ma-in mt-6 font-display text-xl leading-snug text-ink"
           style={{ animationDelay: "0.05s" }}
@@ -545,9 +549,8 @@ export default function MeetAly({
           className="ma-in mt-1.5 text-sm leading-relaxed text-ink-soft"
           style={{ animationDelay: "0.12s" }}
         >
-          I stay with the trip the whole way, from the first idea to the day you
-          are home, and whatever I work out I bring to you first. Nothing is
-          changed, booked, paid or sent unless you do it.
+          From the first idea to the last day home. Nothing changes unless you
+          say so.
         </p>
         <button
           type="button"
