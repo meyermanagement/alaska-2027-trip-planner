@@ -411,13 +411,14 @@ export default function ProTips({
 
       {shown.length ? (
         <ul className="space-y-3">
-          {shown.map((tip) => (
+          {shown.map((tip, index) => (
             <TipCard
               key={tip.id}
               tip={tip}
               today={today}
               onResolve={readOnly ? null : resolve}
               onTask={readOnly || !tip.trip_id ? null : makeTask}
+              defaultOpen={index === 0}
             />
           ))}
         </ul>
@@ -437,66 +438,105 @@ const TONES = {
   quiet: "border-[var(--line)] bg-white text-ink-faint",
 };
 
-function TipCard({ tip, today, onResolve, onTask }) {
+// A tip, shut. Six tips open at once is most of a screen, and a tip is a
+// paragraph, a reason and two links -- worth reading once and then in the way.
+// So the title and its date carry the tip, and the rest is a tap away: enough to
+// decide whether to open it, and the urgent ones are said again in the band at
+// the top of every screen regardless. The first one starts open, because a tab
+// that opens as a list of headlines does not show what a tip actually is.
+//
+// The body is in the tree either way and hidden with a class rather than
+// unmounted, so printing a trip prints every tip in full.
+function TipCard({ tip, today, onResolve, onTask, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   const when = tipWhen(tip, today);
   const sources = Array.isArray(tip.sources) ? tip.sources.slice(0, 3) : [];
 
   return (
-    <li className="rounded-xl border border-[var(--line)] bg-white/70 p-4">
-      {/* The label above the title rather than beside it. Beside it looks tidier
-          on a laptop and squeezes the title into a column two words wide on a
-          phone, which is where most of this will be read. */}
-      <span className={`chip border ${TONES[when.tone] || TONES.quiet}`}>
-        {when.label}
-      </span>
-      <h4 className="mt-1.5 font-semibold leading-snug text-ink">
-        {tip.title}
-      </h4>
-      <p className="mt-1.5 text-[0.9rem] leading-relaxed text-ink-soft">
-        {tip.body}
-      </p>
-      {tip.because ? (
-        <p className="mt-2 border-l-2 border-teal/30 pl-3 text-[0.8rem] leading-relaxed text-ink-faint">
-          Why you: {tip.because}
+    <li className="rounded-xl border border-[var(--line)] bg-white/70">
+      {/* The whole header is the target, so a thumb does not have to find a
+          chevron. The label sits above the title rather than beside it: beside
+          it looks tidier on a laptop and squeezes the title into a column two
+          words wide on a phone, which is where most of this will be read. */}
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 p-4 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className={`chip border ${TONES[when.tone] || TONES.quiet}`}>
+            {when.label}
+          </span>
+          <span className="mt-1.5 block font-semibold leading-snug text-ink">
+            {tip.title}
+          </span>
+        </span>
+        <span
+          aria-hidden="true"
+          className={`no-print mt-0.5 shrink-0 text-ink-soft transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M4 6.5L8 10.5L12 6.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
+
+      <div className={open ? "px-4 pb-4" : "hidden px-4 pb-4 print:block"}>
+        <p className="text-[0.9rem] leading-relaxed text-ink-soft">
+          {tip.body}
         </p>
-      ) : null}
-      {sources.length ? (
-        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.75rem]">
-          {sources.map((source) => (
-            <a
-              key={source.url}
-              href={source.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-            >
-              {source.title}
-            </a>
-          ))}
-        </p>
-      ) : null}
-      {onResolve || onTask ? (
-        <div className="no-print mt-3 flex flex-wrap gap-2">
-          {onTask ? (
-            <button
-              type="button"
-              onClick={() => onTask(tip)}
-              className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
-            >
-              Remind me
-            </button>
-          ) : null}
-          {onResolve ? (
-            <button
-              type="button"
-              onClick={() => onResolve(tip, "cleared")}
-              className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
-            >
-              Clear
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+        {tip.because ? (
+          <p className="mt-2 border-l-2 border-teal/30 pl-3 text-[0.8rem] leading-relaxed text-ink-faint">
+            Why you: {tip.because}
+          </p>
+        ) : null}
+        {sources.length ? (
+          <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.75rem]">
+            {sources.map((source) => (
+              <a
+                key={source.url}
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+              >
+                {source.title}
+              </a>
+            ))}
+          </p>
+        ) : null}
+        {onResolve || onTask ? (
+          <div className="no-print mt-3 flex flex-wrap gap-2">
+            {onTask ? (
+              <button
+                type="button"
+                onClick={() => onTask(tip)}
+                className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+              >
+                Remind me
+              </button>
+            ) : null}
+            {onResolve ? (
+              <button
+                type="button"
+                onClick={() => onResolve(tip, "cleared")}
+                className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </li>
   );
 }
