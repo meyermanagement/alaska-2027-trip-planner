@@ -22,7 +22,10 @@ export default function HomePicker({
   value,
   onChange,
   onLocated,
-  placeholder = "908 Windsor Ct, Webster Groves, MO",
+  // Deliberately a made-up house. This box is the first thing a brand new
+  // family types into, and a placeholder is read as an example of the shape
+  // wanted, so it must not be anybody's real address.
+  placeholder = "1234 Example St, Springfield, MO",
   className = "",
 }) {
   // Does the browser expose location at all, and has the family already given
