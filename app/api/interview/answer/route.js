@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
+import {
+  INTERVIEW_QUESTIONS,
+  questionFor,
+  rankLabels,
+  rankSentence,
+} from "@/lib/travelers/interview";
 import {
   inferAnswer,
   priorAnswersFrom,
@@ -104,6 +109,29 @@ export async function POST(request) {
   const rawWhys = Array.isArray(body?.whys) ? body.whys : [];
   const rawOwnWords = String(body?.ownWords || "").trim();
 
+  // The ranked order, sent only by the money question. Cleaned here rather
+  // than trusted: unknown values dropped, duplicates dropped, order kept, and
+  // capped at the number of options the question actually offers so a client
+  // cannot post a hundred entries. A SHORT order is valid -- one or two items
+  // is a real answer, and the rest are unranked rather than last -- so the
+  // only invalid ranked answer is an empty one.
+  const isRank = question.kind === "rank";
+  const rankedValues = [];
+  if (isRank) {
+    const offered = new Set((question.options || []).map((o) => o.value));
+    for (const raw of Array.isArray(body?.order) ? body.order : []) {
+      const value = String(raw || "").trim();
+      if (!offered.has(value)) continue;
+      if (rankedValues.includes(value)) continue;
+      rankedValues.push(value);
+      if (rankedValues.length >= offered.size) break;
+    }
+  }
+  // First place is the claim the inference rules and the derived check read:
+  // "they protect the room first" is the same claim the single-pick version of
+  // this question used to make.
+  const rankTopValue = rankedValues[0] || "";
+
   // Was this answer worked out from earlier ones and agreed to, rather than
   // said outright?
   //
@@ -118,7 +146,8 @@ export async function POST(request) {
   // slot settled and the rules deliberately refuse to work out an answer to a
   // question that is already answered.
   let derivedBecause = null;
-  if (action === "answer" && body?.derived === true && rawChoice) {
+  const derivedAgainst = isRank ? rankTopValue : rawChoice;
+  if (action === "answer" && body?.derived === true && derivedAgainst) {
     const [{ data: priorSlots }, { data: priorPreferences }] =
       await Promise.all([
         supabase
@@ -137,7 +166,7 @@ export async function POST(request) {
         preferences: priorPreferences || [],
       }),
     );
-    if (agreed?.value === rawChoice) derivedBecause = agreed.because;
+    if (agreed?.value === derivedAgainst) derivedBecause = agreed.because;
   }
 
   // Where the answer will land -- household_facts for the limits slot,
@@ -159,6 +188,14 @@ export async function POST(request) {
   const noteForSlot = (() => {
     if (action === "skip") return "The primary skipped this question.";
     if (question.kind === "text") return rawText || null;
+    // A ranked answer's note is the order in the primary's own labels, so the
+    // ledger row reads like an answer on its own -- "The room, then the meals"
+    // rather than a bare first place that loses the rest of the order.
+    if (isRank) {
+      const labels = rankLabels(question, rankedValues);
+      if (!labels.length) return null;
+      return labels.length === 1 ? labels[0] : labels.join(", then ");
+    }
     if (rawChoice === "other") return rawText || null;
     // For an option pick, the note carries the option label so the row on its
     // own reads like an answer -- somebody looking at the ledger later should
@@ -272,9 +309,20 @@ export async function POST(request) {
       // The renderer and this handler both treat the option array as
       // open-ended, so adding a middle choice on a spectrum question is a
       // data change with no code impact.
+      // A ranked answer is filed as one prose sentence, because Aly reads the
+      // travel file as sentences: an array of option values in `body` is a row
+      // nothing downstream can read out loud. The sentence names the order and
+      // says which items were left unranked, so a later reader cannot mistake
+      // "they stopped tapping" for "they care least about this".
       const opt = (question.options || []).find((o) => o.value === rawChoice);
-      const somethingElse = rawChoice === "other";
-      const answerText = somethingElse ? rawText : opt ? opt.label : "";
+      const somethingElse = !isRank && rawChoice === "other";
+      const answerText = isRank
+        ? rankSentence(question, rankedValues) || ""
+        : somethingElse
+          ? rawText
+          : opt
+            ? opt.label
+            : "";
       if (!answerText) {
         // No option picked and no words typed. The slot got saved as settled
         // above, which is wrong; roll it back to asking so the interview can
@@ -286,7 +334,11 @@ export async function POST(request) {
           .eq("slot", slotId)
           .is("traveler_id", null);
         return NextResponse.json(
-          { error: "Pick one of the two, or type what fits better." },
+          {
+            error: isRank
+              ? "Tap at least one of these in the order you would protect it."
+              : "Pick one of the two, or type what fits better.",
+          },
           { status: 400 },
         );
       }

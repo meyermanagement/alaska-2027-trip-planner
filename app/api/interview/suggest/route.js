@@ -226,7 +226,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
   const question = findQuestion(slot);
-  if (!question || question.kind !== "options") {
+  // Ranked questions carry the same per-option reason chips as picked ones --
+  // the chips shown are those of whatever is in first place -- so follow-ups
+  // are generated for them the same way.
+  if (!question || (question.kind !== "options" && question.kind !== "rank")) {
     return NextResponse.json({ error: "unknown_slot" }, { status: 400 });
   }
   // Everything the client is already showing goes into the redundancy set

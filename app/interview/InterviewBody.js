@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import CompassLoader from "@/components/CompassLoader";
-import { INTERVIEW_QUESTIONS, questionFor } from "@/lib/travelers/interview";
+import {
+  INTERVIEW_QUESTIONS,
+  questionFor,
+  rankLabels,
+} from "@/lib/travelers/interview";
 import {
   personalizationContext,
   personalizeReasons,
@@ -55,6 +59,7 @@ const BLANK_FIELDS = {
   whys: [],
   ownWords: "",
   moments: [""],
+  order: [],
 };
 
 /**
@@ -106,6 +111,32 @@ function fieldsForAnswer(question, priorAnswer) {
       whys: opt ? priorWhys : [],
       ownWords: opt ? priorOwnWords : "",
       moments: [""],
+      order: [],
+    };
+  }
+  // A ranked answer is recorded as the ordered list of option LABELS, the
+  // same way moments records a list of strings, and is read back to option
+  // values here. A label that no longer matches any option -- the question
+  // was reworded since the answer was given -- is dropped rather than
+  // guessed at, which can leave a shorter order or none at all. That is the
+  // same rule the single-pick branch above follows, and for the same reason:
+  // a control claiming somebody ranked something they never saw is worse
+  // than a control that asks again.
+  if (question.kind === "rank") {
+    const labels = Array.isArray(priorAnswer.picked) ? priorAnswer.picked : [];
+    const values = [];
+    for (const label of labels) {
+      const opt = (question.options || []).find((o) => o.label === label);
+      if (opt && !values.includes(opt.value)) values.push(opt.value);
+    }
+    return {
+      choice: "",
+      text: "",
+      whys: Array.isArray(priorAnswer.whys) ? priorAnswer.whys : [],
+      ownWords:
+        typeof priorAnswer.ownWords === "string" ? priorAnswer.ownWords : "",
+      moments: [""],
+      order: values,
     };
   }
   if (question.kind === "moments") {
@@ -116,6 +147,7 @@ function fieldsForAnswer(question, priorAnswer) {
       whys: [],
       ownWords: "",
       moments: list.length ? [...list, ""] : [""],
+      order: [],
     };
   }
   // text
@@ -125,6 +157,7 @@ function fieldsForAnswer(question, priorAnswer) {
     whys: [],
     ownWords: "",
     moments: [""],
+    order: [],
   };
 }
 
@@ -165,6 +198,11 @@ export default function InterviewBody({
   // times so there is always somewhere to type without hunting for an add
   // button.
   const [moments, setMoments] = useState([""]);
+  // The money question is ordered rather than picked, and the order is its own
+  // state for the same reason moments is: the shape does not fit `choice`. A
+  // list of option values, best-protected first, and a short list is a real
+  // answer -- an empty one is the only one that is not.
+  const [order, setOrder] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   // In-session record of what has been answered this run. Practice mode
@@ -190,8 +228,15 @@ export default function InterviewBody({
     for (const answer of answers) {
       if (!answer?.slot) continue;
       const question = questionFor(answer.slot);
+      // A ranked answer's first place is the value the inference rules read:
+      // "they protect the room first" is the same claim the single-pick
+      // version of this question used to make, and the rules downstream were
+      // written against that claim.
+      const pickedLabel = Array.isArray(answer.picked)
+        ? answer.picked[0]
+        : answer.picked;
       const opt = (question?.options || []).find(
-        (o) => o.label === answer.picked,
+        (o) => o.label === pickedLabel,
       );
       base[answer.slot] = {
         value: opt?.value || null,
@@ -249,7 +294,7 @@ export default function InterviewBody({
     const prior = priorsInPlay && priorsInPlay[slot];
     if (!prior?.value) return null;
     const question = questionFor(slot);
-    if (question?.kind !== "options") return null;
+    if (question?.kind !== "options" && question?.kind !== "rank") return null;
     const opt = (question.options || []).find((o) => o.value === prior.value);
     if (!opt) return null;
     return { ...prior, label: opt.label };
@@ -353,6 +398,7 @@ export default function InterviewBody({
         setWhys(fields.whys);
         setOwnWords(fields.ownWords);
         setMoments(fields.moments);
+        setOrder(fields.order);
         return prior;
       });
       setError(null);
@@ -385,7 +431,14 @@ export default function InterviewBody({
     if (!inferred?.value) return;
     if (preFilledFor.current === slot) return;
     preFilledFor.current = slot;
-    setChoice((current) => current || inferred.value);
+    if (questionFor(slot)?.kind === "rank") {
+      // A worked-out answer on a ranked question arrives as first place and
+      // nothing else, because that is all the rules claim to know. The rest
+      // of the order stays empty for the primary to fill in or leave alone.
+      setOrder((current) => (current.length ? current : [inferred.value]));
+    } else {
+      setChoice((current) => current || inferred.value);
+    }
     setTouched(false);
   }, [inferred, slot]);
   useEffect(() => {
@@ -393,9 +446,18 @@ export default function InterviewBody({
     if (aboutFilledFor.current === slot) return;
     if (touched) return;
     aboutFilledFor.current = slot;
-    setChoice((current) =>
-      !current || current === inferred?.value ? aboutMePrior.value : current,
-    );
+    if (questionFor(slot)?.kind === "rank") {
+      setOrder((current) =>
+        !current.length ||
+        (current.length === 1 && current[0] === inferred?.value)
+          ? [aboutMePrior.value]
+          : current,
+      );
+    } else {
+      setChoice((current) =>
+        !current || current === inferred?.value ? aboutMePrior.value : current,
+      );
+    }
   }, [aboutMePrior, inferred, slot, touched]);
 
   // A question is only "worked out" while the pre-picked option is still the
@@ -407,11 +469,20 @@ export default function InterviewBody({
   // out of the way rather than stacking a second explanation above the same
   // prompt. The pick still stands; only the second card is suppressed.
   const aboutMeCovers = Boolean(aboutMePrior);
+  // The one answer both the pre-fill cards and the reason chips talk about.
+  // On a ranked question that is whatever sits in first place -- the reasons
+  // for protecting the room are the reasons the first pick carries -- and on
+  // every other question it is simply the pick.
+  const pickedValue = question?.kind === "rank" ? order[0] || "" : choice;
+
   const confirmingAboutMe = Boolean(
-    aboutMePrior && !touched && choice === aboutMePrior.value,
+    aboutMePrior && !touched && pickedValue === aboutMePrior.value,
   );
   const confirmingInference = Boolean(
-    inferred && !touched && !confirmingAboutMe && choice === inferred.value,
+    inferred &&
+    !touched &&
+    !confirmingAboutMe &&
+    pickedValue === inferred.value,
   );
 
   // Every choice the primary makes by hand, so the pre-picked option can stop
@@ -419,6 +490,20 @@ export default function InterviewBody({
   const pickChoice = useCallback((value) => {
     setTouched(true);
     setChoice(value);
+  }, []);
+
+  // Tap-in-order, not drag. A tap on an unranked card appends it to the order
+  // and stamps it with its number; a tap on a ranked card takes it back out,
+  // and everything below it moves up a place. Nothing is dragged, so the
+  // control works with a thumb, a keyboard and a screen reader alike, which a
+  // drag handle on a phone does not.
+  const toggleRank = useCallback((value) => {
+    setTouched(true);
+    setOrder((current) =>
+      current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value],
+    );
   }, []);
 
   // Whether the current form has something worth saving before leaving the
@@ -432,6 +517,12 @@ export default function InterviewBody({
       if (!choice) return false;
       if (choice === "other") return text.trim().length > 0;
       return true;
+    }
+    // One ranked item is an answer. Somebody who taps the room and stops has
+    // told us the thing that matters most, and refusing to save until all
+    // four are ordered would be asking them to invent three opinions.
+    if (question?.kind === "rank") {
+      return order.length > 0;
     }
     if (question?.kind === "moments") {
       return moments.some((m) => (m || "").trim().length > 0);
@@ -450,6 +541,8 @@ export default function InterviewBody({
   const saveCurrent = useCallback(async () => {
     if (!hasAnswer) return false;
     const isMoments = question.kind === "moments";
+    const isRank = question.kind === "rank";
+    const rankedLabels = isRank ? rankLabels(question, order) : [];
     const cleanedMoments = isMoments
       ? moments.map((m) => m.trim()).filter(Boolean)
       : [];
@@ -460,30 +553,33 @@ export default function InterviewBody({
     // Whys and own-words only apply to a normal option pick. Something-else
     // (choice === "other") sends its typed alternative on `text`, not chips,
     // and the interview UI doesn't offer chips on that path.
-    const cleanedWhys =
-      question.kind === "options" && choice && choice !== "other"
-        ? whys.map((w) => (w || "").trim()).filter(Boolean)
-        : [];
-    const cleanedOwnWords =
-      question.kind === "options" && choice && choice !== "other"
-        ? ownWords.trim()
-        : "";
+    const wantsWhys = isRank
+      ? order.length > 0
+      : question.kind === "options" && choice && choice !== "other";
+    const cleanedWhys = wantsWhys
+      ? whys.map((w) => (w || "").trim()).filter(Boolean)
+      : [];
+    const cleanedOwnWords = wantsWhys ? ownWords.trim() : "";
     const record = {
       slot,
       label: question.label,
       kind: question.kind,
       action: "answer",
-      picked: isMoments
-        ? cleanedMoments.length > 0
-          ? cleanedMoments
+      picked: isRank
+        ? rankedLabels.length > 0
+          ? rankedLabels
           : null
-        : question.kind === "text"
-          ? text.trim() || null
-          : choice === "other"
+        : isMoments
+          ? cleanedMoments.length > 0
+            ? cleanedMoments
+            : null
+          : question.kind === "text"
             ? text.trim() || null
-            : opt
-              ? opt.label
-              : null,
+            : choice === "other"
+              ? text.trim() || null
+              : opt
+                ? opt.label
+                : null,
       // `reason` is a display-only string kept for Recap (practice mode) so
       // the recap shows the whys and own-words together on one line. The
       // server no longer reads it; the answer route writes whys and own-
@@ -524,6 +620,10 @@ export default function InterviewBody({
               action: "answer",
               choice,
               text,
+              // The ranked order, best-protected first, as option values. Sent
+              // only by the money question; every other question sends an
+              // empty list and the route ignores it.
+              order: isRank ? order : [],
               whys: cleanedWhys,
               ownWords: cleanedOwnWords,
               // Tells the answer route this was worked out from earlier
@@ -555,6 +655,7 @@ export default function InterviewBody({
     inferred,
     mode,
     moments,
+    order,
     ownWords,
     question,
     slot,
@@ -613,6 +714,7 @@ export default function InterviewBody({
       setWhys(fields.whys);
       setOwnWords(fields.ownWords);
       setMoments(fields.moments);
+      setOrder(fields.order);
       return prior;
     });
   }, [hasAnswer, index, loading, mode, router, saveCurrent]);
@@ -631,6 +733,9 @@ export default function InterviewBody({
       // preserved) is done once and reused for both practice recording and
       // the real POST.
       const isMoments = question.kind === "moments";
+      const isRank = question.kind === "rank";
+      const rankedLabels =
+        isRank && action !== "skip" ? rankLabels(question, order) : [];
       const cleanedMoments = isMoments
         ? moments.map((m) => m.trim()).filter(Boolean)
         : [];
@@ -642,20 +747,15 @@ export default function InterviewBody({
       // nothing to read.
       const opt = (question.options || []).find((o) => o.value === choice);
       // Same rule as saveCurrent: whys and own-words are option-pick-only.
-      const cleanedWhys =
+      const wantsWhys =
         action !== "skip" &&
-        question.kind === "options" &&
-        choice &&
-        choice !== "other"
-          ? whys.map((w) => (w || "").trim()).filter(Boolean)
-          : [];
-      const cleanedOwnWords =
-        action !== "skip" &&
-        question.kind === "options" &&
-        choice &&
-        choice !== "other"
-          ? ownWords.trim()
-          : "";
+        (isRank
+          ? order.length > 0
+          : question.kind === "options" && choice && choice !== "other");
+      const cleanedWhys = wantsWhys
+        ? whys.map((w) => (w || "").trim()).filter(Boolean)
+        : [];
+      const cleanedOwnWords = wantsWhys ? ownWords.trim() : "";
       const record = {
         slot,
         label: question.label,
@@ -664,17 +764,21 @@ export default function InterviewBody({
         picked:
           action === "skip"
             ? null
-            : isMoments
-              ? cleanedMoments.length > 0
-                ? cleanedMoments
+            : isRank
+              ? rankedLabels.length > 0
+                ? rankedLabels
                 : null
-              : question.kind === "text"
-                ? text.trim() || null
-                : choice === "other"
+              : isMoments
+                ? cleanedMoments.length > 0
+                  ? cleanedMoments
+                  : null
+                : question.kind === "text"
                   ? text.trim() || null
-                  : opt
-                    ? opt.label
-                    : null,
+                  : choice === "other"
+                    ? text.trim() || null
+                    : opt
+                      ? opt.label
+                      : null,
         reason:
           action === "skip"
             ? null
@@ -698,10 +802,14 @@ export default function InterviewBody({
         if (
           action !== "skip" &&
           !record.picked &&
-          question.kind === "options"
+          (question.kind === "options" || question.kind === "rank")
         ) {
           setLoading(false);
-          setError("Pick one of these, or type what fits better.");
+          setError(
+            question.kind === "rank"
+              ? "Tap at least one of these in the order you would protect it."
+              : "Pick one of these, or type what fits better.",
+          );
           return;
         }
         remember();
@@ -737,6 +845,7 @@ export default function InterviewBody({
                 action,
                 choice: action === "skip" ? null : choice,
                 text: action === "skip" ? null : text,
+                order: action === "skip" || !isRank ? [] : order,
                 whys: cleanedWhys,
                 ownWords: cleanedOwnWords,
               }),
@@ -797,6 +906,7 @@ export default function InterviewBody({
       loading,
       mode,
       moments,
+      order,
       ownWords,
       question,
       router,
@@ -862,8 +972,9 @@ export default function InterviewBody({
                   &ldquo;{aboutMePrior.quote}&rdquo;
                 </p>
                 <p className="mt-2">
-                  So I have picked {aboutMePrior.label} below. Save and continue
-                  to agree, pick another if I have it wrong, or{" "}
+                  {question?.kind === "rank"
+                    ? `So I have put ${aboutMePrior.label} first below. Save and continue to agree, tap another card to put it first, or `
+                    : `So I have picked ${aboutMePrior.label} below. Save and continue to agree, pick another if I have it wrong, or `}
                   <a
                     href="/about-you"
                     className="text-teal underline underline-offset-4"
@@ -891,9 +1002,13 @@ export default function InterviewBody({
                 </p>
                 <p className="mt-1">{inferred.because}</p>
                 <p className="mt-2">
-                  {inferred.strength === "sure"
-                    ? "So I have picked it below. Save and continue to agree, or pick another if I have it wrong."
-                    : "So I have picked it below as a guess. Save and continue to agree, or pick another if I have it wrong."}
+                  {question?.kind === "rank"
+                    ? inferred.strength === "sure"
+                      ? "So I have put it first below. Save and continue to agree, or tap the cards in the order you would actually protect them."
+                      : "So I have put it first below as a guess. Save and continue to agree, or tap the cards in the order you would actually protect them."
+                    : inferred.strength === "sure"
+                      ? "So I have picked it below. Save and continue to agree, or pick another if I have it wrong."
+                      : "So I have picked it below as a guess. Save and continue to agree, or pick another if I have it wrong."}
                 </p>
               </div>
             )}
@@ -982,6 +1097,30 @@ export default function InterviewBody({
                   </div>
                 )}
               </div>
+            ) : question.kind === "rank" ? (
+              <div className="mt-6 flex flex-col gap-3">
+                <RankPanel
+                  question={question}
+                  order={order}
+                  toggleRank={toggleRank}
+                  clearRank={() => {
+                    setTouched(true);
+                    setOrder([]);
+                  }}
+                />
+                {pickedValue && (
+                  <WhyPanel
+                    choice={pickedValue}
+                    question={question}
+                    whys={whys}
+                    setWhys={setWhys}
+                    ownWords={ownWords}
+                    setOwnWords={setOwnWords}
+                    cache={suggestionCache}
+                    context={live}
+                  />
+                )}
+              </div>
             ) : question.kind === "moments" ? (
               <MomentsPanel
                 moments={moments}
@@ -1038,7 +1177,9 @@ export default function InterviewBody({
                 disabled={
                   question.kind === "options"
                     ? !choice || (choice === "other" && !text.trim())
-                    : false
+                    : question.kind === "rank"
+                      ? order.length === 0
+                      : false
                 }
                 className="btn btn-primary"
               >
@@ -1135,6 +1276,111 @@ function signatureOf(value) {
     .replace(/[^a-z0-9\s]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Counts read as words in a sentence, because "2 ordered" in the middle of a
+// line of prose reads like a field value rather than something Aly said.
+const COUNT_WORDS = ["none", "one", "two", "three", "four"];
+
+// The ranking control, used by the money question and nothing else.
+//
+// Tap-in-order rather than drag. Dragging is the control this question keeps
+// suggesting to people -- the answer really is an order, and an order looks
+// like something you should be able to shove around -- but a drag is the
+// least reachable control there is: it needs a pointer that stays down, it
+// has no keyboard equivalent without writing one, and touch drag on iOS
+// Safari is not the same feature as the drag-and-drop the desktop browsers
+// implement. Tapping in order costs one tap per card, works with a thumb, a
+// keyboard and a screen reader alike, and is undoable one card at a time.
+//
+// Numbers, not arrows: the card carries the place it is in, so the order is
+// readable without counting down the column. Tapping a numbered card removes
+// it and the cards below it move up, which is the only edit anybody wants
+// from a four-item list -- a "move up one" affordance on a list this short is
+// three controls where one will do.
+//
+// A card left untapped is unranked, and the panel says so under the list
+// rather than letting the blank space imply "last". That distinction is the
+// reason this question stopped being a single pick.
+function RankPanel({ question, order, toggleRank, clearRank }) {
+  const options = question.options || [];
+  const ranked = order.filter((value) =>
+    options.some((o) => o.value === value),
+  );
+  const unranked = options.filter((o) => !ranked.includes(o.value));
+
+  return (
+    <div>
+      <ol className="flex list-none flex-col gap-3 p-0">
+        {options.map((opt) => {
+          const place = ranked.indexOf(opt.value);
+          const isRanked = place >= 0;
+          return (
+            <li key={opt.value}>
+              <button
+                type="button"
+                onClick={() => toggleRank(opt.value)}
+                aria-pressed={isRanked}
+                aria-label={
+                  isRanked
+                    ? `${opt.label}, number ${place + 1}. Tap to take it out of the order.`
+                    : `${opt.label}. Tap to put it next in the order.`
+                }
+                className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition ${
+                  isRanked
+                    ? "border-teal bg-teal-soft/50 shadow-sm"
+                    : "border-sand-deep bg-white hover:border-teal/50"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border font-display text-sm ${
+                    isRanked
+                      ? "border-teal bg-teal text-white"
+                      : "border-sand-deep text-ink-faint"
+                  }`}
+                >
+                  {isRanked ? place + 1 : ""}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-display text-lg text-ink">
+                    {opt.label}
+                  </span>
+                  {opt.detail && (
+                    <span className="mt-1 block text-sm text-ink-soft">
+                      {opt.detail}
+                    </span>
+                  )}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-soft">
+        <p aria-live="polite">
+          {ranked.length === 0
+            ? "Nothing ordered yet. Tap the one you would protect first."
+            : unranked.length === 0
+              ? "All four ordered. Tap a card to take it back out."
+              : `${COUNT_WORDS[ranked.length] || ranked.length} ordered. I will treat the ${
+                  unranked.length === 1
+                    ? "other one"
+                    : `other ${COUNT_WORDS[unranked.length] || unranked.length}`
+                } as no strong feeling, not as last.`}
+        </p>
+        {ranked.length > 0 && (
+          <button
+            type="button"
+            onClick={clearRank}
+            className="underline underline-offset-4 hover:text-ink"
+          >
+            Start the order again
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function WhyPanel({
@@ -1408,8 +1654,13 @@ function Recap({ answers }) {
                 {Array.isArray(a.picked) ? (
                   <ul className="mt-1 space-y-1 text-ink">
                     {a.picked.map((line, i) => (
-                      <li key={i} className="before:mr-2 before:content-['•']">
-                        {line}
+                      <li key={i} className="flex gap-2">
+                        {/* A ranked answer is a sequence, so the recap has to
+                          number it. Moments are a set and take a bullet. */}
+                        <span className="text-ink-soft">
+                          {a.kind === "rank" ? `${i + 1}.` : "\u2022"}
+                        </span>
+                        <span>{line}</span>
                       </li>
                     ))}
                   </ul>
