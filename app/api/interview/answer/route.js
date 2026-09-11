@@ -5,7 +5,8 @@ import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import {
   INTERVIEW_QUESTIONS,
   questionFor,
-  rankLabels,
+  optionLabels,
+  multiSentence,
   rankSentence,
 } from "@/lib/travelers/interview";
 import {
@@ -116,21 +117,34 @@ export async function POST(request) {
   // is a real answer, and the rest are unranked rather than last -- so the
   // only invalid ranked answer is an empty one.
   const isRank = question.kind === "rank";
-  const rankedValues = [];
-  if (isRank) {
+  const isMulti = question.kind === "multi";
+  // Both list shapes are cleaned the same way, and the cap is the question's
+  // own: every option for the ranked question, `max` for a multi one, so a
+  // client cannot post a fourth must-have on a question that asks for two.
+  const listValues = [];
+  if (isRank || isMulti) {
     const offered = new Set((question.options || []).map((o) => o.value));
-    for (const raw of Array.isArray(body?.order) ? body.order : []) {
+    const cap = isMulti ? question.max || offered.size : offered.size;
+    const sent = isMulti ? body?.picks : body?.order;
+    for (const raw of Array.isArray(sent) ? sent : []) {
       const value = String(raw || "").trim();
       if (!offered.has(value)) continue;
-      if (rankedValues.includes(value)) continue;
-      rankedValues.push(value);
-      if (rankedValues.length >= offered.size) break;
+      if (listValues.includes(value)) continue;
+      listValues.push(value);
+      if (listValues.length >= cap) break;
     }
   }
-  // First place is the claim the inference rules and the derived check read:
-  // "they protect the room first" is the same claim the single-pick version of
-  // this question used to make.
-  const rankTopValue = rankedValues[0] || "";
+  // The one claim the inference rules and the derived check read. On the ranked
+  // question that is first place -- "they protect the room first" is the same
+  // claim the single-pick version used to make.
+  //
+  // On a multi question it is the first tick, and ONLY when it is the only
+  // tick. A family that would book a hotel or a rental has told us their
+  // lodging habit and told us nothing about which one to price first, so a
+  // mixed answer deliberately carries no value forward rather than letting
+  // whichever card they happened to tap first stand in for the whole answer.
+  const listTopValue =
+    isMulti && listValues.length > 1 ? "" : listValues[0] || "";
 
   // Was this answer worked out from earlier ones and agreed to, rather than
   // said outright?
@@ -146,7 +160,7 @@ export async function POST(request) {
   // slot settled and the rules deliberately refuse to work out an answer to a
   // question that is already answered.
   let derivedBecause = null;
-  const derivedAgainst = isRank ? rankTopValue : rawChoice;
+  const derivedAgainst = isRank || isMulti ? listTopValue : rawChoice;
   if (action === "answer" && body?.derived === true && derivedAgainst) {
     const [{ data: priorSlots }, { data: priorPreferences }] =
       await Promise.all([
@@ -192,9 +206,18 @@ export async function POST(request) {
     // ledger row reads like an answer on its own -- "The room, then the meals"
     // rather than a bare first place that loses the rest of the order.
     if (isRank) {
-      const labels = rankLabels(question, rankedValues);
+      const labels = optionLabels(question, listValues);
       if (!labels.length) return null;
       return labels.length === 1 ? labels[0] : labels.join(", then ");
+    }
+    // A multi answer's note is the ticked labels, joined with a semicolon
+    // rather than a comma because the labels have commas of their own ("A
+    // hotel, somebody making the bed") and the reader of this row -- the
+    // inference layer included -- has to be able to tell where one ends.
+    if (isMulti) {
+      const labels = optionLabels(question, listValues);
+      if (!labels.length) return null;
+      return labels.join("; ");
     }
     if (rawChoice === "other") return rawText || null;
     // For an option pick, the note carries the option label so the row on its
@@ -315,14 +338,16 @@ export async function POST(request) {
       // says which items were left unranked, so a later reader cannot mistake
       // "they stopped tapping" for "they care least about this".
       const opt = (question.options || []).find((o) => o.value === rawChoice);
-      const somethingElse = !isRank && rawChoice === "other";
+      const somethingElse = !isRank && !isMulti && rawChoice === "other";
       const answerText = isRank
-        ? rankSentence(question, rankedValues) || ""
-        : somethingElse
-          ? rawText
-          : opt
-            ? opt.label
-            : "";
+        ? rankSentence(question, listValues) || ""
+        : isMulti
+          ? multiSentence(question, listValues) || ""
+          : somethingElse
+            ? rawText
+            : opt
+              ? opt.label
+              : "";
       if (!answerText) {
         // No option picked and no words typed. The slot got saved as settled
         // above, which is wrong; roll it back to asking so the interview can
@@ -337,7 +362,9 @@ export async function POST(request) {
           {
             error: isRank
               ? "Tap at least one of these in the order you would protect it."
-              : "Pick one of the two, or type what fits better.",
+              : isMulti
+                ? "Tick at least one of these."
+                : "Pick one of the two, or type what fits better.",
           },
           { status: 400 },
         );

@@ -7,7 +7,7 @@ import CompassLoader from "@/components/CompassLoader";
 import {
   INTERVIEW_QUESTIONS,
   questionFor,
-  rankLabels,
+  optionLabels,
 } from "@/lib/travelers/interview";
 import {
   personalizationContext,
@@ -53,6 +53,12 @@ function buildReasonDisplay(whys, ownWords) {
 // `text` is the Something-else field (used only when the choice is 'other')
 // and would fight the own-words box if the two shared one string. Both stay
 // empty by default and reset on advance() and back() from the prior answer.
+// The two shapes whose answer is a list of option values rather than one:
+// the ranked question, where the order carries the answer, and the multi
+// questions, where the ticks do and the first one decides whose reason chips
+// are offered.
+const LIST_KINDS = ["rank", "multi"];
+
 const BLANK_FIELDS = {
   choice: "",
   text: "",
@@ -114,7 +120,10 @@ function fieldsForAnswer(question, priorAnswer) {
       order: [],
     };
   }
-  // A ranked answer is recorded as the ordered list of option LABELS, the
+  // A ranked answer, and a multi answer, are both recorded as a list of
+  // option LABELS -- ordered on the ranked question, in the order they were
+  // tapped on a multi one, where only the first tap means anything.
+  //
   // same way moments records a list of strings, and is read back to option
   // values here. A label that no longer matches any option -- the question
   // was reworded since the answer was given -- is dropped rather than
@@ -122,7 +131,7 @@ function fieldsForAnswer(question, priorAnswer) {
   // same rule the single-pick branch above follows, and for the same reason:
   // a control claiming somebody ranked something they never saw is worse
   // than a control that asks again.
-  if (question.kind === "rank") {
+  if (question.kind === "rank" || question.kind === "multi") {
     const labels = Array.isArray(priorAnswer.picked) ? priorAnswer.picked : [];
     const values = [];
     for (const label of labels) {
@@ -198,10 +207,13 @@ export default function InterviewBody({
   // times so there is always somewhere to type without hunting for an add
   // button.
   const [moments, setMoments] = useState([""]);
-  // The money question is ordered rather than picked, and the order is its own
-  // state for the same reason moments is: the shape does not fit `choice`. A
-  // list of option values, best-protected first, and a short list is a real
-  // answer -- an empty one is the only one that is not.
+  // The tapped option values, for the two shapes that collect more than one:
+  // the ranked question, where the order is the answer, and the multi ones,
+  // where it is a set and only the first tap is privileged (it decides which
+  // option's reason chips are offered). One state rather than two because the
+  // shape is the same -- a list of option values in the order they were
+  // tapped -- and every save path, every Back, and every pre-fill would
+  // otherwise be written twice.
   const [order, setOrder] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -294,7 +306,8 @@ export default function InterviewBody({
     const prior = priorsInPlay && priorsInPlay[slot];
     if (!prior?.value) return null;
     const question = questionFor(slot);
-    if (question?.kind !== "options" && question?.kind !== "rank") return null;
+    if (question?.kind !== "options" && !LIST_KINDS.includes(question?.kind))
+      return null;
     const opt = (question.options || []).find((o) => o.value === prior.value);
     if (!opt) return null;
     return { ...prior, label: opt.label };
@@ -431,10 +444,11 @@ export default function InterviewBody({
     if (!inferred?.value) return;
     if (preFilledFor.current === slot) return;
     preFilledFor.current = slot;
-    if (questionFor(slot)?.kind === "rank") {
-      // A worked-out answer on a ranked question arrives as first place and
-      // nothing else, because that is all the rules claim to know. The rest
-      // of the order stays empty for the primary to fill in or leave alone.
+    if (LIST_KINDS.includes(questionFor(slot)?.kind)) {
+      // A worked-out answer on a ranked or multi question arrives as one
+      // value and nothing else, because that is all the rules claim to know:
+      // first place, or one thing they would book. The rest of the list stays
+      // empty for the primary to fill in or leave alone.
       setOrder((current) => (current.length ? current : [inferred.value]));
     } else {
       setChoice((current) => current || inferred.value);
@@ -446,7 +460,7 @@ export default function InterviewBody({
     if (aboutFilledFor.current === slot) return;
     if (touched) return;
     aboutFilledFor.current = slot;
-    if (questionFor(slot)?.kind === "rank") {
+    if (LIST_KINDS.includes(questionFor(slot)?.kind)) {
       setOrder((current) =>
         !current.length ||
         (current.length === 1 && current[0] === inferred?.value)
@@ -470,10 +484,14 @@ export default function InterviewBody({
   // prompt. The pick still stands; only the second card is suppressed.
   const aboutMeCovers = Boolean(aboutMePrior);
   // The one answer both the pre-fill cards and the reason chips talk about.
-  // On a ranked question that is whatever sits in first place -- the reasons
-  // for protecting the room are the reasons the first pick carries -- and on
-  // every other question it is simply the pick.
-  const pickedValue = question?.kind === "rank" ? order[0] || "" : choice;
+  // On a ranked question that is whatever sits in first place, on a multi one
+  // the first thing tapped -- the reasons for protecting the room, or for
+  // booking the rental, are the reasons that pick carries -- and on every
+  // other question it is simply the pick.
+  const pickedValue =
+    question?.kind === "rank" || question?.kind === "multi"
+      ? order[0] || ""
+      : choice;
 
   const confirmingAboutMe = Boolean(
     aboutMePrior && !touched && pickedValue === aboutMePrior.value,
@@ -492,19 +510,29 @@ export default function InterviewBody({
     setChoice(value);
   }, []);
 
-  // Tap-in-order, not drag. A tap on an unranked card appends it to the order
-  // and stamps it with its number; a tap on a ranked card takes it back out,
-  // and everything below it moves up a place. Nothing is dragged, so the
+  // Tap to add, tap again to take back out. On the ranked question the list
+  // is the answer, so a tap appends and stamps the next number and removing
+  // one moves everything below it up a place; nothing is dragged, so the
   // control works with a thumb, a keyboard and a screen reader alike, which a
   // drag handle on a phone does not.
-  const toggleRank = useCallback((value) => {
-    setTouched(true);
-    setOrder((current) =>
-      current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value],
-    );
-  }, []);
+  //
+  // On a multi question the same list is a set with a cap. At the cap a tap on
+  // an unticked card does nothing rather than silently dropping the oldest
+  // tick: a control that quietly changes an answer somebody already gave is
+  // worse than one that declines and says why, and the panel says why
+  // directly under the cards.
+  const toggleTapped = useCallback(
+    (value) => {
+      setTouched(true);
+      const cap = question?.kind === "multi" ? question.max || 0 : 0;
+      setOrder((current) => {
+        if (current.includes(value)) return current.filter((v) => v !== value);
+        if (cap && current.length >= cap) return current;
+        return [...current, value];
+      });
+    },
+    [question],
+  );
 
   // Whether the current form has something worth saving before leaving the
   // question. Options questions need a choice (either one of the two, or
@@ -521,7 +549,7 @@ export default function InterviewBody({
     // One ranked item is an answer. Somebody who taps the room and stops has
     // told us the thing that matters most, and refusing to save until all
     // four are ordered would be asking them to invent three opinions.
-    if (question?.kind === "rank") {
+    if (question?.kind === "rank" || question?.kind === "multi") {
       return order.length > 0;
     }
     if (question?.kind === "moments") {
@@ -542,7 +570,9 @@ export default function InterviewBody({
     if (!hasAnswer) return false;
     const isMoments = question.kind === "moments";
     const isRank = question.kind === "rank";
-    const rankedLabels = isRank ? rankLabels(question, order) : [];
+    const isMulti = question.kind === "multi";
+    const isList = isRank || isMulti;
+    const pickedLabels = isList ? optionLabels(question, order) : [];
     const cleanedMoments = isMoments
       ? moments.map((m) => m.trim()).filter(Boolean)
       : [];
@@ -553,7 +583,7 @@ export default function InterviewBody({
     // Whys and own-words only apply to a normal option pick. Something-else
     // (choice === "other") sends its typed alternative on `text`, not chips,
     // and the interview UI doesn't offer chips on that path.
-    const wantsWhys = isRank
+    const wantsWhys = isList
       ? order.length > 0
       : question.kind === "options" && choice && choice !== "other";
     const cleanedWhys = wantsWhys
@@ -565,9 +595,9 @@ export default function InterviewBody({
       label: question.label,
       kind: question.kind,
       action: "answer",
-      picked: isRank
-        ? rankedLabels.length > 0
-          ? rankedLabels
+      picked: isList
+        ? pickedLabels.length > 0
+          ? pickedLabels
           : null
         : isMoments
           ? cleanedMoments.length > 0
@@ -620,10 +650,13 @@ export default function InterviewBody({
               action: "answer",
               choice,
               text,
-              // The ranked order, best-protected first, as option values. Sent
-              // only by the money question; every other question sends an
-              // empty list and the route ignores it.
+              // The ranked order, best-protected first, as option values,
+              // sent only by the money question. The ticked options, in the
+              // order they were tapped, sent only by the multi questions.
+              // Every other question sends both empty and the route ignores
+              // them.
               order: isRank ? order : [],
+              picks: isMulti ? order : [],
               whys: cleanedWhys,
               ownWords: cleanedOwnWords,
               // Tells the answer route this was worked out from earlier
@@ -734,8 +767,10 @@ export default function InterviewBody({
       // the real POST.
       const isMoments = question.kind === "moments";
       const isRank = question.kind === "rank";
-      const rankedLabels =
-        isRank && action !== "skip" ? rankLabels(question, order) : [];
+      const isMulti = question.kind === "multi";
+      const isList = isRank || isMulti;
+      const pickedLabels =
+        isList && action !== "skip" ? optionLabels(question, order) : [];
       const cleanedMoments = isMoments
         ? moments.map((m) => m.trim()).filter(Boolean)
         : [];
@@ -749,7 +784,7 @@ export default function InterviewBody({
       // Same rule as saveCurrent: whys and own-words are option-pick-only.
       const wantsWhys =
         action !== "skip" &&
-        (isRank
+        (isList
           ? order.length > 0
           : question.kind === "options" && choice && choice !== "other");
       const cleanedWhys = wantsWhys
@@ -764,9 +799,9 @@ export default function InterviewBody({
         picked:
           action === "skip"
             ? null
-            : isRank
-              ? rankedLabels.length > 0
-                ? rankedLabels
+            : isList
+              ? pickedLabels.length > 0
+                ? pickedLabels
                 : null
               : isMoments
                 ? cleanedMoments.length > 0
@@ -802,13 +837,15 @@ export default function InterviewBody({
         if (
           action !== "skip" &&
           !record.picked &&
-          (question.kind === "options" || question.kind === "rank")
+          (question.kind === "options" || isList)
         ) {
           setLoading(false);
           setError(
-            question.kind === "rank"
+            isRank
               ? "Tap at least one of these in the order you would protect it."
-              : "Pick one of these, or type what fits better.",
+              : isMulti
+                ? "Tick at least one of these."
+                : "Pick one of these, or type what fits better.",
           );
           return;
         }
@@ -846,6 +883,7 @@ export default function InterviewBody({
                 choice: action === "skip" ? null : choice,
                 text: action === "skip" ? null : text,
                 order: action === "skip" || !isRank ? [] : order,
+                picks: action === "skip" || !isMulti ? [] : order,
                 whys: cleanedWhys,
                 ownWords: cleanedOwnWords,
               }),
@@ -974,7 +1012,9 @@ export default function InterviewBody({
                 <p className="mt-2">
                   {question?.kind === "rank"
                     ? `So I have put ${aboutMePrior.label} first below. Save and continue to agree, tap another card to put it first, or `
-                    : `So I have picked ${aboutMePrior.label} below. Save and continue to agree, pick another if I have it wrong, or `}
+                    : question?.kind === "multi"
+                      ? `So I have ticked ${aboutMePrior.label} below. Save and continue to agree, tick another that is also true, or `
+                      : `So I have picked ${aboutMePrior.label} below. Save and continue to agree, pick another if I have it wrong, or `}
                   <a
                     href="/about-you"
                     className="text-teal underline underline-offset-4"
@@ -1006,9 +1046,13 @@ export default function InterviewBody({
                     ? inferred.strength === "sure"
                       ? "So I have put it first below. Save and continue to agree, or tap the cards in the order you would actually protect them."
                       : "So I have put it first below as a guess. Save and continue to agree, or tap the cards in the order you would actually protect them."
-                    : inferred.strength === "sure"
-                      ? "So I have picked it below. Save and continue to agree, or pick another if I have it wrong."
-                      : "So I have picked it below as a guess. Save and continue to agree, or pick another if I have it wrong."}
+                    : question?.kind === "multi"
+                      ? inferred.strength === "sure"
+                        ? "So I have ticked it below. Save and continue to agree, or tick whichever ones are actually true."
+                        : "So I have ticked it below as a guess. Save and continue to agree, or tick whichever ones are actually true."
+                      : inferred.strength === "sure"
+                        ? "So I have picked it below. Save and continue to agree, or pick another if I have it wrong."
+                        : "So I have picked it below as a guess. Save and continue to agree, or pick another if I have it wrong."}
                 </p>
               </div>
             )}
@@ -1102,11 +1146,31 @@ export default function InterviewBody({
                 <RankPanel
                   question={question}
                   order={order}
-                  toggleRank={toggleRank}
+                  onTap={toggleTapped}
                   clearRank={() => {
                     setTouched(true);
                     setOrder([]);
                   }}
+                />
+                {pickedValue && (
+                  <WhyPanel
+                    choice={pickedValue}
+                    question={question}
+                    whys={whys}
+                    setWhys={setWhys}
+                    ownWords={ownWords}
+                    setOwnWords={setOwnWords}
+                    cache={suggestionCache}
+                    context={live}
+                  />
+                )}
+              </div>
+            ) : question.kind === "multi" ? (
+              <div className="mt-6 flex flex-col gap-3">
+                <MultiPanel
+                  question={question}
+                  order={order}
+                  onTap={toggleTapped}
                 />
                 {pickedValue && (
                   <WhyPanel
@@ -1177,7 +1241,7 @@ export default function InterviewBody({
                 disabled={
                   question.kind === "options"
                     ? !choice || (choice === "other" && !text.trim())
-                    : question.kind === "rank"
+                    : LIST_KINDS.includes(question.kind)
                       ? order.length === 0
                       : false
                 }
@@ -1280,7 +1344,104 @@ function signatureOf(value) {
 
 // Counts read as words in a sentence, because "2 ordered" in the middle of a
 // line of prose reads like a field value rather than something Aly said.
-const COUNT_WORDS = ["none", "one", "two", "three", "four"];
+const COUNT_WORDS = ["none", "one", "two", "three", "four", "five"];
+
+// The same count word, capitalized, for the places where it opens a sentence.
+// Both list panels say "Two ticked" and "Two ordered" at the start of their
+// status line, and a lowercase word there reads like the line lost its first
+// half. Mid-sentence uses COUNT_WORDS directly.
+function countWordCap(n) {
+  const word = COUNT_WORDS[n] || String(n);
+  return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+}
+
+// The multi questions -- where the family sleeps, what the family eats --
+// where a single pick was making people lie. A household that books a hotel
+// in a city and a rental by the sea has two answers, and a week of dinners is
+// a rotation rather than one kind of restaurant.
+//
+// Ticks rather than numbers, because unlike the money question the order here
+// means nothing to the answer. It means one thing to the screen: the first
+// card tapped is the one whose reasons open underneath, so the drawer is one
+// drawer instead of three.
+//
+// The cap is the point of the shape. Without it a family ticks everything and
+// the answer says nothing, so at the cap the untapped cards go quiet and stop
+// responding rather than silently pushing out an earlier tick -- a control
+// that changes an answer somebody already gave, without being asked, is worse
+// than one that declines. The line under the cards says which it is doing.
+function MultiPanel({ question, order, onTap }) {
+  const options = question.options || [];
+  const max = question.max || options.length;
+  const picked = order.filter((value) =>
+    options.some((o) => o.value === value),
+  );
+  const atCap = picked.length >= max;
+  const remaining = Math.max(0, max - picked.length);
+
+  return (
+    <div>
+      <ul className="flex list-none flex-col gap-3 p-0">
+        {options.map((opt) => {
+          const isPicked = picked.includes(opt.value);
+          const isQuiet = atCap && !isPicked;
+          return (
+            <li key={opt.value}>
+              <button
+                type="button"
+                onClick={() => onTap(opt.value)}
+                aria-pressed={isPicked}
+                aria-disabled={isQuiet}
+                aria-label={
+                  isPicked
+                    ? `${opt.label}, ticked. Tap to take it out.`
+                    : isQuiet
+                      ? `${opt.label}. Take one of the others out first.`
+                      : `${opt.label}. Tap to tick it.`
+                }
+                className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition ${
+                  isPicked
+                    ? "border-teal bg-teal-soft/50 shadow-sm"
+                    : isQuiet
+                      ? "border-sand-deep bg-white opacity-50"
+                      : "border-sand-deep bg-white hover:border-teal/50"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border font-display text-sm ${
+                    isPicked
+                      ? "border-teal bg-teal text-white"
+                      : "border-sand-deep text-ink-faint"
+                  }`}
+                >
+                  {isPicked ? "✓" : ""}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-display text-lg text-ink">
+                    {opt.label}
+                  </span>
+                  {opt.detail && (
+                    <span className="mt-1 block text-sm text-ink-soft">
+                      {opt.detail}
+                    </span>
+                  )}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-3 text-sm text-ink-soft" aria-live="polite">
+        {picked.length === 0
+          ? `Tick the ones that are actually true, up to ${COUNT_WORDS[max] || max}.`
+          : atCap
+            ? `${countWordCap(picked.length)} ticked, which is as many as I can use here. Tap one to take it out and swap it.`
+            : `${countWordCap(picked.length)} ticked, and room for ${COUNT_WORDS[remaining] || remaining} more. What you leave out I will not lead with, rather than rule out.`}
+      </p>
+    </div>
+  );
+}
 
 // The ranking control, used by the money question and nothing else.
 //
@@ -1302,7 +1463,7 @@ const COUNT_WORDS = ["none", "one", "two", "three", "four"];
 // A card left untapped is unranked, and the panel says so under the list
 // rather than letting the blank space imply "last". That distinction is the
 // reason this question stopped being a single pick.
-function RankPanel({ question, order, toggleRank, clearRank }) {
+function RankPanel({ question, order, onTap, clearRank }) {
   const options = question.options || [];
   const ranked = order.filter((value) =>
     options.some((o) => o.value === value),
@@ -1319,7 +1480,7 @@ function RankPanel({ question, order, toggleRank, clearRank }) {
             <li key={opt.value}>
               <button
                 type="button"
-                onClick={() => toggleRank(opt.value)}
+                onClick={() => onTap(opt.value)}
                 aria-pressed={isRanked}
                 aria-label={
                   isRanked
@@ -1363,7 +1524,7 @@ function RankPanel({ question, order, toggleRank, clearRank }) {
             ? "Nothing ordered yet. Tap the one you would protect first."
             : unranked.length === 0
               ? "All four ordered. Tap a card to take it back out."
-              : `${COUNT_WORDS[ranked.length] || ranked.length} ordered. I will treat the ${
+              : `${countWordCap(ranked.length)} ordered. I will treat the ${
                   unranked.length === 1
                     ? "other one"
                     : `other ${COUNT_WORDS[unranked.length] || unranked.length}`
