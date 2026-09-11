@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import CompassLoader from "@/components/CompassLoader";
 import { AutoGrowTextarea } from "@/components/MomentsEditor";
+import { normalizeLimits, limitsSentence } from "@/lib/travelers/limits";
 import {
   questionFor,
   questionsFor,
@@ -96,6 +97,10 @@ const BLANK_FIELDS = {
   // blank plan, because a blank plan is not an answer and the form has to be
   // able to tell an unanswered question from an answered one.
   petPlans: [],
+  // One row per limit -- [{body, travelerId}] -- on the limits question, and an
+  // empty list everywhere else. travelerId is null for a limit that holds for
+  // the whole family.
+  limits: [],
 };
 
 /**
@@ -204,6 +209,16 @@ function fieldsForAnswer(question, priorAnswer) {
           : [],
     };
   }
+  // The limits answer is recorded as rows rather than re-parsed out of the
+  // sentence it was saved as, because the sentence joins the limits with
+  // semicolons and a limit is allowed to contain one. The rows are kept on the
+  // record beside the sentence for exactly this read.
+  if (question.kind === "limits") {
+    return {
+      ...BLANK_FIELDS,
+      limits: Array.isArray(priorAnswer.limits) ? priorAnswer.limits : [],
+    };
+  }
   if (question.kind === "moments") {
     const list = Array.isArray(priorAnswer.picked) ? priorAnswer.picked : [];
     return {
@@ -249,6 +264,7 @@ export default function InterviewBody({
   aboutMePriors,
   priorAnswers = null,
   destination = null,
+  people = [],
 }) {
   const router = useRouter();
   const [slot, setSlot] = useState(startSlot);
@@ -267,6 +283,12 @@ export default function InterviewBody({
   // list rather than inside the panel so that hitting Save and finish with a
   // sentence still in the box saves the sentence instead of losing it.
   const [momentDraft, setMomentDraft] = useState("");
+  // One row per limit -- {body, travelerId} -- on the limits question. Kept as
+  // rows rather than one paragraph because each limit belongs to somebody: an
+  // allergy is one child's, a bad knee is one adult's, and a food the whole
+  // family avoids is everybody's. Whose it is decides what the assistant does
+  // with it, so it is asked here rather than guessed at later.
+  const [limits, setLimits] = useState([]);
   // The tapped option values, for the two shapes that collect more than one:
   // the ranked question, where the order is the answer, and the multi ones,
   // where it is a set and only the first tap is privileged (it decides which
@@ -434,6 +456,22 @@ export default function InterviewBody({
     () => (Array.isArray(live?.petNames) ? live.petNames : []),
     [live],
   );
+  // Who a limit can be pinned to. Real mode gets the family's own travelers,
+  // ids and all, because a limit is filed against a traveler row. Practice mode
+  // has no rows to file against -- nothing is written there at all -- so the
+  // chips are built from the names the household typed on the welcome screen,
+  // and carry placeholder ids the route would refuse anyway.
+  const taggablePeople = useMemo(() => {
+    const real = (Array.isArray(people) ? people : [])
+      .filter((p) => p?.id && p?.name)
+      .map((p) => ({ id: p.id, name: p.name }));
+    if (real.length > 0) return real;
+    const names = [
+      ...(Array.isArray(live?.adultNames) ? live.adultNames : []),
+      ...(Array.isArray(live?.kidNames) ? live.kidNames : []),
+    ].filter(Boolean);
+    return names.map((name) => ({ id: `name:${name}`, name }));
+  }, [people, live]);
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
   // Session cache for Aly-generated follow-up chips. Keyed by
@@ -498,6 +536,7 @@ export default function InterviewBody({
         setOwnWords(fields.ownWords);
         setMoments(fields.moments);
         setMomentDraft("");
+        setLimits(fields.limits || []);
         setOrder(fields.order);
         setBand(fields.band);
         setPetPlans(fields.petPlans || []);
@@ -683,6 +722,12 @@ export default function InterviewBody({
         momentDraft.trim().length > 0
       );
     }
+    // One limit with something written in it is an answer. Whose it is can be
+    // left as everyone; a family that writes "no red-eye flights" and nothing
+    // else has still told us something true.
+    if (question?.kind === "limits") {
+      return limits.some((row) => (row?.body || "").trim().length > 0);
+    }
     if (question?.kind === "text") {
       return text.trim().length > 0;
     }
@@ -697,6 +742,7 @@ export default function InterviewBody({
   const saveCurrent = useCallback(async () => {
     if (!hasAnswer) return false;
     const isMoments = question.kind === "moments";
+    const isLimits = question.kind === "limits";
     const isRank = question.kind === "rank";
     const isMulti = question.kind === "multi";
     const isBand = question.kind === "band";
@@ -706,6 +752,12 @@ export default function InterviewBody({
     const pickedLabels = isList ? optionLabels(question, order) : [];
     const cleanedMoments = isMoments
       ? [...moments, momentDraft].map((m) => (m || "").trim()).filter(Boolean)
+      : [];
+    // Cleaned against the family's own people here as well as on the route, so
+    // the sentence written into the ledger names the same people the fact rows
+    // are filed against.
+    const cleanedLimits = isLimits
+      ? normalizeLimits(limits, taggablePeople)
       : [];
     // Build the local-memory record once so both modes update `answers` the
     // same way. Real mode also uses it to pre-fill the fields when the
@@ -742,17 +794,22 @@ export default function InterviewBody({
               ? cleanedMoments.length > 0
                 ? cleanedMoments
                 : null
-              : question.kind === "text"
-                ? text.trim() || null
-                : choice === "other"
+              : isLimits
+                ? limitsSentence(cleanedLimits, taggablePeople) || null
+                : question.kind === "text"
                   ? text.trim() || null
-                  : opt
-                    ? opt.label
-                    : null,
+                  : choice === "other"
+                    ? text.trim() || null
+                    : opt
+                      ? opt.label
+                      : null,
       // `reason` is a display-only string kept for Recap (practice mode) so
       // the recap shows the whys and own-words together on one line. The
       // server no longer reads it; the answer route writes whys and own-
       // words as their own preference rows.
+      // The rows behind the sentence, so stepping back to this question paints
+      // the limits and whose they are rather than a paragraph of semicolons.
+      limits: cleanedLimits,
       reason: buildReasonDisplay(cleanedWhys, cleanedOwnWords),
       whys: cleanedWhys,
       ownWords: cleanedOwnWords,
@@ -805,6 +862,10 @@ export default function InterviewBody({
               // than trusting these, so a row for an animal the household does
               // not have is dropped there as well as here.
               pets: cleanedPets,
+              // One row per limit, sent only by the limits question. The route
+              // checks each traveler id against the family's own people rather
+              // than trusting these.
+              limits: cleanedLimits,
               whys: cleanedWhys,
               ownWords: cleanedOwnWords,
               // Tells the answer route this was worked out from earlier
@@ -837,6 +898,8 @@ export default function InterviewBody({
     inferred,
     mode,
     momentDraft,
+    limits,
+    taggablePeople,
     moments,
     order,
     ownWords,
@@ -900,6 +963,7 @@ export default function InterviewBody({
       setOwnWords(fields.ownWords);
       setMoments(fields.moments);
       setMomentDraft("");
+      setLimits(fields.limits || []);
       setOrder(fields.order);
       setBand(fields.band);
       setPetPlans(fields.petPlans || []);
@@ -921,6 +985,7 @@ export default function InterviewBody({
       // preserved) is done once and reused for both practice recording and
       // the real POST.
       const isMoments = question.kind === "moments";
+      const isLimits = question.kind === "limits";
       const isRank = question.kind === "rank";
       const isMulti = question.kind === "multi";
       const isBand = question.kind === "band";
@@ -935,6 +1000,10 @@ export default function InterviewBody({
       const cleanedMoments = isMoments
         ? [...moments, momentDraft].map((m) => (m || "").trim()).filter(Boolean)
         : [];
+      const cleanedLimits =
+        isLimits && action !== "skip"
+          ? normalizeLimits(limits, taggablePeople)
+          : [];
 
       // Build the local-memory record once, in the same shape saveCurrent
       // uses, so both modes hand the same object to `remember()` below.
@@ -976,13 +1045,16 @@ export default function InterviewBody({
                     ? cleanedMoments.length > 0
                       ? cleanedMoments
                       : null
-                    : question.kind === "text"
-                      ? text.trim() || null
-                      : choice === "other"
+                    : isLimits
+                      ? limitsSentence(cleanedLimits, taggablePeople) || null
+                      : question.kind === "text"
                         ? text.trim() || null
-                        : opt
-                          ? opt.label
-                          : null,
+                        : choice === "other"
+                          ? text.trim() || null
+                          : opt
+                            ? opt.label
+                            : null,
+        limits: cleanedLimits,
         reason:
           action === "skip"
             ? null
@@ -1053,6 +1125,7 @@ export default function InterviewBody({
                 picks: action === "skip" || !isMulti ? [] : order,
                 band: isBand ? normalizeBand(band) : null,
                 pets: cleanedPets,
+                limits: cleanedLimits,
                 whys: cleanedWhys,
                 ownWords: cleanedOwnWords,
               }),
@@ -1114,6 +1187,8 @@ export default function InterviewBody({
       loading,
       mode,
       momentDraft,
+      limits,
+      taggablePeople,
       moments,
       order,
       ownWords,
@@ -1393,6 +1468,14 @@ export default function InterviewBody({
                   context={live}
                 />
               </div>
+            ) : question.kind === "limits" ? (
+              <LimitsPanel
+                rows={limits}
+                setRows={setLimits}
+                people={taggablePeople}
+                placeholder={question.placeholder || ""}
+                focusRef={focusRef}
+              />
             ) : question.kind === "moments" ? (
               <MomentsPanel
                 moments={moments}
@@ -1441,7 +1524,9 @@ export default function InterviewBody({
                 >
                   {question.kind === "moments"
                     ? "None to add"
-                    : "Skip this one"}
+                    : question.kind === "limits"
+                      ? "Nothing to plan around"
+                      : "Skip this one"}
                 </button>
               </div>
               <button
@@ -2364,6 +2449,105 @@ function Recap({ answers }) {
         a paragraph about each person on About you. You can rehearse both from
         the practice hub.
       </p>
+    </div>
+  );
+}
+
+// The limits question: one row per limit, and each row says whose it is.
+//
+// A paragraph filed against the household was the old shape, and it read back
+// to the assistant as one rule about everybody -- which is how a sentence about
+// one child's allergy became a claim about the whole family. Rows fix that at
+// the source, because household_facts holds one traveler per row: a person's id
+// for a person's limit, nothing for one that holds for everybody.
+//
+// Whose is a single choice, not several. A limit two people share is two limits,
+// and writing it twice is better than a row that half-belongs to each of them:
+// the assistant reads these one at a time and names the person in the sentence.
+//
+// The rows live on the parent (`limits` on InterviewBody) so the save paths can
+// read them without a ref, the same arrangement the moments panel uses.
+function LimitsPanel({ rows, setRows, people, placeholder, focusRef }) {
+  // Always one row to type in, so an empty question is a box rather than a
+  // button somebody has to find first.
+  const list = rows.length > 0 ? rows : [{ body: "", travelerId: null }];
+
+  const patch = (i, next) =>
+    setRows(list.map((row, idx) => (idx === i ? { ...row, ...next } : row)));
+
+  const addRow = () => setRows([...list, { body: "", travelerId: null }]);
+
+  const removeRow = (i) => {
+    const kept = list.filter((_, idx) => idx !== i);
+    setRows(kept.length > 0 ? kept : [{ body: "", travelerId: null }]);
+  };
+
+  return (
+    <div className="mt-6 space-y-3">
+      <ul className="space-y-3">
+        {list.map((row, i) => (
+          <li
+            key={i}
+            className="space-y-2 rounded-lg border border-sand-deep bg-white p-3"
+          >
+            <AutoGrowTextarea
+              focusRef={i === 0 ? focusRef : undefined}
+              value={row.body || ""}
+              onChange={(e) => patch(i, { body: e.target.value })}
+              placeholder={i === 0 ? placeholder : ""}
+              aria-label={`Something to plan around, ${i + 1}`}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-ink-soft">
+                Whose is this?
+              </span>
+              <button
+                type="button"
+                onClick={() => patch(i, { travelerId: null })}
+                aria-pressed={!row.travelerId}
+                className={
+                  !row.travelerId
+                    ? "btn btn-primary whitespace-nowrap px-3 py-1 text-xs"
+                    : "btn btn-ghost whitespace-nowrap px-3 py-1 text-xs"
+                }
+              >
+                Everyone
+              </button>
+              {people.map((person) => (
+                <button
+                  key={person.id}
+                  type="button"
+                  onClick={() => patch(i, { travelerId: person.id })}
+                  aria-pressed={row.travelerId === person.id}
+                  className={
+                    row.travelerId === person.id
+                      ? "btn btn-primary whitespace-nowrap px-3 py-1 text-xs"
+                      : "btn btn-ghost whitespace-nowrap px-3 py-1 text-xs"
+                  }
+                >
+                  {person.name}
+                </button>
+              ))}
+              {list.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  className="btn btn-ghost ml-auto whitespace-nowrap px-3 py-1 text-xs text-terra-deep"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={addRow}
+        className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+      >
+        Add another
+      </button>
     </div>
   );
 }

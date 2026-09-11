@@ -24,6 +24,7 @@ import {
   priorAnswersFrom,
 } from "@/lib/travelers/interviewInference";
 import { bandSentence, normalizeBand } from "@/lib/travelers/dayBand";
+import { limitsSentence, normalizeLimits } from "@/lib/travelers/limits";
 import { topicForSlot } from "@/lib/travelers/interview-topics";
 import { tableForSlot } from "@/lib/travelers/slots";
 import { homeToday } from "@/lib/format";
@@ -299,6 +300,22 @@ export async function POST(request) {
     .filter(Boolean);
   const isPets = question.kind === "pets";
   const petPlans = isPets ? normalizePetPlans(body?.pets, petNames) : [];
+  // The limits question, one row per limit, each carrying whose it is. The
+  // traveler ids are checked against this family's own people rather than
+  // trusted: a hand-posted body could otherwise file an allergy against
+  // somebody in another household. An id that does not match falls back to the
+  // whole family, which keeps the limit true instead of dropping it.
+  const isLimits = question.kind === "limits";
+  const limitPeople = isLimits
+    ? (
+        await supabase
+          .from("travelers")
+          .select("id, name")
+          .eq("family_id", familyId)
+          .eq("is_person", true)
+      ).data || []
+    : [];
+  const limitRows = isLimits ? normalizeLimits(body?.limits, limitPeople) : [];
   if (
     action === "answer" &&
     isPets &&
@@ -393,6 +410,10 @@ export async function POST(request) {
   const noteForSlot = (() => {
     if (action === "skip") return "The primary skipped this question.";
     if (question.kind === "text") return rawText || null;
+    // The limits note names the people out loud -- "Veda: peanut allergy;
+    // Everyone: no red-eye flights" -- so the running summary and the ledger
+    // read the same way the fact rows do.
+    if (isLimits) return limitsSentence(limitRows, limitPeople) || null;
     // The band's note is the phrase the hours make -- "7:30 am to 9 pm" --
     // which is also what the preference row says and what the inference layer
     // reads back. One representation, in words, in all three places.
@@ -475,12 +496,20 @@ export async function POST(request) {
   if (action === "answer") {
     const targetTable =
       table === "household_facts" ? "household_facts" : "travel_preferences";
-    const { error: clearError } = await supabase
+    //    The limits slot is the exception. Its rows are filed against the
+    //    person the limit belongs to, so a re-answer has to clear the whole
+    //    slot for the family rather than only the family-wide rows -- otherwise
+    //    correcting "Veda: peanut allergy" would leave the old row on Veda and
+    //    write a second one beside it. Still scoped to slot="limits", so
+    //    hand-added facts, which carry no slot, are untouched.
+    const clearing = supabase
       .from(targetTable)
       .delete()
       .eq("family_id", familyId)
-      .eq("slot", slotId)
-      .is("traveler_id", null);
+      .eq("slot", slotId);
+    const { error: clearError } = isLimits
+      ? await clearing
+      : await clearing.is("traveler_id", null);
     if (clearError) {
       return NextResponse.json(
         { error: "That answer could not be saved. Try again." },
@@ -534,6 +563,32 @@ export async function POST(request) {
         plans: petPlans,
         words: rawOwnWords,
       });
+    } else if (isLimits) {
+      // One fact row per limit, each filed against the person it belongs to.
+      // That is what makes the difference visible where it matters: the
+      // constraint block the assistant reads on every turn prints the traveler's
+      // name for a row with a traveler on it and "the household" for one
+      // without, so a child's allergy stops reading as a rule about everybody.
+      if (limitRows.length > 0) {
+        const { error } = await supabase.from("household_facts").insert(
+          limitRows.map((row) => ({
+            family_id: familyId,
+            traveler_id: row.travelerId,
+            kind: "rule",
+            slot: slotId,
+            body: row.body,
+            source: "said",
+          })),
+        );
+        if (error) {
+          return NextResponse.json(
+            { error: "That answer could not be saved. Try again." },
+            { status: 500 },
+          );
+        }
+      }
+      // No rows plus a settled slot means "asked, nothing to plan around". The
+      // slot row alone is the record, the same rule the text branch follows.
     } else if (question.kind === "text") {
       if (rawText) {
         const { error } = await supabase.from("household_facts").insert({

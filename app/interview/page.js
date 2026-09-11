@@ -167,6 +167,11 @@ export default async function InterviewPage() {
         aboutMePriors={aboutMePriors}
         priorAnswers={priorAnswers}
         destination={destination}
+        // Who a limit can be pinned to. People only: the Shared row is a filing
+        // category on the packing list, not somebody who can have an allergy.
+        people={(travelers || [])
+          .filter((t) => t?.is_person && t?.name)
+          .map((t) => ({ id: t.id, name: t.name }))}
       />
     </>
   );
