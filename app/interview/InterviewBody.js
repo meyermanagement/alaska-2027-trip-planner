@@ -13,6 +13,7 @@ import {
   personalizationContext,
   personalizeReasons,
 } from "@/lib/travelers/interviewPersonalize";
+import { suggestionKey, whysAfterUntick } from "@/lib/travelers/interviewChips";
 import { inferAnswer } from "@/lib/travelers/interviewInference";
 import { summaryForAnswer } from "@/lib/travelers/runningSummary";
 import { patchRun, readRun, runToStandIn } from "@/lib/practice/session";
@@ -521,17 +522,44 @@ export default function InterviewBody({
   // tick: a control that quietly changes an answer somebody already gave is
   // worse than one that declines and says why, and the panel says why
   // directly under the cards.
+  //
+  // Taking a tick back also takes back the reasons that belonged to it. The
+  // chips a family taps are saved as their own preference rows, so a reason
+  // tapped under the rental would otherwise still be written after the rental
+  // was unticked -- a line on the Preferences page explaining an answer the
+  // family no longer gives. Only reasons that trace to the removed option and
+  // to none of the remaining ticks are dropped; a chip both ticked options
+  // happen to carry stays, and the question's neutral chips belong to no
+  // option and are never touched.
+  //
+  // Aly's follow-ups are pruned with them: a follow-up was generated from one
+  // hand-written chip and is reachable only while that chip is on screen, so
+  // it goes when its parent does. The ranked question is not pruned because it
+  // shows no chips at all; if one ever does, first place changing would need
+  // the same treatment.
   const toggleTapped = useCallback(
     (value) => {
       setTouched(true);
       const cap = question?.kind === "multi" ? question.max || 0 : 0;
+      if (order.includes(value) && question?.kind === "multi") {
+        setWhys((prev) =>
+          whysAfterUntick({
+            question,
+            removed: value,
+            remaining: order.filter((v) => v !== value),
+            whys: prev,
+            context: live,
+            cacheGet: (key) => suggestionCache.current.get(key),
+          }),
+        );
+      }
       setOrder((current) => {
         if (current.includes(value)) return current.filter((v) => v !== value);
         if (cap && current.length >= cap) return current;
         return [...current, value];
       });
     },
-    [question],
+    [question, order, live],
   );
 
   // Whether the current form has something worth saving before leaving the
@@ -1638,14 +1666,8 @@ function WhyPanel({
   const [pool, setPool] = useState(() => ({}));
   const [pendingKeys, setPendingKeys] = useState(() => new Set());
 
-  // v4 keys start with a version tag so old cached entries generated before
-  // the prompt was tightened don't survive across page loads or refreshes.
-  // Bump when the /api/interview/suggest prompt changes materially. v4 drops
-  // the option from the key: a chip's text already belongs to exactly one
-  // option, and keying on the pick meant the same chip cached twice on a
-  // question where several options can be ticked at once.
   const keyFor = useCallback(
-    (chip) => `v4::${question.slot}::${chip.toLowerCase()}`,
+    (chip) => suggestionKey(question.slot, chip),
     [question.slot],
   );
 
