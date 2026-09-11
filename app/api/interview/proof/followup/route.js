@@ -4,7 +4,11 @@ import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { generate } from "@/lib/agent/llm";
 import { resolveStandIn } from "@/lib/practice/standIn";
 import { proofFacts } from "@/lib/interview/proofContext";
-import { PLACE_AND_CONFLICT, DAY_BAND_RULE } from "@/lib/agent/advice";
+import {
+  PLACE_AND_CONFLICT,
+  INSIDE_THE_PLACE,
+  DAY_BAND_RULE,
+} from "@/lib/agent/advice";
 
 /**
  * One follow-up question about the day the proof screen just planned.
@@ -122,6 +126,8 @@ ${plan || "(the plan did not come through)"}${extras ? `\n\nWhat you said to pac
 Answer the question they asked, about this place and this plan. Where one of their own answers bears on it, say which one. If the answer would change one of the four choices, say what you would swap it for and why. Do not invent a preference, an age, a limit or a habit you were not told, and do not imply you were told one. If you do not know something specific -- a price, an opening time, whether a particular place takes reservations -- say you would check it rather than guessing.
 
 ${PLACE_AND_CONFLICT}
+
+${INSIDE_THE_PLACE}
 
 ${DAY_BAND_RULE}`;
 
