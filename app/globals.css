@@ -3698,3 +3698,86 @@ html[data-skin="sodium"] .arc-pill.kid::before {
     transition: none;
   }
 }
+
+/* The two handles on the day band -- the interview question that asks what
+   hours a family's day actually runs. Two native range inputs are stacked on
+   one track so the pair reads as a single band, which means the track and the
+   filled segment are drawn by the wrapper and each input contributes nothing
+   but its thumb.
+
+   Native inputs rather than a hand-rolled drag: a range input already answers
+   to a keyboard, a screen reader and a thumb, and every hand-rolled two-handle
+   slider on the web is a control that works with a mouse and fails with the
+   other three. The inputs are 44px tall for the touch target and transparent
+   apart from the thumb; pointer events are off on the input and back on for
+   the thumb, so the two overlapping inputs do not steal each other's drags. */
+.band-input {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  pointer-events: none;
+}
+
+.band-input:focus {
+  outline: none;
+}
+
+.band-input::-webkit-slider-runnable-track {
+  height: 44px;
+  background: transparent;
+  border: none;
+}
+
+.band-input::-moz-range-track {
+  height: 44px;
+  background: transparent;
+  border: none;
+}
+
+.band-input::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid var(--color-teal);
+  background: var(--color-white, #fff);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+  cursor: grab;
+}
+
+.band-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid var(--color-teal);
+  background: var(--color-white, #fff);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+  cursor: grab;
+}
+
+/* The focus ring goes on the thumb rather than the input, because the input is
+   the full width of the track and a ring around it would light up the whole
+   band when a keyboard lands on one handle. */
+.band-input:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-teal) 35%, transparent),
+    0 1px 3px rgb(0 0 0 / 18%);
+}
+
+.band-input:focus-visible::-moz-range-thumb {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-teal) 35%, transparent),
+    0 1px 3px rgb(0 0 0 / 18%);
+}

@@ -14,6 +14,16 @@ import {
   personalizeReasons,
 } from "@/lib/travelers/interviewPersonalize";
 import { suggestionKey, whysAfterUntick } from "@/lib/travelers/interviewChips";
+import {
+  BAND_MIN,
+  BAND_MAX,
+  BAND_STEP,
+  BAND_MIN_SPAN,
+  bandSentence,
+  formatClock,
+  normalizeBand,
+  parseBandNote,
+} from "@/lib/travelers/dayBand";
 import { inferAnswer } from "@/lib/travelers/interviewInference";
 import { summaryForAnswer } from "@/lib/travelers/runningSummary";
 import { patchRun, readRun, runToStandIn } from "@/lib/practice/session";
@@ -67,6 +77,11 @@ const BLANK_FIELDS = {
   ownWords: "",
   moments: [""],
   order: [],
+  // The day band's two hours, or null on every other question. Null rather
+  // than the question's default so the form can tell "nothing on file" from
+  // "the family agreed with the default", which is the difference between a
+  // question that still needs answering and one that has been answered.
+  band: null,
 };
 
 /**
@@ -149,6 +164,19 @@ function fieldsForAnswer(question, priorAnswer) {
       order: values,
     };
   }
+  // A band answer is recorded as the phrase it was saved as -- "7:30 am to 9
+  // pm" -- and read back into two handles here. A phrase that no longer parses
+  // leaves the handles at the default, the same rule the option branches
+  // follow: asking again beats showing an answer nobody gave.
+  if (question.kind === "band") {
+    return {
+      ...BLANK_FIELDS,
+      band:
+        typeof priorAnswer.picked === "string"
+          ? parseBandNote(priorAnswer.picked)
+          : null,
+    };
+  }
   if (question.kind === "moments") {
     const list = Array.isArray(priorAnswer.picked) ? priorAnswer.picked : [];
     return {
@@ -216,6 +244,13 @@ export default function InterviewBody({
   // tapped -- and every save path, every Back, and every pre-fill would
   // otherwise be written twice.
   const [order, setOrder] = useState([]);
+  // The day band's hours, null until the family moves a handle or an earlier
+  // answer is read back in. The control shows the question's default while
+  // this is null, and Save stays out of reach until it is not: a family that
+  // never touched the handles has not told us their hours, and writing eight
+  // in the morning to ten at night because that is where the control opened
+  // would be the app answering its own question.
+  const [band, setBand] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   // In-session record of what has been answered this run. Practice mode
@@ -413,6 +448,7 @@ export default function InterviewBody({
         setOwnWords(fields.ownWords);
         setMoments(fields.moments);
         setOrder(fields.order);
+        setBand(fields.band);
         return prior;
       });
       setError(null);
@@ -580,6 +616,9 @@ export default function InterviewBody({
     if (question?.kind === "rank" || question?.kind === "multi") {
       return order.length > 0;
     }
+    if (question?.kind === "band") {
+      return Boolean(normalizeBand(band));
+    }
     if (question?.kind === "moments") {
       return moments.some((m) => (m || "").trim().length > 0);
     }
@@ -599,6 +638,7 @@ export default function InterviewBody({
     const isMoments = question.kind === "moments";
     const isRank = question.kind === "rank";
     const isMulti = question.kind === "multi";
+    const isBand = question.kind === "band";
     const isList = isRank || isMulti;
     const pickedLabels = isList ? optionLabels(question, order) : [];
     const cleanedMoments = isMoments
@@ -611,9 +651,11 @@ export default function InterviewBody({
     // Whys and own-words only apply to a normal option pick. Something-else
     // (choice === "other") sends its typed alternative on `text`, not chips,
     // and the interview UI doesn't offer chips on that path.
-    const wantsWhys = isList
-      ? order.length > 0
-      : question.kind === "options" && choice && choice !== "other";
+    const wantsWhys = isBand
+      ? Boolean(band)
+      : isList
+        ? order.length > 0
+        : question.kind === "options" && choice && choice !== "other";
     const cleanedWhys = wantsWhys
       ? whys.map((w) => (w || "").trim()).filter(Boolean)
       : [];
@@ -623,21 +665,23 @@ export default function InterviewBody({
       label: question.label,
       kind: question.kind,
       action: "answer",
-      picked: isList
-        ? pickedLabels.length > 0
-          ? pickedLabels
-          : null
-        : isMoments
-          ? cleanedMoments.length > 0
-            ? cleanedMoments
+      picked: isBand
+        ? bandSentence(band)
+        : isList
+          ? pickedLabels.length > 0
+            ? pickedLabels
             : null
-          : question.kind === "text"
-            ? text.trim() || null
-            : choice === "other"
+          : isMoments
+            ? cleanedMoments.length > 0
+              ? cleanedMoments
+              : null
+            : question.kind === "text"
               ? text.trim() || null
-              : opt
-                ? opt.label
-                : null,
+              : choice === "other"
+                ? text.trim() || null
+                : opt
+                  ? opt.label
+                  : null,
       // `reason` is a display-only string kept for Recap (practice mode) so
       // the recap shows the whys and own-words together on one line. The
       // server no longer reads it; the answer route writes whys and own-
@@ -685,6 +729,10 @@ export default function InterviewBody({
               // them.
               order: isRank ? order : [],
               picks: isMulti ? order : [],
+              // The two hours, sent only by the day band. The route stores the
+              // phrase it derives from them, never these numbers, so the row
+              // reads as an answer rather than as a pair of integers.
+              band: isBand ? normalizeBand(band) : null,
               whys: cleanedWhys,
               ownWords: cleanedOwnWords,
               // Tells the answer route this was worked out from earlier
@@ -709,6 +757,7 @@ export default function InterviewBody({
     }
   }, [
     aboutMePrior,
+    band,
     choice,
     confirmingAboutMe,
     confirmingInference,
@@ -776,6 +825,7 @@ export default function InterviewBody({
       setOwnWords(fields.ownWords);
       setMoments(fields.moments);
       setOrder(fields.order);
+      setBand(fields.band);
       return prior;
     });
   }, [hasAnswer, index, loading, mode, router, saveCurrent]);
@@ -796,6 +846,7 @@ export default function InterviewBody({
       const isMoments = question.kind === "moments";
       const isRank = question.kind === "rank";
       const isMulti = question.kind === "multi";
+      const isBand = question.kind === "band";
       const isList = isRank || isMulti;
       const pickedLabels =
         isList && action !== "skip" ? optionLabels(question, order) : [];
@@ -812,9 +863,11 @@ export default function InterviewBody({
       // Same rule as saveCurrent: whys and own-words are option-pick-only.
       const wantsWhys =
         action !== "skip" &&
-        (isList
-          ? order.length > 0
-          : question.kind === "options" && choice && choice !== "other");
+        (isBand
+          ? Boolean(band)
+          : isList
+            ? order.length > 0
+            : question.kind === "options" && choice && choice !== "other");
       const cleanedWhys = wantsWhys
         ? whys.map((w) => (w || "").trim()).filter(Boolean)
         : [];
@@ -827,21 +880,23 @@ export default function InterviewBody({
         picked:
           action === "skip"
             ? null
-            : isList
-              ? pickedLabels.length > 0
-                ? pickedLabels
-                : null
-              : isMoments
-                ? cleanedMoments.length > 0
-                  ? cleanedMoments
+            : isBand
+              ? bandSentence(band)
+              : isList
+                ? pickedLabels.length > 0
+                  ? pickedLabels
                   : null
-                : question.kind === "text"
-                  ? text.trim() || null
-                  : choice === "other"
+                : isMoments
+                  ? cleanedMoments.length > 0
+                    ? cleanedMoments
+                    : null
+                  : question.kind === "text"
                     ? text.trim() || null
-                    : opt
-                      ? opt.label
-                      : null,
+                    : choice === "other"
+                      ? text.trim() || null
+                      : opt
+                        ? opt.label
+                        : null,
         reason:
           action === "skip"
             ? null
@@ -912,6 +967,7 @@ export default function InterviewBody({
                 text: action === "skip" ? null : text,
                 order: action === "skip" || !isRank ? [] : order,
                 picks: action === "skip" || !isMulti ? [] : order,
+                band: isBand ? normalizeBand(band) : null,
                 whys: cleanedWhys,
                 ownWords: cleanedOwnWords,
               }),
@@ -967,6 +1023,7 @@ export default function InterviewBody({
     },
     [
       advance,
+      band,
       choice,
       index,
       loading,
@@ -1214,6 +1271,27 @@ export default function InterviewBody({
                   />
                 )}
               </div>
+            ) : question.kind === "band" ? (
+              <div className="mt-6 flex flex-col gap-3">
+                <DayBandPanel
+                  question={question}
+                  band={band}
+                  onChange={(next) => {
+                    setTouched(true);
+                    setBand(next);
+                  }}
+                />
+                <WhyPanel
+                  choice=""
+                  question={question}
+                  whys={whys}
+                  setWhys={setWhys}
+                  ownWords={ownWords}
+                  setOwnWords={setOwnWords}
+                  cache={suggestionCache}
+                  context={live}
+                />
+              </div>
             ) : question.kind === "moments" ? (
               <MomentsPanel
                 moments={moments}
@@ -1272,7 +1350,9 @@ export default function InterviewBody({
                     ? !choice || (choice === "other" && !text.trim())
                     : LIST_KINDS.includes(question.kind)
                       ? order.length === 0
-                      : false
+                      : question.kind === "band"
+                        ? !band
+                        : false
                 }
                 className="btn btn-primary"
               >
@@ -1501,6 +1581,123 @@ function MultiPanel({ question, order, onTap }) {
 // A card left untapped is unranked, and the panel says so under the list
 // rather than letting the blank space imply "last". That distinction is the
 // reason this question stopped being a single pick.
+// The day band. Two handles on one track: the hour the family is out the door
+// and the hour their day is over.
+//
+// The readout above the track is the answer in words -- "7:30 am to 9 pm" --
+// because that is what gets saved, and a control whose stored answer the user
+// never sees is a control they cannot check. The hour it says out loud is the
+// hour on the row.
+//
+// Neither handle can cross the other, and neither can push the day below the
+// question's minimum span: the start input's ceiling is the end minus the span
+// and the end input's floor is the start plus it. Enforcing it in the inputs'
+// own bounds rather than after the fact means a drag stops at the limit
+// instead of being snapped back from somewhere it was allowed to reach.
+function DayBandPanel({ question, band, onChange }) {
+  const min = question.min ?? BAND_MIN;
+  const max = question.max ?? BAND_MAX;
+  const step = question.step ?? BAND_STEP;
+  const span = question.minSpan ?? BAND_MIN_SPAN;
+  const value = normalizeBand(band) || normalizeBand(question.default);
+  const { start, end } = value;
+  const pct = (minutes) => ((minutes - min) / (max - min)) * 100;
+  // A native range thumb travels between half a thumb-width from each end of
+  // the input, not the full width, so a filled segment placed at a plain
+  // percentage of the track drifts away from the handle it is supposed to
+  // start at -- outside it near the ends, which reads as a rendering fault.
+  // These two offsets put the segment on the same travel the thumbs are on.
+  const THUMB = 28;
+  const railLeft = (minutes) =>
+    `calc(${pct(minutes)}% - ${(pct(minutes) / 100) * THUMB - THUMB / 2}px)`;
+  const railRight = (minutes) => {
+    const rest = 100 - pct(minutes);
+    return `calc(${rest}% - ${(rest / 100) * THUMB - THUMB / 2}px)`;
+  };
+  const hours = (end - start) / 60;
+  // The marks under the track. Four is enough to read the scale by and few
+  // enough to keep their labels off each other at 320px.
+  const marks = [min, 720, 1080, max];
+
+  return (
+    <div className="mt-6">
+      <p className="font-display text-2xl text-ink">
+        {formatClock(start)} <span className="text-ink-soft">to</span>{" "}
+        {formatClock(end)}
+      </p>
+      <p className="mt-1 text-sm text-ink-soft">
+        {hours % 1 === 0 ? hours : hours.toFixed(1)} hours
+        {question.hint ? ` \u00b7 ${question.hint}` : ""}
+      </p>
+
+      <div className="relative mt-5 h-11">
+        <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-sand-deep/70" />
+        <div
+          className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-teal"
+          style={{ left: railLeft(start), right: railRight(end) }}
+        />
+        <input
+          type="range"
+          className="band-input"
+          min={min}
+          max={end - span}
+          step={step}
+          value={start}
+          onChange={(e) => onChange({ start: Number(e.target.value), end })}
+          aria-label={question.startLabel || "The day starts"}
+          aria-valuetext={formatClock(start)}
+        />
+        <input
+          type="range"
+          className="band-input"
+          min={start + span}
+          max={max}
+          step={step}
+          value={end}
+          onChange={(e) => onChange({ start, end: Number(e.target.value) })}
+          aria-label={question.endLabel || "The day ends"}
+          aria-valuetext={formatClock(end)}
+        />
+      </div>
+
+      {/* The marks are placed on the same travel as the handles rather than
+          spread evenly, because evenly spaced marks put noon a third of the way
+          along a band that runs from five in the morning to one at night, and a
+          scale that lies about where noon is makes the handles look wrong. */}
+      <div className="relative mt-2 h-4 text-xs text-ink-faint">
+        {marks.map((mark) => (
+          <span
+            key={mark}
+            className="absolute -translate-x-1/2 whitespace-nowrap"
+            style={{ left: railLeft(mark) }}
+          >
+            {formatClock(mark)}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <p className="rounded-xl border border-sand-deep bg-white p-3 text-sm text-ink-soft">
+          <span className="block text-xs uppercase tracking-wide text-ink-faint">
+            {question.startLabel || "The day starts"}
+          </span>
+          <span className="mt-1 block font-display text-lg text-ink">
+            {formatClock(start)}
+          </span>
+        </p>
+        <p className="rounded-xl border border-sand-deep bg-white p-3 text-sm text-ink-soft">
+          <span className="block text-xs uppercase tracking-wide text-ink-faint">
+            {question.endLabel || "The day ends"}
+          </span>
+          <span className="mt-1 block font-display text-lg text-ink">
+            {formatClock(end)}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function RankPanel({ question, order, onTap, clearRank }) {
   const options = question.options || [];
   const ranked = order.filter((value) =>

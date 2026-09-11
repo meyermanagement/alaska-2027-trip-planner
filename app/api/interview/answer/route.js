@@ -13,6 +13,7 @@ import {
   inferAnswer,
   priorAnswersFrom,
 } from "@/lib/travelers/interviewInference";
+import { bandSentence, normalizeBand } from "@/lib/travelers/dayBand";
 import { topicForSlot } from "@/lib/travelers/interview-topics";
 import { tableForSlot } from "@/lib/travelers/slots";
 
@@ -118,6 +119,21 @@ export async function POST(request) {
   // only invalid ranked answer is an empty one.
   const isRank = question.kind === "rank";
   const isMulti = question.kind === "multi";
+  // The day band's two hours. Normalized here rather than trusted: clamped
+  // into the range the question offers, snapped to the half hour, and widened
+  // to the question's minimum span, so a hand-posted body cannot file a day
+  // that runs backwards or a day three minutes long. Everything stored is
+  // derived from the phrase these two numbers make, never from the numbers
+  // themselves -- a row holding a pair of integers is a row Aly cannot read
+  // out loud.
+  const isBand = question.kind === "band";
+  const band = isBand ? normalizeBand(body?.band) : null;
+  if (action === "answer" && isBand && !band) {
+    return NextResponse.json(
+      { error: "Set the hours your day runs." },
+      { status: 400 },
+    );
+  }
   // Both list shapes are cleaned the same way, and the cap is the question's
   // own: every option for the ranked question, `max` for a multi one, so a
   // client cannot post a fourth must-have on a question that asks for two.
@@ -202,6 +218,10 @@ export async function POST(request) {
   const noteForSlot = (() => {
     if (action === "skip") return "The primary skipped this question.";
     if (question.kind === "text") return rawText || null;
+    // The band's note is the phrase the hours make -- "7:30 am to 9 pm" --
+    // which is also what the preference row says and what the inference layer
+    // reads back. One representation, in words, in all three places.
+    if (isBand) return bandSentence(band);
     // A ranked answer's note is the order in the primary's own labels, so the
     // ledger row reads like an answer on its own -- "The room, then the meals"
     // rather than a bare first place that loses the rest of the order.
@@ -339,15 +359,17 @@ export async function POST(request) {
       // "they stopped tapping" for "they care least about this".
       const opt = (question.options || []).find((o) => o.value === rawChoice);
       const somethingElse = !isRank && !isMulti && rawChoice === "other";
-      const answerText = isRank
-        ? rankSentence(question, listValues) || ""
-        : isMulti
-          ? multiSentence(question, listValues) || ""
-          : somethingElse
-            ? rawText
-            : opt
-              ? opt.label
-              : "";
+      const answerText = isBand
+        ? bandSentence(band) || ""
+        : isRank
+          ? rankSentence(question, listValues) || ""
+          : isMulti
+            ? multiSentence(question, listValues) || ""
+            : somethingElse
+              ? rawText
+              : opt
+                ? opt.label
+                : "";
       if (!answerText) {
         // No option picked and no words typed. The slot got saved as settled
         // above, which is wrong; roll it back to asking so the interview can
@@ -360,11 +382,13 @@ export async function POST(request) {
           .is("traveler_id", null);
         return NextResponse.json(
           {
-            error: isRank
-              ? "Tap at least one of these in the order you would protect it."
-              : isMulti
-                ? "Tick at least one of these."
-                : "Pick one of the two, or type what fits better.",
+            error: isBand
+              ? "Set the hours your day runs."
+              : isRank
+                ? "Tap at least one of these in the order you would protect it."
+                : isMulti
+                  ? "Tick at least one of these."
+                  : "Pick one of the two, or type what fits better.",
           },
           { status: 400 },
         );
