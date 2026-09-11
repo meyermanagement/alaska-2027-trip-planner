@@ -648,7 +648,11 @@ export async function POST(request) {
             : somethingElse
               ? rawText
               : opt
-                ? opt.label
+                ? // The abstract answer when the option's label is an
+                  // illustration, so "A kayak on the water" is not filed as a
+                  // preference for kayaking. Labels without a sentence say the
+                  // preference plainly already.
+                  opt.sentence || opt.label
                 : "";
       if (!answerText) {
         // No option picked and no words typed. The slot got saved as settled

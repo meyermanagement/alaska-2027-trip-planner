@@ -268,7 +268,18 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
       const res = await fetch("/api/interview/proof", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ demo: true, generic: true, destination }),
+        // The plan itself is answered with nothing known -- that is the whole
+        // point of the button -- but the run still has to travel, because the
+        // second pass grades the generic plan against what was actually
+        // captured. Without it the route fell back to the built-in practice
+        // family and told a person what a plan got wrong about a family they
+        // had never met.
+        body: JSON.stringify({
+          demo: true,
+          generic: true,
+          destination,
+          standIn: runToStandIn(),
+        }),
       });
       const json = await res.json().catch(() => null);
       if (!json?.ok) {
@@ -283,15 +294,13 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     }
   }
 
-  // Whose answers the plan above was built from. A rehearsal that has typed
-  // nothing is answered against the built-in practice family, and saying so is
-  // the difference between a demonstration and a screen that credits somebody
-  // else's preferences to the person reading it. A rehearsal that has typed
-  // something is answered against that alone, so it reads the same as a real
-  // family's.
+  // Whose answers the plan above was built from. There is no built-in family
+  // behind a rehearsal any more, so a rehearsal with nothing typed in it says
+  // exactly that: the plan on screen is what anybody gets before they answer
+  // anything, which is the comparison this screen exists to make.
   const sourceNote =
     demo && data && data.standInCustom === false
-      ? "Built from the built-in practice family, because this rehearsal has nothing typed in it yet."
+      ? "Built from nothing, because this rehearsal has no answers typed in it yet."
       : data?.preferenceCount
         ? `Built from the ${data.preferenceCount} things you just told me.`
         : "Built from what you have told me so far.";
@@ -305,7 +314,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
       method: "POST",
       headers: { "content-type": "application/json" },
       // A rehearsal carries whatever family was typed on the way here, so the
-      // answer is about that family rather than the built-in stand-in. Read at
+      // answer is about that family and no other. Read at
       // fetch time rather than held in state, so a person who steps back,
       // changes an answer, and returns gets the changed answer. Null on a real
       // visit and on an untouched rehearsal, and ignored by the endpoint either

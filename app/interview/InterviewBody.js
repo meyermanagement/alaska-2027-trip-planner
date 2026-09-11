@@ -10,7 +10,10 @@ import { normalizeLimits, limitsSentence } from "@/lib/travelers/limits";
 import {
   questionFor,
   questionsFor,
+  optionsFor,
   optionLabels,
+  rankSentence,
+  multiSentence,
 } from "@/lib/travelers/interview";
 import {
   PET_PLANS,
@@ -492,7 +495,14 @@ export default function InterviewBody({
   // selected". The prompt is announced instead of shown as focused.
   const [announced, setAnnounced] = useState("");
 
-  const question = questionFor(slot);
+  // The current question, with any option this household cannot answer removed
+  // -- "Somewhere the kids will definitely eat" is not a choice for a household
+  // of adults. Filtered here rather than in each panel so the option list every
+  // renderer walks is already the right one.
+  const question = useMemo(
+    () => optionsFor(questionFor(slot), live),
+    [slot, live],
+  );
 
   useEffect(() => {
     if (loading || done) return;
@@ -803,6 +813,23 @@ export default function InterviewBody({
                     : opt
                       ? opt.label
                       : null,
+      // What a real save would have written to the travel file, which is not
+      // always what the screen shows: an option whose label is an illustration
+      // files the abstract sentence instead. The recap reads `picked` because
+      // that is the words the person tapped; the practice prompt reads this,
+      // so a rehearsal is answered against the same line a real run would
+      // have stored.
+      stored: isBand
+        ? bandSentence(band)
+        : isPets
+          ? petsSentence(cleanedPets)
+          : isRank
+            ? rankSentence(question, order) || null
+            : isMulti
+              ? multiSentence(question, order) || null
+              : question.kind === "options" && choice !== "other" && opt
+                ? opt.sentence || opt.label
+                : null,
       // `reason` is a display-only string kept for Recap (practice mode) so
       // the recap shows the whys and own-words together on one line. The
       // server no longer reads it; the answer route writes whys and own-

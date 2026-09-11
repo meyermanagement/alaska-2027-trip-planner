@@ -39,9 +39,12 @@ export default async function InterviewCheckInterviewPage() {
   // children, and the whole point of the rehearsal is to show what the
   // questions do with the family you typed.
   //
-  // So this renders the built-in stand-in family, and the body swaps in
-  // whatever the practice run holds once it is mounted and can reach
-  // sessionStorage. Either way no real name reaches this screen.
+  // So this renders an empty family, and the body swaps in whatever the
+  // practice run holds once it is mounted and can reach sessionStorage. There
+  // is no built-in family to fall back to any more, which is the point: an
+  // empty first paint says nothing about anybody, where stock content said
+  // something about a family nobody had met. Either way no real name reaches
+  // this screen.
   //
   // No writes happen here; the About-you priors banner is deliberately not
   // wired through the practice path because seeing "you mentioned this" on a
@@ -52,8 +55,9 @@ export default async function InterviewCheckInterviewPage() {
     travelers: standInTravelers(standIn),
     pets: petRows,
   });
-  // The stand-in family's animals decide whether the animals question is in
-  // the run, exactly as a real family's would. The body recounts this for
+  // The typed family's animals decide whether the animals question is in the
+  // run, exactly as a real family's would. Before mount there are none, so the
+  // first paint asks ten questions. The body recounts this for
   // itself once it can read whatever family the primary typed on the practice
   // welcome screen, so a rehearsal with no animals loses the question and a
   // rehearsal with three asks about all three.

@@ -12,10 +12,11 @@ export const metadata = { title: "Interview proof \u00b7 Alyeska" };
  * The real /interview/proof route only shows itself after the primary
  * has answered the ten interview questions and needs actual preferences
  * to compare against. In practice, the ProofClient is mounted with
- * demo=true, which asks the API to run the same side-by-side against a
- * stand-in family (the Riveras and their Reykjavik long weekend --
- * same shape the Meet Aly intro used, so the rehearsal reads as one
- * continuous demo). Nothing on the primary's file is read or written.
+ * demo=true, which asks the API to run the same side-by-side against the
+ * family the person typed on the way here -- their practice run, carried in
+ * sessionStorage, and no stock family behind it. A rehearsal with nothing
+ * typed in it gets a plan built from nothing, and the screen says so.
+ * Nothing on the primary's file is read or written.
  */
 export default async function InterviewCheckProofPage() {
   const supabase = await createClient();

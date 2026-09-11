@@ -363,7 +363,14 @@ export async function POST(req) {
   const prefsText = demo
     ? standInPrefsLines(standIn).join("\n")
     : preferencesLines(prefs).join("\n");
-  const genericSystem = `${baseSystem}\n\nYou know nothing about the family beyond the place they named. Answer as you would for anybody who asked about ${destination}, and let each WHY stand on the choice itself.`;
+  // The last sentence is load-bearing, and it is here because of a real
+  // report: this answer came back explaining a choice with the family's slow
+  // mornings, on a run that had been told nothing about any family. Nothing had
+  // leaked -- the model had simply written a plausible household and then cited
+  // it -- but an answer that invents a taste and attributes it is the one thing
+  // this comparison cannot do, because the whole point of it is showing what an
+  // answer looks like when nobody has said anything.
+  const genericSystem = `${baseSystem}\n\nYou know nothing about the family beyond the place they named. Answer as you would for anybody who asked about ${destination}, and let each WHY stand on the choice itself. You must not attribute a preference, a habit, a pace, an age, a limit or a taste to whoever is asking, and you must not imply you were told one: you have not been. No WHY may begin \"they like\", \"they prefer\", \"they said\", \"you like\", \"you prefer\" or \"since your\", and none may name a household trait such as slow mornings, early starts, small children or an aversion to crowds. Recommend on the place itself -- what is good there, when it is quiet, how far apart things are.`;
 
   const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nEvery WHY must name the specific thing about this family that drove the choice -- the preference, the age, the limit, the hour they said they get up. "Well reviewed" and "a local favorite" are not reasons here; those are what the answer looks like without an interview. If a preference rules something out, the WHY may say what you are avoiding and why.`;
 
