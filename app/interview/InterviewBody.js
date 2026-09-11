@@ -1570,6 +1570,13 @@ function WhyPanel({
     return personalizeReasons(raw, context);
   })();
 
+  // A question can ship with no reason chips at all -- the money question does,
+  // because chips on an ordered answer would look like they explained the whole
+  // order. That question still wants the own-words box, so the panel drops to
+  // the box alone rather than disappearing, and drops the chip instructions
+  // with it: there is nothing left to tap.
+  const hasChips = primary.length > 0;
+
   const activeSet = new Set((whys || []).map((s) => (s || "").toLowerCase()));
   // Which primary chips are actually picked, in the order they were picked --
   // so "More" starts with follow-ups to the FIRST pick and appends the next
@@ -1728,11 +1735,13 @@ function WhyPanel({
   return (
     <div className="mt-4 rounded-2xl border border-teal/30 bg-teal-soft/25 p-4">
       <p className="font-display text-lg text-ink">Why? (Optional.)</p>
-      <p className="mt-1 text-sm text-ink-soft">
-        Tap any that fit. I save each one as its own line on your Preferences
-        page.
-      </p>
-      {primary.length > 0 && (
+      {hasChips && (
+        <p className="mt-1 text-sm text-ink-soft">
+          Tap any that fit. I save each one as its own line on your Preferences
+          page.
+        </p>
+      )}
+      {hasChips && (
         <div className="mt-3">
           <p className="section-label text-ink-soft">Suggestions</p>
           <div className="mt-1 flex flex-wrap gap-2">
@@ -1763,10 +1772,10 @@ function WhyPanel({
           </div>
         </div>
       )}
-      <div className="mt-4">
+      <div className={hasChips ? "mt-4" : "mt-3"}>
         <label
           htmlFor="interview-own-words"
-          className="section-label text-ink-soft"
+          className={hasChips ? "section-label text-ink-soft" : "sr-only"}
         >
           Anything to add, in your own words
         </label>
@@ -1775,7 +1784,11 @@ function WhyPanel({
           rows={3}
           value={ownWords || ""}
           onChange={(e) => setOwnWords(e.target.value)}
-          placeholder="Add a sentence about your reason, if you want."
+          placeholder={
+            hasChips
+              ? "Add a sentence about your reason, if you want."
+              : "A sentence about why, if you want. I save it as its own line on your Preferences page."
+          }
           className="mt-2 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
         />
       </div>
