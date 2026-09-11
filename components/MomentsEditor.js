@@ -30,7 +30,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const MAX_MOMENT_LENGTH = 1200;
 
-function AutoGrowTextarea({ value, onChange, ...rest }) {
+// Exported because the interview asks the same question with the same shape,
+// and two auto-growing textareas that drift apart is two boxes that behave
+// differently on the same content.
+export function AutoGrowTextarea({ value, onChange, focusRef, ...rest }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -44,7 +47,14 @@ function AutoGrowTextarea({ value, onChange, ...rest }) {
   }, [value]);
   return (
     <textarea
-      ref={ref}
+      ref={(el) => {
+        ref.current = el;
+        // A caller that wants to focus the box gets the same element. Handing
+        // it a ref of its own rather than letting it pass `ref` through keeps
+        // the growing behavior, which needs the element here, from being
+        // overwritten by whatever the caller passes in.
+        if (focusRef) focusRef.current = el;
+      }}
       value={value}
       onChange={onChange}
       className="field w-full min-h-16 overflow-hidden text-sm"

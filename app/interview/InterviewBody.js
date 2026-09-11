@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { useRouter } from "next/navigation";
 
 import CompassLoader from "@/components/CompassLoader";
+import { AutoGrowTextarea } from "@/components/MomentsEditor";
 import {
   questionFor,
   questionsFor,
@@ -261,6 +263,10 @@ export default function InterviewBody({
   // times so there is always somewhere to type without hunting for an add
   // button.
   const [moments, setMoments] = useState([""]);
+  // What is sitting in the add box but has not been added yet. Kept beside the
+  // list rather than inside the panel so that hitting Save and finish with a
+  // sentence still in the box saves the sentence instead of losing it.
+  const [momentDraft, setMomentDraft] = useState("");
   // The tapped option values, for the two shapes that collect more than one:
   // the ranked question, where the order is the answer, and the multi ones,
   // where it is a set and only the first tap is privileged (it decides which
@@ -491,6 +497,7 @@ export default function InterviewBody({
         setWhys(fields.whys);
         setOwnWords(fields.ownWords);
         setMoments(fields.moments);
+        setMomentDraft("");
         setOrder(fields.order);
         setBand(fields.band);
         setPetPlans(fields.petPlans || []);
@@ -671,7 +678,10 @@ export default function InterviewBody({
       return everyAnimalAnswered(petPlans, petNames);
     }
     if (question?.kind === "moments") {
-      return moments.some((m) => (m || "").trim().length > 0);
+      return (
+        moments.some((m) => (m || "").trim().length > 0) ||
+        momentDraft.trim().length > 0
+      );
     }
     if (question?.kind === "text") {
       return text.trim().length > 0;
@@ -695,7 +705,7 @@ export default function InterviewBody({
     const cleanedPets = isPets ? normalizePetPlans(petPlans, petNames) : [];
     const pickedLabels = isList ? optionLabels(question, order) : [];
     const cleanedMoments = isMoments
-      ? moments.map((m) => m.trim()).filter(Boolean)
+      ? [...moments, momentDraft].map((m) => (m || "").trim()).filter(Boolean)
       : [];
     // Build the local-memory record once so both modes update `answers` the
     // same way. Real mode also uses it to pre-fill the fields when the
@@ -826,6 +836,7 @@ export default function InterviewBody({
     hasAnswer,
     inferred,
     mode,
+    momentDraft,
     moments,
     order,
     ownWords,
@@ -888,6 +899,7 @@ export default function InterviewBody({
       setWhys(fields.whys);
       setOwnWords(fields.ownWords);
       setMoments(fields.moments);
+      setMomentDraft("");
       setOrder(fields.order);
       setBand(fields.band);
       setPetPlans(fields.petPlans || []);
@@ -921,7 +933,7 @@ export default function InterviewBody({
       const pickedLabels =
         isList && action !== "skip" ? optionLabels(question, order) : [];
       const cleanedMoments = isMoments
-        ? moments.map((m) => m.trim()).filter(Boolean)
+        ? [...moments, momentDraft].map((m) => (m || "").trim()).filter(Boolean)
         : [];
 
       // Build the local-memory record once, in the same shape saveCurrent
@@ -1101,6 +1113,7 @@ export default function InterviewBody({
       index,
       loading,
       mode,
+      momentDraft,
       moments,
       order,
       ownWords,
@@ -1384,8 +1397,9 @@ export default function InterviewBody({
               <MomentsPanel
                 moments={moments}
                 setMoments={setMoments}
-                rows={question.rows || []}
-                extraRow={question.extraRow || null}
+                draft={momentDraft}
+                setDraft={setMomentDraft}
+                placeholder={question.placeholder || ""}
                 focusRef={focusRef}
               />
             ) : (
@@ -2354,92 +2368,152 @@ function Recap({ answers }) {
   );
 }
 
-// The moments panel is one box per prompt. Three identical blanks under one
-// instruction ask the same question three times and usually get one answer, so
-// each box carries its own heading -- a meal, a morning, a place worth going
-// back to -- and its own specimen in the placeholder. Anything typed in the last
-// box opens another under it, headed for whatever else is worth remembering.
+// The moments panel is the same editor the person screen uses: a list of what
+// has been added, each row with Edit and Remove on it, and one growing box at
+// the bottom to add the next one. A moment is a sentence somebody writes about
+// themselves, not a form field, so the box grows to fit what they wrote instead
+// of scrolling inside four fixed rows.
 //
-// The three prompted boxes are always shown and never removable: they are the
-// question, not rows somebody added, and a blank one costs nothing because empty
-// boxes are dropped before saving. Rows past them get a remove control.
+// The one difference from the person screen is when the writing lands. There,
+// every verb is its own call to /api/moments. Here nothing is written until
+// Save and finish, because the interview saves the answer to a question rather
+// than editing a record that already exists -- so Edit and Remove act on the
+// list in front of the primary and the whole list goes down at the end.
 //
-// The examples used to sit underneath as a strip of unclickable chips. A
-// specimen belongs in the box it is a specimen of, where nobody can mistake it
-// for something to tap, and moving them there took a paragraph of explanation
-// off the screen.
-//
-// The panel keeps its state at the parent level (`moments` on InterviewBody),
-// which is why setMoments is passed in rather than kept here. That way the
-// cleaned list is available to the submit function without needing a ref, and
-// advancing to the next question does not leave stale rows behind if the
-// primary comes back to a fresh interview.
-function MomentsPanel({ moments, setMoments, rows, extraRow, focusRef }) {
-  const prompts = Array.isArray(rows) ? rows : [];
-  const extra = extraRow || { heading: "Anything else", placeholder: "" };
-  // Every prompt is on screen even before anything is typed, so the list is at
-  // least as long as the prompts. Padding here rather than in the parent's
-  // state keeps the saved answer honest: what gets written is still whatever
-  // the primary actually typed.
-  const shown = Array.isArray(moments) ? moments.slice() : [];
-  while (shown.length < prompts.length + 1) shown.push("");
-  const promptFor = (i) => prompts[i] || extra;
+// The list and the draft both live at the parent level (`moments` and
+// `momentDraft` on InterviewBody) so the submit function can read them without
+// a ref, and so anything typed in the add box still counts as an answer even if
+// the primary hits Save and finish without pressing Add.
+function MomentsPanel({
+  moments,
+  setMoments,
+  draft,
+  setDraft,
+  placeholder,
+  focusRef,
+}) {
+  const rows = (Array.isArray(moments) ? moments : []).filter((m) =>
+    (m || "").trim(),
+  );
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingBody, setEditingBody] = useState("");
 
-  const updateRow = (i, value) => {
-    setMoments((current) => {
-      const next = Array.isArray(current) ? current.slice() : [];
-      while (next.length <= i) next.push("");
-      next[i] = value;
-      // Keep one blank row at the end so there is always somewhere to type.
-      if (i === next.length - 1 && value.trim()) next.push("");
-      return next;
-    });
+  const commitDraft = () => {
+    const body = draft.trim();
+    if (!body) return;
+    setMoments([...rows, body]);
+    setDraft("");
+  };
+
+  const saveEdit = () => {
+    const body = editingBody.trim();
+    if (!body) return;
+    setMoments(rows.map((m, i) => (i === editingIndex ? body : m)));
+    setEditingIndex(null);
+    setEditingBody("");
   };
 
   const removeRow = (i) => {
-    setMoments((current) => {
-      const next = (Array.isArray(current) ? current : []).filter(
-        (_, idx) => idx !== i,
-      );
-      if (next.length === 0 || next[next.length - 1].trim()) next.push("");
-      return next;
-    });
+    setMoments(rows.filter((_, idx) => idx !== i));
+    if (editingIndex === i) {
+      setEditingIndex(null);
+      setEditingBody("");
+    }
   };
 
   return (
-    <div className="mt-6 flex flex-col gap-4">
-      {shown.map((row, i) => {
-        const prompt = promptFor(i);
-        const removable = i >= prompts.length && Boolean(row.trim());
-        return (
-          <div key={i}>
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="font-display text-sm text-ink">
-                {prompt.heading}
-              </span>
-              {removable && (
-                <button
-                  type="button"
-                  onClick={() => removeRow(i)}
-                  className="shrink-0 text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
-                  aria-label={`Remove ${prompt.heading.toLowerCase()}`}
-                >
-                  Remove
-                </button>
+    <div className="mt-6 space-y-3">
+      {rows.length > 0 && (
+        <ul className="space-y-2">
+          {rows.map((body, i) => (
+            <li
+              key={i}
+              className="rounded-lg border border-sand-deep bg-white p-3"
+            >
+              {editingIndex === i ? (
+                <div className="space-y-2">
+                  <AutoGrowTextarea
+                    value={editingBody}
+                    onChange={(e) => setEditingBody(e.target.value)}
+                    aria-label="Edit this moment"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={!editingBody.trim()}
+                      className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingIndex(null);
+                        setEditingBody("");
+                      }}
+                      className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="whitespace-pre-wrap text-sm text-ink">{body}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingIndex(i);
+                        setEditingBody(body);
+                      }}
+                      className="btn btn-ghost whitespace-nowrap px-3 py-1 text-xs"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      className="btn btn-ghost whitespace-nowrap px-3 py-1 text-xs text-terra-deep"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
               )}
-            </div>
-            <textarea
-              ref={i === 0 ? focusRef : null}
-              rows={2}
-              value={row}
-              onChange={(e) => updateRow(i, e.target.value)}
-              placeholder={prompt.placeholder || ""}
-              className="mt-1 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
-              aria-label={prompt.heading}
-            />
-          </div>
-        );
-      })}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div
+        className={
+          rows.length > 0
+            ? "space-y-2 border-t border-sand-deep pt-3"
+            : "space-y-2"
+        }
+      >
+        <label className="block text-xs font-semibold">
+          {rows.length > 0 ? "Add another moment" : "Add a moment"}
+          <AutoGrowTextarea
+            focusRef={focusRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={placeholder || ""}
+          />
+        </label>
+        <div>
+          <button
+            type="button"
+            onClick={commitDraft}
+            disabled={!draft.trim()}
+            className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+          >
+            Add
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
