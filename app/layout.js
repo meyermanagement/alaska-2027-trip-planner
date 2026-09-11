@@ -3,6 +3,7 @@ import "./globals.css";
 import BootVeil from "@/components/BootVeil";
 import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
 import UsageTrail from "@/components/UsageTrail";
+import FeedbackSheet from "@/components/FeedbackSheet";
 import {
   BAND_COOKIE,
   BOOT_COOKIE,
@@ -147,6 +148,9 @@ export default function RootLayout({ children }) {
         {/* Records which screen a signed-in person is on and how long it held
             them. Writes nothing for a visitor who is not signed in. */}
         <UsageTrail />
+        {/* Asleep until the Contact Us row in the menu wakes it. Mounted here
+            so a report can be written from any screen without leaving it. */}
+        <FeedbackSheet />
         <div className="app-shell">{children}</div>
       </body>
     </html>

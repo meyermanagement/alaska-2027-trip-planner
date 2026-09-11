@@ -13,6 +13,7 @@ import {
 import { coverToken } from "@/lib/covers/tint";
 import { parseTripRef, tripPath } from "@/lib/trips/route";
 import { TRIPS_VIEW_EVENT } from "@/lib/trips/viewEvent";
+import { FEEDBACK_EVENT } from "@/lib/feedback/shared";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
@@ -232,7 +233,7 @@ const MORE_GROUP = {
     {
       href: "/contact",
       label: "Contact Us",
-      sub: "Tell us what went right, or what went wrong",
+      sub: "What went wrong, with a picture of it",
       Icon: MailIcon,
     },
     SETTINGS,
@@ -959,15 +960,31 @@ export default function NavTabs({
                         // request to the board instead, which puts its skeleton up
                         // and then draws the group. Modified clicks are left alone
                         // so a row can still be opened in a new tab.
-                        if (
-                          row.view &&
-                          pathname === "/trips" &&
+                        const plain =
                           !e.metaKey &&
                           !e.ctrlKey &&
                           !e.shiftKey &&
                           !e.altKey &&
-                          e.button === 0
-                        ) {
+                          e.button === 0;
+                        // Contact Us does not go anywhere. It opens the sheet
+                        // over whatever screen the person is on, because the
+                        // whole value of a bug report is the screen it was
+                        // written from -- the address, the trip, the look, the
+                        // width of the window and what they had just been
+                        // doing all go with it, and navigating to a form throws
+                        // every one of those away. The address is still a real
+                        // page, so a middle-click, a modified click, or a
+                        // browser with no JavaScript gets the form.
+                        if (row.key === "/contact" && plain) {
+                          e.preventDefault();
+                          window.dispatchEvent(
+                            new CustomEvent(FEEDBACK_EVENT, {
+                              detail: { kind: "problem" },
+                            }),
+                          );
+                          return;
+                        }
+                        if (row.view && pathname === "/trips" && plain) {
                           e.preventDefault();
                           window.dispatchEvent(
                             new CustomEvent(TRIPS_VIEW_EVENT, {

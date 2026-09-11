@@ -7,6 +7,7 @@ import { funnel, perPerson, questionDwell } from "@/lib/usage/metrics";
 import { stepLabel } from "@/lib/usage/steps";
 import TopBar from "@/components/TopBar";
 import AdminBody from "./AdminBody";
+import { SHOT_BUCKET } from "@/lib/feedback/shared";
 
 export const metadata = { title: "Beta desk · Alyeska" };
 export const dynamic = "force-dynamic";
@@ -31,6 +32,11 @@ export const dynamic = "force-dynamic";
 // one query rather than a paginated report.
 const WINDOW_DAYS = 30;
 const EVENT_CEILING = 6000;
+// A beta's worth of reports. Newest first, so the ceiling cuts off the oldest.
+const REPORT_CEILING = 60;
+// How long a picture's link is good for. Long enough to read the desk, short
+// enough that a copied address is useless by the time it is pasted anywhere.
+const SHOT_LINK_SECONDS = 60 * 60;
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -52,6 +58,7 @@ export default async function AdminPage() {
           steps={[]}
           questions={[]}
           testers={[]}
+          reports={[]}
           windowDays={WINDOW_DAYS}
         />
       </>
@@ -62,23 +69,34 @@ export default async function AdminPage() {
     Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const [{ data: codeRows }, { data: eventRows }, { data: accounts }] =
-    await Promise.all([
-      admin
-        .from("signup_codes")
-        .select(
-          "code, family_name, note, created_at, expires_at, used_by, used_at, used_family_id, assigned_email, assigned_name, assigned_at, sent_at, send_count",
-        )
-        .order("created_at", { ascending: false }),
-      admin
-        .from("usage_events")
-        .select("user_id, family_id, kind, step, path, ms, at, meta")
-        .gte("at", since)
-        .order("at", { ascending: false })
-        .limit(EVENT_CEILING),
-      // One page of accounts is plenty for a beta and saves a lookup per row.
-      admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
-    ]);
+  const [
+    { data: codeRows },
+    { data: eventRows },
+    { data: accounts },
+    { data: reportRows },
+  ] = await Promise.all([
+    admin
+      .from("signup_codes")
+      .select(
+        "code, family_name, note, created_at, expires_at, used_by, used_at, used_family_id, assigned_email, assigned_name, assigned_at, sent_at, send_count",
+      )
+      .order("created_at", { ascending: false }),
+    admin
+      .from("usage_events")
+      .select("user_id, family_id, kind, step, path, ms, at, meta")
+      .gte("at", since)
+      .order("at", { ascending: false })
+      .limit(EVENT_CEILING),
+    // One page of accounts is plenty for a beta and saves a lookup per row.
+    admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
+    admin
+      .from("feedback")
+      .select(
+        "id, created_at, email, kind, body, path, trip_id, skin, viewport, user_agent, build, trail, shots, status",
+      )
+      .order("created_at", { ascending: false })
+      .limit(REPORT_CEILING),
+  ]);
 
   const events = eventRows || [];
   const people = new Map(
@@ -138,11 +156,14 @@ export default async function AdminPage() {
       String(b.lastSignInAt || "").localeCompare(String(a.lastSignInAt || "")),
     );
 
+  const reports = await readReports(admin, reportRows || []);
+
   return (
     <>
       <TopBar />
       <AdminBody
         codes={codes}
+        reports={reports}
         steps={funnel(events)}
         questions={questionDwell(events)}
         testers={testers}
@@ -150,4 +171,101 @@ export default async function AdminPage() {
       />
     </>
   );
+}
+
+/**
+ * The reports, ready to read: the trip named rather than numbered, the browser
+ * shortened to the part that matters, and every picture turned into a link that
+ * expires within the hour.
+ */
+async function readReports(admin, rows) {
+  if (!rows.length) return [];
+
+  const tripIds = [...new Set(rows.map((one) => one.trip_id).filter(Boolean))];
+  const tripNames = new Map();
+  if (tripIds.length) {
+    const { data: trips } = await admin
+      .from("trips")
+      .select("id, name")
+      .in("id", tripIds);
+    for (const trip of trips || []) tripNames.set(trip.id, trip.name);
+  }
+
+  const keys = rows.flatMap((one) => one.shots || []);
+  const links = new Map();
+  if (keys.length) {
+    const { data: signed } = await admin.storage
+      .from(SHOT_BUCKET)
+      .createSignedUrls(keys, SHOT_LINK_SECONDS);
+    for (const one of signed || []) {
+      if (one?.path && one?.signedUrl) links.set(one.path, one.signedUrl);
+    }
+  }
+
+  return rows.map((one) => ({
+    id: one.id,
+    at: whenPlainly(one.created_at),
+    email: one.email,
+    kind: one.kind,
+    body: one.body,
+    path: one.path,
+    tripName: one.trip_id ? tripNames.get(one.trip_id) || null : null,
+    skin: one.skin,
+    viewport: one.viewport,
+    build: one.build,
+    browser: shortBrowser(one.user_agent),
+    trail: Array.isArray(one.trail)
+      ? one.trail
+          .map((step) => step?.what)
+          .filter(Boolean)
+          .slice(0, 6)
+      : [],
+    shots: (one.shots || []).map((key) => links.get(key)).filter(Boolean),
+    status: one.status || "new",
+  }));
+}
+
+function whenPlainly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * A user-agent string is 150 characters of history nobody needs. What matters
+ * for a bug report is which browser on which kind of device, so that is all
+ * that is kept.
+ */
+function shortBrowser(raw) {
+  const text = String(raw || "");
+  if (!text) return null;
+  const device = /iPhone/.test(text)
+    ? "iPhone"
+    : /iPad/.test(text)
+      ? "iPad"
+      : /Android/.test(text)
+        ? "Android"
+        : /Macintosh/.test(text)
+          ? "Mac"
+          : /Windows/.test(text)
+            ? "Windows"
+            : null;
+  const browser = /Edg\//.test(text)
+    ? "Edge"
+    : /OPR\//.test(text)
+      ? "Opera"
+      : /Chrome\//.test(text)
+        ? "Chrome"
+        : /Firefox\//.test(text)
+          ? "Firefox"
+          : /Safari\//.test(text)
+            ? "Safari"
+            : null;
+  return [browser, device].filter(Boolean).join(" on ") || null;
 }
