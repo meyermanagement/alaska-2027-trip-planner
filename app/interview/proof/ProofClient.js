@@ -283,6 +283,19 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     }
   }
 
+  // Whose answers the plan above was built from. A rehearsal that has typed
+  // nothing is answered against the built-in practice family, and saying so is
+  // the difference between a demonstration and a screen that credits somebody
+  // else's preferences to the person reading it. A rehearsal that has typed
+  // something is answered against that alone, so it reads the same as a real
+  // family's.
+  const sourceNote =
+    demo && data && data.standInCustom === false
+      ? "Built from the built-in practice family, because this rehearsal has nothing typed in it yet."
+      : data?.preferenceCount
+        ? `Built from the ${data.preferenceCount} things you just told me.`
+        : "Built from what you have told me so far.";
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -522,8 +535,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                 className="ma-in mt-1 text-xs italic text-ink-soft"
                 style={{ animationDelay: `${BEAT.plan - 0.06}s` }}
               >
-                Built from the {data.preferenceCount || "several"} things you
-                just told me.
+                {sourceNote}
               </p>
             </header>
             <PlanRows
