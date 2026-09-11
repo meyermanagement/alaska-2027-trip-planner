@@ -274,6 +274,30 @@ html[data-boot="quick"] #boot-veil {
     );
 }
 
+.quick-title {
+  position: absolute;
+  /* Clear of a notch and a status bar, on the two edges a phone actually
+     intrudes on. */
+  top: max(1.15rem, env(safe-area-inset-top));
+  left: max(1.15rem, env(safe-area-inset-left));
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  opacity: 0.85;
+}
+
+.quick-rule {
+  display: block;
+  width: 2.4rem;
+  height: 1px;
+  margin-top: 0.4rem;
+  background: currentColor;
+  opacity: 0.4;
+}
+
 .quick-field {
   /* Each field is the whole veil. Only one of them is ever shown. */
   position: absolute;

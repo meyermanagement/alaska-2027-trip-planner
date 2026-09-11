@@ -285,6 +285,15 @@ function QuickVeil() {
           paper rather than as a grid to be counted. Gradients rather than lines
           in the drawings, because they have a whole window to cover. */}
       <div className="quick-grid" />
+      {/* The name, set the way a chart is titled rather than the way a splash is
+          branded: top left, letterspaced, over a hairline, quiet enough that the
+          route stays the thing you look at. The full opening already introduces
+          the app with a lockup in the middle of the screen; this one is a map,
+          and a map carries its title in a corner. */}
+      <p className="quick-title font-display">
+        Alyeska
+        <span className="quick-rule" />
+      </p>
       <QuickField kind="tall" box="0 0 200 380" route={TALL_ROUTE} />
       <QuickField kind="wide" box="0 0 380 200" route={WIDE_ROUTE} />
     </div>
