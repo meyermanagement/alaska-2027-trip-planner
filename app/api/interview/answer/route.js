@@ -10,11 +10,15 @@ import {
   rankSentence,
 } from "@/lib/travelers/interview";
 import {
+  arrangementForPlan,
   everyAnimalAnswered,
   normalizePetPlans,
   petClause,
   petsSentence,
+  travelStyleForPlan,
 } from "@/lib/travelers/animals";
+import { travelStylesFor } from "@/lib/pets/pets";
+import { syncPackingForPet } from "@/lib/pets/packing";
 import {
   inferAnswer,
   priorAnswersFrom,
@@ -22,9 +26,142 @@ import {
 import { bandSentence, normalizeBand } from "@/lib/travelers/dayBand";
 import { topicForSlot } from "@/lib/travelers/interview-topics";
 import { tableForSlot } from "@/lib/travelers/slots";
+import { homeToday } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+
+// The note left on an arrangement this answer filed, so a later change to the
+// answer can correct its own rows and leave everybody else's alone. It is
+// written to be read: somebody opening the trip should be able to tell where the
+// line came from without being told about interviews and slots.
+const FROM_INTERVIEW = "From your household answer about the animals.";
+
+/**
+ * The animals answer, put where the app reads it.
+ *
+ * The household rule is the record of what was said. This is the consequence of
+ * it: the animal's own way of travelling, and one arrangement per trip ahead.
+ * Both writes are conservative on purpose.
+ *
+ *   - The animal's travel style is filled only when it is blank. A family that
+ *     already said the dog flies in the cabin has said more than this question
+ *     asks, and a general answer must not quietly overwrite a specific one.
+ *   - A trip that already has a decision about this animal is left exactly as it
+ *     is, unless that decision is one this answer filed itself. The interview
+ *     asks how things usually go; a trip's own roster is the family deciding
+ *     about that trip, and it wins. Changing the household answer later does
+ *     correct the rows it wrote, which is why they are marked.
+ *   - Trips already behind them are left alone. Nothing useful comes of filing
+ *     an arrangement for a trip that has been and gone.
+ *
+ * Packing follows each arrangement through the same sync the trip roster and Ask
+ * Aly use, so an animal that comes along arrives with its own lines and one that
+ * is left behind has its lines set aside rather than deleted.
+ */
+async function placePetPlans({ supabase, familyId, pets, plans, words }) {
+  const byName = new Map(
+    (pets || []).map((p) => [
+      String(p?.name || "")
+        .trim()
+        .toLowerCase(),
+      p,
+    ]),
+  );
+  const matched = (plans || [])
+    .map((row) => ({
+      plan: row?.plan,
+      pet: byName.get(
+        String(row?.name || "")
+          .trim()
+          .toLowerCase(),
+      ),
+    }))
+    .filter((row) => row.pet?.id);
+  if (!matched.length) return;
+
+  // On the animal.
+  for (const { pet, plan } of matched) {
+    if (pet.travel_style) continue;
+    const style = travelStyleForPlan(plan, travelStylesFor(pet.species));
+    if (!style) continue;
+    const { error } = await supabase
+      .from("pets")
+      .update({ travel_style: style })
+      .eq("id", pet.id)
+      .eq("family_id", familyId);
+    // Held on the local copy too, because the packing sync below reads the
+    // travel style to decide which lines an animal needs.
+    if (!error) pet.travel_style = style;
+  }
+
+  // On the trips ahead. An arrangement is only worked out for some of the
+  // plans -- "it depends on the trip" is the family saying they will answer per
+  // trip -- so this can be empty even when the animals themselves were updated.
+  const wanted = matched
+    .map(({ pet, plan }) => ({
+      pet,
+      arrangement: arrangementForPlan(plan, words),
+    }))
+    .filter((row) => row.arrangement);
+  if (!wanted.length) return;
+
+  const today = homeToday();
+  const { data: tripRows } = await supabase
+    .from("trips")
+    .select("id, status, start_date, end_date")
+    .eq("family_id", familyId);
+  const trips = (tripRows || []).filter((t) => {
+    if (["complete", "archived"].includes(t?.status)) return false;
+    // A draft is an idea rather than a date, so it counts as ahead of them even
+    // when the dates it carries have gone by.
+    if (t?.status === "draft") return true;
+    return (t?.end_date || t?.start_date || "9999-12-31") >= today;
+  });
+  if (!trips.length) return;
+
+  const { data: already } = await supabase
+    .from("trip_pets")
+    .select("trip_id, pet_id, arrangement_notes")
+    .in(
+      "trip_id",
+      trips.map((t) => t.id),
+    )
+    .in(
+      "pet_id",
+      wanted.map((row) => row.pet.id),
+    );
+  const taken = new Set(
+    (already || [])
+      .filter(
+        (r) => String(r?.arrangement_notes || "").trim() !== FROM_INTERVIEW,
+      )
+      .map((r) => `${r.trip_id}:${r.pet_id}`),
+  );
+
+  for (const trip of trips) {
+    for (const { pet, arrangement } of wanted) {
+      if (taken.has(`${trip.id}:${pet.id}`)) continue;
+      const { error } = await supabase.from("trip_pets").upsert(
+        {
+          trip_id: trip.id,
+          pet_id: pet.id,
+          arrangement,
+          arrangement_notes: FROM_INTERVIEW,
+        },
+        { onConflict: "trip_id,pet_id" },
+      );
+      if (error) continue;
+      await syncPackingForPet({
+        supabase,
+        tripId: trip.id,
+        familyId,
+        pet,
+        arrangement,
+      });
+    }
+  }
+}
 
 // Writes one interview answer, from the interview screen. Kept out of the Ask
 // Aly apply route because that one is chat-tool-shaped: it takes an action from
@@ -35,14 +172,18 @@ export const maxDuration = 30;
 // Only the primary can post here. A secondary who somehow reaches /interview
 // gets a 403 rather than writing preferences under somebody else's name.
 //
-// Three writes per answered slot:
+// Three writes per answered slot, and a fourth for the animals question:
 //
 //   1. traveler_slots. Marks the slot settled or skipped, with the note field
 //      carrying the primary's Something-else words when they picked one.
 //   2. travel_preferences (for taste slots) or household_facts (for facts). The
 //      picked option label goes in body verbatim; the Something-else text goes
 //      in reason so the primary can see what they said next to what was saved.
-//   3. Nothing at all for a skip -- the slot row alone stands for "asked and
+//   3. For the animals question, the same answer again where the app reads it:
+//      the animal's own travel style and one arrangement per trip ahead. See
+//      placePetPlans below for how careful that is about not overwriting a
+//      decision the family already made.
+//   4. Nothing at all for a skip -- the slot row alone stands for "asked and
 //      passed".
 //
 // Family-wide, not per person: the interview asks the primary once on behalf of
@@ -151,7 +292,7 @@ export async function POST(request) {
   // is asked the animals question at all.
   const { data: petRows } = await supabase
     .from("pets")
-    .select("name")
+    .select("id, name, species, travel_style, medications, family_id")
     .eq("family_id", familyId);
   const petNames = (petRows || [])
     .map((r) => String(r?.name || "").trim())
@@ -377,6 +518,22 @@ export async function POST(request) {
           { status: 500 },
         );
       }
+      // And then the same answer where the app actually reads it: on the animal
+      // and on the trips. A rule filed as a sentence changes nothing on its own
+      // -- the packing list follows the per-trip arrangement, and whether a
+      // flight is even a question follows the animal's own record.
+      //
+      // Deliberately after the facts insert and deliberately unable to fail the
+      // request: the answer is saved by this point, and a family should not be
+      // told their answer did not save because a packing list could not be
+      // brought up to date.
+      await placePetPlans({
+        supabase,
+        familyId,
+        pets: petRows || [],
+        plans: petPlans,
+        words: rawOwnWords,
+      });
     } else if (question.kind === "text") {
       if (rawText) {
         const { error } = await supabase.from("household_facts").insert({
