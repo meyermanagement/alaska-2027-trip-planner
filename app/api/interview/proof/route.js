@@ -8,7 +8,7 @@ import {
   standInPrefsLines,
 } from "@/lib/practice/standIn";
 import { familyLines, preferencesLines } from "@/lib/interview/proofContext";
-import { PLACE_AND_CONFLICT } from "@/lib/agent/advice";
+import { PLACE_AND_CONFLICT, DAY_BAND_RULE } from "@/lib/agent/advice";
 
 /**
  * The interview-proof endpoint.
@@ -334,7 +334,7 @@ export async function POST(req) {
   // answer looks like when nobody has said anything.
   const genericSystem = `${baseSystem}\n\nYou know nothing about the family beyond the place they named. Answer as you would for anybody who asked about ${destination}, and let each WHY stand on the choice itself. You must not attribute a preference, a habit, a pace, an age, a limit or a taste to whoever is asking, and you must not imply you were told one: you have not been. No WHY may begin \"they like\", \"they prefer\", \"they said\", \"you like\", \"you prefer\" or \"since your\", and none may name a household trait such as slow mornings, early starts, small children or an aversion to crowds. Recommend on the place itself -- what is good there, when it is quiet, how far apart things are.`;
 
-  const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nEvery WHY must name the specific thing that drove the choice, and the strongest ones name two: what this family said -- the preference, the age, the limit, the hour they said they get up -- and what this place makes true, such as the season, the distance, the closing day or the hour the heat arrives. A WHY may rest on the place alone when the place fact is that specific. "Well reviewed" and "a local favorite" are never reasons here; those are what the answer looks like without an interview. If a preference rules something out, the WHY may say what you are avoiding and why. Where a choice goes against something they said, keep it and say so in the WHY along with what made it worth suggesting anyway.\n\n${PLACE_AND_CONFLICT}`;
+  const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nEvery WHY must name the specific thing that drove the choice, and the strongest ones name two: what this family said -- the preference, the age, the limit -- and what this place makes true, such as the season, the distance, the closing day or the hour the heat arrives. A WHY may rest on the place alone when the place fact is that specific. "Well reviewed" and "a local favorite" are never reasons here; those are what the answer looks like without an interview. If a preference rules something out, the WHY may say what you are avoiding and why. Where a choice goes against something they said, keep it and say so in the WHY along with what made it worth suggesting anyway.\n\n${PLACE_AND_CONFLICT}\n\n${DAY_BAND_RULE}`;
 
   const deadline = Date.now() + DEADLINE_MS;
   // What onboarding actually captured, as one block. Used to decide whether the
