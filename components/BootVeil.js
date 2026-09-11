@@ -184,87 +184,109 @@ function Housing({ live }) {
 // has to run on. A transform on a group is the one thing every browser here
 // agrees about, and it is also the one the reduced motion query can reach.
 //
-// It fills the screen. The graticule is a pair of repeating gradients on a layer
-// of its own, so it runs to all four edges whatever the shape of the window, and
-// the route is drawn in a portrait frame that is scaled to fit inside the veil --
-// as tall as the screen is, near enough, with the mark growing with it. Sizing
-// the drawing in rems, however generously, always left it an emblem floating in
-// the middle of a phone; this is a map with something moving on it.
+// It fills the screen, in either shape of screen. The graticule is a pair of
+// repeating gradients, so it runs to all four edges whatever the window is doing,
+// and there are two routes -- one that climbs a tall screen and one that crosses
+// a wide one -- with a media query choosing between them.
+//
+// And it turns around at the far end and comes back, which is why the cycle is
+// one long keyframe rather than an alternating one: on the way home the needle
+// has to read a hundred and eighty degrees off the way out, and an alternating
+// animation would have run the headings backwards too.
 //
 // The needle points the way the mark is going and turns through the bends, which
 // is the second set of sampled numbers: the tangent of the curve at each of
 // those thirteen points, applied to the needle inside a housing that stays put.
 // It is a compass being carried, not one being read.
-const ROUTE = "M40 348C40 296 152 300 152 248S48 196 48 140S150 92 150 36";
+const TALL_ROUTE = "M40 348C40 296 152 300 152 248S48 196 48 140S150 92 150 36";
+const WIDE_ROUTE = "M32 164C84 164 96 116 148 116S212 60 264 60S324 30 348 24";
+
+// The mark itself, at a size in rems: it rides on the map but it is not stretched
+// by it, because a compass drawn wider than it is tall is a broken compass.
+function QuickMark() {
+  return (
+    <svg viewBox="0 0 32 32" fill="none">
+      <circle
+        cx="16"
+        cy="16"
+        r="15"
+        fill="var(--disc-face)"
+        stroke="var(--disc-edge)"
+        strokeWidth="1"
+      />
+      {/* Four cardinals, and they stay where they are while the needle turns --
+          north is the one thing on this picture that does not move. Sixteen
+          graduations at this size is a smudge, and the housing on the full
+          opening already earns them on a screen where the mark is the point. */}
+      <g stroke="currentColor" strokeLinecap="round">
+        <path d="M16 1 16 4.4" strokeWidth="1.7" opacity="0.72" />
+        <path
+          d="M31 16 28.6 16M16 31 16 28.6M1 16 3.4 16"
+          strokeWidth="1.4"
+          opacity="0.44"
+        />
+      </g>
+      <g className="quick-heading">
+        <g className="quick-needle">
+          <path
+            fillRule="evenodd"
+            fill="currentColor"
+            transform="translate(16 16) scale(0.72) translate(-16 -16)"
+            d="M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z"
+          />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+// One field per orientation. Both are always in the markup and a media query
+// shows one, which is how the drawing can be right for the shape of the screen
+// instead of merely fitted to it: the tall route climbs, the wide one crosses,
+// and each has its own turns and therefore its own headings.
+function QuickField({ kind, box, route }) {
+  return (
+    <div className={`quick-field quick-${kind}`}>
+      {/* The route stretches with the window -- that is the whole point of
+          preserveAspectRatio none -- and the stroke does not, which is what
+          keeps the dashes even and round-ended at any shape of screen. */}
+      <svg
+        className="quick-plot"
+        viewBox={box}
+        preserveAspectRatio="none"
+        fill="none"
+      >
+        <path
+          className="quick-route"
+          d={route}
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.42"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      {/* Where it started and where it is going, placed as a share of the field
+          rather than drawn in the stretched picture, so they stay round. The far
+          one is hollow, so the pair reads as a journey with a direction. */}
+      <span className="quick-end quick-from" />
+      <span className="quick-end quick-to" />
+      <div className="quick-travel">
+        <QuickMark />
+      </div>
+    </div>
+  );
+}
 
 function QuickVeil() {
   return (
     <div className="boot-quick" aria-hidden="true">
       {/* Lines of latitude and longitude, edge to edge, faint enough to read as
           paper rather than as a grid to be counted. Gradients rather than lines
-          in the drawing below, because the drawing keeps its proportions and the
-          graticule must not: it has a whole window to cover. */}
+          in the drawings, because they have a whole window to cover. */}
       <div className="quick-grid" />
-      <svg viewBox="0 0 200 380" fill="none">
-        {/* Where it started and where it is going. The far one is hollow, so the
-            pair reads as a journey with a direction rather than two dots. */}
-        <circle cx="40" cy="348" r="4.5" fill="currentColor" opacity="0.5" />
-        <circle
-          cx="150"
-          cy="36"
-          r="5.5"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          opacity="0.55"
-        />
-        <path
-          className="quick-route"
-          d={ROUTE}
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.42"
-        />
-        {/* Four groups, each holding exactly one thing, because two animations
-            cannot share a transform: the outer one is walked along the route,
-            the next carries the mark's own offset, the third turns the needle to
-            the heading, and the innermost one lets it drift. */}
-        <g className="quick-travel">
-          <g transform="translate(-16 -16)">
-            <circle
-              cx="16"
-              cy="16"
-              r="15"
-              fill="var(--disc-face)"
-              stroke="var(--disc-edge)"
-              strokeWidth="1"
-            />
-            {/* Four cardinals, and they stay where they are while the needle
-                turns -- north is the one thing on this picture that does not
-                move. Sixteen graduations at this size is a smudge, and the
-                housing on the full opening already earns them on a screen where
-                the mark is the whole point. */}
-            <g stroke="currentColor" strokeLinecap="round">
-              <path d="M16 1 16 4.4" strokeWidth="1.7" opacity="0.72" />
-              <path
-                d="M31 16 28.6 16M16 31 16 28.6M1 16 3.4 16"
-                strokeWidth="1.4"
-                opacity="0.44"
-              />
-            </g>
-            <g className="quick-heading">
-              <g className="quick-needle">
-                <path
-                  fillRule="evenodd"
-                  fill="currentColor"
-                  transform="translate(16 16) scale(0.72) translate(-16 -16)"
-                  d="M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z"
-                />
-              </g>
-            </g>
-          </g>
-        </g>
-      </svg>
+      <QuickField kind="tall" box="0 0 200 380" route={TALL_ROUTE} />
+      <QuickField kind="wide" box="0 0 380 200" route={WIDE_ROUTE} />
     </div>
   );
 }

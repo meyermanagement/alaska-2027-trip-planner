@@ -274,12 +274,31 @@ html[data-boot="quick"] #boot-veil {
     );
 }
 
-.boot-quick svg {
-  /* The full veil. The frame is portrait and keeps its proportions, so on a
-     phone the route runs very nearly the whole height of the screen and on a
-     laptop it is as tall as the window with room either side -- and either way
-     the mark is scaled by the same amount, so it grows with the map instead of
-     sitting on it at a fixed size. */
+.quick-field {
+  /* Each field is the whole veil. Only one of them is ever shown. */
+  position: absolute;
+  inset: 0;
+}
+
+.quick-wide {
+  display: none;
+}
+
+/* A phone held upright, or a window taller than it is wide, climbs. Anything
+   wider than it is tall crosses. Nothing here reads a device or a user agent:
+   the shape of the window is the only thing that actually matters, and it is
+   also the only thing that stays true when the phone is turned on its side. */
+@media (orientation: landscape) {
+  .quick-tall {
+    display: none;
+  }
+
+  .quick-wide {
+    display: block;
+  }
+}
+
+.quick-plot {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -290,8 +309,86 @@ html[data-boot="quick"] #boot-veil {
    compass rather than sitting under it, which is what makes the pair read as
    one thing moving instead of a dot sliding along a wire. */
 .quick-route {
-  stroke-dasharray: 3 5;
+  stroke-dasharray: 5 9;
   animation: quick-run 1.1s linear infinite;
+}
+
+.quick-end {
+  position: absolute;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.quick-from {
+  width: 0.6rem;
+  height: 0.6rem;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.quick-to {
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 2px solid currentColor;
+  opacity: 0.55;
+}
+
+.quick-tall .quick-from {
+  left: 20%;
+  top: 91.58%;
+}
+
+.quick-tall .quick-to {
+  left: 75%;
+  top: 9.47%;
+}
+
+.quick-wide .quick-from {
+  left: 8.42%;
+  top: 82%;
+}
+
+.quick-wide .quick-to {
+  left: 91.58%;
+  top: 12%;
+}
+
+/* The travelling layer is the size of the field, so a translate in per cent is a
+   share of the screen: that is what lets one set of keyframes work at any window
+   size while the mark inside keeps a size measured in rems. */
+.quick-travel {
+  position: absolute;
+  inset: 0;
+}
+
+.quick-travel > svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: clamp(2.6rem, 9.5vmin, 4.25rem);
+  height: auto;
+  transform: translate(-50%, -50%);
+}
+
+/* Out to the far point and back again, on one long keyframe rather than an
+   alternating one. Alternating would have run the headings backwards on the way
+   home; here the return leg carries its own headings, a hundred and eighty
+   degrees off the outward ones, and there is a beat at each end where the mark
+   stands still and turns itself around. */
+.quick-tall .quick-travel {
+  animation: quick-tall 8.4s linear infinite;
+}
+
+.quick-tall .quick-heading {
+  animation: quick-tall-heading 8.4s linear infinite;
+}
+
+.quick-wide .quick-travel {
+  animation: quick-wide 8.4s linear infinite;
+}
+
+.quick-wide .quick-heading {
+  animation: quick-wide-heading 8.4s linear infinite;
 }
 
 /* The needle keeps its drift, on a shorter loop than the splash's. A compass
@@ -299,7 +396,7 @@ html[data-boot="quick"] #boot-veil {
 
    fill-box, so both of these turn about the needle's own middle. The default
    reference box for an SVG element is the whole viewBox, which would have swung
-   the needle about a corner of the map. */
+   the needle about a corner of the drawing. */
 .quick-needle,
 .quick-heading {
   transform-box: fill-box;
@@ -310,118 +407,339 @@ html[data-boot="quick"] #boot-veil {
   animation: boot-drift 3.4s ease-in-out infinite;
 }
 
-/* The needle turns to the heading: the tangent of the route at each of the same
-   points the mark is walked through, so it leads into every bend and comes out
-   of it pointing the new way. */
-.quick-heading {
-  animation: quick-heading 4.2s linear infinite;
-}
-
-/* The mark walks the route on nine points sampled off the same curve the dashed
-   line is drawn from, and it goes out and back rather than round: a journey that
-   reached the far point and reappeared at the near one blinked, and a blink is
-   the one thing a veil covering a blank moment cannot afford.
-   Not animateMotion, which stopped on an iPhone, and not offset-path, which is
-   younger than some of the phones this runs on. */
-.quick-travel {
-  /* One direction, and it fades in at the near point and out at the far one
-     rather than running out and back. Out and back meant the needle spent half
-     its time pointing behind itself; a hard loop blinked, and a blink is the one
-     thing a veil covering a blank moment cannot afford. */
-  /* Linear, because the points were sampled at even steps along the curve: an
-     ease on top of them would slow and hurry between every pair of them. */
-  animation: quick-travel 4.2s linear infinite;
-}
-
-@keyframes quick-travel {
+@keyframes quick-tall {
   0% {
-    opacity: 0;
-    transform: translate(40px, 348px);
+    transform: translate(20%, 91.58%);
   }
-  7% {
-    opacity: 1;
+  3.75% {
+    transform: translate(28.75%, 83.62%);
   }
-  90% {
-    opacity: 1;
+  7.5% {
+    transform: translate(48%, 78.42%);
   }
-  8.333% {
-    transform: translate(57.5px, 317.8px);
+  11.25% {
+    transform: translate(67.25%, 73.22%);
   }
-  16.67% {
-    transform: translate(96px, 298px);
+  15% {
+    transform: translate(76%, 65.26%);
   }
-  25% {
-    transform: translate(134.5px, 278.2px);
+  18.75% {
+    transform: translate(67.88%, 57.12%);
   }
-  33.33% {
-    transform: translate(152px, 248px);
+  22.5% {
+    transform: translate(50%, 51.45%);
   }
-  41.67% {
-    transform: translate(135.8px, 217.1px);
+  26.25% {
+    transform: translate(32.12%, 45.58%);
+  }
+  30% {
+    transform: translate(24%, 36.84%);
+  }
+  33.75% {
+    transform: translate(31.97%, 28.42%);
+  }
+  37.5% {
+    transform: translate(49.5%, 23.16%);
+  }
+  41.25% {
+    transform: translate(67.03%, 17.89%);
+  }
+  45% {
+    transform: translate(75%, 9.47%);
   }
   50% {
-    transform: translate(100px, 195.5px);
+    transform: translate(75%, 9.47%);
   }
-  58.33% {
-    transform: translate(64.2px, 173.2px);
+  53.75% {
+    transform: translate(67.03%, 17.89%);
   }
-  66.67% {
-    transform: translate(48px, 140px);
+  57.5% {
+    transform: translate(49.5%, 23.16%);
   }
-  75% {
-    transform: translate(63.9px, 108px);
+  61.25% {
+    transform: translate(31.97%, 28.42%);
   }
-  83.33% {
-    transform: translate(99px, 88px);
+  65% {
+    transform: translate(24%, 36.84%);
   }
-  91.67% {
-    transform: translate(134.1px, 68px);
+  68.75% {
+    transform: translate(32.12%, 45.58%);
+  }
+  72.5% {
+    transform: translate(50%, 51.45%);
+  }
+  76.25% {
+    transform: translate(67.88%, 57.12%);
+  }
+  80% {
+    transform: translate(76%, 65.26%);
+  }
+  83.75% {
+    transform: translate(67.25%, 73.22%);
+  }
+  87.5% {
+    transform: translate(48%, 78.42%);
+  }
+  91.25% {
+    transform: translate(28.75%, 83.62%);
+  }
+  95% {
+    transform: translate(20%, 91.58%);
   }
   100% {
-    opacity: 0;
-    transform: translate(150px, 36px);
+    transform: translate(20%, 91.58%);
   }
 }
 
-@keyframes quick-heading {
+@keyframes quick-tall-heading {
   0% {
     transform: rotate(0deg);
   }
-  8.333% {
+  3.75% {
     transform: rotate(53.6deg);
   }
-  16.67% {
+  7.5% {
     transform: rotate(66.8deg);
   }
-  25% {
+  11.25% {
     transform: rotate(53.6deg);
   }
-  33.33% {
+  15% {
     transform: rotate(0deg);
   }
-  41.67% {
+  18.75% {
     transform: rotate(-50deg);
   }
-  50% {
+  22.5% {
     transform: rotate(-62.6deg);
   }
-  58.33% {
+  26.25% {
     transform: rotate(-48.3deg);
   }
-  66.67% {
+  30% {
     transform: rotate(0deg);
   }
-  75% {
+  33.75% {
     transform: rotate(50.1deg);
   }
-  83.33% {
+  37.5% {
     transform: rotate(64.8deg);
   }
-  91.67% {
+  41.25% {
     transform: rotate(50.1deg);
   }
-  100% {
+  45% {
     transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+  53.75% {
+    transform: rotate(230.1deg);
+  }
+  57.5% {
+    transform: rotate(244.8deg);
+  }
+  61.25% {
+    transform: rotate(230.1deg);
+  }
+  65% {
+    transform: rotate(180deg);
+  }
+  68.75% {
+    transform: rotate(131.7deg);
+  }
+  72.5% {
+    transform: rotate(117.4deg);
+  }
+  76.25% {
+    transform: rotate(130deg);
+  }
+  80% {
+    transform: rotate(180deg);
+  }
+  83.75% {
+    transform: rotate(233.6deg);
+  }
+  87.5% {
+    transform: rotate(246.8deg);
+  }
+  91.25% {
+    transform: rotate(233.6deg);
+  }
+  95% {
+    transform: rotate(180deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes quick-wide {
+  0% {
+    transform: translate(8.42%, 82%);
+  }
+  3.75% {
+    transform: translate(17.04%, 78.25%);
+  }
+  7.5% {
+    transform: translate(23.68%, 70%);
+  }
+  11.25% {
+    transform: translate(30.33%, 61.75%);
+  }
+  15% {
+    transform: translate(38.95%, 58%);
+  }
+  18.75% {
+    transform: translate(47.57%, 53.62%);
+  }
+  22.5% {
+    transform: translate(54.21%, 44%);
+  }
+  26.25% {
+    transform: translate(60.86%, 34.38%);
+  }
+  30% {
+    transform: translate(69.47%, 30%);
+  }
+  33.75% {
+    transform: translate(77.81%, 27.61%);
+  }
+  37.5% {
+    transform: translate(83.29%, 22.12%);
+  }
+  41.25% {
+    transform: translate(87.38%, 16.08%);
+  }
+  45% {
+    transform: translate(91.58%, 12%);
+  }
+  50% {
+    transform: translate(91.58%, 12%);
+  }
+  53.75% {
+    transform: translate(87.38%, 16.08%);
+  }
+  57.5% {
+    transform: translate(83.29%, 22.12%);
+  }
+  61.25% {
+    transform: translate(77.81%, 27.61%);
+  }
+  65% {
+    transform: translate(69.47%, 30%);
+  }
+  68.75% {
+    transform: translate(60.86%, 34.38%);
+  }
+  72.5% {
+    transform: translate(54.21%, 44%);
+  }
+  76.25% {
+    transform: translate(47.57%, 53.62%);
+  }
+  80% {
+    transform: translate(38.95%, 58%);
+  }
+  83.75% {
+    transform: translate(30.33%, 61.75%);
+  }
+  87.5% {
+    transform: translate(23.68%, 70%);
+  }
+  91.25% {
+    transform: translate(17.04%, 78.25%);
+  }
+  95% {
+    transform: translate(8.42%, 82%);
+  }
+  100% {
+    transform: translate(8.42%, 82%);
+  }
+}
+
+@keyframes quick-wide-heading {
+  0% {
+    transform: rotate(90deg);
+  }
+  3.75% {
+    transform: rotate(64.1deg);
+  }
+  7.5% {
+    transform: rotate(53.1deg);
+  }
+  11.25% {
+    transform: rotate(64.1deg);
+  }
+  15% {
+    transform: rotate(90deg);
+  }
+  18.75% {
+    transform: rotate(60.4deg);
+  }
+  22.5% {
+    transform: rotate(48.8deg);
+  }
+  26.25% {
+    transform: rotate(60.4deg);
+  }
+  30% {
+    transform: rotate(90deg);
+  }
+  33.75% {
+    transform: rotate(71deg);
+  }
+  37.5% {
+    transform: rotate(54.3deg);
+  }
+  41.25% {
+    transform: rotate(53.5deg);
+  }
+  45% {
+    transform: rotate(76deg);
+  }
+  50% {
+    transform: rotate(256deg);
+  }
+  53.75% {
+    transform: rotate(233.5deg);
+  }
+  57.5% {
+    transform: rotate(234.3deg);
+  }
+  61.25% {
+    transform: rotate(251deg);
+  }
+  65% {
+    transform: rotate(270deg);
+  }
+  68.75% {
+    transform: rotate(240.4deg);
+  }
+  72.5% {
+    transform: rotate(228.8deg);
+  }
+  76.25% {
+    transform: rotate(240.4deg);
+  }
+  80% {
+    transform: rotate(270deg);
+  }
+  83.75% {
+    transform: rotate(244.1deg);
+  }
+  87.5% {
+    transform: rotate(233.1deg);
+  }
+  91.25% {
+    transform: rotate(244.1deg);
+  }
+  95% {
+    transform: rotate(270deg);
+  }
+  100% {
+    transform: rotate(450deg);
   }
 }
 
@@ -1064,17 +1382,23 @@ html[data-boot="quick"] #boot-veil {
   }
 
   .quick-route,
-  .quick-needle {
-    animation: none;
-  }
-
-  .quick-travel {
-    animation: none;
-    transform: translate(48px, 140px);
-  }
-
+  .quick-needle,
   .quick-heading {
     animation: none;
+  }
+
+  /* Parked halfway along, rather than stopped at the start line: the point of
+     the picture is a journey underway, and that survives being still. */
+  .quick-travel {
+    animation: none;
+  }
+
+  .quick-tall .quick-travel {
+    transform: translate(50%, 51.45%);
+  }
+
+  .quick-wide .quick-travel {
+    transform: translate(54.21%, 44%);
   }
 
   /* One word, standing still. The turn is the whole animation, so there is
