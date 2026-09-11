@@ -106,6 +106,30 @@ const SLOTS = ["Meal", "Something to do", "Getting around", "Where you stay"];
 const PACK_LABEL = "Pack";
 const TIP_LABEL = "Tip";
 
+/**
+ * The follow-up asked only of the answer that knew nothing.
+ *
+ * The generic answer is a reference reading, and on its own it is easy to read
+ * charitably: four plausible choices about a real place, and nothing on the
+ * screen saying what is wrong with them. This asks the same model to mark the
+ * rows that the onboarding answers rule out, and to say which answer rules each
+ * one out -- which is the difference the interview made, stated against the
+ * generic plan rather than inferred from the good one.
+ *
+ * Rows are marked only where there is something to mark. A generic choice that
+ * happens to suit the family is left alone, and a run with nothing captured
+ * never asks the question at all, because a screen that manufactures four
+ * objections whatever the family said is the straw man this screen already
+ * stopped showing.
+ */
+const MISFIT_SHAPE = `Reply with one line per row you are marking, and nothing else:
+
+LABEL | WHY NOT
+
+LABEL is copied exactly from the row you are marking. WHY NOT is one sentence, at most twenty-two words, naming the specific thing this family told us that rules the choice out or makes it a poor fit -- the preference, the age, the limit, the hour. Quote or name their own answer; do not write a general objection that would apply to any family.
+
+Mark only rows where there is a real conflict with what they told us. Leave a row out when the choice happens to suit them, and leave it out when your objection would be a guess. If no row conflicts, reply with exactly NONE and nothing else.`;
+
 const PLAN_SHAPE = `Answer as a plan, not a paragraph. Exactly nine rows, one per line, each in this shape:
 
 LABEL | WHAT | WHY
@@ -344,6 +368,10 @@ export async function POST(req) {
   const withSystem = `${baseSystem}\n\nWhat you know about the family:\n${familyLinesText || "(nothing extra)"}\n\nThe family's travel preferences from their interview:\n${prefsText || "(no preferences recorded)"}\n\nEvery WHY must name the specific thing about this family that drove the choice -- the preference, the age, the limit, the hour they said they get up. "Well reviewed" and "a local favorite" are not reasons here; those are what the answer looks like without an interview. If a preference rules something out, the WHY may say what you are avoiding and why.`;
 
   const deadline = Date.now() + DEADLINE_MS;
+  // What onboarding actually captured, as one block. Used to decide whether the
+  // second pass below is worth asking for at all: with nothing captured there is
+  // nothing to hold the generic answer against.
+  const captured = [familyLinesText, prefsText].filter(Boolean).join("\n\n");
 
   // One call. A failure returns null and the client shows its own retry rather
   // than an empty card, because there is no longer a second answer to carry the
@@ -357,6 +385,57 @@ export async function POST(req) {
   }).catch(() => null);
 
   const parsed = split(planRows(withRes?.text));
+
+  // Second pass, generic runs only: which of those four choices the onboarding
+  // answers rule out, and why. Skipped when nothing was captured, when the plan
+  // came back unparsable, and when the first call left too little of the
+  // deadline for a short second one -- in all three cases the card simply shows
+  // the generic plan with nothing marked, which is what it did before.
+  let clashRows = [];
+  if (
+    generic &&
+    captured &&
+    parsed.day.length &&
+    Date.now() < deadline - 6000
+  ) {
+    const rows = parsed.day
+      .map((row) => `${row.when} | ${row.what}`)
+      .join("\n");
+    const misfitRes = await generate({
+      system: `You are Aly, a travel assistant. Answer in American English. No emoji, no preamble.\n\n${MISFIT_SHAPE}`,
+      messages: [
+        {
+          role: "user",
+          text: `This is what we know about the family:\n${captured}\n\nThese four choices were made for a day in ${destination} by someone who knew none of that:\n${rows}\n\nWhich of them would not work for this family, and why?`,
+        },
+      ],
+      tools: [],
+      grounded: false,
+      deadline,
+    }).catch(() => null);
+    const text = (misfitRes?.text || "").trim();
+    if (!/^none\b/i.test(text)) {
+      const labels = parsed.day.map((row) => row.when.toLowerCase());
+      const seen = new Set();
+      clashRows = planRows(text)
+        // The label has to be one of the four rows on screen, or the objection
+        // has nothing to attach itself to. A model that renames the slot is
+        // dropped rather than shown floating above the plan.
+        .filter((row) => labels.includes(row.when.toLowerCase()))
+        .filter((row) => {
+          const key = row.when.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map((row) => ({
+          what: row.when,
+          why: [row.what, row.why].filter(Boolean).join(" ").trim(),
+        }))
+        .filter((row) => row.why)
+        .slice(0, 4);
+    }
+  }
 
   return NextResponse.json({
     ok: true,
@@ -375,6 +454,10 @@ export async function POST(req) {
     withPrefsRows: parsed.day,
     packRows: parsed.pack,
     tipRows: parsed.tips,
+    // Only ever populated on a generic run, and empty when nothing about the
+    // family contradicted the answer. The client heads the list only when there
+    // is something in it.
+    clashRows,
     preferenceCount: generic || !prefsText ? 0 : prefsText.split("\n").length,
   });
 }

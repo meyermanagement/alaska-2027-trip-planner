@@ -626,6 +626,17 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               {generic.tipRows?.length > 0 && (
                 <Extras label="Pro tips" rows={generic.tipRows} />
               )}
+              {/* Only present when the run found something to mark. An answer
+                  that knew nothing and still happened to suit the family gets
+                  no objections invented for it, and a rehearsal with nothing
+                  captured yet never asks the question. */}
+              {generic.clashRows?.length > 0 && (
+                <Extras
+                  label="What this gets wrong about you"
+                  rows={generic.clashRows}
+                  note="Each line names the answer from onboarding that rules the choice out."
+                />
+              )}
             </article>
           )}
         </section>
