@@ -1384,8 +1384,8 @@ export default function InterviewBody({
               <MomentsPanel
                 moments={moments}
                 setMoments={setMoments}
-                examples={question.examples || []}
-                placeholder={question.placeholder || ""}
+                rows={question.rows || []}
+                extraRow={question.extraRow || null}
                 focusRef={focusRef}
               />
             ) : (
@@ -2354,109 +2354,92 @@ function Recap({ answers }) {
   );
 }
 
-// The moments panel is a short vertical list of textareas the primary can fill
-// in in any order. A blank row is always kept at the bottom so there is always
-// somewhere to type without hunting for an add button, and each non-empty row
-// gets a small remove control so a stray line does not have to be saved. A
-// short strip of example chips sits underneath for somebody who freezes at the
-// question, showing the kind of thing that belongs in the box; they are not
-// tappable, because the answer has to be the family's own memory.
+// The moments panel is one box per prompt. Three identical blanks under one
+// instruction ask the same question three times and usually get one answer, so
+// each box carries its own heading -- a meal, a morning, a place worth going
+// back to -- and its own specimen in the placeholder. Anything typed in the last
+// box opens another under it, headed for whatever else is worth remembering.
+//
+// The three prompted boxes are always shown and never removable: they are the
+// question, not rows somebody added, and a blank one costs nothing because empty
+// boxes are dropped before saving. Rows past them get a remove control.
+//
+// The examples used to sit underneath as a strip of unclickable chips. A
+// specimen belongs in the box it is a specimen of, where nobody can mistake it
+// for something to tap, and moving them there took a paragraph of explanation
+// off the screen.
 //
 // The panel keeps its state at the parent level (`moments` on InterviewBody),
 // which is why setMoments is passed in rather than kept here. That way the
 // cleaned list is available to the submit function without needing a ref, and
-// advancing to the next question (which resets moments to [""]) does not leave
-// stale rows behind if the primary comes back to a fresh interview.
-function MomentsPanel({
-  moments,
-  setMoments,
-  examples,
-  placeholder,
-  focusRef,
-}) {
+// advancing to the next question does not leave stale rows behind if the
+// primary comes back to a fresh interview.
+function MomentsPanel({ moments, setMoments, rows, extraRow, focusRef }) {
+  const prompts = Array.isArray(rows) ? rows : [];
+  const extra = extraRow || { heading: "Anything else", placeholder: "" };
+  // Every prompt is on screen even before anything is typed, so the list is at
+  // least as long as the prompts. Padding here rather than in the parent's
+  // state keeps the saved answer honest: what gets written is still whatever
+  // the primary actually typed.
+  const shown = Array.isArray(moments) ? moments.slice() : [];
+  while (shown.length < prompts.length + 1) shown.push("");
+  const promptFor = (i) => prompts[i] || extra;
+
   const updateRow = (i, value) => {
-    setMoments((rows) => {
-      const next = rows.slice();
+    setMoments((current) => {
+      const next = Array.isArray(current) ? current.slice() : [];
+      while (next.length <= i) next.push("");
       next[i] = value;
       // Keep one blank row at the end so there is always somewhere to type.
-      // A user who fills in the last row should see an empty one appear.
-      if (i === next.length - 1 && value.trim()) {
-        next.push("");
-      }
+      if (i === next.length - 1 && value.trim()) next.push("");
       return next;
     });
   };
 
   const removeRow = (i) => {
-    setMoments((rows) => {
-      const next = rows.filter((_, idx) => idx !== i);
-      // Never let the list go empty; keep one blank row so the panel does not
-      // collapse to a heading with no field under it.
-      if (next.length === 0 || next[next.length - 1].trim()) {
-        next.push("");
-      }
+    setMoments((current) => {
+      const next = (Array.isArray(current) ? current : []).filter(
+        (_, idx) => idx !== i,
+      );
+      if (next.length === 0 || next[next.length - 1].trim()) next.push("");
       return next;
     });
   };
 
   return (
-    <div className="mt-6 flex flex-col gap-3">
-      {moments.map((row, i) => (
-        <div key={i} className="flex items-start gap-2">
-          <textarea
-            ref={i === 0 ? focusRef : null}
-            rows={2}
-            value={row}
-            onChange={(e) => updateRow(i, e.target.value)}
-            placeholder={i === 0 ? placeholder : "Another moment. (Optional.)"}
-            className="w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
-            aria-label={`Favorite moment ${i + 1}`}
-          />
-          {row.trim() && (
-            <button
-              type="button"
-              onClick={() => removeRow(i)}
-              className="mt-2 shrink-0 text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
-              aria-label={`Remove favorite moment ${i + 1}`}
-            >
-              Remove
-            </button>
-          )}
-        </div>
-      ))}
-
-      {/* Chip-shaped, and deliberately not tappable. A favorite moment is the
-          family's own memory, so pasting one of these in verbatim would put a
-          stranger's sentence on the person's page and teach Aly something that
-          never happened -- which is why there is no onClick here and these are
-          spans rather than buttons.
-
-          They keep the chip shape because that is what tells somebody at a
-          glance that these are specimens of the answer rather than instructions
-          about it: a run of short rounded phrases reads as "things of the kind
-          you are being asked for" in a way that a bulleted list of sentences
-          does not. The border is dashed and there is no hover state, so the
-          shape says sample and the surface says do not press. */}
-      {examples.length > 0 && (
-        <div className="mt-1">
-          <p className="section-label text-ink-soft">
-            The kind of thing that goes here
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {examples.map((line) => (
-              <span
-                key={line}
-                className="rounded-full border border-dashed border-sand-deep bg-white/60 px-3 py-1.5 text-left text-sm text-ink-soft"
-              >
-                {line}
+    <div className="mt-6 flex flex-col gap-4">
+      {shown.map((row, i) => {
+        const prompt = promptFor(i);
+        const removable = i >= prompts.length && Boolean(row.trim());
+        return (
+          <div key={i}>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-display text-sm text-ink">
+                {prompt.heading}
               </span>
-            ))}
+              {removable && (
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  className="shrink-0 text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
+                  aria-label={`Remove ${prompt.heading.toLowerCase()}`}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <textarea
+              ref={i === 0 ? focusRef : null}
+              rows={2}
+              value={row}
+              onChange={(e) => updateRow(i, e.target.value)}
+              placeholder={prompt.placeholder || ""}
+              className="mt-1 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+              aria-label={prompt.heading}
+            />
           </div>
-          <p className="mt-2 text-xs text-ink-faint">
-            Examples, not options. Yours should be your own.
-          </p>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 }
