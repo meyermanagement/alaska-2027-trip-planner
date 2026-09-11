@@ -187,9 +187,13 @@ function Extras({ label, rows, note, at = 0 }) {
  * most likely to want a second look at it.
  */
 const SUGGESTED_PLACES = [
-  { label: "Paris", destination: "Paris, France" },
-  { label: "Maui", destination: "Maui, Hawaii" },
-  { label: "Disney World", destination: "Walt Disney World, Florida" },
+  // Each label says where the place is. The row was mixing three kinds of name
+  // -- a city, an island and a resort on their own beside two countries -- so
+  // "Maui" next to "Iceland" left a person supplying the state themselves.
+  // Iceland and South Africa are countries and already say it.
+  { label: "Paris, France", destination: "Paris, France" },
+  { label: "Maui, Hawaii", destination: "Maui, Hawaii" },
+  { label: "Disney World, Florida", destination: "Walt Disney World, Florida" },
   { label: "Iceland", destination: "Reykjavik, Iceland" },
   {
     label: "Safari in South Africa",
