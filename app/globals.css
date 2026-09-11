@@ -81,6 +81,24 @@
   --disc-shadow:
     0 2px 6px rgba(20, 32, 30, 0.2), 0 10px 20px rgba(20, 32, 30, 0.26),
     0 20px 44px rgba(20, 32, 30, 0.4);
+
+  /* The same disc, with the menu open. Closed it is the lightest thing on the
+     screen, which is right: it is one control lying on the page. Open, it is
+     the left cap of the pill carrying the search field, and every other pill
+     in the menu is frosted near-white as well -- so at that moment a white cap
+     sat inside a white shape on a page that had been dimmed behind it, and
+     none of the three read as being in front of the others. A step down in
+     lightness is what separates them. Ink text and the search field's own
+     placeholder still clear AA on it, which is why this is a light slate
+     rather than an actual dark surface. */
+  --disc-face-open: rgba(203, 219, 222, 0.95);
+
+  /* The veil under an open menu. Was ink at three tenths with a 3px blur,
+     which on a light skin took the page down about as far as a cloud does.
+     Deeper and blurrier, so the pills in front of it are plainly in front of
+     it, while the page is still recognisably there underneath. */
+  --arc-scrim: rgba(16, 38, 43, 0.46);
+  --arc-scrim-blur: 5px;
 }
 
 html,
@@ -2770,6 +2788,12 @@ html[data-skin="aurora"] {
     inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 0 1px rgba(8, 12, 18, 0.65),
     0 8px 18px rgba(0, 0, 0, 0.7), 0 18px 40px rgba(0, 0, 0, 0.6);
 
+  /* A dark skin steps the open cap the other way -- up, not down -- because
+     the panel it caps is a lifted slate and the page behind it is near-black.
+     Same rule as the light skins: the cap must not match the pill it sits in. */
+  --disc-face-open: rgba(58, 78, 98, 0.96);
+  --arc-scrim: rgba(4, 7, 11, 0.6);
+
   /* The plate. A photograph is already dark here, so it needs less taking
      down and the map underneath can come up to full strength. */
   --on-photo: #e9eff3;
@@ -3163,6 +3187,9 @@ html[data-skin="sodium"] {
     inset 0 1px 0 rgba(255, 240, 220, 0.18), 0 0 0 1px rgba(16, 12, 10, 0.7),
     0 8px 18px rgba(0, 0, 0, 0.72), 0 18px 40px rgba(0, 0, 0, 0.62);
 
+  --disc-face-open: rgba(84, 64, 48, 0.96);
+  --arc-scrim: rgba(12, 9, 7, 0.62);
+
   --on-photo: #f7f0e7;
   --photo-filter: sepia(0.28) saturate(0.85) contrast(1.1) brightness(0.68);
   --photo-opacity: 0.76;
@@ -3279,8 +3306,13 @@ html[data-skin="sodium"] #boot-veil {
 }
 
 .menu-arc {
-  --arc-face: rgba(251, 253, 253, 0.78);
-  --arc-edge: rgba(251, 253, 253, 0.8);
+  /* Frosted, and a step down from the page rather than a step up from it. The
+     pills used to be near-white at three quarters opacity over a barely-dimmed
+     page, so the whole open menu read as one pale wash; the subtitles were the
+     only thing telling a pill from what was behind it. The rim goes the other
+     way -- brighter than the face -- so each pill keeps a lit edge. */
+  --arc-face: rgba(203, 219, 222, 0.94);
+  --arc-edge: rgba(255, 255, 255, 0.7);
   --arc-shadow:
     0 1px 3px rgba(16, 38, 43, 0.16), 0 10px 24px rgba(16, 38, 43, 0.26);
 }
@@ -3290,7 +3322,7 @@ html[data-skin="sodium"] #boot-veil {
    blur has nothing bright behind it to frost. Same correction, and the same
    reason, as the two floating discs above. */
 html[data-skin="aurora"] .menu-arc {
-  --arc-face: rgba(46, 62, 78, 0.86);
+  --arc-face: rgba(46, 62, 78, 0.93);
   --arc-edge: rgba(233, 239, 243, 0.28);
   --arc-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 8px rgba(0, 0, 0, 0.6),
@@ -3372,6 +3404,11 @@ html[data-skin="sodium"] .menu-arc {
 .arc-out .arc-pill {
   transform-origin: 0% 100%;
   animation: arc-node-out 0.13s ease-in forwards;
+}
+.arc-scrim {
+  background: var(--arc-scrim);
+  backdrop-filter: blur(var(--arc-scrim-blur, 5px));
+  -webkit-backdrop-filter: blur(var(--arc-scrim-blur, 5px));
 }
 .arc-in .arc-scrim {
   animation: arc-scrim-in 0.18s ease backwards;

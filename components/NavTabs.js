@@ -849,9 +849,12 @@ export default function NavTabs({
             type="button"
             aria-label="Close the menu"
             onClick={() => setOpen(false)}
-            /* Lighter than the scrim under a sheet, and blurred rather than
-               darkened: the page is meant to still be there. */
-            className="arc-scrim absolute inset-0 bg-ink/30 backdrop-blur-[3px]"
+            /* Face and blur come from --arc-scrim in the stylesheet, so each
+               skin sets its own: a light skin needs the page taken down far
+               enough that the frosted pills are plainly in front of it, and a
+               dark skin needs less of that and a colder black. The page is
+               still meant to be there underneath. */
+            className="arc-scrim absolute inset-0"
           />
           <div
             ref={sheetRef}
@@ -1072,7 +1075,7 @@ export default function NavTabs({
           <div
             className={`pointer-events-auto relative flex items-center transition-[background-color,border-color,box-shadow,padding,gap] duration-200 ${
               open
-                ? "h-14 flex-1 gap-1 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] pr-3 shadow-[var(--disc-shadow)]"
+                ? "h-14 flex-1 gap-1 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face-open)] pr-3 shadow-[var(--disc-shadow)]"
                 : "h-14 w-14"
             }`}
           >
