@@ -1062,30 +1062,18 @@ export default function InterviewBody({
           </div>
         ) : (
           <div className="w-full">
-            {/* One-time honesty note above the FIRST question only. The
-              interview writes to a person's travel file and Aly plans
-              against it later, so a chip picked because it sounded nice
-              rather than because it is true will narrow the recommendations
-              in ways nobody wanted. The rule is short here so it can be read
-              once and remembered: only tick what is actually true, short
-              answers are fine, and an over-restrictive answer can taper
-              Aly's suggestions enough that a later recommendation is off. */}
-            {index === 0 && (
-              <div
-                role="note"
-                className="mb-6 rounded-2xl border border-sand-deep bg-sand-soft/60 px-4 py-3 text-sm leading-relaxed text-ink-soft"
-              >
-                <p className="font-display text-ink">
-                  Only tick what is actually true.
-                </p>
-                <p className="mt-1">
-                  Short answers are fine and a blank is fine. If you pick
-                  something too specific because it sounded good, I will plan
-                  around it, and a suggestion further down the line will come
-                  back a little off.
-                </p>
-              </div>
-            )}
+            {/* No standing honesty note above the first question. There used
+              to be one -- "Only tick what is actually true", with a paragraph
+              about over-specific answers -- and it was wrong in two ways at
+              once. It appeared above the pace question, which is a single pick
+              with nothing to tick, so the one instruction it gave described a
+              control that was not on the screen. And where ticking is real the
+              multi panel already says it under the cards, live, with the count
+              and with the better version of the warning: what you leave out I
+              will not lead with, rather than rule out. A preamble that repeats
+              a contextual line is the copy people learn to skip, and it pushed
+              the actual question five lines down a phone. The guidance stays;
+              it lives where the ticking happens. */}
             {aboutMePrior && (
               <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
                 <p className="font-display text-ink">
@@ -1590,10 +1578,18 @@ function MultiPanel({ question, order, onTap }) {
 // hour on the row.
 //
 // Neither handle can cross the other, and neither can push the day below the
-// question's minimum span: the start input's ceiling is the end minus the span
-// and the end input's floor is the start plus it. Enforcing it in the inputs'
-// own bounds rather than after the fact means a drag stops at the limit
-// instead of being snapped back from somewhere it was allowed to reach.
+// question's minimum span. That used to be enforced by narrowing each input's
+// own bounds -- the start input's max was the end minus the span -- which was
+// wrong in a way that only shows up when you drag it: a native range thumb
+// sits at (value - min) / (max - min) of its track, so moving one handle
+// changed the OTHER input's range and slid its thumb across the screen while
+// the hour it stood for never moved. Both handles appeared to move whichever
+// one you dragged.
+//
+// So both inputs now run the full width of the day, and the span is enforced
+// in the change handler by clamping: drag the end handle down into the start
+// and it stops four hours away from it, with the start handle left exactly
+// where it was. One handle moves, and it is the one under the finger.
 function DayBandPanel({ question, band, onChange }) {
   const min = question.min ?? BAND_MIN;
   const max = question.max ?? BAND_MAX;
@@ -1640,21 +1636,31 @@ function DayBandPanel({ question, band, onChange }) {
           type="range"
           className="band-input"
           min={min}
-          max={end - span}
+          max={max}
           step={step}
           value={start}
-          onChange={(e) => onChange({ start: Number(e.target.value), end })}
+          onChange={(e) =>
+            onChange({
+              start: Math.min(Number(e.target.value), end - span),
+              end,
+            })
+          }
           aria-label={question.startLabel || "The day starts"}
           aria-valuetext={formatClock(start)}
         />
         <input
           type="range"
           className="band-input"
-          min={start + span}
+          min={min}
           max={max}
           step={step}
           value={end}
-          onChange={(e) => onChange({ start, end: Number(e.target.value) })}
+          onChange={(e) =>
+            onChange({
+              start,
+              end: Math.max(Number(e.target.value), start + span),
+            })
+          }
           aria-label={question.endLabel || "The day ends"}
           aria-valuetext={formatClock(end)}
         />
