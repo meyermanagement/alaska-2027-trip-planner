@@ -649,9 +649,10 @@ export async function POST(request) {
               ? rawText
               : opt
                 ? // The abstract answer when the option's label is an
-                  // illustration, so "A kayak on the water" is not filed as a
-                  // preference for kayaking. Labels without a sentence say the
-                  // preference plainly already.
+                  // a picture of the preference rather than the preference
+                  // itself, so a question about crowds is not filed as a
+                  // preference for nine in the morning. Labels without a
+                  // sentence say the preference plainly already.
                   opt.sentence || opt.label
                 : "";
       if (!answerText) {
