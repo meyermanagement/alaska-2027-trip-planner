@@ -1175,6 +1175,7 @@ export default function InterviewBody({
                 {pickedValue && (
                   <WhyPanel
                     choice={pickedValue}
+                    choices={order}
                     question={question}
                     whys={whys}
                     setWhys={setWhys}
@@ -1309,6 +1310,15 @@ export default function InterviewBody({
 // argue against the answer just picked, and stacking them into the reason
 // would contradict it.
 const MORE_CAP = 10;
+
+// How many hand-written chips the primary row shows at once. One option's
+// worth is three, so a single pick is never trimmed; a question that takes
+// three ticks would otherwise reach nine chips, which on a phone is nine
+// stacked lines between the question and the box where the family types the
+// part the chips cannot say. The share is split evenly across the ticks
+// rather than taken off the top, so the last option ticked is represented
+// instead of scrolled away.
+const PRIMARY_CAP = 6;
 
 // Client-side twin of the server's signatureOf in
 // app/api/interview/suggest/route.js. Same intent: two chips that only differ
@@ -1546,6 +1556,7 @@ function RankPanel({ question, order, onTap, clearRank }) {
 
 function WhyPanel({
   choice,
+  choices,
   question,
   whys,
   setWhys,
@@ -1558,17 +1569,53 @@ function WhyPanel({
   // Something-else branch never renders this panel -- the caller shows a
   // plain textarea for that case -- so this component only handles a real
   // option pick.
+  //
+  // `choice` is the one answer the chips used to hang off. On a question that
+  // takes several ticks, `choices` carries all of them in tick order and every
+  // ticked option contributes its own reasons: a family that ticked the rental
+  // and the hotel has two reasons to explain, and showing only the first one's
+  // chips told them the second tick did not count. Deduped by SIGNATURE across
+  // ticks, because two options on the same question can carry reasons that
+  // plan the same day in different words, and the same chip twice in one row
+  // reads like a bug.
+  //
   // The base suggestions ship with the question, hand-written in a family
   // voice. personalizeReasons swaps the stock "the kids" and "we" tokens for
   // the family's actual names when we know them, so the chip reads as if Aly
-  // knew who she was writing to rather than a stock questionnaire. Called on
-  // every render because the chip list is small; there is no cost worth
-  // memoizing over.
-  const primary = (() => {
-    const opt = (question.options || []).find((o) => o.value === choice);
-    const raw = (opt && opt.reasons) || [];
-    return personalizeReasons(raw, context);
-  })();
+  // knew who she was writing to rather than a stock questionnaire.
+  //
+  // The owner map records which ticked option each chip came from, so a
+  // follow-up request asks about the right option rather than about whichever
+  // one happened to be ticked first.
+  const { primary, chipOwners } = useMemo(() => {
+    const chosen = (
+      Array.isArray(choices) && choices.length > 0 ? choices : [choice]
+    ).filter(Boolean);
+    const share = Math.max(
+      1,
+      Math.ceil(PRIMARY_CAP / Math.max(1, chosen.length)),
+    );
+    const seen = new Set();
+    const list = [];
+    const owners = new Map();
+    for (const value of chosen) {
+      const opt = (question.options || []).find((o) => o.value === value);
+      let taken = 0;
+      for (const chip of personalizeReasons(
+        (opt && opt.reasons) || [],
+        context,
+      )) {
+        if (taken >= share) break;
+        const sig = signatureOf(chip);
+        if (!sig || seen.has(sig)) continue;
+        seen.add(sig);
+        list.push(chip);
+        owners.set(chip.toLowerCase(), value);
+        taken += 1;
+      }
+    }
+    return { primary: list, chipOwners: owners };
+  }, [question, choices, choice, context]);
 
   // A question can ship with no reason chips at all -- the money question does,
   // because chips on an ordered answer would look like they explained the whole
@@ -1591,14 +1638,15 @@ function WhyPanel({
   const [pool, setPool] = useState(() => ({}));
   const [pendingKeys, setPendingKeys] = useState(() => new Set());
 
-  // v3 keys start with a version tag so old cached entries generated before
+  // v4 keys start with a version tag so old cached entries generated before
   // the prompt was tightened don't survive across page loads or refreshes.
-  // Bump when the /api/interview/suggest prompt changes materially. v3 is
-  // the variations-over-rephrasings rewrite of the follow-up prompt paired
-  // with the redundancy filter on the server.
+  // Bump when the /api/interview/suggest prompt changes materially. v4 drops
+  // the option from the key: a chip's text already belongs to exactly one
+  // option, and keying on the pick meant the same chip cached twice on a
+  // question where several options can be ticked at once.
   const keyFor = useCallback(
-    (chip) => `v3::${question.slot}::${choice}::${chip.toLowerCase()}`,
-    [question.slot, choice],
+    (chip) => `v4::${question.slot}::${chip.toLowerCase()}`,
+    [question.slot],
   );
 
   // When a base chip is picked, ensure we have follow-ups for it. Read from
@@ -1626,8 +1674,15 @@ function WhyPanel({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               slot: question.slot,
-              choice,
+              // The option this chip belongs to, which on a several-tick
+              // question is not always the first one ticked.
+              choice: chipOwners.get(chip.toLowerCase()) || choice,
               chip,
+              // Every chip already on screen, so a follow-up cannot arrive
+              // saying what the row beside it says. The server only knows the
+              // reasons of one option; the row can be showing three options'
+              // worth.
+              showing: primary,
             }),
           });
           const data = await res.json();
@@ -1644,7 +1699,16 @@ function WhyPanel({
         });
       })();
     }
-  }, [pickedPrimary, pendingKeys, cache, choice, keyFor, question.slot]);
+  }, [
+    pickedPrimary,
+    pendingKeys,
+    cache,
+    choice,
+    chipOwners,
+    primary,
+    keyFor,
+    question.slot,
+  ]);
 
   // Assemble the "More" pool. Hand-written otherReasons come first because
   // they are steady, ship with the question, and act as the anchor of the

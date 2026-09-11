@@ -68,9 +68,25 @@ function optionLabel(question, choice) {
   return (opt && opt.label) || "";
 }
 
-function briefFor({ question, choice, chip }) {
+function briefFor({ question, choice, chip, showing }) {
   const label = optionLabel(question, choice);
-  const base = baseSuggestions(question, choice);
+  // Everything on screen, not just this option's own reasons: on a question
+  // that takes several ticks the row beside this chip can belong to another
+  // option entirely, and a follow-up that repeats it reads as a duplicate to
+  // the person looking at the row.
+  const seen = new Set();
+  const base = [];
+  for (const line of [
+    ...baseSuggestions(question, choice),
+    ...(showing || []),
+  ]) {
+    const key = String(line || "")
+      .trim()
+      .toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    base.push(line);
+  }
   const lines = [];
   lines.push(`Question: ${question.prompt}`);
   if (label) lines.push(`They picked: ${label}`);
@@ -222,13 +238,22 @@ export async function POST(request) {
   const slot = typeof body?.slot === "string" ? body.slot.trim() : "";
   const choice = typeof body?.choice === "string" ? body.choice.trim() : "";
   const chip = typeof body?.chip === "string" ? body.chip.trim() : "";
+  // The chips the client is already showing. Optional, capped, and cleaned
+  // rather than trusted, since it only ever feeds a redundancy set and a
+  // do-not-repeat list in the prompt.
+  const showing = (Array.isArray(body?.showing) ? body.showing : [])
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 24);
   if (!slot || !choice || !chip) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
   const question = findQuestion(slot);
-  // Ranked and multi questions carry the same per-option reason chips as
-  // picked ones -- the chips shown are those of first place, or of the first
-  // option ticked -- so follow-ups are generated for them the same way.
+  // Multi questions carry the same per-option reason chips as picked ones --
+  // one option's worth per tick, all in the same row -- so follow-ups are
+  // generated for them the same way, one option at a time. Ranked questions
+  // are still accepted here in case one ever ships with chips again, though
+  // the only ranked question today shows none.
   if (
     !question ||
     (question.kind !== "options" &&
@@ -248,13 +273,16 @@ export async function POST(request) {
   const alreadyKnown = [
     chip,
     ...baseSuggestions(question, choice),
+    ...showing,
     ...(question.otherReasons || []),
   ];
 
   try {
     const result = await callModel({
       system: SYSTEM,
-      messages: [{ role: "user", text: briefFor({ question, choice, chip }) }],
+      messages: [
+        { role: "user", text: briefFor({ question, choice, chip, showing }) },
+      ],
       temperature: 0.3,
       grounded: false,
       thinking: "low",
