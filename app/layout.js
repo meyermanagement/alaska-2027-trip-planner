@@ -4,6 +4,7 @@ import BootVeil from "@/components/BootVeil";
 import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
 import UsageTrail from "@/components/UsageTrail";
 import FeedbackSheet from "@/components/FeedbackSheet";
+import FaultWatch from "@/components/FaultWatch";
 import {
   BAND_COOKIE,
   BOOT_COOKIE,
@@ -151,6 +152,10 @@ export default function RootLayout({ children }) {
         {/* Asleep until the Contact Us row in the menu wakes it. Mounted here
             so a report can be written from any screen without leaving it. */}
         <FeedbackSheet />
+        {/* The reports nobody writes: an uncaught error, a promise nobody
+            answered, or one of this app's own calls coming back broken. Recorded
+            once each per visit, on the same desk as the written reports. */}
+        <FaultWatch />
         <div className="app-shell">{children}</div>
       </body>
     </html>

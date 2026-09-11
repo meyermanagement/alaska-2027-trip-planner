@@ -7,7 +7,7 @@ import { funnel, perPerson, questionDwell } from "@/lib/usage/metrics";
 import { stepLabel } from "@/lib/usage/steps";
 import TopBar from "@/components/TopBar";
 import AdminBody from "./AdminBody";
-import { SHOT_BUCKET } from "@/lib/feedback/shared";
+import { FAULT_KIND, SHOT_BUCKET } from "@/lib/feedback/shared";
 
 export const metadata = { title: "Beta desk · Alyeska" };
 export const dynamic = "force-dynamic";
@@ -59,6 +59,7 @@ export default async function AdminPage() {
           questions={[]}
           testers={[]}
           reports={[]}
+          faults={[]}
           windowDays={WINDOW_DAYS}
         />
       </>
@@ -92,7 +93,7 @@ export default async function AdminPage() {
     admin
       .from("feedback")
       .select(
-        "id, created_at, email, kind, body, path, trip_id, skin, viewport, user_agent, build, trail, shots, status",
+        "id, created_at, email, kind, body, path, trip_id, skin, viewport, user_agent, build, trail, shots, status, seen_count, last_at, detail",
       )
       .order("created_at", { ascending: false })
       .limit(REPORT_CEILING),
@@ -156,14 +157,21 @@ export default async function AdminPage() {
       String(b.lastSignInAt || "").localeCompare(String(a.lastSignInAt || "")),
     );
 
-  const reports = await readReports(admin, reportRows || []);
+  const written = await readReports(
+    admin,
+    (reportRows || []).filter((one) => one.kind !== FAULT_KIND),
+  );
+  const faults = readFaults(
+    (reportRows || []).filter((one) => one.kind === FAULT_KIND),
+  );
 
   return (
     <>
       <TopBar />
       <AdminBody
         codes={codes}
-        reports={reports}
+        reports={written}
+        faults={faults}
         steps={funnel(events)}
         questions={questionDwell(events)}
         testers={testers}
@@ -223,6 +231,37 @@ async function readReports(admin, rows) {
     shots: (one.shots || []).map((key) => links.get(key)).filter(Boolean),
     status: one.status || "new",
   }));
+}
+
+/**
+ * A fault, ready to recognize. No pictures and no trail on these -- what a
+ * fault needs is what it said, how often, and where it was thrown from.
+ */
+function readFaults(rows) {
+  return rows.map((one) => ({
+    id: one.id,
+    at: whenPlainly(one.created_at),
+    lastAt: one.last_at ? whenPlainly(one.last_at) : null,
+    seenCount: one.seen_count || 1,
+    source: one.detail?.source || sourceFromBody(one),
+    email: one.email,
+    body: one.body,
+    path: one.path,
+    skin: one.skin,
+    viewport: one.viewport,
+    build: one.build,
+    browser: shortBrowser(one.user_agent),
+    stack: one.detail?.stack || null,
+    thrownAt: one.detail?.at || null,
+    status: one.status || "new",
+  }));
+}
+
+// Faults written before the source was stored, and any row whose detail lost it,
+// still read sensibly: an answer with a status code in it was a broken call.
+function sourceFromBody(row) {
+  const call = row.detail?.call || "";
+  return call ? "call" : "script";
 }
 
 function whenPlainly(value) {

@@ -1,6 +1,7 @@
 import { saidPlainly } from "@/lib/usage/metrics";
 import CodeDesk from "./CodeDesk";
 import FeedbackDesk from "./FeedbackDesk";
+import FaultDesk from "./FaultDesk";
 
 /**
  * What the beta desk draws. Split from the page so the layout can be looked at
@@ -54,6 +55,7 @@ function Bar({ share, tone = "teal" }) {
 export default function AdminBody({
   codes = [],
   reports = [],
+  faults = [],
   steps = [],
   questions = [],
   testers = [],
@@ -83,6 +85,7 @@ export default function AdminBody({
         <CodeDesk codes={codes} />
 
         <FeedbackDesk reports={reports} />
+        <FaultDesk faults={faults} />
 
         <section>
           <h2 className="font-display text-xl font-semibold">
