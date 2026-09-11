@@ -9,9 +9,9 @@ export const metadata = { title: "Meet Aly \u00b7 Alyeska" };
 /**
  * The Meet Aly intro, mounted for the practice hub.
  *
- * The Meet Aly component itself has always run against a pair of stand-in
- * families rather than the primary's file -- the live side-by-side and
- * the ask-her-something-else box both hit a demo endpoint. So nothing
+ * The Meet Aly component itself never reads the primary's file. It says what
+ * Aly looks after, and the live answer behind each of those lines comes from a
+ * demo endpoint working off a stand-in family. So nothing
  * about this screen needs to be forked for practice; only the continue
  * button changes destination, so it takes the primary back to the
  * practice hub rather than onward to the family form.
