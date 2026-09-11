@@ -2,6 +2,7 @@ import { Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import BootVeil from "@/components/BootVeil";
 import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
+import UsageTrail from "@/components/UsageTrail";
 import {
   BAND_COOKIE,
   BOOT_COOKIE,
@@ -143,6 +144,9 @@ export default function RootLayout({ children }) {
             the app underneath has painted -- see components/BootVeil.js. */}
         <BootVeil />
         <ServiceWorkerBoot />
+        {/* Records which screen a signed-in person is on and how long it held
+            them. Writes nothing for a visitor who is not signed in. */}
+        <UsageTrail />
         <div className="app-shell">{children}</div>
       </body>
     </html>

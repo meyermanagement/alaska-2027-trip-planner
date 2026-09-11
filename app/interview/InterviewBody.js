@@ -40,6 +40,7 @@ import {
 import { inferAnswer } from "@/lib/travelers/interviewInference";
 import { summaryForAnswer } from "@/lib/travelers/runningSummary";
 import { patchRun, readRun, runToStandIn } from "@/lib/practice/session";
+import { recordStep } from "@/lib/usage/client";
 import {
   resolveStandIn,
   standInPetsRows,
@@ -563,6 +564,32 @@ export default function InterviewBody({
     setTouched(false);
   }, [slot]);
 
+  // How long each question held them, reported as the question changes.
+  //
+  // The path never changes during an interview, so the screen-level trail in the
+  // root layout can only say "they spent nine minutes somewhere in the
+  // interview". Which question they sat on is the useful fact, and it is only
+  // knowable from in here. Whether they arrived at the next question by
+  // answering or by stepping back is recorded with it, because a question people
+  // keep reversing out of is a differently broken question from one they stall
+  // on.
+  //
+  // Practice runs are not measured. Nothing in practice is saved and the people
+  // rehearsing it are not the people the funnel is about, so counting them would
+  // make the numbers say something about the wrong audience.
+  const timedSlot = useRef({ slot: startSlot, since: Date.now() });
+  const wentBack = useRef(false);
+  useEffect(() => {
+    if (mode !== "real") return;
+    const previous = timedSlot.current;
+    timedSlot.current = { slot, since: Date.now() };
+    if (!previous.slot || previous.slot === slot) return;
+    recordStep(`interview:${previous.slot}`, Date.now() - previous.since, {
+      went: wentBack.current ? "back" : "on",
+    });
+    wentBack.current = false;
+  }, [slot, mode]);
+
   // A question the app already knows the answer to arrives with its option
   // picked, so agreeing is one tap on Save and continue rather than a pick and
   // then a tap. Two sources, in order: the About-you paragraph, where the
@@ -973,6 +1000,7 @@ export default function InterviewBody({
     }
     const previousIndex = index - 1;
     const previous = questions[previousIndex];
+    wentBack.current = true;
     setSlot(previous.slot);
     setIndex(previousIndex);
     setError(null);

@@ -15,11 +15,18 @@ export default function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") || "/trips";
 
-  const [mode, setMode] = useState("signin");
+  // A code in the link arrives from the invitation email, which is the only
+  // place one comes from. It both fills the field in and switches the screen to
+  // Start a new family, because somebody holding a signup code has no family to
+  // sign in to yet and the default tab would have them typing a password for an
+  // account that does not exist.
+  const invited = (params.get("code") || "").trim().toUpperCase();
+
+  const [mode, setMode] = useState(invited ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState(invited);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(params.get("error") || "");
   const [notice, setNotice] = useState("");
