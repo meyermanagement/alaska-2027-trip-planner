@@ -3,8 +3,9 @@ import { randomInt } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { whoIs } from "@/lib/supabase/who";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { isAdminUser } from "@/lib/auth/admin";
 import { betaInviteEmail } from "@/lib/email/betaInvite";
+import { siteOrigin } from "@/lib/email/sendInvite";
 import { sendEmail } from "@/lib/email/send";
 
 /**
@@ -52,7 +53,7 @@ function looksLikeEmail(value) {
 async function owner() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
-  if (!user || !isAdminEmail(user.email)) return null;
+  if (!isAdminUser(user)) return null;
   return user;
 }
 
@@ -215,11 +216,12 @@ export async function POST(request) {
     }
   }
 
-  const { origin } = new URL(request.url);
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(
-    /\/+$/,
-    "",
-  );
+  // The address the app is known by, never the deployment's own hostname: a
+  // sign-in link on a vercel.app URL reads as a phishing attempt and stops
+  // working on the next push. siteOrigin skips build hosts for exactly that
+  // reason, and this route now asks it the same way reminders and family
+  // invitations do.
+  const siteUrl = siteOrigin(request);
   const mail = betaInviteEmail({
     name,
     email,

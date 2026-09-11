@@ -1,8 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { whoIs } from "@/lib/supabase/who";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { isAdminUser } from "@/lib/auth/admin";
 import { funnel, perPerson, questionDwell } from "@/lib/usage/metrics";
 import { stepLabel } from "@/lib/usage/steps";
 import TopBar from "@/components/TopBar";
@@ -35,8 +35,11 @@ const EVENT_CEILING = 6000;
 export default async function AdminPage() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
-  if (!user) redirect("/login?next=/admin");
-  if (!isAdminEmail(user.email)) notFound();
+  // Both refusals are the same refusal on purpose. A redirect to sign in would
+  // tell a stranger that this path exists and is worth coming back to with a
+  // session; a plain not found says only what every unrouted path says. The
+  // owner reaches it by signing into the app first, the way they already are.
+  if (!isAdminUser(user)) notFound();
 
   const admin = createAdminClient();
   if (!admin) {
