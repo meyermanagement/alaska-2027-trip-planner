@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import { INTERVIEW_QUESTIONS } from "@/lib/travelers/interview";
+import { questionsFor } from "@/lib/travelers/interview";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 import {
   resolveStandIn,
@@ -47,18 +47,25 @@ export default async function InterviewCheckInterviewPage() {
   // wired through the practice path because seeing "you mentioned this" on a
   // rehearsal that saves nothing would confuse more than help.
   const standIn = resolveStandIn(null);
+  const petRows = standInPetsRows(standIn);
   const context = personalizationContext({
     travelers: standInTravelers(standIn),
-    pets: standInPetsRows(standIn),
+    pets: petRows,
   });
+  // The stand-in family's animals decide whether the animals question is in
+  // the run, exactly as a real family's would. The body recounts this for
+  // itself once it can read whatever family the primary typed on the practice
+  // welcome screen, so a rehearsal with no animals loses the question and a
+  // rehearsal with three asks about all three.
+  const asked = questionsFor({ hasPets: petRows.length > 0 });
 
   return (
     <InterviewBody
-        mode="practice"
-        startSlot={INTERVIEW_QUESTIONS[0].slot}
-        startIndex={0}
-        total={INTERVIEW_QUESTIONS.length}
-        context={context}
+      mode="practice"
+      startSlot={asked[0].slot}
+      startIndex={0}
+      total={asked.length}
+      context={context}
       aboutMePriors={{}}
     />
   );

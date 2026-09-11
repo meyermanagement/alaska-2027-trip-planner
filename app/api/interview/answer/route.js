@@ -3,12 +3,18 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import {
-  INTERVIEW_QUESTIONS,
   questionFor,
+  questionsFor,
   optionLabels,
   multiSentence,
   rankSentence,
 } from "@/lib/travelers/interview";
+import {
+  everyAnimalAnswered,
+  normalizePetPlans,
+  petClause,
+  petsSentence,
+} from "@/lib/travelers/animals";
 import {
   inferAnswer,
   priorAnswersFrom,
@@ -134,6 +140,34 @@ export async function POST(request) {
       { status: 400 },
     );
   }
+  // The animals question, one row per animal. The names are checked against
+  // the family's own animals rather than trusted, so a hand-posted body cannot
+  // file a plan for an animal this household does not have, and every animal
+  // has to have a plan: a half-answered list would leave the cat looking
+  // settled on the strength of an answer about the dog.
+  //
+  // The pet list is read here for every request, not only this one, because the
+  // next-question calculation at the bottom needs to know whether this family
+  // is asked the animals question at all.
+  const { data: petRows } = await supabase
+    .from("pets")
+    .select("name")
+    .eq("family_id", familyId);
+  const petNames = (petRows || [])
+    .map((r) => String(r?.name || "").trim())
+    .filter(Boolean);
+  const isPets = question.kind === "pets";
+  const petPlans = isPets ? normalizePetPlans(body?.pets, petNames) : [];
+  if (
+    action === "answer" &&
+    isPets &&
+    !everyAnimalAnswered(petPlans, petNames)
+  ) {
+    return NextResponse.json(
+      { error: "Say what happens to each of them." },
+      { status: 400 },
+    );
+  }
   // Both list shapes are cleaned the same way, and the cap is the question's
   // own: every option for the ranked question, `max` for a multi one, so a
   // client cannot post a fourth must-have on a question that asks for two.
@@ -222,6 +256,10 @@ export async function POST(request) {
     // which is also what the preference row says and what the inference layer
     // reads back. One representation, in words, in all three places.
     if (isBand) return bandSentence(band);
+    // The animals note is the sentence the rows make -- "Cricket comes with
+    // us; Moose stays home." -- the same phrase the fact rows and the running
+    // summary read, so the ledger row reads as an answer on its own.
+    if (isPets) return petsSentence(petPlans);
     // A ranked answer's note is the order in the primary's own labels, so the
     // ledger row reads like an answer on its own -- "The room, then the meals"
     // rather than a bare first place that loses the rest of the order.
@@ -309,7 +347,37 @@ export async function POST(request) {
       );
     }
 
-    if (question.kind === "text") {
+    if (isPets) {
+      // One fact row per animal, because that is the unit anybody reads them
+      // in: a packing list building around the dog should not have to parse a
+      // sentence about the cat out of a shared row. The own-words sentence --
+      // how they are looked after -- is one more row, kept whole.
+      const rows = petPlans.map((row) => ({
+        family_id: familyId,
+        traveler_id: null,
+        kind: "rule",
+        slot: slotId,
+        body: petClause(row),
+        source: "said",
+      }));
+      if (rawOwnWords) {
+        rows.push({
+          family_id: familyId,
+          traveler_id: null,
+          kind: "rule",
+          slot: slotId,
+          body: rawOwnWords,
+          source: "said",
+        });
+      }
+      const { error } = await supabase.from("household_facts").insert(rows);
+      if (error) {
+        return NextResponse.json(
+          { error: "That answer could not be saved. Try again." },
+          { status: 500 },
+        );
+      }
+    } else if (question.kind === "text") {
       if (rawText) {
         const { error } = await supabase.from("household_facts").insert({
           family_id: familyId,
@@ -482,13 +550,17 @@ export async function POST(request) {
 
   // The next slot. Computed on the server so the screen does not have to reload
   // and re-derive the ledger just to know what to ask next.
-  const answeredIndex = INTERVIEW_QUESTIONS.findIndex((q) => q.slot === slotId);
+  // Walked over the questions this family is actually asked, so a household
+  // with no animals is never handed "animals" as its next question and is
+  // counted finished when it has answered the ones that apply to it.
+  const asked = questionsFor({ hasPets: petNames.length > 0 });
+  const answeredIndex = asked.findIndex((q) => q.slot === slotId);
   const nextIndex = answeredIndex + 1;
-  const done = nextIndex >= INTERVIEW_QUESTIONS.length;
+  const done = nextIndex >= asked.length;
 
   return NextResponse.json({
     ok: true,
     complete: done,
-    nextSlot: done ? null : INTERVIEW_QUESTIONS[nextIndex].slot,
+    nextSlot: done ? null : asked[nextIndex].slot,
   });
 }

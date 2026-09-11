@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
 import { ledgerFor } from "@/lib/travelers/ledger";
-import { INTERVIEW_QUESTIONS, nextQuestion } from "@/lib/travelers/interview";
+import { nextQuestion, questionsFor } from "@/lib/travelers/interview";
 import { priorAnswersFrom } from "@/lib/travelers/interviewInference";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 
@@ -135,7 +135,13 @@ export default async function InterviewPage() {
     preferences: preferences || [],
   });
 
-  const { question, index } = nextQuestion(ledger);
+  // A household with no animals is never asked what happens to the animals,
+  // and is never counted short for it either: the question list itself is
+  // shorter, so the count above the prompt reads nine of nine rather than nine
+  // of ten with one unreachable question left over.
+  const has = { hasPets: (pets || []).length > 0 };
+  const asked = questionsFor(has);
+  const { question, index } = nextQuestion(ledger, has);
   // Every question already answered: send the primary back to Family. That is
   // the "complete → gone" state -- the top-of-family launcher will already be
   // hidden -- and reaching this URL somehow is a stale click rather than a real
@@ -156,7 +162,7 @@ export default async function InterviewPage() {
         mode="real"
         startSlot={question.slot}
         startIndex={index}
-        total={INTERVIEW_QUESTIONS.length}
+        total={asked.length}
         context={context}
         aboutMePriors={aboutMePriors}
         priorAnswers={priorAnswers}

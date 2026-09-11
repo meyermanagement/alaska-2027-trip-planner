@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 
 import CompassLoader from "@/components/CompassLoader";
 import {
-  INTERVIEW_QUESTIONS,
   questionFor,
+  questionsFor,
   optionLabels,
 } from "@/lib/travelers/interview";
+import {
+  PET_PLANS,
+  everyAnimalAnswered,
+  normalizePetPlans,
+  parsePetsNote,
+  petsSentence,
+} from "@/lib/travelers/animals";
 import {
   personalizationContext,
   personalizeReasons,
@@ -82,6 +89,11 @@ const BLANK_FIELDS = {
   // "the family agreed with the default", which is the difference between a
   // question that still needs answering and one that has been answered.
   band: null,
+  // One row per animal -- [{name, plan}] -- on the animals question, and an
+  // empty list everywhere else. Empty rather than a row per animal with a
+  // blank plan, because a blank plan is not an answer and the form has to be
+  // able to tell an unanswered question from an answered one.
+  petPlans: [],
 };
 
 /**
@@ -177,6 +189,19 @@ function fieldsForAnswer(question, priorAnswer) {
           : null,
     };
   }
+  // The animals answer is recorded as the sentence it was saved as --
+  // "Cricket comes with us; Moose stays home." -- and read back into rows
+  // here. An animal the family no longer has drops out when the panel cleans
+  // these against the current list, the same rule the option branches follow.
+  if (question.kind === "pets") {
+    return {
+      ...BLANK_FIELDS,
+      petPlans:
+        typeof priorAnswer.picked === "string"
+          ? parsePetsNote(priorAnswer.picked)
+          : [],
+    };
+  }
   if (question.kind === "moments") {
     const list = Array.isArray(priorAnswer.picked) ? priorAnswer.picked : [];
     return {
@@ -251,6 +276,11 @@ export default function InterviewBody({
   // in the morning to ten at night because that is where the control opened
   // would be the app answering its own question.
   const [band, setBand] = useState(null);
+  // What happens to each animal, one row per animal. Empty until the primary
+  // taps a plan for one of them, and every animal has to have a plan before
+  // Save will go: a half-answered list would file a claim about the cat that
+  // nobody made.
+  const [petPlans, setPetPlans] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   // In-session record of what has been answered this run. Practice mode
@@ -383,6 +413,21 @@ export default function InterviewBody({
       }),
     );
   }, [mode]);
+  // The questions this household is actually asked. A family with no animals
+  // is not asked what happens to the animals, so the list is one shorter and
+  // every step through it -- forward, back, and the count above the prompt --
+  // walks this rather than the full dictionary. Practice mode recounts once the
+  // family typed on the welcome screen arrives, which is why it reads `live`
+  // rather than the prop it was rendered with.
+  const questions = useMemo(
+    () => questionsFor({ hasPets: Boolean(live?.hasPets) }),
+    [live],
+  );
+  const count = questions.length || total;
+  const petNames = useMemo(
+    () => (Array.isArray(live?.petNames) ? live.petNames : []),
+    [live],
+  );
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
   // Session cache for Aly-generated follow-up chips. Keyed by
@@ -390,7 +435,8 @@ export default function InterviewBody({
   // suggestion strings returned by /api/interview/suggest. Held in a ref so
   // repeated taps on the same chip -- including tapping OFF and back ON --
   // never re-hit the model within one session. A refresh of the interview
-  // clears the cache, which is fine: the primary answers 10 questions and
+  // clears the cache, which is fine: the primary answers ten or eleven
+  // questions and
   // moves on, so the cache lifetime maps to a real session.
   const suggestionCache = useRef(new Map());
   // A screen-reader-only live region that announces the new prompt as each
@@ -429,10 +475,8 @@ export default function InterviewBody({
         setDone(true);
         return;
       }
-      const nextIndex = INTERVIEW_QUESTIONS.findIndex(
-        (q) => q.slot === nextSlot,
-      );
-      const nextQuestion = INTERVIEW_QUESTIONS[nextIndex] || null;
+      const nextIndex = questions.findIndex((q) => q.slot === nextSlot);
+      const nextQuestion = questions[nextIndex] || null;
       setSlot(nextSlot);
       setIndex(nextIndex >= 0 ? nextIndex : index + 1);
       // Read the local answers map with a functional updater so a record just
@@ -449,11 +493,12 @@ export default function InterviewBody({
         setMoments(fields.moments);
         setOrder(fields.order);
         setBand(fields.band);
+        setPetPlans(fields.petPlans || []);
         return prior;
       });
       setError(null);
     },
-    [index],
+    [index, questions],
   );
 
   // Arriving at a question means nothing has been touched on it yet, whether
@@ -619,6 +664,12 @@ export default function InterviewBody({
     if (question?.kind === "band") {
       return Boolean(normalizeBand(band));
     }
+    // Every animal, or none of them. A list with the dog answered and the cat
+    // blank is a question in progress, not an answer, and saving it would file
+    // a plan for the dog while quietly leaving the cat looking settled.
+    if (question?.kind === "pets") {
+      return everyAnimalAnswered(petPlans, petNames);
+    }
     if (question?.kind === "moments") {
       return moments.some((m) => (m || "").trim().length > 0);
     }
@@ -639,7 +690,9 @@ export default function InterviewBody({
     const isRank = question.kind === "rank";
     const isMulti = question.kind === "multi";
     const isBand = question.kind === "band";
+    const isPets = question.kind === "pets";
     const isList = isRank || isMulti;
+    const cleanedPets = isPets ? normalizePetPlans(petPlans, petNames) : [];
     const pickedLabels = isList ? optionLabels(question, order) : [];
     const cleanedMoments = isMoments
       ? moments.map((m) => m.trim()).filter(Boolean)
@@ -653,9 +706,11 @@ export default function InterviewBody({
     // and the interview UI doesn't offer chips on that path.
     const wantsWhys = isBand
       ? Boolean(band)
-      : isList
-        ? order.length > 0
-        : question.kind === "options" && choice && choice !== "other";
+      : isPets
+        ? cleanedPets.length > 0
+        : isList
+          ? order.length > 0
+          : question.kind === "options" && choice && choice !== "other";
     const cleanedWhys = wantsWhys
       ? whys.map((w) => (w || "").trim()).filter(Boolean)
       : [];
@@ -667,21 +722,23 @@ export default function InterviewBody({
       action: "answer",
       picked: isBand
         ? bandSentence(band)
-        : isList
-          ? pickedLabels.length > 0
-            ? pickedLabels
-            : null
-          : isMoments
-            ? cleanedMoments.length > 0
-              ? cleanedMoments
+        : isPets
+          ? petsSentence(cleanedPets)
+          : isList
+            ? pickedLabels.length > 0
+              ? pickedLabels
               : null
-            : question.kind === "text"
-              ? text.trim() || null
-              : choice === "other"
+            : isMoments
+              ? cleanedMoments.length > 0
+                ? cleanedMoments
+                : null
+              : question.kind === "text"
                 ? text.trim() || null
-                : opt
-                  ? opt.label
-                  : null,
+                : choice === "other"
+                  ? text.trim() || null
+                  : opt
+                    ? opt.label
+                    : null,
       // `reason` is a display-only string kept for Recap (practice mode) so
       // the recap shows the whys and own-words together on one line. The
       // server no longer reads it; the answer route writes whys and own-
@@ -733,6 +790,11 @@ export default function InterviewBody({
               // phrase it derives from them, never these numbers, so the row
               // reads as an answer rather than as a pair of integers.
               band: isBand ? normalizeBand(band) : null,
+              // One row per animal, sent only by the animals question. The
+              // route checks the names against the family's own animals rather
+              // than trusting these, so a row for an animal the household does
+              // not have is dropped there as well as here.
+              pets: cleanedPets,
               whys: cleanedWhys,
               ownWords: cleanedOwnWords,
               // Tells the answer route this was worked out from earlier
@@ -767,6 +829,8 @@ export default function InterviewBody({
     moments,
     order,
     ownWords,
+    petNames,
+    petPlans,
     question,
     slot,
     text,
@@ -807,7 +871,7 @@ export default function InterviewBody({
       return;
     }
     const previousIndex = index - 1;
-    const previous = INTERVIEW_QUESTIONS[previousIndex];
+    const previous = questions[previousIndex];
     setSlot(previous.slot);
     setIndex(previousIndex);
     setError(null);
@@ -826,9 +890,10 @@ export default function InterviewBody({
       setMoments(fields.moments);
       setOrder(fields.order);
       setBand(fields.band);
+      setPetPlans(fields.petPlans || []);
       return prior;
     });
-  }, [hasAnswer, index, loading, mode, router, saveCurrent]);
+  }, [hasAnswer, index, loading, mode, questions, router, saveCurrent]);
 
   const submit = useCallback(
     async (action) => {
@@ -847,7 +912,12 @@ export default function InterviewBody({
       const isRank = question.kind === "rank";
       const isMulti = question.kind === "multi";
       const isBand = question.kind === "band";
+      const isPets = question.kind === "pets";
       const isList = isRank || isMulti;
+      const cleanedPets =
+        isPets && action !== "skip"
+          ? normalizePetPlans(petPlans, petNames)
+          : [];
       const pickedLabels =
         isList && action !== "skip" ? optionLabels(question, order) : [];
       const cleanedMoments = isMoments
@@ -865,9 +935,11 @@ export default function InterviewBody({
         action !== "skip" &&
         (isBand
           ? Boolean(band)
-          : isList
-            ? order.length > 0
-            : question.kind === "options" && choice && choice !== "other");
+          : isPets
+            ? cleanedPets.length > 0
+            : isList
+              ? order.length > 0
+              : question.kind === "options" && choice && choice !== "other");
       const cleanedWhys = wantsWhys
         ? whys.map((w) => (w || "").trim()).filter(Boolean)
         : [];
@@ -882,21 +954,23 @@ export default function InterviewBody({
             ? null
             : isBand
               ? bandSentence(band)
-              : isList
-                ? pickedLabels.length > 0
-                  ? pickedLabels
-                  : null
-                : isMoments
-                  ? cleanedMoments.length > 0
-                    ? cleanedMoments
+              : isPets
+                ? petsSentence(cleanedPets)
+                : isList
+                  ? pickedLabels.length > 0
+                    ? pickedLabels
                     : null
-                  : question.kind === "text"
-                    ? text.trim() || null
-                    : choice === "other"
+                  : isMoments
+                    ? cleanedMoments.length > 0
+                      ? cleanedMoments
+                      : null
+                    : question.kind === "text"
                       ? text.trim() || null
-                      : opt
-                        ? opt.label
-                        : null,
+                      : choice === "other"
+                        ? text.trim() || null
+                        : opt
+                          ? opt.label
+                          : null,
         reason:
           action === "skip"
             ? null
@@ -935,9 +1009,7 @@ export default function InterviewBody({
         remember();
         const nextIndex = index + 1;
         const nextSlot =
-          nextIndex < INTERVIEW_QUESTIONS.length
-            ? INTERVIEW_QUESTIONS[nextIndex].slot
-            : null;
+          nextIndex < questions.length ? questions[nextIndex].slot : null;
         const wait = Math.max(0, HOLD_MS - (Date.now() - started));
         setTimeout(() => {
           setLoading(false);
@@ -968,6 +1040,7 @@ export default function InterviewBody({
                 order: action === "skip" || !isRank ? [] : order,
                 picks: action === "skip" || !isMulti ? [] : order,
                 band: isBand ? normalizeBand(band) : null,
+                pets: cleanedPets,
                 whys: cleanedWhys,
                 ownWords: cleanedOwnWords,
               }),
@@ -995,7 +1068,7 @@ export default function InterviewBody({
             // The interview earns itself in front of the primary on the very
             // next screen: /interview/proof runs the same real question about
             // their upcoming trip twice, once with the answers folded in and
-            // once without, so the ten questions they just answered become
+            // once without, so the questions they just answered become
             // a difference they can read. From there the button on the proof
             // screen carries them into the trip builder.
             router.push("/interview/proof");
@@ -1007,7 +1080,7 @@ export default function InterviewBody({
           // five" into "skip six through nine". Walk the interview in index
           // order instead: the next question is always the one after the one
           // just answered, regardless of what else is already saved.
-          const nextByIndex = INTERVIEW_QUESTIONS[index + 1];
+          const nextByIndex = questions[index + 1];
           const nextSlot = nextByIndex
             ? nextByIndex.slot
             : payload?.nextSlot || null;
@@ -1031,7 +1104,10 @@ export default function InterviewBody({
       moments,
       order,
       ownWords,
+      petNames,
+      petPlans,
       question,
+      questions,
       router,
       slot,
       text,
@@ -1052,7 +1128,7 @@ export default function InterviewBody({
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 lg:grid-cols-[minmax(0,42rem)_minmax(0,20rem)]">
       <div className="flex min-h-[70vh] w-full flex-col items-center justify-center">
         <p className="section-label mb-2 self-start text-ink-soft">
-          Question {index + 1} of {total}
+          Question {index + 1} of {count}
         </p>
 
         {loading ? (
@@ -1259,6 +1335,30 @@ export default function InterviewBody({
                   />
                 )}
               </div>
+            ) : question.kind === "pets" ? (
+              <div className="mt-6 flex flex-col gap-3">
+                <AnimalsPanel
+                  names={petNames}
+                  rows={petPlans}
+                  onSet={(name, plan) => {
+                    setTouched(true);
+                    setPetPlans((prev) => {
+                      const kept = (prev || []).filter((r) => r.name !== name);
+                      return [...kept, { name, plan }];
+                    });
+                  }}
+                />
+                <WhyPanel
+                  choice=""
+                  question={question}
+                  whys={whys}
+                  setWhys={setWhys}
+                  ownWords={ownWords}
+                  setOwnWords={setOwnWords}
+                  cache={suggestionCache}
+                  context={live}
+                />
+              </div>
             ) : question.kind === "band" ? (
               <div className="mt-6 flex flex-col gap-3">
                 <DayBandPanel
@@ -1340,11 +1440,13 @@ export default function InterviewBody({
                       ? order.length === 0
                       : question.kind === "band"
                         ? !band
-                        : false
+                        : question.kind === "pets"
+                          ? !everyAnimalAnswered(petPlans, petNames)
+                          : false
                 }
                 className="btn btn-primary"
               >
-                {index + 1 === total ? "Save and finish" : "Save and continue"}
+                {index + 1 === count ? "Save and finish" : "Save and continue"}
               </button>
             </div>
           </div>
@@ -1569,6 +1671,78 @@ function MultiPanel({ question, order, onTap }) {
 // A card left untapped is unranked, and the panel says so under the list
 // rather than letting the blank space imply "last". That distinction is the
 // reason this question stopped being a single pick.
+// The animals question. One row per animal on file, three plans each, because
+// a household with two animals rarely has one answer for both: the dog comes
+// and the cat stays, or the horse cannot come at all. Asking it once for "the
+// pets" got an answer that was true of neither of them.
+//
+// The plans are buttons rather than a select: three options is short enough to
+// read at a glance, and a row of buttons says the question is per-animal
+// without a label saying so. Each button carries its own explanation as its
+// accessible description so what "Depends on the trip" actually means -- ask
+// me while planning -- is available without a paragraph under every row.
+//
+// The sentence under the rows is what gets saved, shown once every animal has
+// a plan. Before that the panel says how many are still blank, because Save is
+// out of reach until they all have one and a disabled button with no
+// explanation is a dead end.
+function AnimalsPanel({ names, rows, onSet }) {
+  const list = Array.isArray(names) ? names : [];
+  const planOf = (name) =>
+    (rows || []).find((r) => r.name === name)?.plan || null;
+  const answered = list.filter((n) => planOf(n)).length;
+  const left = list.length - answered;
+  const sentence = petsSentence(normalizePetPlans(rows, list));
+
+  return (
+    <div className="rounded-2xl border border-sand-deep bg-white/70 p-4">
+      <ul className="flex flex-col gap-4">
+        {list.map((name) => {
+          const chosen = planOf(name);
+          return (
+            <li key={name}>
+              <p className="font-display text-lg text-ink">{name}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {PET_PLANS.map((plan) => {
+                  const on = chosen === plan.value;
+                  return (
+                    <button
+                      key={plan.value}
+                      type="button"
+                      onClick={() => onSet(name, plan.value)}
+                      aria-pressed={on}
+                      title={plan.detail}
+                      className={
+                        on
+                          ? "min-h-[44px] rounded-2xl border border-teal bg-teal-soft/60 px-4 py-2 text-left text-sm text-ink shadow-sm"
+                          : "min-h-[44px] rounded-2xl border border-sand-deep bg-white px-4 py-2 text-left text-sm text-ink-soft transition hover:border-teal/60 hover:text-ink"
+                      }
+                    >
+                      <span className="block">{plan.label}</span>
+                      {on && (
+                        <span className="mt-0.5 block text-xs text-ink-soft">
+                          {plan.detail}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-4 text-sm text-ink-soft" aria-live="polite">
+        {left > 0
+          ? left === list.length
+            ? "Pick what happens to each of them."
+            : `${countWordCap(left)} still to answer.`
+          : sentence}
+      </p>
+    </div>
+  );
+}
+
 // The day band. Two handles on one track: the hour the family is out the door
 // and the hour their day is over.
 //
@@ -1796,6 +1970,12 @@ function WhyPanel({
   cache,
   context,
 }) {
+  // A question may override the heading and the placeholder. "Why?" is the
+  // right question under most of these and the wrong one under a few: nobody
+  // has to justify leaving the dog at home, and what is worth typing there is
+  // how the animal is looked after. The override is on the question so the copy
+  // sits beside the prompt it belongs to rather than in a branch here.
+  //
   // Whys are chips only; own-words is a separate box below the chips. The
   // Something-else branch never renders this panel -- the caller shows a
   // plain textarea for that case -- so this component only handles a real
@@ -2023,7 +2203,9 @@ function WhyPanel({
 
   return (
     <div className="mt-4 rounded-2xl border border-teal/30 bg-teal-soft/25 p-4">
-      <p className="font-display text-lg text-ink">Why? (Optional.)</p>
+      <p className="font-display text-lg text-ink">
+        {question?.ownWordsHeading || "Why? (Optional.)"}
+      </p>
       {hasChips && (
         <p className="mt-1 text-sm text-ink-soft">
           Tap any that fit. I save each one as its own line on your Preferences
@@ -2076,7 +2258,8 @@ function WhyPanel({
           placeholder={
             hasChips
               ? "Add a sentence about your reason, if you want."
-              : "A sentence about why, if you want. I save it as its own line on your Preferences page."
+              : question?.ownWordsPlaceholder ||
+                "A sentence about why, if you want. I save it as its own line on your Preferences page."
           }
           className="mt-2 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
         />

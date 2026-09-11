@@ -181,17 +181,24 @@ export default async function PeoplePage() {
           />
         </div>
         <InterviewLauncher
-          progress={interviewProgress({
-            settled: (slots || [])
-              .filter((s) => !s.traveler_id && s.status === "settled")
-              .map((s) => s.slot),
-            skipped: (slots || [])
-              .filter((s) => !s.traveler_id && s.status === "skipped")
-              .map((s) => s.slot),
-            asking: (slots || [])
-              .filter((s) => !s.traveler_id && s.status === "asking")
-              .map((s) => s.slot),
-          })}
+          progress={interviewProgress(
+            {
+              settled: (slots || [])
+                .filter((s) => !s.traveler_id && s.status === "settled")
+                .map((s) => s.slot),
+              skipped: (slots || [])
+                .filter((s) => !s.traveler_id && s.status === "skipped")
+                .map((s) => s.slot),
+              asking: (slots || [])
+                .filter((s) => !s.traveler_id && s.status === "asking")
+                .map((s) => s.slot),
+            },
+            // Whether the animals question counts toward the total. Passed
+            // rather than assumed so the launcher on a family with no animals
+            // reads nine of nine when the interview is finished, matching what
+            // the interview screen itself asked.
+            { hasPets: (pets || []).length > 0 },
+          )}
         />
         <FamilyScreen
           familyId={familyId}
