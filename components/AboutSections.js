@@ -5,7 +5,10 @@ import {
   ABOUT_ME_CHIP_GROUPS,
   ABOUT_ME_MICRO_PROMPTS,
 } from "@/lib/travelers/profile";
-import { buildSportsChipItems } from "@/lib/travelers/sports";
+import {
+  buildSportsChipItems,
+  sportsChipItemsForPlaceWords,
+} from "@/lib/travelers/sports";
 
 /**
  * The five About-you questions, as cards, wherever somebody edits them.
@@ -38,6 +41,12 @@ export default function AboutSections({
   // than a generic "the NFL". Null falls back to the general sports list.
   homeLat = null,
   homeLon = null,
+  // Home as words, for a caller that has the place somebody typed and no
+  // coordinate for it -- the rehearsal, where nothing has been geocoded and
+  // there is no family row to read. When set it wins over the coordinate,
+  // because a caller that has both is telling us the coordinate belongs to
+  // somebody else: the real family, not the one being rehearsed.
+  homePlace = null,
   // Spacing above the first card, which belongs to the container rather than
   // to the questions: a page has a dictation hint above them, a drawer has a
   // heading, a person form has a divider.
@@ -141,7 +150,12 @@ export default function AboutSections({
   // The rest of ABOUT_ME_CHIP_GROUPS is used as-is; only "sports" is dynamic.
   const chipGroups = ABOUT_ME_CHIP_GROUPS.map((g) =>
     g.key === "sports"
-      ? { ...g, items: buildSportsChipItems(homeLat, homeLon) }
+      ? {
+          ...g,
+          items: homePlace
+            ? sportsChipItemsForPlaceWords(homePlace)
+            : buildSportsChipItems(homeLat, homeLon),
+        }
       : g,
   );
   const chipsFor = (targetKey) =>

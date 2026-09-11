@@ -86,10 +86,18 @@ export default function AboutYouForm({
   // exist during the server render and reading it in the initializer would
   // make the markup disagree on hydration.
   const [practiceName, setPracticeName] = useState("");
+  // And where the rehearsed family said they live, which is what fills the
+  // local-teams chips. On a practice run the coordinate handed in belongs to
+  // the real signed-in family, so a rehearsal typed against a Nashville
+  // address was being offered St. Louis teams. The words typed a screen ago
+  // are the only home this rehearsal has, so they are the only home it uses;
+  // when nothing was typed the drawer falls back to general sports.
+  const [practiceHome, setPracticeHome] = useState("");
   useEffect(() => {
     if (!practice) return;
     const run = readRun();
     setPracticeName((run.people || [])[0]?.name || "");
+    setPracticeHome(run.home || "");
   }, [practice]);
   const heading = practice ? practiceName : name;
 
@@ -209,8 +217,9 @@ export default function AboutYouForm({
       <AboutSections
         parts={parts}
         setParts={setParts}
-        homeLat={homeLat}
-        homeLon={homeLon}
+        homeLat={practice ? null : homeLat}
+        homeLon={practice ? null : homeLon}
+        homePlace={practice ? practiceHome : null}
         className="mt-4"
       />
 

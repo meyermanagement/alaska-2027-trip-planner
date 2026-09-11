@@ -249,6 +249,16 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
   // something every family pays for: whoever is testing the chain needs to see
   // that the interview actually moved the answer, and the only honest way to
   // check that is to read both.
+  // Follow-up questions about the day on screen, oldest first. The plan answers
+  // four decisions and says why; the question a person has next is almost
+  // always about one of those lines, and until now the screen could not take
+  // it -- they had to finish onboarding, make a trip and find Ask Aly before
+  // they could ask the obvious thing about what they were looking at. Held per
+  // place, since a question about Paris means nothing under a plan for Lisbon.
+  const [followUps, setFollowUps] = useState([]);
+  const [followUp, setFollowUp] = useState("");
+  const [followBusy, setFollowBusy] = useState(false);
+  const [followError, setFollowError] = useState("");
   const [generic, setGeneric] = useState(null);
   const [genericBusy, setGenericBusy] = useState(false);
   const [genericError, setGenericError] = useState("");
@@ -259,7 +269,47 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
   useEffect(() => {
     setGeneric(null);
     setGenericError("");
+    setFollowUps([]);
+    setFollowUp("");
+    setFollowError("");
   }, [attempt, destination]);
+
+  // Ask about the plan that is on screen. The rows travel with the question so
+  // the answer is about what the person can see rather than a second general
+  // opinion about the city, and the run travels too, so a rehearsal is answered
+  // from the family that was typed and from nothing that is saved.
+  async function askFollowUp(event) {
+    event.preventDefault();
+    const asked = followUp.trim();
+    if (!asked || followBusy) return;
+    setFollowBusy(true);
+    setFollowError("");
+    try {
+      const res = await fetch("/api/interview/proof/followup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          demo,
+          destination: data?.destination || destination,
+          question: asked,
+          planRows: data?.withPrefsRows || [],
+          extraRows: [...(data?.packRows || []), ...(data?.tipRows || [])],
+          standIn: demo ? runToStandIn() : null,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!json?.ok) {
+        setFollowError(json?.error || "That didn't come through.");
+        return;
+      }
+      setFollowUps((rows) => [...rows, { q: asked, a: json.answer }]);
+      setFollowUp("");
+    } catch {
+      setFollowError("That didn't come through.");
+    } finally {
+      setFollowBusy(false);
+    }
+  }
 
   async function askGeneric() {
     setGenericBusy(true);
@@ -580,6 +630,54 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               that every choice comes from something you told me.
             </p>
           </div>
+
+          {/* Anything they want to ask about the place or the four choices,
+              answered against the plan above rather than as a fresh opinion
+              about the city. This is the first time in the sequence Aly is
+              asked something instead of showing something. */}
+          <section
+            className="space-y-3 rounded-2xl border border-sand-deep bg-sand-soft/60 p-4"
+            {...(armed ? { "data-ma-shown": "1" } : {})}
+          >
+            {followUps.map((row, i) => (
+              <div key={`${row.q}-${i}`} className="space-y-1">
+                <p className="font-display text-base text-ink">{row.q}</p>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-ink-soft">
+                  {row.a}
+                </p>
+              </div>
+            ))}
+
+            <form onSubmit={askFollowUp} className="space-y-2">
+              <label
+                htmlFor="proof-followup"
+                className="block font-display text-lg text-ink"
+              >
+                Ask me anything about {data.destination} or about the day above.
+              </label>
+              <textarea
+                id="proof-followup"
+                value={followUp}
+                onChange={(e) => setFollowUp(e.target.value)}
+                rows={2}
+                maxLength={320}
+                placeholder="Is that walkable from the hotel?"
+                className="w-full rounded-xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={followBusy || !followUp.trim()}
+                  className="btn btn-primary px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  {followBusy ? "Thinking\u2026" : "Ask Aly"}
+                </button>
+                {followError && (
+                  <p className="text-sm text-ink">{followError}</p>
+                )}
+              </div>
+            </form>
+          </section>
         </>
       )}
 

@@ -7,6 +7,7 @@ import {
   standInFamilyLines,
   standInPrefsLines,
 } from "@/lib/practice/standIn";
+import { familyLines, preferencesLines } from "@/lib/interview/proofContext";
 
 /**
  * The interview-proof endpoint.
@@ -218,46 +219,6 @@ function split(rows) {
     else day.push(row);
   }
   return { day, pack: pack.slice(0, 4), tips: tips.slice(0, 3) };
-}
-
-function preferencesLines(prefs) {
-  return (prefs || [])
-    .filter((p) => (p.body || "").trim())
-    .map((p) => {
-      const slot = p.slot ? `[${p.slot}] ` : "";
-      return `- ${slot}${p.body.trim()}`;
-    });
-}
-
-function familyLines({ people, pets, homeAddress }) {
-  const lines = [];
-  if (homeAddress) lines.push(`Home: ${homeAddress}`);
-  if (people?.length) {
-    lines.push(
-      `People: ${people
-        .map((p) => {
-          const name = p.name || "(unnamed)";
-          if (!p.date_of_birth) return name;
-          const born = new Date(`${p.date_of_birth}T12:00:00Z`);
-          const now = new Date();
-          let age = now.getUTCFullYear() - born.getUTCFullYear();
-          if (
-            now.getUTCMonth() < born.getUTCMonth() ||
-            (now.getUTCMonth() === born.getUTCMonth() &&
-              now.getUTCDate() < born.getUTCDate())
-          )
-            age -= 1;
-          return `${name} (${age})`;
-        })
-        .join(", ")}`,
-    );
-  }
-  if (pets?.length) {
-    lines.push(
-      `Pets: ${pets.map((p) => `${p.name || "?"} (${p.species || "?"})`).join(", ")}`,
-    );
-  }
-  return lines;
 }
 
 export async function POST(req) {

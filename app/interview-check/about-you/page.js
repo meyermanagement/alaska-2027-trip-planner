@@ -1,10 +1,8 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess, PRIMARY } from "@/lib/travelers/access";
-import { resolveHomePoint } from "@/lib/places/homePoint";
 import AboutYouForm from "../../about-you/AboutYouForm";
 
 export const metadata = { title: "About you · Alyeska" };
@@ -36,15 +34,10 @@ export default async function InterviewCheckAboutYouPage() {
     .maybeSingle();
   if (!mine) redirect("/trips");
 
-  // Where home is powers the local-teams chips on the real form. Practice uses
-  // the same form and the same resolution, so the rehearsed version is
-  // identical to what the primary will see when they open the real screen.
-  const { data: family } = await supabase
-    .from("families")
-    .select("home_address, home_lat, home_lon")
-    .eq("id", access.familyId)
-    .maybeSingle();
-  const home = await resolveHomePoint(family, await headers());
+  // No home is read here. The local-teams chips on this screen belong to the
+  // family being rehearsed, and that family is whatever somebody typed on the
+  // practice hub -- reading the real families row handed a Nashville rehearsal
+  // the St. Louis teams. The form resolves the typed words itself.
 
   return (
     <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
@@ -53,8 +46,6 @@ export default async function InterviewCheckAboutYouPage() {
         name={mine.name || ""}
         first={false}
         secondary={false}
-        homeLat={home?.lat ?? null}
-        homeLon={home?.lon ?? null}
         practice
       />
     </main>
