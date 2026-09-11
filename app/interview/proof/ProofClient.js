@@ -319,16 +319,22 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         method: "POST",
         headers: { "content-type": "application/json" },
         // The plan itself is answered with nothing known -- that is the whole
-        // point of the button -- but the run still has to travel, because the
-        // second pass grades the generic plan against what was actually
-        // captured. Without it the route fell back to the built-in practice
-        // family and told a person what a plan got wrong about a family they
-        // had never met.
+        // point of the button -- but the run and the plan on screen both have to
+        // travel, because the second pass compares the generic choices against
+        // the recommended ones and against what onboarding actually captured.
+        // Without the run the route fell back to the built-in practice family
+        // and told a person what a plan got wrong about a family they had never
+        // met.
         body: JSON.stringify({
           demo: true,
           generic: true,
           destination,
           standIn: runToStandIn(),
+          // The plan already on screen, so the second pass can compare the two
+          // row by row and say what the interview changed, rather than judging
+          // the generic choices on their own and leaving the reader to work the
+          // comparison out.
+          recommendedRows: data?.withPrefsRows || [],
         }),
       });
       const json = await res.json().catch(() => null);
@@ -745,15 +751,18 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               {generic.tipRows?.length > 0 && (
                 <Extras label="Pro tips" rows={generic.tipRows} />
               )}
-              {/* Only present when the run found something to mark. An answer
-                  that knew nothing and still happened to suit the family gets
-                  no objections invented for it, and a rehearsal with nothing
-                  captured yet never asks the question. */}
-              {generic.clashRows?.length > 0 && (
+              {/* The comparison, which is the part worth reading: the generic
+                  plan on its own is four plausible choices, and a row where
+                  both plans picked the same restaurant for different reasons
+                  looks like a row the interview did not touch until something
+                  says otherwise. Absent when the pass was skipped -- a
+                  rehearsal with nothing captured yet, or a first answer that
+                  came back unparsable, has no comparison to draw. */}
+              {generic.diffRows?.length > 0 && (
                 <Extras
-                  label="What this gets wrong about you"
-                  rows={generic.clashRows}
-                  note="Each line names the answer from onboarding that rules the choice out."
+                  label="What the interview changed"
+                  rows={generic.diffRows}
+                  note="One line per row of both plans: what the recommended answer chose instead, or that it kept the same choice for a different reason, and which of your answers accounts for it."
                 />
               )}
             </article>

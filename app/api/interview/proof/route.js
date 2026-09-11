@@ -109,28 +109,32 @@ const PACK_LABEL = "Pack";
 const TIP_LABEL = "Tip";
 
 /**
- * The follow-up asked only of the answer that knew nothing.
+ * The second pass asked only of the answer that knew nothing.
  *
- * The generic answer is a reference reading, and on its own it is easy to read
- * charitably: four plausible choices about a real place, and nothing on the
- * screen saying what is wrong with them. This asks the same model to mark the
- * rows that the onboarding answers rule out, and to say which answer rules each
- * one out -- which is the difference the interview made, stated against the
- * generic plan rather than inferred from the good one.
+ * The generic plan on its own is easy to read charitably: four plausible
+ * choices about a real place, and nothing on the screen saying how they differ
+ * from the recommended ones. Reading the two plans side by side and working
+ * out what changed is exactly the work the screen exists to do for the person,
+ * and a note that only marked the worst rows left the rest of the comparison
+ * unexplained -- a row where both plans landed on the same restaurant for
+ * different reasons looked, on screen, like a row where the interview had
+ * changed nothing.
  *
- * Rows are marked only where there is something to mark. A generic choice that
- * happens to suit the family is left alone, and a run with nothing captured
- * never asks the question at all, because a screen that manufactures four
- * objections whatever the family said is the straw man this screen already
- * stopped showing.
+ * So this pass is handed both plans and answers for every slot, not only the
+ * ones that clash: what the recommended plan chose instead, or that it kept the
+ * same choice, and which onboarding answer accounts for it. The instruction to
+ * name the family's own words rather than a general objection is what keeps it
+ * from writing four sentences that would fit anybody.
  */
-const MISFIT_SHAPE = `Reply with one line per row you are marking, and nothing else:
+const COMPARE_SHAPE = `Reply with one line per row, and nothing else:
 
-LABEL | WHY NOT
+LABEL | WHAT CHANGED
 
-LABEL is copied exactly from the row you are marking. WHY NOT is one sentence, at most twenty-two words, naming the specific thing this family told us that rules the choice out or makes it a poor fit -- the preference, the age, the limit, the hour. Quote or name their own answer; do not write a general objection that would apply to any family.
+Write one line for every label you are given, in the order you are given them. LABEL is copied exactly. WHAT CHANGED is one or two sentences, at most thirty-four words, and it does two things: it says how the two choices differ -- or that both plans chose the same thing -- and it names the specific thing this family told us that accounts for it, in their own words rather than your summary of them.
 
-Mark only rows where there is a real conflict with what they told us. Leave a row out when the choice happens to suit them, and leave it out when your objection would be a guess. If no row conflicts, reply with exactly NONE and nothing else.`;
+Where the recommended plan chose something else, say what it chose and what about the family made the generic choice the wrong one. Where both plans chose the same thing, say so plainly and say whether the reason changed, which is worth knowing: the same restaurant picked because it is famous is not the same recommendation as the same restaurant picked because one of them cannot eat shellfish. Never write a difference that is only wording, and never write an objection that would apply to any family.
+
+Write it for the family to read. Do not say "Plan A" or "Plan B" -- the two plans are "this one", the one they are looking at, and "the recommended plan", the one written with their answers.`;
 
 const PLAN_SHAPE = `Answer as a plan, not a paragraph. Exactly nine rows, one per line, each in this shape:
 
@@ -251,6 +255,26 @@ export async function POST(req) {
   // when the request is not a rehearsal, so nothing a client sends can
   // reshape a real family's proof screen.
   const standIn = demo ? resolveStandIn(body?.standIn) : null;
+  // The plan the interview produced, carried by the client so the second pass
+  // below can compare row against row instead of grading the generic plan on
+  // its own. Caller-controlled text reaching a prompt, so every part is
+  // flattened and capped, and only the four slots are kept.
+  const recommendedRows = generic
+    ? (Array.isArray(body?.recommendedRows) ? body.recommendedRows : [])
+        .slice(0, 4)
+        .map((row) => ({
+          when: cleanDestination(row?.when),
+          what: String(row?.what || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 160),
+          why: String(row?.why || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 240),
+        }))
+        .filter((row) => row.when && row.what)
+    : [];
 
   // A rehearsal reads nothing about the real family. Everything its prompt
   // needs is in the run the client carried, so the queries below are skipped
@@ -355,12 +379,13 @@ export async function POST(req) {
 
   const parsed = split(planRows(withRes?.text));
 
-  // Second pass, generic runs only: which of those four choices the onboarding
-  // answers rule out, and why. Skipped when nothing was captured, when the plan
-  // came back unparsable, and when the first call left too little of the
-  // deadline for a short second one -- in all three cases the card simply shows
-  // the generic plan with nothing marked, which is what it did before.
-  let clashRows = [];
+  // Second pass, generic runs only: how the four generic choices differ from
+  // the ones the interview produced, and which answer accounts for each
+  // difference. Skipped when nothing was captured, when the plan came back
+  // unparsable, and when the first call left too little of the deadline for a
+  // short second one -- in all three cases the card shows the generic plan on
+  // its own, which is what it did before.
+  let diffRows = [];
   if (
     generic &&
     captured &&
@@ -370,40 +395,45 @@ export async function POST(req) {
     const rows = parsed.day
       .map((row) => `${row.when} | ${row.what}`)
       .join("\n");
-    const misfitRes = await generate({
-      system: `You are Aly, a travel assistant. Answer in American English. No emoji, no preamble.\n\n${MISFIT_SHAPE}`,
-      messages: [
-        {
-          role: "user",
-          text: `This is what we know about the family:\n${captured}\n\nThese four choices were made for a day in ${destination} by someone who knew none of that:\n${rows}\n\nWhich of them would not work for this family, and why?`,
-        },
-      ],
+    // Both plans when the client carried one, which is the comparison worth
+    // reading. With no recommended plan to hold it against -- a run whose first
+    // answer came back unparsable -- the pass falls back to grading the generic
+    // choices against the family alone.
+    const recommended = recommendedRows
+      .map(
+        (row) => `${row.when} | ${row.what}${row.why ? ` | ${row.why}` : ""}`,
+      )
+      .join("\n");
+    const ask = recommended
+      ? `This is what we know about the family:\n${captured}\n\nPlan A was written for a day in ${destination} by someone who knew none of that:\n${rows}\n\nPlan B answered the same question knowing everything above, and each of its rows carries the reason it was chosen:\n${recommended}\n\nFor each label, what is the difference between the two, and which of the family's own answers accounts for it?`
+      : `This is what we know about the family:\n${captured}\n\nThese choices were made for a day in ${destination} by someone who knew none of that:\n${rows}\n\nFor each label, say what this family's own answers would change about the choice, and which answer changes it. Where a choice happens to suit them already, say so and say which answer it happens to match.`;
+    const diffRes = await generate({
+      system: `You are Aly, a travel assistant. Answer in American English. No emoji, no preamble.\n\n${COMPARE_SHAPE}`,
+      messages: [{ role: "user", text: ask }],
       tools: [],
       grounded: false,
       deadline,
     }).catch(() => null);
-    const text = (misfitRes?.text || "").trim();
-    if (!/^none\b/i.test(text)) {
-      const labels = parsed.day.map((row) => row.when.toLowerCase());
-      const seen = new Set();
-      clashRows = planRows(text)
-        // The label has to be one of the four rows on screen, or the objection
-        // has nothing to attach itself to. A model that renames the slot is
-        // dropped rather than shown floating above the plan.
-        .filter((row) => labels.includes(row.when.toLowerCase()))
-        .filter((row) => {
-          const key = row.when.toLowerCase();
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        })
-        .map((row) => ({
-          what: row.when,
-          why: [row.what, row.why].filter(Boolean).join(" ").trim(),
-        }))
-        .filter((row) => row.why)
-        .slice(0, 4);
-    }
+    const text = (diffRes?.text || "").trim();
+    const labels = parsed.day.map((row) => row.when.toLowerCase());
+    const seen = new Set();
+    diffRows = planRows(text)
+      // The label has to be one of the rows on screen, or the line has nothing
+      // to attach itself to. A model that renames the slot is dropped rather
+      // than shown floating above the plan.
+      .filter((row) => labels.includes(row.when.toLowerCase()))
+      .filter((row) => {
+        const key = row.when.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((row) => ({
+        what: row.when,
+        why: [row.what, row.why].filter(Boolean).join(" ").trim(),
+      }))
+      .filter((row) => row.why)
+      .slice(0, 4);
   }
 
   return NextResponse.json({
@@ -423,10 +453,12 @@ export async function POST(req) {
     withPrefsRows: parsed.day,
     packRows: parsed.pack,
     tipRows: parsed.tips,
-    // Only ever populated on a generic run, and empty when nothing about the
-    // family contradicted the answer. The client heads the list only when there
-    // is something in it.
-    clashRows,
+    // Only ever populated on a generic run: one line per slot saying how the
+    // generic choice differs from the recommended one and which onboarding
+    // answer accounts for it. Empty when the pass was skipped or came back
+    // unusable, and the client heads the list only when there is something in
+    // it.
+    diffRows,
     preferenceCount: generic || !prefsText ? 0 : prefsText.split("\n").length,
   });
 }
