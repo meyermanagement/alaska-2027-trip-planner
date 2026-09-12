@@ -26,6 +26,7 @@ import {
   cleanAids,
   genderLabel,
   languageField,
+  normalizeCarrier,
   normalizeGender,
   parseLanguages,
 } from "@/lib/travelers/profile";
@@ -1597,7 +1598,9 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           ? normalizeGender(form.gender_own) || null
           : form.gender || null,
       notes: form.notes.trim() || null,
-      phone_carrier: form.phone_carrier.trim() || null,
+      // One spelling per provider, so the roaming rule counts two people on
+      // T-Mobile as one carrier however each of them typed it.
+      phone_carrier: normalizeCarrier(form.phone_carrier),
       phone_device: form.phone_device.trim() || null,
       // Both lists are not-null columns, so an empty one is an empty array
       // rather than a null — otherwise clearing the last box fails the write.
