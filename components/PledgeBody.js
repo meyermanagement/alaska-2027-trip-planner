@@ -9,13 +9,16 @@ import {
 /**
  * The pledge, drawn the same way wherever it is read.
  *
- * Two blocks. The three promises come first, as cards, because they are about the
- * family reading the screen. The company's own two commitments follow, past a
- * rule, each one a heading, a line saying what it is, and its terms listed under
- * it. They are not cards, so the order of the screen says which block matters
- * more; they are lists, because the terms are the part somebody would come back to
- * check and prose buries them. Nothing here is pressable: a promise with a button
- * beside it starts to look like an offer.
+ * Two blocks, five cards. The three promises come first, because they are about
+ * the family reading the screen; the company's own two commitments follow past a
+ * rule, under a heading that says what they are. All five are the same card,
+ * because they are all promises and a promise set in a lighter frame than the one
+ * above it reads as a lesser one. What separates the blocks is the rule and the
+ * heading, not the weight of the container.
+ *
+ * The last two carry their terms as a list rather than a paragraph: the terms are
+ * the part somebody comes back to check, and prose buries them. Nothing here is
+ * pressable: a promise with a button beside it starts to look like an offer.
  *
  * The Our Pledge page puts them under its own heading; the panel on Meet Aly
  * puts them under the panel's title. Neither owns the words or the layout, so a
@@ -48,13 +51,13 @@ export default function PledgeBody() {
         <h3 className="font-display text-xl font-semibold text-ink">
           {PLEDGE_COMPANY_HEADING}
         </h3>
-        <div className="mt-5 space-y-6">
+        <div className="mt-5 space-y-4">
           {PLEDGE_COMPANY_PARTS.map((part) => (
-            <div key={part.title}>
-              <h4 className="font-display text-base font-semibold text-ink">
+            <div key={part.title} className="card rounded-2xl p-4 sm:p-5">
+              <h4 className="font-display text-lg font-semibold text-ink">
                 {part.title}
               </h4>
-              <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+              <p className="mt-2 text-sm leading-relaxed text-ink-soft">
                 {part.lead}
               </p>
               {/* Discs outside the text so the lines stay flush with the
