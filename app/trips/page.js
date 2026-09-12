@@ -15,7 +15,6 @@ import NewTripButton from "./NewTripButton";
 import TripBoard from "./TripBoard";
 import BoardSkeleton from "./BoardSkeleton";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
-import InboxAddressChip from "@/components/InboxAddressChip";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { ABOUT_SKIP_COOKIE } from "@/lib/travelers/profile";
 import { BASIC_SELECT } from "@/lib/trips/basics";
@@ -58,7 +57,9 @@ export default async function TripsPage({ searchParams }) {
 
   const access = await resolveAccess(supabase, user);
   const familyId = memberships[0].family_id;
-  const inboxAddress = inboxAddressFor(memberships[0].families?.inbox_local_part);
+  const inboxAddress = inboxAddressFor(
+    memberships[0].families?.inbox_local_part,
+  );
 
   // The one query the page itself needs: the About You redirect below is decided
   // on it, and a redirect has to be decided before anything is streamed.
@@ -94,9 +95,6 @@ export default async function TripsPage({ searchParams }) {
                 three groups below are each named now, so the page keeps the
                 plain name and "Upcoming trips" labels the list it belongs to. */}
             <h1 className="font-display text-3xl font-semibold">Trips</h1>
-            {!access?.can.isSecondary && (
-              <InboxAddressChip address={inboxAddress} />
-            )}
           </div>
           {!access?.can.isSecondary && <NewTripButton />}
         </div>
@@ -108,6 +106,7 @@ export default async function TripsPage({ searchParams }) {
             familyId={familyId}
             people={people || []}
             canRemove={!access?.can.isSecondary}
+            inboxAddress={!access?.can.isSecondary ? inboxAddress : ""}
           />
         </Suspense>
       </main>
@@ -121,7 +120,7 @@ export default async function TripsPage({ searchParams }) {
  * boundary above rather than in the page, so the frame paints and the skeleton
  * stands in for the cards while these run.
  */
-async function Board({ familyId, people, canRemove }) {
+async function Board({ familyId, people, canRemove, inboxAddress }) {
   const supabase = await createClient();
 
   // None of these depend on each other, so they go together rather than one
@@ -217,6 +216,7 @@ async function Board({ familyId, people, canRemove }) {
       past={past}
       today={today}
       canRemove={canRemove}
+      inboxAddress={inboxAddress}
     />
   );
 }

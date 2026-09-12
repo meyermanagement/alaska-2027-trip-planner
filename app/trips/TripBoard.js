@@ -16,6 +16,7 @@ import TripBackdrop from "@/components/TripBackdrop";
 import RemoveTrip from "@/components/RemoveTrip";
 import ArchiveTrip from "@/components/ArchiveTrip";
 import CoverQueue from "@/components/CoverQueue";
+import InboxAddressChip from "@/components/InboxAddressChip";
 import { tripPath } from "@/lib/trips/route";
 import BoardSkeleton from "./BoardSkeleton";
 import { TRIPS_VIEW_EVENT, TRIP_VIEWS } from "@/lib/trips/viewEvent";
@@ -348,6 +349,7 @@ export default function TripBoard({
   past,
   today,
   canRemove = false,
+  inboxAddress = "",
 }) {
   // Which group is showing lives in the address and nowhere else. The menu's
   // three trip rows are this one screen with a different group open, so arriving
@@ -505,6 +507,15 @@ export default function TripBoard({
           );
         })}
       </div>
+
+      {/* Where to send bookings, not how the app works -- shown only on
+          Upcoming, since a family checking Drafts or Past is not the family
+          about to forward a confirmation. Below the tabs rather than under
+          the heading: the heading and the trip cards keep their own room,
+          and this sits with the list it actually affects. */}
+      {view === "upcoming" && inboxAddress && (
+        <InboxAddressChip address={inboxAddress} />
+      )}
 
       <div className="space-y-12">
         <Section
