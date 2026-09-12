@@ -39,7 +39,11 @@ const SWITCH_MS = 380;
 
 const VIEWS = TRIP_VIEWS;
 
-function Section({ id, view, title, blurb, count, children }) {
+// `aside` is a small thing that belongs to one group rather than to the page:
+// it sits under the group's own heading and above its cards, which is where
+// something that applies to these trips and not the other two should be. It
+// carries its own top margin, so the slot adds none.
+function Section({ id, view, title, blurb, count, aside, children }) {
   return (
     <section className={view === id ? "" : "hidden print:block"}>
       <div className="flex items-center gap-3">
@@ -53,6 +57,7 @@ function Section({ id, view, title, blurb, count, children }) {
         </span>
       </div>
       {blurb && <p className="mt-1 text-sm text-ink-soft">{blurb}</p>}
+      {aside}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -508,21 +513,22 @@ export default function TripBoard({
         })}
       </div>
 
-      {/* Where to send bookings, not how the app works -- shown only on
-          Upcoming, since a family checking Drafts or Past is not the family
-          about to forward a confirmation. Below the tabs rather than under
-          the heading: the heading and the trip cards keep their own room,
-          and this sits with the list it actually affects. */}
-      {view === "upcoming" && inboxAddress && (
-        <InboxAddressChip address={inboxAddress} />
-      )}
-
       <div className="space-y-12">
         <Section
           id="upcoming"
           view={view}
           title="Upcoming trips"
           count={upcoming.length}
+          /* Where to send bookings, under this group's heading and above its
+             first card. It belongs to Upcoming and nowhere else: a family
+             looking at Drafts or Past is not the family about to forward a
+             confirmation, and the section's own visibility is what hides it,
+             so there is no second condition to keep in step. It used to sit
+             under the page heading, where the mechanics of filing a booking
+             came before the trips themselves. */
+          aside={
+            inboxAddress ? <InboxAddressChip address={inboxAddress} /> : null
+          }
         >
           {upcoming.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
