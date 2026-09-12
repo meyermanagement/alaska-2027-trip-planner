@@ -111,19 +111,24 @@ export default function ReportButton() {
       }`}
       style={{
         paddingBottom: crowded
-          ? "max(5.5rem, calc(env(safe-area-inset-bottom) + 5rem))"
+          ? /* Sitting in the same row as the compass rather than stacked above
+               it, and lifted the fourteen points that center a twenty-eight
+               point disc against a fifty-six point one, so the two read as one
+               pair on one line. */
+            "calc(max(1rem, calc(env(safe-area-inset-bottom) + 0.4rem)) + 0.875rem)"
           : "max(1.35rem, calc(env(safe-area-inset-bottom) + 0.75rem))",
       }}
     >
-      {/* The same centered column the menu bar uses, so on a wide screen the icon
-          lands on the compass's axis rather than out at the window's edge while
-          the compass sits where the column starts. Nudged half the difference in
-          their widths when the compass is underneath: two round things on one
-          axis read as one corner, two that miss each other by fourteen points
-          read as a mistake. */}
+      {/* The same centered column the menu bar uses, so on a wide screen the
+          icon lands beside the compass rather than out at the window's edge
+          while the compass sits where the column starts. When the compass is
+          down there, the flag is pushed clear of its fifty-six points and
+          given a gap: beside the compass, not above it, because two discs on
+          one line read as one corner of the screen and a disc floating over
+          another reads as something that came loose. */}
       <div
         className="mx-auto flex w-full max-w-5xl justify-start"
-        style={{ paddingLeft: crowded ? "0.875rem" : undefined }}
+        style={{ paddingLeft: crowded ? "4.125rem" : undefined }}
       >
         <button
           type="button"
@@ -162,8 +167,15 @@ function FlagIcon({ className = "" }) {
       className={className}
       aria-hidden="true"
     >
-      <path d="M5 21V4" />
-      <path d="M5 4h9l-1.2 3.4L14 11H5" />
+      {/* Nudged onto the middle of the viewBox: the two paths together run from
+          five to fourteen across and four to twenty-one down, so drawn as
+          written the flag sits left of center and low inside a round button.
+          Two and a half points right, half a point up puts its own middle on
+          the circle's. */}
+      <g transform="translate(2.5, -0.5)">
+        <path d="M5 21V4" />
+        <path d="M5 4h9l-1.2 3.4L14 11H5" />
+      </g>
     </svg>
   );
 }
