@@ -12,7 +12,9 @@ export const dynamic = "force-dynamic";
  *
  * Three promises, each in the app's own voice and each the reason the app is
  * built the way it is. No bias in the recommendations, no selling anybody's
- * information, and no paid slots dressed up as suggestions.
+ * information, and no paid slots dressed up as suggestions. Under them, past a
+ * rule, the two commitments the company makes about itself: how Aly is allowed to
+ * use AI, and the share of revenue that goes to conservation.
  *
  * Deliberately a plain content page: no forms, no toggles, nothing to press.
  * The point is that a family can look at what they're getting from the app
