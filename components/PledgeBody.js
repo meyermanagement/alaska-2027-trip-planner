@@ -1,7 +1,6 @@
 import {
   PLEDGE_COMPANY_HEADING,
-  PLEDGE_COMPANY_INTRO,
-  PLEDGE_COMPANY_PARAGRAPHS,
+  PLEDGE_COMPANY_PARTS,
   PLEDGE_INTRO,
   PLEDGE_PROMISES,
   PLEDGE_THIRD_PARTY,
@@ -11,10 +10,12 @@ import {
  * The pledge, drawn the same way wherever it is read.
  *
  * Two blocks. The three promises come first, as cards, because they are about the
- * family reading the screen. The company's own commitments follow, past a rule
- * and set as plain paragraphs rather than cards, so that the order of the screen
- * says which of the two matters more. Nothing here is pressable: a promise with a
- * button beside it starts to look like an offer.
+ * family reading the screen. The company's own two commitments follow, past a
+ * rule, each one a heading, a line saying what it is, and its terms listed under
+ * it. They are not cards, so the order of the screen says which block matters
+ * more; they are lists, because the terms are the part somebody would come back to
+ * check and prose buries them. Nothing here is pressable: a promise with a button
+ * beside it starts to look like an offer.
  *
  * The Our Pledge page puts them under its own heading; the panel on Meet Aly
  * puts them under the panel's title. Neither owns the words or the layout, so a
@@ -47,17 +48,25 @@ export default function PledgeBody() {
         <h3 className="font-display text-xl font-semibold text-ink">
           {PLEDGE_COMPANY_HEADING}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          {PLEDGE_COMPANY_INTRO}
-        </p>
-        <div className="mt-4 space-y-4">
-          {PLEDGE_COMPANY_PARAGRAPHS.map((paragraph) => (
-            <p
-              key={paragraph.slice(0, 24)}
-              className="text-sm leading-relaxed text-ink-soft"
-            >
-              {paragraph}
-            </p>
+        <div className="mt-5 space-y-6">
+          {PLEDGE_COMPANY_PARTS.map((part) => (
+            <div key={part.title}>
+              <h4 className="font-display text-base font-semibold text-ink">
+                {part.title}
+              </h4>
+              <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                {part.lead}
+              </p>
+              {/* Discs outside the text so the lines stay flush with the
+                  paragraph above them, and a hanging indent on the wrapped part of
+                  a line, which is what makes a list of terms scannable rather than
+                  a wall with dots in it. */}
+              <ul className="mt-2 list-outside list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-ink-soft">
+                {part.points.map((point) => (
+                  <li key={point.slice(0, 24)}>{point}</li>
+                ))}
+              </ul>
+            </div>
           ))}
         </div>
       </section>
