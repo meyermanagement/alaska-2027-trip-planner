@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { coverLabel } from "@/lib/insurance/policy";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
+import ClearedInbox from "@/components/ClearedInbox";
 
 /**
  * The screen a family reads their inbox on.
@@ -205,7 +206,7 @@ export default function InboxScreen({
   async function throwOut(id) {
     if (
       !window.confirm(
-        "Throw this message out? The attachments go with it. This cannot be undone.",
+        "Throw this message out? The attachments go with it and cannot be brought back. The message itself can be put back from the bottom of this screen.",
       )
     )
       return;
@@ -479,6 +480,8 @@ export default function InboxScreen({
           })}
         </div>
       )}
+
+      <ClearedInbox />
     </div>
   );
 }
