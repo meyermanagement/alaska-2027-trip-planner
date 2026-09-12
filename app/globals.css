@@ -1849,6 +1849,136 @@ button.card:hover {
   font-size: 1.7rem;
 }
 
+/* A zone band: the heading for one region of a long screen.
+
+   The menu draws a group of pages as a band -- full width, flat, low in
+   contrast, squarer corners, its name in small caps with a count -- and a page
+   as a floating rounded pill, because the two used to be the same shape and
+   people tapped the heading expecting to arrive somewhere. The packing screen
+   had the same confusion in the other direction: the day packs and the suitcase
+   were both a stack of white cards of the same width, so the only thing
+   dividing two lists that mean different things was a slightly bigger gap.
+
+   A band is deliberately not a control. Nothing about it lifts, lights up or
+   points, so the things you can press on the screen are still only the cards
+   underneath it. */
+.zone-band,
+.zone-kids {
+  --zone-band-face: color-mix(in srgb, var(--color-ink) 4%, transparent);
+  --zone-band-edge: color-mix(in srgb, var(--color-ink) 11%, transparent);
+}
+
+html[data-skin="aurora"] .zone-band,
+html[data-skin="aurora"] .zone-kids,
+html[data-skin="sodium"] .zone-band,
+html[data-skin="sodium"] .zone-kids {
+  --zone-band-face: rgba(255, 255, 255, 0.055);
+  --zone-band-edge: rgba(255, 255, 255, 0.14);
+}
+
+.zone-band {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: 0.5rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.5rem;
+  border: 1px solid var(--zone-band-edge);
+  border-radius: 0.7rem;
+  background: var(--zone-band-face);
+}
+
+.zone-band .zb-tile {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 0.4rem;
+  color: var(--color-ink-soft);
+}
+
+.zone-band .zb-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+/* A band that opens the zone it names, inside a day. Same face, plus the two
+   things a control owes the person pressing it: a chevron that turns, and a
+   press that moves. */
+/* The heading that wraps the control, carrying none of its own space. */
+.zb-heading {
+  margin: 0;
+}
+
+.zone-band.zb-toggle {
+  /* 44px, not the 40px a heading band takes, because this one is pressed with a
+     thumb on a phone. */
+  min-height: 44px;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.16s ease,
+    transform 0.12s ease;
+}
+
+.zone-band.zb-toggle:hover {
+  --zone-band-face: color-mix(in srgb, var(--color-ink) 7%, transparent);
+}
+
+html[data-skin="aurora"] .zone-band.zb-toggle:hover,
+html[data-skin="sodium"] .zone-band.zb-toggle:hover {
+  --zone-band-face: rgba(255, 255, 255, 0.09);
+}
+
+.zone-band.zb-toggle:active {
+  transform: scale(0.995);
+}
+
+.zone-band .zb-chevron {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--color-ink-soft);
+  opacity: 0.75;
+  transition: transform 0.18s ease;
+}
+
+.zone-band.open .zb-chevron {
+  transform: rotate(90deg);
+}
+
+/* How much is in the zone, where a sentence explaining the zone used to be. */
+.zone-band .zb-count {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  color: var(--color-ink-soft);
+  opacity: 0.7;
+}
+
+/* What hangs off a band: the same hairline the menu runs down its pages, so a
+   card that belongs to a zone is visibly held by it rather than merely under
+   it. Indented from the band's icon rather than its edge. */
+.zone-kids {
+  margin-left: 0.8rem;
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--zone-band-edge);
+}
+
+@media (max-width: 359px) {
+  .zone-kids {
+    margin-left: 0.2rem;
+    padding-left: 0.5rem;
+  }
+}
+
 .section-label {
   font-size: 0.65rem;
   font-weight: 600;

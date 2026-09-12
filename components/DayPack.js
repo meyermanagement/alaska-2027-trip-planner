@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { dayPackLines, packedLabel } from "@/lib/daypack/pack";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import { assigneeColor } from "@/lib/format";
+import ZoneBand, { SunIcon } from "./ZoneBand";
 
 /**
  * What goes in the bag on one day, on the day it belongs to.
@@ -32,6 +33,8 @@ export default function DayPack({
   readOnly = false,
   onChange = () => {},
   className = "",
+  collapsible = false,
+  defaultOpen = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [busy, setBusy] = useState(null);
@@ -39,6 +42,7 @@ export default function DayPack({
   const [item, setItem] = useState("");
   const [who, setWho] = useState("Shared");
   const [error, setError] = useState("");
+  const [open, setOpen] = useState(defaultOpen);
 
   const lines = useMemo(
     () => dayPackLines({ rows, tips, date }),
@@ -142,14 +146,13 @@ export default function DayPack({
 
   const count = packedLabel(lines);
 
-  return (
-    <div
-      className={`rounded-[0.875rem] border border-line bg-white/60 px-3 py-2.5 ${className}`}
-    >
+  const body = (
+    <>
       {/* No heading when the caller has already written one. On the Packing page
           the day and the count are on the row you pressed to get here, and saying
-          "Day pack, 1 of 5" again two lines below it is the same sentence twice. */}
-      {heading ? (
+          "Day pack, 1 of 5" again two lines below it is the same sentence twice.
+          A band says it too, so a collapsible card never repeats it either. */}
+      {heading && !collapsible ? (
         <div className="flex items-baseline gap-2">
           <h4 className="text-sm font-semibold text-ink">{heading}</h4>
           {count && (
@@ -304,6 +307,41 @@ export default function DayPack({
           )}
         </div>
       )}
+    </>
+  );
+
+  // Inside a day, the bag is a band you open rather than a card that is always
+  // there. A day already holds every flight, room and booking somebody has made;
+  // a fifth open box of tick lines above them pushed the day itself down the
+  // screen, and most days nobody touches the bag at all. Shut, it still says how
+  // much is in it, which is the one thing worth knowing without opening it.
+  if (collapsible) {
+    return (
+      <section className={className}>
+        <ZoneBand
+          icon={<SunIcon className="h-[15px] w-[15px]" />}
+          name={heading || "Day pack"}
+          count={count || (lines.length ? "" : "Nothing in it yet")}
+          level={4}
+          open={open}
+          onToggle={() => setOpen((was) => !was)}
+        />
+        {open ? (
+          <div className="zone-kids">
+            <div className="rounded-[0.875rem] border border-line bg-white/60 px-3 py-2.5">
+              {body}
+            </div>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
+  return (
+    <div
+      className={`rounded-[0.875rem] border border-line bg-white/60 px-3 py-2.5 ${className}`}
+    >
+      {body}
     </div>
   );
 }

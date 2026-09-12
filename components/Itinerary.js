@@ -1688,6 +1688,29 @@ export default function Itinerary({
                   </ul>
                 )
               )}
+              {/* The bag, at the top of the day and shut. It was last on the day
+                  on the argument that you check it on the way out of the door,
+                  which is true and was the wrong place for it: at the foot of a
+                  day with five bookings in it, the thing you carry was below
+                  everything you had already decided, and nothing about the day
+                  said whether it held anything. A band names it, says how much is
+                  in it, and opens where the day begins. */}
+              {date !== UNSCHEDULED && (
+                <DayPack
+                  date={date}
+                  dayLabel={formatDay(date)}
+                  tripId={tripId}
+                  rows={dayPack}
+                  tips={dayTips}
+                  people={people}
+                  userId={userId}
+                  readOnly={readOnly}
+                  onChange={onDayPackChange}
+                  collapsible
+                  defaultOpen={date === today}
+                  className="no-print mb-3"
+                />
+              )}
               <div className="space-y-2">
                 {dayItems.map((item) => {
                   const status = STATUS_STYLES[item.status];
@@ -2029,23 +2052,6 @@ export default function Itinerary({
                       Add something to this day
                     </button>
                   </div>
-                )}
-                {/* Last on the day, because it is the thing you check on the way
-                    out of the door rather than the thing you plan. Not on the
-                    unscheduled pile, which is not a morning anybody leaves on. */}
-                {date !== UNSCHEDULED && (
-                  <DayPack
-                    date={date}
-                    dayLabel={formatDay(date)}
-                    tripId={tripId}
-                    rows={dayPack}
-                    tips={dayTips}
-                    people={people}
-                    userId={userId}
-                    readOnly={readOnly}
-                    onChange={onDayPackChange}
-                    className="no-print"
-                  />
                 )}
               </div>
             </div>

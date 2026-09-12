@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { dayPackSummary } from "@/lib/daypack/pack";
 import { formatDay } from "@/lib/format";
 import DayPack from "./DayPack";
+import ZoneBand, { SunIcon } from "./ZoneBand";
 
 /**
  * The day packs as their own list, beside the suitcase.
@@ -47,17 +48,22 @@ export default function DayPacks({
   if (!summary.length) return null;
 
   return (
-    <section className="space-y-2">
-      {/* Stacked on a phone. Side by side, the label loses the argument for room
-          and "DAY PACKS" breaks across two lines to make space for a subtitle. */}
-      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
-        <h3 className="section-label whitespace-nowrap">Day packs</h3>
-        <span className="text-xs text-ink-soft">
-          What is carried on the day, not what is in the case
-        </span>
-      </div>
+    <section className="mb-5">
+      {/* A band rather than a label over a subtitle. The sentence it used to
+          carry -- "what is carried on the day, not what is in the case" -- was
+          explaining a distinction that the two names now make on their own, once
+          the suitcase below has a band of its own to be named by. The count is
+          in days because that is the unit somebody scans this list in: three of
+          eleven days have a bag. */}
+      <ZoneBand
+        icon={<SunIcon className="h-[15px] w-[15px]" />}
+        name="Day packs"
+        count={`${summary.length} ${summary.length === 1 ? "day" : "days"}`}
+      />
 
-      <ul className="space-y-1.5">
+      {/* Held by the band on a hairline, the way the menu holds the pages inside
+          a group, so a day row cannot be read as another category of the case. */}
+      <ul className="zone-kids space-y-1.5">
         {summary.map((day) => {
           const key = day.date || "every";
           const showing = open === key;

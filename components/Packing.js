@@ -15,6 +15,8 @@ import {
 import { LAST_MINUTE_LABEL, looksLastMinute } from "@/lib/packing/lastMinute";
 import LastMinuteTasks from "@/components/LastMinuteTasks";
 import DayPacks from "@/components/DayPacks";
+import ZoneBand, { CaseIcon } from "@/components/ZoneBand";
+import { hasDayPack } from "@/lib/daypack/pack";
 import ProTips from "./ProTips";
 
 /**
@@ -1476,6 +1478,16 @@ export default function Packing({
         readOnly={readOnly}
         onChange={onDayPackChange}
       />
+      {/* The case gets a name too, but only when there is something above it to be
+          told apart from. On a trip with no day packs the band would be a heading
+          over the only list on the screen, which is a label saying "list". */}
+      {hasDayPack({ rows: dayPack, tips: dayTips }) ? (
+        <ZoneBand
+          icon={<CaseIcon className="h-[15px] w-[15px]" />}
+          name="The suitcase"
+          count={`${items.length} ${items.length === 1 ? "item" : "items"}`}
+        />
+      ) : null}
       {/* What this trip counts as, and where the list came from, in one strip.
  
           These were two things: a panel here with a heading and a paragraph of
