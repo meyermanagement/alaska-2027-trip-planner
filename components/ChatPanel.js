@@ -870,7 +870,11 @@ export default function ChatPanel({
               </svg>
             </button>
           ) : null}
-          <AlyeskaMark className="h-7 w-7 shrink-0 text-teal" />
+          <AlyeskaMark
+            className="h-7 w-7 shrink-0 text-teal"
+            aurora
+            auroraId="alyeska-aurora-chat"
+          />
           <div className="min-w-0">
             <h2 className="truncate font-display text-base font-semibold leading-none">
               {/* When the heading IS the trip's name -- which it is on every

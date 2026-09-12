@@ -1157,10 +1157,21 @@ export default function NavTabs({
                   pill rather than a disc sitting inside another shape. The
                   needle is held at the smaller compact size in both states,
                   so nothing about the compass jumps when the pill opens. */}
+              {/* The needle carries the skin's four accents rather than the ink
+                  color the rest of the disc uses: teal at north falling through
+                  glacier to plum at the tails, with the north graduation in
+                  amber. It is the one colored thing in the bar, which is the
+                  argument for it -- a dial whose needle is a different material
+                  than its card reads as an instrument, and this is the control
+                  the family reaches for from every screen. The graduations go
+                  back to the pill's own border color while the menu is open, and
+                  the amber north mark stands down with them. */}
               <AlyeskaMark
                 className="h-[52px] w-[52px] shrink-0"
                 bezel
                 compact
+                aurora
+                auroraId="alyeska-aurora-dial"
                 bezelColor={open ? "var(--disc-edge)" : "currentColor"}
                 turned={open}
                 spinning={navFetching}

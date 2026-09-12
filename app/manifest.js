@@ -9,6 +9,14 @@
  * Colors follow the Field Journal skin: it is the light default, and the
  * background/theme values only affect the splash screen and status bar on
  * first launch -- the app switches skins on its own once it boots.
+ *
+ * The icons are pale tiles with the needle in that skin's four accents, which
+ * is the one place the mark cannot follow the skin: a file on a home screen is
+ * painted once. Two of them, because a launcher does two different things with
+ * an icon -- one rounded tile for the platforms that show it as given, and one
+ * edge-to-edge maskable copy with the instrument pulled in far enough to
+ * survive being cropped to a circle. The old single file was declared at two
+ * sizes it never was, so both are now the size they claim.
  */
 export default function manifest() {
   return {
@@ -23,16 +31,16 @@ export default function manifest() {
     theme_color: "#F7F6F2",
     icons: [
       {
-        src: "/alyeska-mark.png",
+        src: "/alyeska-icon.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/alyeska-mark.png",
-        sizes: "192x192",
+        src: "/alyeska-icon-maskable.png",
+        sizes: "512x512",
         type: "image/png",
-        purpose: "any",
+        purpose: "maskable",
       },
     ],
   };

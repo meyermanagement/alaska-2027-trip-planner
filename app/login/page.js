@@ -14,11 +14,11 @@ export default function LoginPage() {
             The disc supplies the rim the bezel graduations lean against; the
             AlyeskaMark draws the sixteen ticks and the needle inside it.
 
-            The one place the needle is not a single ink. Everywhere else the mark
-            takes the color of whatever it sits in, which is what lets one file be
-            a favicon, a menu button and a header mark; here there is no header to
-            match and no colored button around it, so it carries the skin's own
-            teal, glacier, plum and amber. */}
+            The needle carries the skin's own teal, glacier, plum and amber here,
+            as it now does on the menu dial, the opening screen and Aly's panel
+            header. This screen is where it started, because it is the one with
+            nothing else on it: no header to match and no colored button around
+            the mark. */}
         <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)]">
           <AlyeskaMark
             className="h-[60px] w-[60px]"

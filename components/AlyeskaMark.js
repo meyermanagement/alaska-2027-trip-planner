@@ -24,7 +24,9 @@ const OUTLINE =
   "M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z";
 const WEST = "M9.92 21.96 16 17.89 16 8.84Z";
 
-// One fixed id for the aurora needle's gradient. See the `aurora` note below.
+// The default id for the aurora needle's gradient. Every aurora mark carries its
+// own copy of the definition, and any mark that can share a page with another one
+// passes its own id. See the `aurora` note below.
 const AURORA_ID = "alyeska-aurora-needle";
 
 // Sixteen marks stepping inward from a rim at radius 15, north long and dark,
@@ -80,10 +82,18 @@ const BEZEL = [
  *               one place with nothing else on it: there is no header to match
  *               and no colored button around the mark, so the instrument can
  *               carry the skin's own colors there without competing with
- *               anything. The gradient id is fixed rather than generated, so
- *               draw the aurora mark once per page -- two of them on one screen
- *               would share the definition, which is harmless, and a third
- *               would too, but nothing here needs more than one.
+ *               anything, and the menu dial and Aly's own marks now do the same.
+ *
+ *               Each mark carries its own copy of the gradient inside its own
+ *               svg. That is not tidiness: a reference resolves to whichever
+ *               element holds the id first, and a paint server that happens to
+ *               sit inside a hidden subtree is not reliably usable from a visible
+ *               one -- Chrome drops it, and the needle vanishes rather than
+ *               falling back to a color. So anything that can share a page with
+ *               another mark passes `auroraId`.
+ * @param auroraId Id for this mark's gradient. Only needs setting when two
+ *               aurora marks can be on one page, which is every screen with the
+ *               menu dial on it.
  * @param turned Swing the needle a quarter turn. The bezel does not move --
  *               on a real compass the card stays put and the needle points, and
  *               a rotating set of graduations would put north on the east mark.
@@ -98,11 +108,19 @@ export default function AlyeskaMark({
   compact = false,
   bezelColor = "currentColor",
   aurora = false,
+  auroraId = AURORA_ID,
   turned = false,
   spinning = false,
 }) {
   const scale = bezel || compact ? 0.72 : 1;
-  const needle = aurora ? `url(#${AURORA_ID})` : "currentColor";
+  const needle = aurora ? `url(#${auroraId})` : "currentColor";
+  // The amber north graduation is dropped whenever the graduations have been
+  // handed a color of their own. That happens in one place -- the menu dial
+  // while the search pill is open, where the ticks are painted in the pill's
+  // border color so they read as its rim curving inward. One amber mark in a
+  // ring that is pretending to be the edge of something else would give the
+  // trick away, and north is still obvious from the needle sitting on it.
+  const northTick = aurora && bezelColor === "currentColor";
   return (
     <svg
       viewBox="0 0 32 32"
@@ -116,7 +134,7 @@ export default function AlyeskaMark({
               that means something on a compass, so the brightest color belongs
               there and the tails fall away from it. */}
           <linearGradient
-            id={AURORA_ID}
+            id={auroraId}
             x1="16"
             y1="2.9"
             x2="16"
@@ -135,11 +153,11 @@ export default function AlyeskaMark({
             key={d}
             d={d}
             stroke={
-              aurora && index === 0 ? "var(--aurora-north-tick)" : bezelColor
+              northTick && index === 0 ? "var(--aurora-north-tick)" : bezelColor
             }
             strokeWidth={w}
             strokeLinecap="round"
-            opacity={aurora && index === 0 ? 1 : o}
+            opacity={northTick && index === 0 ? 1 : o}
           />
         ))}
       <g

@@ -142,7 +142,11 @@ export default function ConversationList({ onPick, onNew, onClose }) {
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <AlyeskaMark className="h-7 w-7 shrink-0 text-teal" />
+          <AlyeskaMark
+            className="h-7 w-7 shrink-0 text-teal"
+            aurora
+            auroraId="alyeska-aurora-threads"
+          />
           <div className="min-w-0">
             <h2 className="font-display text-base font-semibold leading-none">
               Ask Aly

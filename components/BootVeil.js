@@ -98,6 +98,39 @@ const BEZEL = [
   ["M10.26 2.14 10.68 3.16", 1, 0.34, 1.2],
 ];
 
+// The gradient ids the opening screens use for the needle -- one per drawing,
+// because a reference cannot reach out of its own svg on every browser this has
+// to run on, and because the short opening keeps two fields in the markup with
+// only one of them displayed. A paint server sitting inside the hidden one is
+// not reliably usable by the visible one: Chrome drops it, and the needle
+// disappears rather than falling back to a color. So each field carries its own.
+// All of them resolve to the same four skin accents; see AlyeskaMark for why the
+// aurora needle exists at all.
+const AURORA_FULL = "alyeska-aurora-boot";
+const AURORA_QUICK = "alyeska-aurora-quick";
+
+// Teal at north, falling through glacier to plum at the tails, down the needle's
+// own axis rather than the box. Written once and rendered into whichever svg
+// wants it, so the two openings cannot drift apart.
+function AuroraNeedleFill({ id }) {
+  return (
+    <defs>
+      <linearGradient
+        id={id}
+        x1="16"
+        y1="2.9"
+        x2="16"
+        y2="29"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop offset="0" stopColor="var(--aurora-north)" />
+        <stop offset="0.55" stopColor="var(--aurora-mid)" />
+        <stop offset="1" stopColor="var(--aurora-tail)" />
+      </linearGradient>
+    </defs>
+  );
+}
+
 // The shipped needle at 72 percent, which is the largest size whose tail points
 // clear the innermost graduation. The tint on the west face turns with it -- it is one
 // object, and a needle whose lit side stayed put while the blade swung would not
@@ -107,20 +140,20 @@ const BEZEL = [
 // that have to compose rather than overwrite each other: the swing that settles
 // on north, and the drift that keeps the settled needle alive. One element
 // cannot run two transform animations -- the second silently wins.
-function Needle({ swing }) {
+function Needle({ swing, aurora }) {
   return (
     <g transform="translate(16 16) scale(0.72) translate(-16 -16)">
       <g className={swing ? "boot-swing" : undefined}>
         <g className={swing ? "boot-drift" : undefined}>
           <path
             fillRule="evenodd"
-            fill="currentColor"
+            fill={aurora ? `url(#${AURORA_FULL})` : "currentColor"}
             d="M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z"
           />
           <path
             d="M9.92 21.96 16 17.89 16 8.84Z"
-            fill="currentColor"
-            opacity="0.28"
+            fill={aurora ? "var(--aurora-tail)" : "currentColor"}
+            opacity={aurora ? 0.3 : 0.28}
           />
         </g>
       </g>
@@ -151,10 +184,12 @@ function Housing({ live }) {
         <path
           key={d}
           d={d}
-          stroke="currentColor"
+          /* North in amber, the way the shipped mark does it, so the graduation
+             the needle comes to rest on is the one warm thing on the card. */
+          stroke={i === 0 ? "var(--aurora-north-tick)" : "currentColor"}
           strokeWidth={w}
           strokeLinecap="round"
-          opacity={live ? o : 1}
+          opacity={live && i > 0 ? o : 1}
           className={live ? "boot-tick" : undefined}
           /* Each mark drops in a beat after the one to its west, so the card
              fills clockwise from north while the rim is still closing -- the
@@ -203,9 +238,10 @@ const WIDE_ROUTE = "M32 164C84 164 96 116 148 116S212 60 264 60S324 30 348 24";
 
 // The mark itself, at a size in rems: it rides on the map but it is not stretched
 // by it, because a compass drawn wider than it is tall is a broken compass.
-function QuickMark() {
+function QuickMark({ gradientId }) {
   return (
     <svg viewBox="0 0 32 32" fill="none">
+      <AuroraNeedleFill id={gradientId} />
       <circle
         cx="16"
         cy="16"
@@ -219,7 +255,11 @@ function QuickMark() {
           graduations at this size is a smudge, and the housing on the full
           opening already earns them on a screen where the mark is the point. */}
       <g stroke="currentColor" strokeLinecap="round">
-        <path d="M16 1 16 4.4" strokeWidth="1.7" opacity="0.72" />
+        <path
+          d="M16 1 16 4.4"
+          strokeWidth="1.7"
+          stroke="var(--aurora-north-tick)"
+        />
         <path
           d="M31 16 28.6 16M16 31 16 28.6M1 16 3.4 16"
           strokeWidth="1.4"
@@ -230,7 +270,7 @@ function QuickMark() {
         <g className="quick-needle">
           <path
             fillRule="evenodd"
-            fill="currentColor"
+            fill={`url(#${gradientId})`}
             transform="translate(16 16) scale(0.72) translate(-16 -16)"
             d="M16 2.9 28.1 29 16 20.9 3.9 29Z M16 8.84 9.92 21.96 16 17.89 22.08 21.96Z"
           />
@@ -272,7 +312,7 @@ function QuickField({ kind, box, route }) {
       <span className="quick-end quick-from" />
       <span className="quick-end quick-to" />
       <div className="quick-travel">
-        <QuickMark />
+        <QuickMark gradientId={`${AURORA_QUICK}-${kind}`} />
       </div>
     </div>
   );
@@ -350,6 +390,7 @@ export default function BootVeil() {
       <QuickVeil />
       <div className="boot-mark">
         <svg viewBox="0 0 32 32" fill="none">
+          <AuroraNeedleFill id={AURORA_FULL} />
           {/* The finished mark, faint and still, under the one that arrives. The
               first frame of a stroke animation is an empty box, and a splash
               whose first quarter-second is blank is the problem this is meant to
@@ -361,7 +402,7 @@ export default function BootVeil() {
                 Left in, a faint arrow parked on north while a solid one swings
                 past it reads as two needles rather than one arriving. */}
             <g className="boot-ghost-needle">
-              <Needle />
+              <Needle aurora />
             </g>
           </g>
           {/* The card arrives first and stays put: the rim drawn round from
@@ -379,7 +420,7 @@ export default function BootVeil() {
               Once settled the needle keeps drifting a degree or so, on a slow
               loop that never stops. A compass at rest is not perfectly still,
               and a mark that freezes stops reading as an instrument. */}
-          <Needle swing />
+          <Needle swing aurora />
         </svg>
         <span className="boot-word font-display">Alyeska</span>
         {/* The tagline turns on CSS keyframes rather than a React interval, for
