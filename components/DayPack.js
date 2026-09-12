@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dayPackLines, packedLabel } from "@/lib/daypack/pack";
-import { ensureCaseRow } from "@/lib/daypack/link";
+import { ensureCaseRow, matchCaseRow } from "@/lib/daypack/link";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import { assigneeColor } from "@/lib/format";
 import ZoneBand, { SunIcon } from "./ZoneBand";
+import ConfirmSheet from "./ConfirmSheet";
 
 /**
  * What goes in the bag on one day, on the day it belongs to.
@@ -44,6 +45,9 @@ export default function DayPack({
   const [who, setWho] = useState("Shared");
   const [error, setError] = useState("");
   const [open, setOpen] = useState(defaultOpen);
+  // The removal question, held while it is being asked: which line, and which
+  // packing row the answer is about.
+  const [ask, setAsk] = useState(null);
 
   const lines = useMemo(
     () => dayPackLines({ rows, tips, date }),
@@ -120,33 +124,70 @@ export default function DayPack({
 
   // Coming off a day is not the same as staying home. Dropping the binoculars
   // from Wednesday usually means Thursday instead, so the case is a question
-  // asked once and never an assumption -- and answering no leaves the packing
-  // line exactly as it was. (The other direction is a consequence, not a
+  // asked once and never an assumption -- and answering "leave it" leaves the
+  // packing line exactly as it was. (The other direction is a consequence, not a
   // question: taking it out of the case takes it off every day, and the packing
   // screen says so before it does it.)
+  //
+  // The question is asked whenever the case has the thing, whether or not this
+  // row remembers being tied to it. Rows written before the two lists were tied
+  // together carry no link, and so did rows Aly wrote on a day the packing write
+  // failed; the link is the fast path and the name is the fallback, because a
+  // silent removal is the one outcome that loses information.
   async function remove(line) {
     if (readOnly || line.kind === "tip") return;
-    const alsoCase =
-      Boolean(line.fromPackingId) &&
-      window.confirm(
-        `Take “${line.item}” off the trip's packing list as well? Cancel to leave it in the case.`,
-      );
-    setBusy(line.key);
-    if (alsoCase) {
-      // The packing row is the parent, so removing it takes this line with it.
-      const { error: writeError } = await supabase
+    let caseId = line.fromPackingId || null;
+    let caseItem = line.item;
+    if (!caseId) {
+      setBusy(line.key);
+      const { data } = await supabase
         .from("packing_items")
-        .delete()
-        .eq("id", line.fromPackingId);
-      if (writeError) {
-        setError("That could not be saved. Try again.");
-        setBusy(null);
-        return;
+        .select("id, item, assignee, stashed_at")
+        .eq("trip_id", tripId);
+      setBusy(null);
+      const hit = matchCaseRow(data || [], line.item, line.assignee);
+      if (hit) {
+        caseId = hit.id;
+        caseItem = hit.item;
       }
-    } else {
-      await supabase.from("day_pack_items").delete().eq("id", line.rowId);
     }
+    // Nothing in the case to decide about, so there is nothing to ask: the line
+    // is somebody's own note on one day and it goes.
+    if (!caseId) {
+      await dropLine(line);
+      return;
+    }
+    setAsk({ line, caseId, caseItem });
+  }
+
+  async function dropLine(line) {
+    setBusy(line.key);
+    const { error: writeError } = await supabase
+      .from("day_pack_items")
+      .delete()
+      .eq("id", line.rowId);
     setBusy(null);
+    setAsk(null);
+    if (writeError) {
+      setError("That could not be saved. Try again.");
+      return;
+    }
+    onChange();
+  }
+
+  async function dropBoth(line, caseId) {
+    setBusy(line.key);
+    // The packing row is the parent, so removing it takes this line with it.
+    const { error: writeError } = await supabase
+      .from("packing_items")
+      .delete()
+      .eq("id", caseId);
+    setBusy(null);
+    setAsk(null);
+    if (writeError) {
+      setError("That could not be saved. Try again.");
+      return;
+    }
     onChange();
   }
 
@@ -351,6 +392,46 @@ export default function DayPack({
             </>
           )}
         </div>
+      )}
+
+      {/* The one real decision in here, asked in the app's own voice rather than
+          in the browser's. It names the packing line it found, because the line
+          being carried and the line in the case are not always spelled the same
+          way, and either answer is a full sentence about what happens. */}
+      {ask && (
+        <ConfirmSheet
+          title="Take it out of the case as well?"
+          body={
+            <>
+              <p>
+                “{ask.line.item}” comes off{" "}
+                {ask.line.everyDay ? "every day of this trip" : "this day"}{" "}
+                either way.
+              </p>
+              <p>
+                It is also on this trip's packing list
+                {ask.caseItem &&
+                ask.caseItem.toLowerCase() !== ask.line.item.toLowerCase()
+                  ? ` as “${ask.caseItem}”`
+                  : ""}
+                . Taking it off there takes it off every day it is carried.
+              </p>
+            </>
+          }
+          busy={busy === ask.line.key}
+          actions={[
+            {
+              label: "Leave it on the packing list",
+              onPick: () => dropLine(ask.line),
+            },
+            {
+              label: "Take it off both",
+              tone: "danger",
+              onPick: () => dropBoth(ask.line, ask.caseId),
+            },
+          ]}
+          onCancel={() => setAsk(null)}
+        />
       )}
     </>
   );

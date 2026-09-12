@@ -16,6 +16,7 @@ import { LAST_MINUTE_LABEL, looksLastMinute } from "@/lib/packing/lastMinute";
 import LastMinuteTasks from "@/components/LastMinuteTasks";
 import DayPacks from "@/components/DayPacks";
 import ZoneBand, { CaseIcon } from "@/components/ZoneBand";
+import ConfirmSheet from "@/components/ConfirmSheet";
 import { hasDayPack } from "@/lib/daypack/pack";
 import ProTips from "./ProTips";
 
@@ -119,6 +120,9 @@ export default function Packing({
   // one case that cannot be answered by a button on a card, because the card
   // does not exist yet.
   const [adding, setAdding] = useState(null);
+  // The removal question, held while it is being asked: the row, and the days it
+  // is carried on so the answer can say what else it changes.
+  const [ask, setAsk] = useState(null);
   const [newItem, setNewItem] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newAssignee, setNewAssignee] = useState("Shared");
@@ -409,9 +413,14 @@ export default function Packing({
   // Taking something out of the case takes it off the days it was being carried
   // on, because it is not on the trip any more and nobody can carry what is not
   // there. That is a cascade in the database, so it happens whether or not this
-  // screen mentions it -- which is exactly why this screen mentions it. The days
-  // are named, since "also in a day pack" is not enough to decide with.
-  async function remove(item) {
+  // screen mentions it -- which is exactly why this screen mentions it.
+  //
+  // Removing a line from the case is the same decision as removing one from a
+  // day, read from the other end: this row may be the reason something is in a
+  // bag on Wednesday, and taking it off here takes it out of that bag as well.
+  // The days are named rather than counted, because "Wednesday and Friday" is
+  // something a person can check against the trip in their head.
+  function remove(item) {
     const carried = (dayPack || []).filter(
       (row) => row && row.from_packing_id === item.id,
     );
@@ -420,18 +429,16 @@ export default function Packing({
         row.item_date ? formatFullDay(row.item_date) : "every day",
       )
       .filter((day, at, all) => all.indexOf(day) === at);
-    const warning = days.length
-      ? `\n\n“${item.item}” is in the day pack for ${days.join(
-          ", ",
-        )}. Removing it here takes it off ${
-          days.length === 1 ? "that day" : "those days"
-        } too.`
-      : "";
-    if (!window.confirm(`Remove “${item.item}” from the list?${warning}`))
-      return;
-    await supabase.from("packing_items").delete().eq("id", item.id);
+    setAsk({ item, days, carried: carried.length });
+  }
+
+  async function removeForReal() {
+    const held = ask;
+    if (!held) return;
+    setAsk(null);
+    await supabase.from("packing_items").delete().eq("id", held.item.id);
     onChange();
-    if (carried.length) onDayPackChange();
+    if (held.carried) onDayPackChange();
   }
 
   function startEdit(item) {
@@ -1950,6 +1957,35 @@ export default function Packing({
           </div>
         )}
       </div>
+
+      {/* Asked in the app's own voice, and it always says what else changes: the
+          days this line is carried on, named, because that is the part somebody
+          cannot see from the case. */}
+      {ask && (
+        <ConfirmSheet
+          title={`Remove “${ask.item.item}” from the list?`}
+          body={
+            <>
+              <p>It comes off this trip's packing list for everyone.</p>
+              {ask.days.length > 0 && (
+                <p>
+                  It is also in the day pack for {ask.days.join(", ")}, and this
+                  takes it out of {ask.days.length === 1 ? "that" : "those"} as
+                  well.
+                </p>
+              )}
+            </>
+          }
+          actions={[
+            {
+              label: "Remove it",
+              tone: "danger",
+              onPick: removeForReal,
+            },
+          ]}
+          onCancel={() => setAsk(null)}
+        />
+      )}
     </section>
   );
 }
