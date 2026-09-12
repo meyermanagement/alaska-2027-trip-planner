@@ -3519,33 +3519,6 @@ html[data-skin="sodium"] .menu-arc {
   color: var(--color-ink-soft);
 }
 
-/* The first node, and the only one drawn at a different size. Trips is where
-   most presses of this menu were heading, and inside a trip it is the way back
-   out. A curve of seven identical rows makes you read all seven; one larger row
-   at the head of it is answered before you have started reading. */
-.arc-pill.lead {
-  padding: 0.45rem 1.05rem 0.45rem 0.4rem;
-  gap: 0.7rem;
-}
-
-.arc-pill.lead .arc-disc {
-  width: 44px;
-  height: 44px;
-}
-
-.arc-pill.lead .arc-disc svg {
-  width: 21px;
-  height: 21px;
-}
-
-.arc-pill.lead .arc-label {
-  font-size: 1.12rem;
-}
-
-.arc-pill.lead .arc-sub {
-  font-size: 0.78rem;
-}
-
 /* The screen you are already on: filled in the accent, which is the marker the
    rest of the app uses for the same idea. */
 .arc-pill.on {
@@ -3593,57 +3566,178 @@ html[data-skin="sodium"] .menu-arc {
   box-shadow: 0 0 0 2px var(--arc-face);
 }
 
-/* Two levels. Three of these rows are doors to a group rather than to a screen,
-   and pressing one opens two to four rows underneath it, drawn smaller, set in,
-   and hung off a hairline so that the nesting is visible without inventing a
-   second surface to put them on. The arc that used to bow these rows out into a
-   curve is gone with them: a curve reads as one list of equals, and the point of
-   this shape now is that some rows are inside others. */
+/* Two levels, and a group is not a pill. Both things in this column used to be the same object:
+   the same frosted face, the same round accent disc, the same serif name over
+   the same second line, with a half-lit chevron as the only sign that one of
+   them opened and the other one went somewhere. So a band instead -- full
+   width, square-cornered, flat, low in contrast, its name in small caps, its
+   icon in a squared tile with nothing behind it, and the number of screens it
+   holds where the sentence used to be. A heading that explains itself in two
+   lines competes with the screens inside it; the count answers the same
+   question in one character, and a page can still be the only round, lit,
+   partial-width thing in the shape. */
 .arc-pill.group {
-  align-items: flex-start;
-  padding-top: 0.4rem;
-  padding-bottom: 0.4rem;
+  --arc-band-face: color-mix(in srgb, var(--color-ink) 4%, transparent);
+  --arc-band-edge: color-mix(in srgb, var(--color-ink) 11%, transparent);
+  width: 100%;
+  min-height: 44px;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem 0.35rem 0.5rem;
+  border-radius: 0.7rem;
+  background: var(--arc-band-face);
+  border-color: var(--arc-band-edge);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-skin="aurora"] .arc-pill.group,
+html[data-skin="sodium"] .arc-pill.group {
+  --arc-band-face: rgba(255, 255, 255, 0.055);
+  --arc-band-edge: rgba(255, 255, 255, 0.14);
+}
+
+.arc-pill.group.open {
+  --arc-band-face: color-mix(in srgb, var(--color-ink) 7%, transparent);
+}
+
+html[data-skin="aurora"] .arc-pill.group.open,
+html[data-skin="sodium"] .arc-pill.group.open {
+  --arc-band-face: rgba(255, 255, 255, 0.09);
 }
 
 .arc-pill.group .arc-disc {
-  margin-top: 1px;
+  width: 26px;
+  height: 26px;
+  border-radius: 0.4rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--color-ink-soft);
+}
+
+/* The attention count on a band. The tile it hangs off is 26px rather than the
+   pill's 36px, so at the old offset the badge sat squarely on top of the icon;
+   pushed out to the tile's corner it reads as a mark on the group instead of a
+   sticker over its symbol, and it needs no ring because there is no bright disc
+   behind it to separate from. */
+.arc-pill.group .arc-dot {
+  top: -6px;
+  right: -7px;
+  box-shadow: none;
+}
+
+.arc-pill.group .arc-label {
+  flex: 1 1 auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+/* How many screens are behind the band. */
+.arc-count {
+  font-size: 0.72rem;
+  color: var(--color-ink-soft);
+  opacity: 0.7;
+}
+
+/* Inside a trip, the way out lives on the right end of the Travel Journal band
+   rather than in a large round pill of its own above it. That band already
+   opens onto Planned Trips, which is the same board, so the column was offering
+   one destination twice at two very different weights -- and with the groups
+   gone flat, the louder of the two was the one whose only job is to leave. One
+   band, two targets, a hairline between them, each the height of the band so
+   both are a thumb's worth of row. */
+.arc-pill.group.split {
+  padding: 0;
+  overflow: hidden;
+}
+
+.arc-band-main {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  align-self: stretch;
+  padding: 0.35rem 0.6rem 0.35rem 0.5rem;
+  text-align: left;
+  color: inherit;
+}
+
+.arc-band-out {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  align-self: stretch;
+  padding: 0 0.7rem;
+  border-left: 1px solid var(--arc-band-edge);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-teal);
+}
+
+.arc-band-out:active {
+  transform: translateY(1px);
+}
+
+/* The band that carries the way out does not also count itself. On a 320px
+   phone the two right-hand things together ate enough of the row to cut
+   "Travel Journal" off mid-word, and of the pair the count is the one nobody
+   came for. */
+.arc-pill.group.split .arc-count {
+  display: none;
+}
+
+/* On the narrowest phone the two halves cannot share a line: "Travel Journal"
+   in small caps wants 122px and a row split with the way out leaves it 102, so
+   the name was cut to "Travel Jou..." -- a heading that cannot say its own name
+   is worse than a taller band. Below 360px the same band turns the divider on
+   its side: the group on the top line, the way out on the bottom one, still one
+   object, still two targets, both a full thumb high. */
+@media (max-width: 359px) {
+  .arc-pill.group.split {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .arc-band-out {
+    justify-content: flex-start;
+    gap: 0.4rem;
+    min-height: 40px;
+    /* Left edge lined up with the group's name above it, not with its icon. */
+    padding: 0 0.6rem 0 42px;
+    border-left: 0;
+    border-top: 1px solid var(--arc-band-edge);
+  }
+  .arc-band-out > :last-child {
+    margin-left: auto;
+  }
 }
 
 /* A group that is deliberately quieter than the three travel groups above
    it. Used on More -- Settings, Our Pledge, Contact Us -- because that
    row is the least-visited door on the menu and drawing it at the same
    weight as Travel Journal made it read as another destination of equal
-   importance, which it is not. Sized close to a kid row: smaller disc,
-   smaller label, tighter padding, sub subdued into one line. */
+   importance, which it is not. */
 .arc-pill.group.slim {
-  padding-top: 0.24rem;
-  padding-bottom: 0.24rem;
-  padding-right: 0.7rem;
-  gap: 0.5rem;
-}
-
-.arc-pill.group.slim .arc-disc {
-  width: 28px;
-  height: 28px;
-  margin-top: 0;
+  --arc-band-face: transparent;
+  min-height: 38px;
 }
 
 .arc-pill.group.slim .arc-disc svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 .arc-pill.group.slim .arc-label {
-  font-size: 0.82rem;
-  font-weight: 500;
-}
-
-.arc-pill.group.slim .arc-sub {
-  font-size: 0.66rem;
-  opacity: 0.75;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.68rem;
+  opacity: 0.85;
 }
 
 .arc-pill.group.slim .arc-chev {
@@ -3692,7 +3786,7 @@ html[data-skin="sodium"] .menu-arc {
 .arc-pill.kid::before {
   content: "";
   position: absolute;
-  left: -19px;
+  left: -13px;
   top: -8px;
   bottom: -8px;
   width: 1px;
@@ -3713,7 +3807,7 @@ html[data-skin="sodium"] .arc-pill.kid::before {
     margin-left: 24px;
   }
   .arc-pill.kid::before {
-    left: -14px;
+    left: -3px;
   }
 }
 

@@ -668,22 +668,19 @@ export default function NavTabs({
     });
   }
   if (insideTrip) {
-    pushRow(
-      {
-        kind: "wayout",
-        key: "wayout",
-        href: "/trips",
-        label: "All trips",
-        Icon: BackIcon,
-        lead: true,
-      },
-      {
-        key: "wayout",
-        kind: "link",
-        label: "All trips",
-        sub: "Back out of this trip",
-      },
-    );
+    // The way out of a trip. It is no longer a row of its own: it is the right
+    // end of the Travel Journal band, because that band already opens onto
+    // Planned Trips, which is the same board -- so inside a trip the column was
+    // offering one destination twice, at two very different weights. Still
+    // named in the payload so a person can type "get me out of here" and have
+    // the model answer with it; the filter turns that key into the band that
+    // now carries it.
+    menuPayload.push({
+      key: "wayout",
+      kind: "link",
+      label: "All trips",
+      sub: "Back out of this trip",
+    });
   }
   if (secondary) {
     for (const row of SECONDARY_ROWS) {
@@ -715,7 +712,13 @@ export default function NavTabs({
           Icon: g.Icon,
           badge: g.badge,
           slim: Boolean(g.slim),
-          lead: !insideTrip && g.key === "journal",
+          // How many screens are behind the band, said on the band. A heading
+          // that opens should say how much it opens; it is also the only
+          // number that replaces the sentence the group used to carry.
+          count: g.kids.length,
+          // The Travel Journal band carries the way out of a trip on its right
+          // end while you are inside one.
+          wayOut: insideTrip && g.key === "journal",
         },
         {
           key: `group:${g.key}`,
@@ -761,6 +764,7 @@ export default function NavTabs({
   // group's key is not, the group header is added back so the kid does not
   // appear parentless in the column.
   const includedKeys = filterReady ? new Set(navFilter.keys) : null;
+  if (includedKeys?.has("wayout")) includedKeys.add("group:journal");
   if (includedKeys) {
     for (const row of allRows) {
       if (row.kind === "link" && row.kid && !includedKeys.has(row.key))
@@ -921,23 +925,20 @@ export default function NavTabs({
                   if (row.kind === "group") {
                     const isOpen = group === row.groupKey;
                     const count = row.badge && !isOpen ? attention : 0;
-                    return (
-                      <button
-                        key={row.key}
-                        type="button"
-                        aria-expanded={isOpen}
-                        onClick={() =>
-                          setGroup((held) =>
-                            held === row.groupKey ? null : row.groupKey,
-                          )
-                        }
-                        style={{ "--arc-i": row.i }}
-                        className={`arc-pill group ${row.lead ? "lead " : ""}${
-                          row.slim ? "slim " : ""
-                        }${isOpen ? "open" : ""}`}
-                      >
+                    const toggle = () =>
+                      setGroup((held) =>
+                        held === row.groupKey ? null : row.groupKey,
+                      );
+                    /* What a band says: the icon, the name in small caps, how
+                       many screens are behind it, and the chevron. The sentence
+                       it used to carry has gone with the pill -- a heading that
+                       explains itself in two lines is competing with the screens
+                       inside it, and the count answers the same question in one
+                       character. */
+                    const face = (
+                      <>
                         <span className="arc-disc">
-                          <row.Icon className="h-[18px] w-[18px] shrink-0" />
+                          <row.Icon className="h-[15px] w-[15px] shrink-0" />
                           {count > 0 && (
                             <span className="arc-dot">
                               {count}
@@ -948,26 +949,72 @@ export default function NavTabs({
                             </span>
                           )}
                         </span>
-                        <span className="min-w-0">
-                          <span className="arc-label block font-display text-[0.95rem] font-semibold leading-tight">
-                            {row.label}
-                          </span>
-                          {/* The two lines a group carries are a sentence about
-                              what is behind the door, and the doors are three
-                              rather than seven now -- so this one is allowed to
-                              wrap rather than be cut off mid-word. */}
-                          <span className="arc-sub block text-[0.72rem] leading-[1.25]">
-                            {row.sub}
-                          </span>
+                        <span className="arc-label min-w-0 truncate">
+                          {row.label}
                         </span>
+                        <span className="arc-count tabular">{row.count}</span>
                         <span aria-hidden="true" className="arc-chev">
-                          <ChevronIcon className="h-[15px] w-[15px] shrink-0" />
+                          <ChevronIcon className="h-[14px] w-[14px] shrink-0" />
                         </span>
+                      </>
+                    );
+
+                    /* Inside a trip, one band with two targets: the left of it
+                       opens the group, the right end leaves the trip. The
+                       animation and the band face belong to the container, so
+                       the two halves are bare buttons sharing one surface with a
+                       hairline between them. */
+                    if (row.wayOut) {
+                      return (
+                        <div
+                          key={row.key}
+                          style={{ "--arc-i": row.i }}
+                          className={`arc-pill group split ${isOpen ? "open" : ""}`}
+                        >
+                          <button
+                            type="button"
+                            aria-expanded={isOpen}
+                            onClick={toggle}
+                            className="arc-band-main"
+                          >
+                            {face}
+                          </button>
+                          <Link
+                            href="/trips"
+                            className="arc-band-out"
+                            onPointerEnter={() => router.prefetch("/trips")}
+                            onPointerDown={() => router.prefetch("/trips")}
+                            onFocus={() => router.prefetch("/trips")}
+                            onClick={() => setOpen(false)}
+                          >
+                            <span>All trips</span>
+                            <PendingSwap
+                              href="/trips"
+                              className="h-[13px] w-[13px] shrink-0"
+                            >
+                              <ArrowIcon className="h-[13px] w-[13px] shrink-0" />
+                            </PendingSwap>
+                          </Link>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={row.key}
+                        type="button"
+                        aria-expanded={isOpen}
+                        onClick={toggle}
+                        style={{ "--arc-i": row.i }}
+                        className={`arc-pill group ${
+                          row.slim ? "slim " : ""
+                        }${isOpen ? "open" : ""}`}
+                      >
+                        {face}
                       </button>
                     );
                   }
 
-                  const isWayOut = row.kind === "wayout";
                   const active = row.active;
                   const count = row.badge ? attention : 0;
                   const Icon = row.Icon;
@@ -1016,8 +1063,8 @@ export default function NavTabs({
                         "--arc-i": row.i,
                       }}
                       className={`arc-pill ${row.kid ? "kid " : ""}${
-                        row.lead ? "lead " : ""
-                      }${active ? "on" : ""}`}
+                        active ? "on" : ""
+                      }`}
                     >
                       <span className="arc-disc">
                         <PendingSwap
@@ -1045,10 +1092,10 @@ export default function NavTabs({
                       </span>
                       <span className="min-w-0">
                         <span className="arc-label block truncate font-display text-[0.95rem] font-semibold leading-tight">
-                          {isWayOut ? "All trips" : row.label}
+                          {row.label}
                         </span>
                         <span className="arc-sub block truncate text-[0.72rem] leading-tight">
-                          {isWayOut ? "Back out of this trip" : row.sub}
+                          {row.sub}
                         </span>
                       </span>
                     </Link>
@@ -1392,15 +1439,6 @@ function SuitcaseIcon({ className }) {
     <svg {...iconProps(className)}>
       <rect x="2.8" y="6.2" width="14.4" height="10" rx="2.2" />
       <path d="M7.4 6.2V4.6c0-.6.5-1.1 1.1-1.1h3c.6 0 1.1.5 1.1 1.1v1.6M7.4 16.2v1M12.6 16.2v1" />
-    </svg>
-  );
-}
-
-// An arrow back into the stack of trips: this is a door, not a label.
-function BackIcon({ className }) {
-  return (
-    <svg {...iconProps(className)}>
-      <path d="M16.5 10H4.6M9.2 5.4 4.2 10l5 4.6" />
     </svg>
   );
 }
