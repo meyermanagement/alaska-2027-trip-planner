@@ -91,7 +91,7 @@ export default async function RewardsPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <div className="mb-6 sm:flex sm:items-start sm:justify-between sm:gap-6">
           <div>
             <h1 className="font-display text-3xl font-semibold">Wallet</h1>

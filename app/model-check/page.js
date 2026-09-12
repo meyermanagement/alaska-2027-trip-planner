@@ -219,7 +219,7 @@ export default function ModelCheckPage() {
   const plain = out?.withoutSearch;
 
   return (
-    <main className="mx-auto max-w-2xl px-5 py-8">
+    <main className="screen px-5 py-8">
       <h1 className="text-2xl font-semibold text-ink">
         Can Aly search the web?
       </h1>

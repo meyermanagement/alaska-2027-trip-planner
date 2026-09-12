@@ -163,7 +163,7 @@ export default async function ReviewsPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <div className="mb-6 space-y-3">
           <div>
             <h1 className="font-display text-3xl font-semibold">

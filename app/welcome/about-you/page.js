@@ -53,7 +53,7 @@ export default async function WelcomeAboutYouPage() {
   if (me.welcomed_at) redirect("/trips");
 
   return (
-    <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       {/* Same block, same voice, as Meet Aly and the welcome form. Aly has
           already introduced herself on the screen before this one, so this
           block only has to say what this step is for. */}

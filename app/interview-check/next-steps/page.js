@@ -40,7 +40,7 @@ export default async function InterviewCheckNextStepsPage() {
   // off. The "Back to practice" link at the bottom is the way out.
   return (
     <>
-      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <NextStepsChecklist
           continueLabel="Back to practice"
           onContinue={null}

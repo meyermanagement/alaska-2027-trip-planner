@@ -8,6 +8,7 @@ import { stepLabel } from "@/lib/usage/steps";
 import TopBar from "@/components/TopBar";
 import AdminBody from "./AdminBody";
 import { FAULT_KIND } from "@/lib/feedback/shared";
+import { answeredCount, medianDollars } from "@/lib/beta/survey";
 
 export const metadata = { title: "Beta desk · Alyeska" };
 export const dynamic = "force-dynamic";
@@ -58,6 +59,7 @@ export default async function AdminPage() {
           questions={[]}
           testers={[]}
           issues={null}
+          survey={null}
           windowDays={WINDOW_DAYS}
         />
       </>
@@ -73,6 +75,7 @@ export default async function AdminPage() {
     { data: eventRows },
     { data: accounts },
     { data: reportRows },
+    { data: surveyRows },
   ] = await Promise.all([
     admin
       .from("signup_codes")
@@ -93,6 +96,13 @@ export default async function AdminPage() {
       .select("kind, status, seen_count, maybe_fixed, route")
       .order("created_at", { ascending: false })
       .limit(REPORT_CEILING),
+    // Read with the service key for the same reason as everything else here:
+    // a survey sheet is readable by the person who wrote it and by nobody
+    // else, which is what makes it worth writing honestly.
+    admin
+      .from("beta_survey_responses")
+      .select("answers, submitted_at, updated_at")
+      .order("updated_at", { ascending: false }),
   ]);
 
   const events = eventRows || [];
@@ -154,6 +164,7 @@ export default async function AdminPage() {
     );
 
   const issues = countIssues(reportRows || []);
+  const survey = countSurvey(surveyRows || []);
 
   return (
     <>
@@ -161,6 +172,7 @@ export default async function AdminPage() {
       <AdminBody
         codes={codes}
         issues={issues}
+        survey={survey}
         steps={funnel(events)}
         questions={questionDwell(events)}
         testers={testers}
@@ -168,6 +180,37 @@ export default async function AdminPage() {
       />
     </>
   );
+}
+
+/**
+ * What the desk says about the survey without drawing it.
+ *
+ * The price is the number worth carrying up to the desk, because it is the one
+ * answer that decides something outside the app. Kept as a median rather than a
+ * mean on purpose: a beta is small enough that one person answering "$300"
+ * because they read the question as a year would move an average by more than
+ * everybody else's honest answers put together.
+ *
+ * Sent and still being written are counted apart, and both are shown. A sheet
+ * somebody is halfway through is not half a data point -- the price question is
+ * near the end, so the sheets in progress are exactly the ones whose numbers are
+ * missing, and knowing how many there are is how you tell a quiet beta from an
+ * unfinished one.
+ */
+function countSurvey(rows) {
+  const sent = rows.filter((one) => one.submitted_at);
+  const answers = rows.map((one) => one.answers || {});
+  return {
+    total: rows.length,
+    sent: sent.length,
+    writing: rows.length - sent.length,
+    // Only sheets with something in them, so an account that opened the page
+    // once and left does not read as an opinion.
+    started: answers.filter((one) => answeredCount(one) > 0).length,
+    fair: medianDollars(answers.map((one) => one.price_fair)),
+    tooMuch: medianDollars(answers.map((one) => one.price_too_much)),
+    lastAt: rows[0]?.updated_at || null,
+  };
 }
 
 /**

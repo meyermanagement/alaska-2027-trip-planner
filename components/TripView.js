@@ -573,7 +573,7 @@ export default function TripView({
   ];
 
   return (
-    <main className="mx-auto max-w-5xl px-5 pb-20 pt-6">
+    <main className="screen px-5 pb-20 pt-6">
       {/* A draft is still an idea, and the whole page otherwise reads like a
           trip that is really happening — so it says so, once, at the top. */}
       {isDraftTrip(info) && (

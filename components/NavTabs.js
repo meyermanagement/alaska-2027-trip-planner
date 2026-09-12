@@ -18,6 +18,7 @@ import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
 import { SECONDARY } from "@/lib/travelers/access";
+import useBetaTester from "./useBetaTester";
 import useSoftKeyboard from "./useSoftKeyboard";
 
 /**
@@ -240,11 +241,35 @@ const MORE_GROUP = {
   ],
 };
 
+// The beta survey, for as long as there is a beta. It sits with Contact Us --
+// both are rooms for telling us something -- and above Settings, which stays the
+// last door in the drawer.
+const SURVEY_ROW = {
+  href: "/survey",
+  label: "Beta Survey",
+  sub: "How the app is working for you, saved as you go",
+  Icon: SurveyIcon,
+};
+
 // GROUPS_BASE is the three travel groups. GROUPS is what the menu actually
 // draws: those three plus the More group (Settings, Our Pledge, Contact Us)
 // pinned to the bottom of the column. Kept as a computed constant rather
 // than mutating GROUPS_BASE so the two sets can never drift.
 const GROUPS = [...GROUPS_BASE, MORE_GROUP];
+
+// The same menu with one extra door in the More drawer, for people in the beta.
+// Built rather than mutated, for the same reason GROUPS is: a row added to a
+// shared constant is a row every account gets the moment somebody forgets which
+// array they were holding. The page at the other end checks the same thing
+// again, because a row that is not drawn is not a door that is locked.
+const GROUPS_WITH_SURVEY = GROUPS.map((g) =>
+  g.key === MORE_GROUP.key
+    ? {
+        ...g,
+        kids: [...g.kids.slice(0, -1), SURVEY_ROW, g.kids[g.kids.length - 1]],
+      }
+    : g,
+);
 
 // A secondary traveler -- a minor, or a friend along for one trip -- gets three
 // doors and no groups: the trips they are on, their own share of the checklist,
@@ -327,6 +352,11 @@ export default function NavTabs({
   const pathname = usePathname() || "";
   const router = useRouter();
   const keyboardOpen = useSoftKeyboard();
+  // People in the beta get one more door in the More drawer. Settled in the
+  // browser rather than here, because the layout this bar lives in reads nothing
+  // per-page from the database on purpose.
+  const tester = useBetaTester();
+  const groups = tester ? GROUPS_WITH_SURVEY : GROUPS;
   const [open, setOpen] = useState(false);
   // Kept on screen for the length of the closing animation after open goes
   // false. Unmounting on the press would cut the arc away mid-movement, so the
@@ -374,12 +404,12 @@ export default function NavTabs({
   // the bottom corner and has a phone's height to live in; two groups open at
   // once ran off the top of the screen. It opens on the group holding the screen
   // you are on, so the menu answers "where am I" before you touch anything.
-  const holding = GROUPS.find((g) =>
+  const holding = groups.find((g) =>
     g.kids.some((k) => onScreen(k.href, pathname)),
   );
   const [group, setGroup] = useState(holding ? holding.key : null);
   useEffect(() => {
-    const held = GROUPS.find((g) =>
+    const held = GROUPS_WITH_SURVEY.find((g) =>
       g.kids.some((k) => onScreen(k.href, pathname)),
     );
     setGroup(held ? held.key : null);
@@ -674,7 +704,7 @@ export default function NavTabs({
       );
     }
   } else {
-    for (const g of GROUPS) {
+    for (const g of groups) {
       pushRow(
         {
           kind: "group",
@@ -850,7 +880,7 @@ export default function NavTabs({
           that if both ever open the conversation is in front. */}
       {present && (
         <div
-          className={`no-print fixed inset-0 z-[38] ${open ? "arc-in" : "arc-out"}`}
+          className={`aly-clear no-print fixed inset-0 z-[38] ${open ? "arc-in" : "arc-out"}`}
         >
           <button
             type="button"
@@ -1056,7 +1086,7 @@ export default function NavTabs({
         /* Named so the report button can tell whether it is sharing the
            bottom of the screen with these two discs or has it to itself. */
         data-navbar="1"
-        className={`no-print pointer-events-none fixed inset-x-0 bottom-0 ${
+        className={`aly-clear no-print pointer-events-none fixed inset-x-0 bottom-0 ${
           present ? "z-[39]" : "z-30"
         } px-4 transition-transform duration-200 ${
           // Out of reach as well as out of sight, so a tap meant for the field
@@ -1252,6 +1282,23 @@ function ChecklistIcon({ className }) {
       <rect x="4.2" y="4" width="11.6" height="13" rx="2" />
       <path d="M7.6 4V3.2h4.8V4" />
       <path d="M7.6 10.2l1.7 1.7 3.4-3.6" />
+    </svg>
+  );
+}
+
+// The beta survey: a sheet with an answer chosen on each of its first two lines,
+// which is what that screen actually is. Drawn deliberately unlike the checklist
+// sheet beside it -- a ticked box is something you did, a filled dot is something
+// you said.
+function SurveyIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <rect x="4.2" y="3.4" width="11.6" height="14.2" rx="2" />
+      <circle cx="7.4" cy="8" r="1" />
+      <path d="M9.8 8h3.1" />
+      <circle cx="7.4" cy="11.4" r="1" />
+      <path d="M9.8 11.4h3.1" />
+      <path d="M7.4 14.6h5.5" />
     </svg>
   );
 }

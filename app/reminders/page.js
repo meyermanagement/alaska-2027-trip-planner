@@ -99,7 +99,7 @@ export default async function RemindersPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <div className="mb-5">
           <h1 className="font-display text-3xl font-semibold">Reminders</h1>
         </div>

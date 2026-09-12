@@ -5,7 +5,7 @@ import PageSkeleton, { Bar } from "@/components/PageSkeleton";
 export default function LoadingPracticeInterview() {
   return (
     <PageSkeleton label="Loading the practice interview">
-      <div className="mx-auto w-full max-w-2xl px-1 pt-6">
+      <div className="screen px-1 pt-6">
         <div className="space-y-3" aria-hidden="true">
           <Bar className="h-3 w-32" />
           <Bar className="h-8 w-3/4" />

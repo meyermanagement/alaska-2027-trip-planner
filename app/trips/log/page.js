@@ -40,7 +40,7 @@ export default async function LogTripPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-3xl px-5 pb-24 pt-7">
+      <main className="screen px-5 pb-24 pt-7">
         <LogTripStart />
       </main>
       {/* The conversation opens on this screen, with the focus that tells Aly the

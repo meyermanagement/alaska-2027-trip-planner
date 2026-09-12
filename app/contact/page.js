@@ -24,7 +24,7 @@ export default async function ContactPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <p className="section-label">The way to reach us</p>
         <h1 className="mt-1 font-display text-3xl font-semibold">Contact us</h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-soft">

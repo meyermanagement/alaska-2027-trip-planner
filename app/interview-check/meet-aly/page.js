@@ -25,7 +25,7 @@ export default async function InterviewCheckMeetAlyPage() {
   if (access.level !== PRIMARY) redirect("/trips");
 
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <MeetAlyPracticeClient />
     </main>
   );

@@ -54,9 +54,7 @@ export default function InboxBanner({ count = 0 }) {
           <span className="font-semibold">
             {count} {noun}
           </span>{" "}
-          <span className="text-ink-soft">
-            waiting to be filed.
-          </span>{" "}
+          <span className="text-ink-soft">waiting to be filed.</span>{" "}
           <Link
             href="/inbox"
             className="whitespace-nowrap font-semibold text-teal underline decoration-teal/40 underline-offset-2 hover:decoration-teal"

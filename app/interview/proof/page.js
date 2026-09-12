@@ -42,7 +42,7 @@ export default async function ProofPage() {
   if ((prefCount || 0) === 0) redirect("/family");
 
   return (
-    <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <ProofClient />
     </main>
   );

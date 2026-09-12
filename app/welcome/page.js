@@ -37,7 +37,7 @@ export default async function WelcomePage() {
     // never created one -- so hand back a plain sentence rather than a broken
     // form. The primary way to reach a family is an invite code today.
     return (
-      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <h1 className="font-display text-3xl font-semibold">Welcome</h1>
         <p className="mt-3 text-sm text-ink">
           This account is not attached to a family yet. Ask whoever invited you
@@ -82,7 +82,7 @@ export default async function WelcomePage() {
   // Trips onward, where they have something to point at. This screen and its
   // three siblings all render bare pages for the same reason.
   return (
-    <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <AlyIntro />
       <WelcomeForm
         familyId={access.familyId}

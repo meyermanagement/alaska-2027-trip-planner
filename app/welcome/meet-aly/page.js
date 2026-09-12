@@ -76,7 +76,7 @@ export default async function MeetAlyPage() {
   if (alreadyStarted && !invited) redirect("/family");
 
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <MeetAlyClient next={invited ? "/welcome/about-you" : "/welcome"} />
     </main>
   );

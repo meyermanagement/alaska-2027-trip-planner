@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { FEEDBACK_EVENT, MENU_EVENT } from "@/lib/feedback/shared";
+import useBetaTester from "./useBetaTester";
 import useSoftKeyboard from "./useSoftKeyboard";
 
 /**
@@ -17,10 +18,9 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * problem is exactly the kind nobody is ever in a position to describe later.
  *
  * Only for the beta. The button is a beta instrument, so it is drawn only for
- * people in the beta -- see app/api/beta/tester/route.js, which is the only thing
- * that can answer that, because the table it reads is not readable from a
- * browser. The answer is remembered for the browser session, so it costs one
- * request per visit rather than one per screen.
+ * people in the beta -- see useBetaTester, which the menu's beta survey row uses
+ * for the same answer and which costs one request per visit rather than one per
+ * screen.
  *
  * Where it sits: the bottom left corner, and small enough to be a mark rather
  * than a control -- an icon, no label, a third of the size of the two discs. It
@@ -35,54 +35,12 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * stranded on top of the keys.
  */
 
-// One answer per browser session. sessionStorage rather than a state variable
-// because every client navigation remounts this, and a fresh request on every
-// screen change to learn something that cannot change mid-session is waste.
-const CACHE_KEY = "alyeska-beta-tester";
-
 export default function ReportButton() {
   const pathname = usePathname() || "";
-  const [tester, setTester] = useState(false);
+  const tester = useBetaTester();
   const [menuOpen, setMenuOpen] = useState(false);
   const [crowded, setCrowded] = useState(false);
   const keyboardOpen = useSoftKeyboard();
-
-  useEffect(() => {
-    let alive = true;
-
-    let remembered = null;
-    try {
-      remembered = window.sessionStorage.getItem(CACHE_KEY);
-    } catch {
-      // Private browsing, or storage turned off. Ask again, that is all.
-    }
-    if (remembered === "1" || remembered === "0") {
-      setTester(remembered === "1");
-      return undefined;
-    }
-
-    (async () => {
-      try {
-        const res = await fetch("/api/beta/tester", { cache: "no-store" });
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!alive) return;
-        const yes = Boolean(json?.tester);
-        setTester(yes);
-        try {
-          window.sessionStorage.setItem(CACHE_KEY, yes ? "1" : "0");
-        } catch {
-          // As above.
-        }
-      } catch {
-        // Offline, or signed out. No button, no complaint.
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // Is the menu bar down there too? The compass stands in this corner on every
   // screen that has the bar, so the icon lifts above it rather than landing on
@@ -106,7 +64,7 @@ export default function ReportButton() {
     <div
       /* Takes no presses itself, so the strip of screen either side of the pill
          still belongs to whatever is underneath it. */
-      className={`no-print pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 transition-transform duration-200 ${
+      className={`aly-clear no-print pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 transition-transform duration-200 ${
         menuOpen || keyboardOpen ? "translate-y-[250%]" : ""
       }`}
       style={{

@@ -31,6 +31,12 @@ export default function AskAlyDrawer({
   // alternative is drawing an empty panel and having last week's messages drop
   // in underneath whatever they have started typing.
   const [resuming, setResuming] = useState(false);
+  // Beside the app, or over it. A window has to be wide enough to hold the 960
+  // content column and Aly's 400 at once before docking her is a kindness rather
+  // than a squeeze -- below that she goes back to covering the page, which is the
+  // right answer on a phone anyway. Watched rather than measured once, because a
+  // laptop window gets dragged wider and narrower all day.
+  const [docked, setDocked] = useState(false);
   // Refreshing the page from the server while the drawer is open destroys the
   // conversation. Every screen the drawer sits on has a loading.js, so if the
   // refresh is slow — and these pages make seven database round trips — Next
@@ -164,18 +170,40 @@ export default function AskAlyDrawer({
   }, [openWith]);
 
   useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1100px)");
+    const sync = () => setDocked(wide.matches);
+    sync();
+    wide.addEventListener("change", sync);
+    return () => wide.removeEventListener("change", sync);
+  }, []);
+
+  // What tells the page she is there. The stylesheet reads this off the document
+  // and takes the rail's width out of the body, so every screen recenters in what
+  // is left rather than sliding out from under her.
+  useEffect(() => {
+    if (!open || !docked) return;
+    const root = document.documentElement;
+    root.dataset.aly = "docked";
+    return () => {
+      delete root.dataset.aly;
+    };
+  }, [open, docked]);
+
+  useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") close();
     };
     window.addEventListener("keydown", onKey);
+    // Only while she is covering the page. Docked, the whole point is that the
+    // page underneath still scrolls and still answers a click.
     const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (!docked) document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
+      if (!docked) document.body.style.overflow = previous;
     };
-  }, [open, close]);
+  }, [open, close, docked]);
 
   // Two measurements, because the keyboard makes two different demands.
   //
@@ -187,7 +215,7 @@ export default function AskAlyDrawer({
   //
   // The panel must fit what is still visible, so it gets the visual viewport.
   useEffect(() => {
-    if (!open || typeof window === "undefined") return;
+    if (!open || docked || typeof window === "undefined") return;
     const root = document.documentElement;
     const viewport = window.visualViewport;
     let tallest = 0;
@@ -222,9 +250,83 @@ export default function AskAlyDrawer({
       root.style.removeProperty("--aly-viewport-top");
       root.style.removeProperty("--aly-keyboard-h");
     };
-  }, [open]);
+  }, [open, docked]);
 
   if (!open) return null;
+
+  const panel = (
+    <>
+      {resuming ? (
+        // Not blank. The drawer is already over the trip and something has to
+        // hold the space while the thread is found.
+        <div className="flex min-h-0 flex-1 items-start px-4 py-4">
+          <p className="text-sm text-ink-soft">
+            Picking up where you left off…
+          </p>
+        </div>
+      ) : current ? (
+        <ChatPanel
+          trip={trip}
+          onApplied={noteApplied}
+          onClose={close}
+          onBack={() => setCurrent(null)}
+          focus={seed?.focus || focus}
+          seed={seed?.text}
+          autoSendSeed={seed?.autoSend}
+          conversationId={current.id}
+          conversationTitle={current.title}
+          conversationTripName={current.tripName}
+          conversationTripId={current.tripId}
+          conversationTripRef={current.tripRef}
+          conversationOwnerName={current.ownerName}
+          onConversationStarted={(id) =>
+            setCurrent((c) => (c && !c.id ? { ...c, id } : c))
+          }
+          fill
+        />
+      ) : (
+        <ConversationList
+          onClose={close}
+          onNew={() =>
+            setCurrent({
+              id: null,
+              title: null,
+              tripId: trip?.id || null,
+              tripRef: tripRef(trip) || null,
+              tripName: trip?.name,
+            })
+          }
+          onPick={(conversation) =>
+            setCurrent({
+              id: conversation.id,
+              title: conversation.title,
+              // Only ever set when the conversation belongs to somebody
+              // else; the list works out which.
+              ownerName: conversation.ownerName || null,
+              tripId: conversation.tripId || null,
+              tripRef: conversation.tripRef || null,
+              tripName: conversation.tripName,
+            })
+          }
+        />
+      )}
+    </>
+  );
+
+  // Docked, she is a column of the screen: no veil, nothing dimmed, the page
+  // beside her still live. Not a dialog either -- aria-modal on something that
+  // does not trap you is a lie to a screen reader, so she is a complementary
+  // region with a heading of her own.
+  if (docked) {
+    return (
+      <aside
+        className="aly-rail no-print fixed inset-y-0 right-0 z-40 flex flex-col border-l border-[var(--line)] bg-white shadow-2xl"
+        aria-label="Ask Aly"
+      >
+        {panel}
+      </aside>
+    );
+  }
 
   return (
     <div
@@ -240,60 +342,7 @@ export default function AskAlyDrawer({
         className="aly-veil absolute inset-0 cursor-default bg-ink/40"
       />
       <aside className="aly-panel relative flex w-full max-w-md flex-col border-l border-[var(--line)] bg-white shadow-2xl">
-        {resuming ? (
-          // Not blank. The drawer is already over the trip and something has to
-          // hold the space while the thread is found.
-          <div className="flex min-h-0 flex-1 items-start px-4 py-4">
-            <p className="text-sm text-ink-soft">
-              Picking up where you left off…
-            </p>
-          </div>
-        ) : current ? (
-          <ChatPanel
-            trip={trip}
-            onApplied={noteApplied}
-            onClose={close}
-            onBack={() => setCurrent(null)}
-            focus={seed?.focus || focus}
-            seed={seed?.text}
-            autoSendSeed={seed?.autoSend}
-            conversationId={current.id}
-            conversationTitle={current.title}
-            conversationTripName={current.tripName}
-            conversationTripId={current.tripId}
-            conversationTripRef={current.tripRef}
-            conversationOwnerName={current.ownerName}
-            onConversationStarted={(id) =>
-              setCurrent((c) => (c && !c.id ? { ...c, id } : c))
-            }
-            fill
-          />
-        ) : (
-          <ConversationList
-            onClose={close}
-            onNew={() =>
-              setCurrent({
-                id: null,
-                title: null,
-                tripId: trip?.id || null,
-                tripRef: tripRef(trip) || null,
-                tripName: trip?.name,
-              })
-            }
-            onPick={(conversation) =>
-              setCurrent({
-                id: conversation.id,
-                title: conversation.title,
-                // Only ever set when the conversation belongs to somebody
-                // else; the list works out which.
-                ownerName: conversation.ownerName || null,
-                tripId: conversation.tripId || null,
-                tripRef: conversation.tripRef || null,
-                tripName: conversation.tripName,
-              })
-            }
-          />
-        )}
+        {panel}
       </aside>
     </div>
   );

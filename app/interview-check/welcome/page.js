@@ -28,7 +28,7 @@ export default async function InterviewCheckWelcomePage() {
   if (access.level !== PRIMARY) redirect("/trips");
 
   return (
-    <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <AlyIntro />
       <WelcomeForm
         familyId={access.familyId}

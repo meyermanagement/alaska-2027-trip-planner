@@ -43,7 +43,7 @@ export default async function InterviewCheckPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <h1 className="font-display text-3xl font-semibold">Practice</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">
           Every screen a brand-new family walks through, in the order they see

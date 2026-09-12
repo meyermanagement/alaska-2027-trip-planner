@@ -213,7 +213,7 @@ export default async function PackingTemplatesPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-6xl px-5 pb-28 pt-7">
+      <main className="screen px-5 pb-28 pt-7">
         <TripPackingLinks trips={upcoming} />
         <div className="mb-6">
           <h1 className="font-display text-3xl font-semibold">

@@ -53,9 +53,17 @@ function Bar({ share, tone = "teal" }) {
   );
 }
 
+/** $12 rather than $12.00, and $12.50 when the halves matter. */
+function money(value) {
+  if (value === null || value === undefined) return null;
+  const whole = Math.round(value * 100) % 100 === 0;
+  return `$${whole ? Math.round(value) : value.toFixed(2)}`;
+}
+
 export default function AdminBody({
   codes = [],
   issues = null,
+  survey = null,
   steps = [],
   questions = [],
   testers = [],
@@ -67,7 +75,7 @@ export default function AdminBody({
   const finished = steps.length ? steps[steps.length - 1].reached : 0;
 
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <h1 className="font-display text-3xl font-semibold">Beta desk</h1>
       <p className="mt-2 max-w-prose text-sm text-ink-soft">
         Invites, and what happens after somebody opens one. Activity covers the
@@ -102,6 +110,30 @@ export default function AdminBody({
           ) : null}
           <a href="/admin/issues" className="btn btn-primary btn-sm mt-3">
             Open the issue log
+          </a>
+        </section>
+
+        <section>
+          <h2 className="font-display text-xl font-semibold">Beta survey</h2>
+          <p className="mt-1.5 max-w-prose text-sm text-ink-soft">
+            {survey?.started
+              ? `${survey.started} ${survey.started === 1 ? "sheet" : "sheets"} with something in ${survey.started === 1 ? "it" : "them"}, ${survey.sent} sent and ${survey.writing} still being written.`
+              : "Nobody has answered anything yet. The survey sits under More, and testers can change any answer afterwards."}
+          </p>
+          {survey?.fair !== null && survey?.fair !== undefined ? (
+            <p className="mt-1.5 text-sm text-ink-soft">
+              A fair price, in the middle:{" "}
+              <span className="tabular font-semibold text-ink">
+                {money(survey.fair)}
+              </span>{" "}
+              a month
+              {survey.tooMuch !== null && survey.tooMuch !== undefined
+                ? `, and too much at ${money(survey.tooMuch)}.`
+                : "."}
+            </p>
+          ) : null}
+          <a href="/admin/survey" className="btn btn-primary btn-sm mt-3">
+            Read the answers
           </a>
         </section>
 

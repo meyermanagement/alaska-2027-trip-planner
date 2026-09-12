@@ -2427,7 +2427,7 @@ function Recap({ answers }) {
   const skipped = answers.filter((a) => a.action === "skip");
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-10">
+    <div className="screen px-4 py-10">
       <p className="section-label text-ink-soft">Practice interview</p>
       <h1 className="mt-1 font-display text-3xl text-ink">
         What I would have learned

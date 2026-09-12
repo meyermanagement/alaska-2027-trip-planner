@@ -87,10 +87,7 @@ export async function POST(request, { params }) {
       { onConflict: "family_id,email" },
     );
   if (upsertError) {
-    return NextResponse.json(
-      { error: upsertError.message },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: upsertError.message }, { status: 400 });
   }
 
   // Reclassify the message itself. A message that arrived as "unknown"

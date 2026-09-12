@@ -157,7 +157,7 @@ export default function DraftView({
   const openTasks = tasks.filter((t) => !t.is_done);
 
   return (
-    <main className="mx-auto max-w-4xl px-5 pb-24 pt-6">
+    <main className="screen px-5 pb-24 pt-6">
       {/* The header. Dashed, sand, and it says "draft" before it says the name,
           because that is the one thing somebody arriving here needs to know. */}
       <header className="rounded-3xl border-2 border-dashed border-[var(--line-strong)] bg-sand/70 p-5 sm:p-7">

@@ -27,7 +27,7 @@ export default async function InterviewCheckProofPage() {
   if (access.level !== PRIMARY) redirect("/trips");
 
   return (
-    <main className="mx-auto max-w-4xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <ProofClient demo backHref="/interview-check" />
     </main>
   );

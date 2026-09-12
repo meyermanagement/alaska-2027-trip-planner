@@ -40,7 +40,7 @@ export default async function WelcomeNextStepsPage() {
     .maybeSingle();
 
   return (
-    <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <NextStepsBody
         nextHref="/trips"
         inboxAddress={inboxAddressFor(household?.inbox_local_part)}

@@ -55,9 +55,7 @@ export async function POST(request, { params }) {
   // means "just file"; the message still moves to filed and the staged items
   // stay pending for later.
   const approveIds = Array.isArray(body?.approve_item_ids)
-    ? body.approve_item_ids.filter(
-        (v) => typeof v === "string" && v.length > 0,
-      )
+    ? body.approve_item_ids.filter((v) => typeof v === "string" && v.length > 0)
     : [];
 
   if (!tripId) {
@@ -178,8 +176,7 @@ export async function approveParsedItems(
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
-  let nextSort =
-    (Number.isFinite(last?.sort_order) ? last.sort_order : 0) + 1;
+  let nextSort = (Number.isFinite(last?.sort_order) ? last.sort_order : 0) + 1;
 
   let approvedCount = 0;
   for (const row of parsed) {

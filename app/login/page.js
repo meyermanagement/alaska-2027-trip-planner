@@ -12,20 +12,30 @@ export default function LoginPage() {
             menu button carries, so the first surface a new sign-in sees is the
             same instrument they will find in the header once they are in.
             The disc supplies the rim the bezel graduations lean against; the
-            AlyeskaMark draws the sixteen ticks and the needle inside it. */}
+            AlyeskaMark draws the sixteen ticks and the needle inside it.
+
+            The one place the needle is not a single ink. Everywhere else the mark
+            takes the color of whatever it sits in, which is what lets one file be
+            a favicon, a menu button and a header mark; here there is no header to
+            match and no colored button around it, so it carries the skin's own
+            teal, glacier, plum and amber. */}
         <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)]">
-          <AlyeskaMark className="h-[60px] w-[60px]" bezel />
+          <AlyeskaMark
+            className="h-[60px] w-[60px]"
+            bezel
+            aurora
+            bezelColor="var(--aurora-mid)"
+          />
         </span>
         <h1 className="font-display mt-3 text-3xl font-semibold tracking-[0.03em] text-ink">
           Alyeska
         </h1>
-        {/* One line. There were two: a tagline naming what the app is, then
-            the pledge. The tagline was three adjectives about a product
-            somebody has not used yet, which is not something a sign-in screen
-            can make true, and it pushed the pledge -- the only line here that
-            answers a real question -- down into second place. */}
+        {/* The house line, the same three words the emails carry under the same
+            lockup, so the screen somebody signs in on and the message that
+            brought them here read as one thing. It says what the app is; the
+            pledge at the bottom of the screen says how it is paid for. */}
         <p className="mt-2 text-sm text-ink-soft">
-          No ads. No commissions. Just the memories that matter.
+          Personalized. Contextualized. Simplified.
         </p>
       </div>
       <Suspense
@@ -33,9 +43,20 @@ export default function LoginPage() {
       >
         <LoginForm />
       </Suspense>
+      {/* Both closing lines sit under the form rather than over it. The name and
+          the dial are enough of a header: what somebody arrives at this screen to
+          do is sign in, and two lines of promise between the mark and the email
+          field push the one control on the page further from the top of it.
+
+          Order matters between the two. The privacy note is about the thing you
+          are in the middle of doing, so it stays nearest the form; the pledge is
+          what the app stands for and closes the screen. */}
       <p className="mt-6 text-center text-xs text-ink-soft">
         Family data is private. Only signed-in members of the family group can
         read or edit trips.
+      </p>
+      <p className="mt-3 text-center text-sm text-ink-soft">
+        No ads. No commissions. Just the memories that matter.
       </p>
     </main>
   );

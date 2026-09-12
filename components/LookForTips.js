@@ -222,15 +222,7 @@ export default function LookForTips({
         >
           {note}
         </p>
-      ) : (
-        /* One line, not the paragraph a heading over an empty card used to
-           carry: in a column this narrow the sentence was taller than the
-           button it explained. Off the phone entirely, where it would push
-           the tab bar down for no gain. */
-        <p className="mt-1.5 hidden text-[0.78rem] leading-snug text-ink-soft sm:block">
-          Runs while you carry on reading.
-        </p>
-      )}
+      ) : null}
 
       {/* The tabs a look actually filed something against. The button can be
           pressed from any tab now, so a count with no way to reach what it

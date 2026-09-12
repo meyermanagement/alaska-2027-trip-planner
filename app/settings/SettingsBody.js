@@ -21,7 +21,7 @@ export default function SettingsBody({ email, displayName, skin, mine }) {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <h1 className="font-display text-3xl font-semibold">Settings</h1>
 
         <div className="mt-6 space-y-10">

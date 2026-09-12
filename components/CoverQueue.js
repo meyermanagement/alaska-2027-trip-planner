@@ -41,7 +41,9 @@ export default function CoverQueue({ trips = [] }) {
   const waiting = trips
     .filter((trip) => trip?.id && coverQueued(trip))
     .sort((a, b) =>
-      String(a.start_date || "9999").localeCompare(String(b.start_date || "9999")),
+      String(a.start_date || "9999").localeCompare(
+        String(b.start_date || "9999"),
+      ),
     );
   const next = waiting.find((trip) => !asked.current.has(trip.id));
   const id = next?.id || null;

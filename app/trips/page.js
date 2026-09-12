@@ -88,7 +88,7 @@ export default async function TripsPage({ searchParams }) {
     <>
       {/* No askHref: the button opens the drawer here, in general context. */}
       <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             {/* The heading used to say "Our trips" over a single list. The

@@ -61,7 +61,7 @@ export default async function PreferencesPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+      <main className="screen px-5 pb-16 pt-7">
         <h1 className="mb-6 font-display text-3xl font-semibold">
           Travel preferences
         </h1>

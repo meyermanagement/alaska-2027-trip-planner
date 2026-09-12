@@ -43,10 +43,7 @@ export async function POST(request) {
   const paragraph = paragraphRaw.trim();
 
   if (!travelerId) {
-    return NextResponse.json(
-      { error: "Missing traveler." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing traveler." }, { status: 400 });
   }
 
   // Extract priors first so the update writes the paragraph and the priors
@@ -81,11 +78,11 @@ export async function POST(request) {
   // to tell "saved" from "silently dropped". The client uses this to show
   // the same message it used to before this route existed.
   if (!data || data.length === 0) {
-    return NextResponse.json(
-      { error: "That did not save." },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "That did not save." }, { status: 403 });
   }
 
-  return NextResponse.json({ ok: true, priors_count: Object.keys(priors).length });
+  return NextResponse.json({
+    ok: true,
+    priors_count: Object.keys(priors).length,
+  });
 }

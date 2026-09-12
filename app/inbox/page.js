@@ -195,7 +195,7 @@ export default async function InboxPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-3xl px-4 pb-24 pt-3">
+      <main className="screen px-4 pb-24 pt-3">
         <InboxScreen
           address={inboxAddressFor(household?.inbox_local_part)}
           messages={pending || []}

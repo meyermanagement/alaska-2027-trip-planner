@@ -118,7 +118,7 @@ export default function IssueLog({ issues = [], build = "" }) {
   const waiting = issues.filter((one) => one.status === "new").length;
 
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <a href="/admin" className="text-sm text-teal underline">
         Back to the beta desk
       </a>

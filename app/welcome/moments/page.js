@@ -38,7 +38,7 @@ export default async function WelcomeMomentsPage() {
   if (me.welcomed_at) redirect("/trips");
 
   return (
-    <main className="mx-auto max-w-2xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <p className="section-label">Welcome to Alyeska</p>
       <h1 className="mt-1 font-display text-3xl font-semibold">
         Your favorite moments

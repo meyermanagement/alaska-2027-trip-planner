@@ -82,6 +82,33 @@
     0 2px 6px rgba(20, 32, 30, 0.2), 0 10px 20px rgba(20, 32, 30, 0.26),
     0 20px 44px rgba(20, 32, 30, 0.4);
 
+  /* The sign-in mark's needle: teal at north, falling through glacier to plum at
+     the tails, with the north graduation in amber so the one direction that
+     means anything is also the one the eye finds first. Written as the skin's own
+     four accents rather than as hex, so a dark skin's brighter teal and paler
+     plum come through without a second set of values existing anywhere. The mark
+     is otherwise monochrome everywhere it appears; the sign-in screen is the one
+     surface with no header and no colored button competing with it. */
+  --aurora-north: var(--color-teal);
+  --aurora-mid: var(--color-glacier);
+  --aurora-tail: var(--color-plum);
+  --aurora-north-tick: var(--color-amber);
+
+  /* One width for every screen in the app. There used to be five -- 672 on the
+     pledge and the welcome screens, 768 on Settings and the Inbox, 896 on the
+     interview proof, 1024 on Trips and Family, 1152 on Packing -- so walking
+     from one tab to the next moved the left edge twice. 960 is the settlement:
+     wide enough for three trip cards or three packing columns, narrow enough
+     that a paragraph is still a readable measure, and it leaves room for Aly to
+     sit beside it. 960 plus her 400 plus the gutters is 1432, which fits a
+     13-inch laptop with nothing overlapping. */
+  --screen-max: 60rem;
+
+  /* How much of the window Aly takes when she is docked rather than covering the
+     page. Below 400 her answers wrap every four or five words and the trip cards
+     she proposes stop fitting. */
+  --aly-rail: 25rem;
+
   /* The same disc, with the menu open. Closed it is the lightest thing on the
      screen, which is right: it is one control lying on the page. Open, it is
      the left cap of the pill carrying the search field, and every other pill
@@ -113,6 +140,16 @@ body {
 body {
   font-family: var(--font-sans);
   letter-spacing: 0;
+}
+
+/* The frame every screen hangs in. Only the width lives here: each screen keeps
+   its own padding, because a board wants less breathing room at the top than a
+   form does. Docked, Aly narrows the window rather than this rule, so the column
+   recenters itself in what is left instead of sliding sideways. */
+.screen {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--screen-max);
 }
 
 .font-display {
@@ -1664,6 +1701,47 @@ html[data-boot="quick"] #boot-veil {
 
 .aly-veil {
   animation: aly-fade-in 0.18s ease-out;
+}
+
+/* Aly docked, which is what she does on a window wide enough to hold her beside
+   the app rather than over it. There is no veil and nothing is dimmed: the page
+   stays live, so a question can be asked about the day that is on screen while
+   the day is still on screen.
+
+   The window narrows rather than the page sliding. Padding on the body is what
+   does it, so every `.screen` recenters inside what is left and the columns are
+   as even docked as undocked. The two pieces of furniture that float above the
+   page rather than sitting in it -- the bottom bar with the compass, and the
+   report flag -- have to be told about the rail separately, because a fixed
+   element is measured against the window and would otherwise sit underneath
+   her. */
+html[data-aly="docked"] body {
+  padding-right: var(--aly-rail);
+}
+
+html[data-aly="docked"] .aly-clear {
+  right: var(--aly-rail);
+}
+
+.aly-rail {
+  width: var(--aly-rail);
+  animation: aly-slide-in 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition: padding-right 0.22s ease-out;
+  }
+
+  html[data-aly="docked"] .aly-clear {
+    transition: right 0.22s ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aly-rail {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

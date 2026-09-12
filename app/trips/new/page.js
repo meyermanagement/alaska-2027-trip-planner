@@ -39,7 +39,7 @@ export default async function NewTripPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto max-w-3xl px-5 pb-24 pt-7">
+      <main className="screen px-5 pb-24 pt-7">
         <TripBuilderStart />
       </main>
       {/* The conversation opens here, on this screen, so the answer arrives where

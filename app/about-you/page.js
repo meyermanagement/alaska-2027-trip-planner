@@ -71,7 +71,7 @@ export default async function AboutYouPage({ searchParams }) {
   // screen and Settings still hand you a way back here later, with the
   // chrome, when you return to edit the paragraph.
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-16 pt-7">
+    <main className="screen px-5 pb-16 pt-7">
       <AboutYouForm
         travelerId={mine.id}
         name={mine.name || ""}
