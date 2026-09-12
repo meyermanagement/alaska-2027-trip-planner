@@ -5,6 +5,7 @@ import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
 import UsageTrail from "@/components/UsageTrail";
 import FeedbackSheet from "@/components/FeedbackSheet";
 import FaultWatch from "@/components/FaultWatch";
+import ReportButton from "@/components/ReportButton";
 import {
   BAND_COOKIE,
   BOOT_COOKIE,
@@ -149,9 +150,12 @@ export default function RootLayout({ children }) {
         {/* Records which screen a signed-in person is on and how long it held
             them. Writes nothing for a visitor who is not signed in. */}
         <UsageTrail />
-        {/* Asleep until the Contact Us row in the menu wakes it. Mounted here
-            so a report can be written from any screen without leaving it. */}
+        {/* Asleep until the report button wakes it. Mounted here so a report can
+            be written from any screen without leaving it. */}
         <FeedbackSheet />
+        {/* The button that wakes it, for beta testers only: small, bottom
+            center, and on the onboarding screens as well as the rest. */}
+        <ReportButton />
         {/* The reports nobody writes: an uncaught error, a promise nobody
             answered, or one of this app's own calls coming back broken. Recorded
             once each per visit, on the same desk as the written reports. */}

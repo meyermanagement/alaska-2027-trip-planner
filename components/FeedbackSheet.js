@@ -19,9 +19,10 @@ import {
  * Telling us something is wrong without leaving the screen it is wrong on.
  *
  * Mounted once in the root layout and asleep until something fires
- * FEEDBACK_EVENT -- today that is the Contact Us row in the menu, which opens
- * this instead of navigating. Nothing is drawn until then, so a person who
- * never presses it pays a listener and no markup.
+ * FEEDBACK_EVENT -- today that is the small report button a beta tester carries
+ * at the bottom of every screen, including the onboarding screens where nothing
+ * else floats. Nothing is drawn until then, so a person who never presses it
+ * pays a listener and no markup.
  *
  * One box and two intents. Everything the report needs that a person should
  * not have to type -- which screen they were on, which trip, which skin, how
