@@ -22,11 +22,17 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * browser. The answer is remembered for the browser session, so it costs one
  * request per visit rather than one per screen.
  *
- * Where it sits: bottom center, in the gap between the compass on the left and
- * Ask Aly on the right. It is smaller than either, because it is not part of the
- * app's own furniture and should not look like it is. It moves out of the way for
- * the menu, which grows a search pill through that gap, and for the phone
- * keyboard, which would otherwise leave it stranded on top of the keys.
+ * Where it sits: the bottom left corner, and small enough to be a mark rather
+ * than a control -- an icon, no label, a third of the size of the two discs. It
+ * is not part of the app's own furniture and should not look like it is; a tester
+ * learns where it is on the first day and everybody else never sees it. On the
+ * screens that carry the menu bar the compass already has that corner, so the
+ * icon sits directly above it. On the onboarding screens, where nothing else
+ * floats, it takes the corner itself.
+ *
+ * It moves out of the way for the menu, whose compass grows a search pill up
+ * through that space, and for the phone keyboard, which would otherwise leave it
+ * stranded on top of the keys.
  */
 
 // One answer per browser session. sessionStorage rather than a state variable
@@ -78,24 +84,10 @@ export default function ReportButton() {
     };
   }, []);
 
-  // Narrow enough for the bar's two discs to matter. Matches the app's own `sm`
-  // breakpoint, above which the gap between them is most of the screen.
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 639px)");
-    const read = () => setNarrow(query.matches);
-    read();
-    query.addEventListener("change", read);
-    return () => query.removeEventListener("change", read);
-  }, []);
-
-  // Is the menu bar down there too? On a phone the compass and Ask Aly leave a
-  // gap of about a hundred and fifty points between them, and this pill is a
-  // hundred and thirty wide -- it fits, but only just, and a control with five
-  // points of air either side of it looks like a mistake. So when the bar is
-  // present on a narrow screen the pill sits above it instead of squeezing
-  // between. On the onboarding screens, where the bar is absent on purpose, it
-  // stays at the bottom where the thumb is.
+  // Is the menu bar down there too? The compass stands in this corner on every
+  // screen that has the bar, so the icon lifts above it rather than landing on
+  // it. On the onboarding screens, where the bar is absent on purpose, it stays
+  // in the corner.
   useEffect(() => {
     setCrowded(Boolean(document.querySelector("[data-navbar]")));
   }, [pathname]);
@@ -114,35 +106,50 @@ export default function ReportButton() {
     <div
       /* Takes no presses itself, so the strip of screen either side of the pill
          still belongs to whatever is underneath it. */
-      className={`no-print pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 transition-transform duration-200 ${
-        menuOpen || keyboardOpen ? "translate-y-[200%]" : ""
+      className={`no-print pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 transition-transform duration-200 ${
+        menuOpen || keyboardOpen ? "translate-y-[250%]" : ""
       }`}
       style={{
-        paddingBottom:
-          crowded && narrow
-            ? "max(5.75rem, calc(env(safe-area-inset-bottom) + 5.25rem))"
-            : "max(1.35rem, calc(env(safe-area-inset-bottom) + 0.75rem))",
+        paddingBottom: crowded
+          ? "max(5.5rem, calc(env(safe-area-inset-bottom) + 5rem))"
+          : "max(1.35rem, calc(env(safe-area-inset-bottom) + 0.75rem))",
       }}
     >
-      <button
-        type="button"
-        onClick={() => {
-          window.dispatchEvent(
-            new CustomEvent(FEEDBACK_EVENT, { detail: { kind: "problem" } }),
-          );
-        }}
-        className="pointer-events-auto inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] px-3 text-xs font-semibold text-ink shadow-[var(--disc-shadow)] transition hover:border-[var(--line-strong)] active:translate-y-px"
+      {/* The same centered column the menu bar uses, so on a wide screen the icon
+          lands on the compass's axis rather than out at the window's edge while
+          the compass sits where the column starts. Nudged half the difference in
+          their widths when the compass is underneath: two round things on one
+          axis read as one corner, two that miss each other by fourteen points
+          read as a mistake. */}
+      <div
+        className="mx-auto flex w-full max-w-5xl justify-start"
+        style={{ paddingLeft: crowded ? "0.875rem" : undefined }}
       >
-        <FlagIcon className="h-3.5 w-3.5 shrink-0 text-rose" />
-        Report an issue
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(
+              new CustomEvent(FEEDBACK_EVENT, { detail: { kind: "problem" } }),
+            );
+          }}
+          aria-label="Report an issue"
+          title="Report an issue"
+          /* Sized against the compass beside it rather than against the thumb: at
+           twenty-eight points this is a mark on the screen, which is what was
+           asked for and what keeps it from reading as a fourth thing the app
+           wants you to press. */
+          className="pointer-events-auto inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-rose shadow-[var(--disc-shadow)] transition hover:border-[var(--line-strong)] active:translate-y-px"
+        >
+          <FlagIcon className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
 
-/* A small flag, because the two icons already at the bottom of the screen are a
-   compass and a speech bubble and a third round face would read as a third piece
-   of the app rather than a note left on it. */
+/* A flag, because the two icons already at the bottom of the screen are a
+   compass and a speech bubble, and a flag is the one shape that reads as
+   somebody marking a spot rather than the app offering a feature. */
 function FlagIcon({ className = "" }) {
   return (
     <svg
