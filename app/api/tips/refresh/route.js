@@ -25,7 +25,7 @@ import {
   tipsForPlace,
   rulesTips,
 } from "@/lib/tips/generate";
-import { SCOPES, sameWindowTitle } from "@/lib/tips/tip";
+import { SCOPES, sameSubject, sameWindowTitle } from "@/lib/tips/tip";
 import { taskFloorRows } from "@/lib/tasks/floor";
 import { applyPackingFloor } from "@/lib/packing/floor";
 
@@ -134,9 +134,22 @@ async function writeHouseTips({
   }).filter((tip) => tip.scope === scope);
   let housed = 0;
   if (house.length) {
+    // Everything already filed in this place, whatever became of it. Compared on
+    // subject rather than on fingerprint alone, because a rule builds its title
+    // out of researched facts and those get reworded when they are re-researched:
+    // trip_facts.countries came back as ["Curaçao", "United States"] one week and
+    // ["United States", "Curaçao"] the next, which turned one voltage tip into
+    // two and let a cleared one back onto the screen under the other ordering.
+    const here = (existing || []).filter(
+      (row) => row.trip_id === tripId && row.scope === scope,
+    );
     const fresh = house.filter(
       (tip) =>
-        !(existing || []).some((row) => row.fingerprint === tip.fingerprint),
+        !here.some(
+          (row) =>
+            row.fingerprint === tip.fingerprint ||
+            sameSubject(row.title, tip.title),
+        ),
     );
     if (fresh.length) {
       const { data: inserted } = await supabase
@@ -376,7 +389,7 @@ export async function POST(request) {
       .eq("family_id", trip.family_id),
     supabase
       .from("pro_tips")
-      .select("fingerprint, title, scope, itinerary_item_id, status")
+      .select("fingerprint, title, scope, trip_id, itinerary_item_id, status")
       .eq("family_id", trip.family_id),
     supabase.from("trip_facts").select("*").eq("trip_id", tripId).maybeSingle(),
     // Loyalty standings, because a level changes when things can be booked. A
@@ -587,6 +600,17 @@ export async function POST(request) {
     row.scope === scope &&
     (scope !== "item" || row.itinerary_item_id === itemId);
   const already = (existing || []).filter(placeKey).map((row) => row.title);
+  // Advice this family put away anywhere on this trip. Wider than placeKey on
+  // purpose: the fingerprint has the scope in it, so a packing tip they cleared
+  // on the Packing tab did nothing to stop the same advice arriving on the trip's
+  // own tips a week later. Only the put-away ones travel across scopes — an
+  // active packing tip and an active trip tip are allowed to say related things.
+  const putAway = (existing || [])
+    .filter(
+      (row) =>
+        row.trip_id === tripId && row.status !== "active" && !placeKey(row),
+    )
+    .map((row) => row.title);
   const avoid = [
     ...(tasks || []).map((t) => t.title),
     ...(scope === "packing" ? (packing || []).map((p) => p.item) : []),
@@ -608,10 +632,11 @@ export async function POST(request) {
         ...(existing || []).map((row) => row.fingerprint),
         ...house.map((tip) => tip.fingerprint),
       ],
-      // Every earlier title in this place goes into the subject check. The
-      // fingerprint alone is title-normalised, which is fooled by a model that
-      // reworded a cleared tip; subject-word overlap catches those.
-      subjects: (existing || []).filter(placeKey).map((row) => row.title),
+      // Every earlier title in this place, plus anything put away elsewhere on
+      // this trip, goes into the subject check. The fingerprint alone is
+      // title-normalised, which is fooled by a model that reworded a cleared
+      // tip; subject-word overlap catches those.
+      subjects: [...already, ...putAway],
       scope,
       today,
       trip,
