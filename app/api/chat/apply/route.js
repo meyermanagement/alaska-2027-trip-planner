@@ -1,6 +1,7 @@
 import { syncPackingForPet } from "@/lib/pets/packing";
 import { isComing } from "@/lib/pets/pets";
 import { NextResponse } from "next/server";
+import { ensureCaseRow } from "@/lib/daypack/link";
 import { createClient } from "@/lib/supabase/server";
 import { generateTripCover } from "@/lib/covers/generate";
 import {
@@ -53,6 +54,8 @@ const LANDING_TAB = {
   update_task: "tasks",
   delete_task: "tasks",
   add_note: "notes",
+  // The bag is listed on the packing page, under its own heading above the case.
+  add_day_pack_item: "packing",
   add_trip_cost: "budget",
   update_trip_cost: "budget",
   delete_trip_cost: "budget",
@@ -826,8 +829,51 @@ export async function POST(request) {
           row.author_id = user.id;
           row.author_name = profile?.display_name || null;
         }
-        const { error: e } = await supabase.from(table).insert(row);
-        dbError = e;
+        if (table === "day_pack_items") {
+          row.created_by = user.id;
+          row.updated_by = user.id;
+          // Nothing is carried on a day without also being on the trip's list.
+          // The proposal already looked for the matching packing row by name; if
+          // it found nothing, the thing is not on the trip yet and the list is
+          // where that gets fixed. Written here rather than proposed as a second
+          // change because it is not a separate decision: agreeing to carry the
+          // binoculars on Wednesday is agreeing that the binoculars come.
+          if (!row.from_packing_id) {
+            const made = await ensureCaseRow(supabase, {
+              tripId: row.trip_id,
+              item: row.item,
+              assignee: row.assignee,
+              userId: user.id,
+            });
+            if (made.id) {
+              row.from_packing_id = made.id;
+              if (made.created) extra = " and added it to the packing list";
+            }
+          }
+        }
+        // One line per thing per day, and the database enforces it with a unique
+        // index. A model asked the same question twice in one morning proposes the
+        // same water bottle twice, and a duplicate key error on the second card
+        // would read to the family as a failure when the thing they wanted is
+        // already on the list. So it is looked for first, and a row that is
+        // already there counts as done rather than as broken.
+        let alreadyThere = false;
+        if (table === "day_pack_items" && row.trip_id) {
+          const like = String(row.item).replace(/[%_]/g, (c) => `\\${c}`);
+          const { data: same, error: lookErr } = await supabase
+            .from("day_pack_items")
+            .select("id, item_date")
+            .eq("trip_id", row.trip_id)
+            .ilike("item", like);
+          if (!lookErr)
+            alreadyThere = (same || []).some(
+              (r) => (r.item_date || null) === (row.item_date || null),
+            );
+        }
+        if (!alreadyThere) {
+          const { error: e } = await supabase.from(table).insert(row);
+          dbError = e;
+        }
       }
     } catch (err) {
       dbError = { message: err?.message || "Unexpected error." };

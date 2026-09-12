@@ -876,7 +876,14 @@ export default function TripView({
             dayTips={tips.filter((tip) => tip.scope === "daypack")}
             people={goingNames}
             userId={userId}
-            onDayPackChange={() => refetch("day_pack_items")}
+            onDayPackChange={() => {
+              refetch("day_pack_items");
+              // A day pack write can touch the case too: adding something puts it
+              // on the list when it is not there, and taking it off can remove it
+              // when the family says so. Refreshing only the one table left the
+              // packing screen a version behind.
+              refetch("packing_items");
+            }}
             onChange={() => refetch("itinerary_items")}
             readOnly={readOnly}
             today={today}
@@ -890,7 +897,11 @@ export default function TripView({
             tips={tips.filter((tip) => tip.scope === "packing")}
             dayPack={dayPack}
             dayTips={tips.filter((tip) => tip.scope === "daypack")}
-            onDayPackChange={() => refetch("day_pack_items")}
+            onDayPackChange={() => {
+              // Both tables, for the reason given on the itinerary above.
+              refetch("day_pack_items");
+              refetch("packing_items");
+            }}
             today={today}
             everLooked={everLooked}
             travelers={travelers}

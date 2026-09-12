@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dayPackLines, packedLabel } from "@/lib/daypack/pack";
+import { ensureCaseRow } from "@/lib/daypack/link";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import { assigneeColor } from "@/lib/format";
 import ZoneBand, { SunIcon } from "./ZoneBand";
@@ -64,6 +65,15 @@ export default function DayPack({
       // written already ticked. The tip is put away in the same breath: it has
       // done its job, and leaving it active would draw it again tomorrow beside
       // the row it produced.
+      // Accepted advice is a thing on the trip too, so it goes on the packing
+      // list in the same breath -- matched to the line that is already there when
+      // there is one, written when there is not.
+      const inCase = await ensureCaseRow(supabase, {
+        tripId,
+        item: line.item,
+        assignee: "Shared",
+        userId,
+      });
       const { error: writeError } = await supabase
         .from("day_pack_items")
         .insert({
@@ -77,6 +87,7 @@ export default function DayPack({
           packed_at: now,
           source: "tip",
           from_tip_id: line.tipId,
+          from_packing_id: inCase.id,
           created_by: userId,
           updated_by: userId,
         });
@@ -107,10 +118,34 @@ export default function DayPack({
     onChange();
   }
 
+  // Coming off a day is not the same as staying home. Dropping the binoculars
+  // from Wednesday usually means Thursday instead, so the case is a question
+  // asked once and never an assumption -- and answering no leaves the packing
+  // line exactly as it was. (The other direction is a consequence, not a
+  // question: taking it out of the case takes it off every day, and the packing
+  // screen says so before it does it.)
   async function remove(line) {
     if (readOnly || line.kind === "tip") return;
+    const alsoCase =
+      Boolean(line.fromPackingId) &&
+      window.confirm(
+        `Take “${line.item}” off the trip's packing list as well? Cancel to leave it in the case.`,
+      );
     setBusy(line.key);
-    await supabase.from("day_pack_items").delete().eq("id", line.rowId);
+    if (alsoCase) {
+      // The packing row is the parent, so removing it takes this line with it.
+      const { error: writeError } = await supabase
+        .from("packing_items")
+        .delete()
+        .eq("id", line.fromPackingId);
+      if (writeError) {
+        setError("That could not be saved. Try again.");
+        setBusy(null);
+        return;
+      }
+    } else {
+      await supabase.from("day_pack_items").delete().eq("id", line.rowId);
+    }
     setBusy(null);
     onChange();
   }
@@ -121,12 +156,22 @@ export default function DayPack({
     if (!name) return;
     setBusy("new");
     setError("");
+    // Same rule as everywhere else: it cannot be on somebody's back today and
+    // absent from the trip. If the case already has it, the two rows are tied
+    // together; if not, the list gains it, unpacked, which is the truth.
+    const inCase = await ensureCaseRow(supabase, {
+      tripId,
+      item: name,
+      assignee: who || "Shared",
+      userId,
+    });
     const { error: writeError } = await supabase.from("day_pack_items").insert({
       trip_id: tripId,
       item_date: date,
       item: name,
       assignee: who || "Shared",
       source: "you",
+      from_packing_id: inCase.id,
       created_by: userId,
       updated_by: userId,
     });

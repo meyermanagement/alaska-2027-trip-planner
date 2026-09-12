@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CategoryPicker from "./CategoryPicker";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { assigneeColor } from "@/lib/format";
+import { assigneeColor, formatFullDay } from "@/lib/format";
 import { oneOrShared } from "@/lib/people";
 import { matchesQuery } from "@/lib/packing/find";
 import {
@@ -406,10 +406,32 @@ export default function Packing({
     onChange();
   }
 
+  // Taking something out of the case takes it off the days it was being carried
+  // on, because it is not on the trip any more and nobody can carry what is not
+  // there. That is a cascade in the database, so it happens whether or not this
+  // screen mentions it -- which is exactly why this screen mentions it. The days
+  // are named, since "also in a day pack" is not enough to decide with.
   async function remove(item) {
-    if (!window.confirm(`Remove “${item.item}” from the list?`)) return;
+    const carried = (dayPack || []).filter(
+      (row) => row && row.from_packing_id === item.id,
+    );
+    const days = carried
+      .map((row) =>
+        row.item_date ? formatFullDay(row.item_date) : "every day",
+      )
+      .filter((day, at, all) => all.indexOf(day) === at);
+    const warning = days.length
+      ? `\n\n“${item.item}” is in the day pack for ${days.join(
+          ", ",
+        )}. Removing it here takes it off ${
+          days.length === 1 ? "that day" : "those days"
+        } too.`
+      : "";
+    if (!window.confirm(`Remove “${item.item}” from the list?${warning}`))
+      return;
     await supabase.from("packing_items").delete().eq("id", item.id);
     onChange();
+    if (carried.length) onDayPackChange();
   }
 
   function startEdit(item) {
