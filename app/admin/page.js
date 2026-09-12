@@ -7,7 +7,7 @@ import { funnel, perPerson, questionDwell } from "@/lib/usage/metrics";
 import { stepLabel } from "@/lib/usage/steps";
 import TopBar from "@/components/TopBar";
 import AdminBody from "./AdminBody";
-import { FAULT_KIND, SHOT_BUCKET } from "@/lib/feedback/shared";
+import { FAULT_KIND } from "@/lib/feedback/shared";
 
 export const metadata = { title: "Beta desk · Alyeska" };
 export const dynamic = "force-dynamic";
@@ -32,11 +32,10 @@ export const dynamic = "force-dynamic";
 // one query rather than a paginated report.
 const WINDOW_DAYS = 30;
 const EVENT_CEILING = 6000;
-// A beta's worth of reports. Newest first, so the ceiling cuts off the oldest.
-const REPORT_CEILING = 60;
-// How long a picture's link is good for. Long enough to read the desk, short
-// enough that a copied address is useless by the time it is pasted anywhere.
-const SHOT_LINK_SECONDS = 60 * 60;
+// The desk counts the reports and links to them; the reading happens on the
+// issue log, which is its own page because it is the one part of this screen
+// that grows without limit.
+const REPORT_CEILING = 500;
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -58,8 +57,7 @@ export default async function AdminPage() {
           steps={[]}
           questions={[]}
           testers={[]}
-          reports={[]}
-          faults={[]}
+          issues={null}
           windowDays={WINDOW_DAYS}
         />
       </>
@@ -92,9 +90,7 @@ export default async function AdminPage() {
     admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
     admin
       .from("feedback")
-      .select(
-        "id, created_at, email, kind, body, path, trip_id, skin, viewport, user_agent, build, trail, shots, status, seen_count, last_at, detail",
-      )
+      .select("kind, status, seen_count, maybe_fixed, route")
       .order("created_at", { ascending: false })
       .limit(REPORT_CEILING),
   ]);
@@ -157,21 +153,14 @@ export default async function AdminPage() {
       String(b.lastSignInAt || "").localeCompare(String(a.lastSignInAt || "")),
     );
 
-  const written = await readReports(
-    admin,
-    (reportRows || []).filter((one) => one.kind !== FAULT_KIND),
-  );
-  const faults = readFaults(
-    (reportRows || []).filter((one) => one.kind === FAULT_KIND),
-  );
+  const issues = countIssues(reportRows || []);
 
   return (
     <>
       <TopBar />
       <AdminBody
         codes={codes}
-        reports={written}
-        faults={faults}
+        issues={issues}
         steps={funnel(events)}
         questions={questionDwell(events)}
         testers={testers}
@@ -182,129 +171,22 @@ export default async function AdminPage() {
 }
 
 /**
- * The reports, ready to read: the trip named rather than numbered, the browser
- * shortened to the part that matters, and every picture turned into a link that
- * expires within the hour.
+ * What the desk says about the log without drawing it: how much is in there,
+ * how much has not been looked at, and how much of it the app reported on
+ * itself. Everything else about a report is on the log's own page.
  */
-async function readReports(admin, rows) {
-  if (!rows.length) return [];
-
-  const tripIds = [...new Set(rows.map((one) => one.trip_id).filter(Boolean))];
-  const tripNames = new Map();
-  if (tripIds.length) {
-    const { data: trips } = await admin
-      .from("trips")
-      .select("id, name")
-      .in("id", tripIds);
-    for (const trip of trips || []) tripNames.set(trip.id, trip.name);
-  }
-
-  const keys = rows.flatMap((one) => one.shots || []);
-  const links = new Map();
-  if (keys.length) {
-    const { data: signed } = await admin.storage
-      .from(SHOT_BUCKET)
-      .createSignedUrls(keys, SHOT_LINK_SECONDS);
-    for (const one of signed || []) {
-      if (one?.path && one?.signedUrl) links.set(one.path, one.signedUrl);
-    }
-  }
-
-  return rows.map((one) => ({
-    id: one.id,
-    at: whenPlainly(one.created_at),
-    email: one.email,
-    kind: one.kind,
-    body: one.body,
-    path: one.path,
-    tripName: one.trip_id ? tripNames.get(one.trip_id) || null : null,
-    skin: one.skin,
-    viewport: one.viewport,
-    build: one.build,
-    browser: shortBrowser(one.user_agent),
-    trail: Array.isArray(one.trail)
-      ? one.trail
-          .map((step) => step?.what)
-          .filter(Boolean)
-          .slice(0, 6)
-      : [],
-    shots: (one.shots || []).map((key) => links.get(key)).filter(Boolean),
-    status: one.status || "new",
-  }));
-}
-
-/**
- * A fault, ready to recognize. No pictures and no trail on these -- what a
- * fault needs is what it said, how often, and where it was thrown from.
- */
-function readFaults(rows) {
-  return rows.map((one) => ({
-    id: one.id,
-    at: whenPlainly(one.created_at),
-    lastAt: one.last_at ? whenPlainly(one.last_at) : null,
-    seenCount: one.seen_count || 1,
-    source: one.detail?.source || sourceFromBody(one),
-    email: one.email,
-    body: one.body,
-    path: one.path,
-    skin: one.skin,
-    viewport: one.viewport,
-    build: one.build,
-    browser: shortBrowser(one.user_agent),
-    stack: one.detail?.stack || null,
-    thrownAt: one.detail?.at || null,
-    status: one.status || "new",
-  }));
-}
-
-// Faults written before the source was stored, and any row whose detail lost it,
-// still read sensibly: an answer with a status code in it was a broken call.
-function sourceFromBody(row) {
-  const call = row.detail?.call || "";
-  return call ? "call" : "script";
-}
-
-function whenPlainly(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-/**
- * A user-agent string is 150 characters of history nobody needs. What matters
- * for a bug report is which browser on which kind of device, so that is all
- * that is kept.
- */
-function shortBrowser(raw) {
-  const text = String(raw || "");
-  if (!text) return null;
-  const device = /iPhone/.test(text)
-    ? "iPhone"
-    : /iPad/.test(text)
-      ? "iPad"
-      : /Android/.test(text)
-        ? "Android"
-        : /Macintosh/.test(text)
-          ? "Mac"
-          : /Windows/.test(text)
-            ? "Windows"
-            : null;
-  const browser = /Edg\//.test(text)
-    ? "Edge"
-    : /OPR\//.test(text)
-      ? "Opera"
-      : /Chrome\//.test(text)
-        ? "Chrome"
-        : /Firefox\//.test(text)
-          ? "Firefox"
-          : /Safari\//.test(text)
-            ? "Safari"
-            : null;
-  return [browser, device].filter(Boolean).join(" on ") || null;
+function countIssues(rows) {
+  const written = rows.filter((one) => one.kind !== FAULT_KIND);
+  const faults = rows.filter((one) => one.kind === FAULT_KIND);
+  return {
+    total: rows.length,
+    waiting: rows.filter((one) => (one.status || "new") === "new").length,
+    written: written.length,
+    faults: faults.length,
+    times: faults.reduce((sum, one) => sum + (one.seen_count || 1), 0),
+    talk: rows.filter(
+      (one) => one.route === "talk" && (one.status || "new") !== "fixed",
+    ).length,
+    maybeFixed: rows.filter((one) => one.maybe_fixed).length,
+  };
 }

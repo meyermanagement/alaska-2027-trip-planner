@@ -1,7 +1,5 @@
 import { saidPlainly } from "@/lib/usage/metrics";
 import CodeDesk from "./CodeDesk";
-import FeedbackDesk from "./FeedbackDesk";
-import FaultDesk from "./FaultDesk";
 
 /**
  * What the beta desk draws. Split from the page so the layout can be looked at
@@ -11,8 +9,11 @@ import FaultDesk from "./FaultDesk";
  * from the server and can be rendered on its own with made-up rows while its
  * layout is being worked on.
  *
- * Three things in the order they are wanted: hand somebody the way in, see
- * whether they took it, then see where the first run loses people. The funnel and
+ * Four things in the order they are wanted: hand somebody the way in, see
+ * whether they took it, see what came back broken, then see where the first run
+ * loses people. The reports themselves live on the issue log, which is its own
+ * page: it is the one part of this screen that grows without limit, and a
+ * summary with a way in beats a feed that pushes the funnel off the bottom. The funnel and
  * the question timings are drawn here as plain bars in markup rather than through
  * a chart library — there is no chart dependency in this app and a horizontal bar
  * whose width is a percentage does not need one.
@@ -54,8 +55,7 @@ function Bar({ share, tone = "teal" }) {
 
 export default function AdminBody({
   codes = [],
-  reports = [],
-  faults = [],
+  issues = null,
   steps = [],
   questions = [],
   testers = [],
@@ -84,8 +84,26 @@ export default function AdminBody({
       <div className="mt-7 space-y-10">
         <CodeDesk codes={codes} />
 
-        <FeedbackDesk reports={reports} />
-        <FaultDesk faults={faults} />
+        <section>
+          <h2 className="font-display text-xl font-semibold">Issue log</h2>
+          <p className="mt-1.5 max-w-prose text-sm text-ink-soft">
+            {issues?.total
+              ? `${issues.total} ${issues.total === 1 ? "report" : "reports"}, ${issues.waiting} not looked at yet. ${issues.faults} of them the app reported on itself, seen ${issues.times} ${issues.times === 1 ? "time" : "times"}.`
+              : "Nothing yet. Reports arrive from the flag inside the app, and faults record themselves."}
+          </p>
+          {issues?.talk ? (
+            <p className="mt-1.5 text-sm text-ink-soft">
+              {issues.talk} {issues.talk === 1 ? "wants" : "want"} a
+              conversation before any code.
+              {issues.maybeFixed
+                ? ` ${issues.maybeFixed} may already be fixed.`
+                : ""}
+            </p>
+          ) : null}
+          <a href="/admin/issues" className="btn btn-primary btn-sm mt-3">
+            Open the issue log
+          </a>
+        </section>
 
         <section>
           <h2 className="font-display text-xl font-semibold">
