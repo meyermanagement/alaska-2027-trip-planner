@@ -14,6 +14,7 @@ import {
 } from "@/lib/packing/roster";
 import { LAST_MINUTE_LABEL, looksLastMinute } from "@/lib/packing/lastMinute";
 import LastMinuteTasks from "@/components/LastMinuteTasks";
+import DayPacks from "@/components/DayPacks";
 import ProTips from "./ProTips";
 
 /**
@@ -65,6 +66,11 @@ export default function Packing({
   trip = null,
   onTaskChange = () => {},
   onOpenTasks = null,
+  // The day bags, and the advice filed onto particular days. Shown here as an
+  // index the night before, and inside each day on the itinerary.
+  dayPack = [],
+  dayTips = [],
+  onDayPackChange = () => {},
   readOnly = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -1456,6 +1462,19 @@ export default function Packing({
         canLook={false}
         heading="Before you pack"
         readOnly={readOnly}
+      />
+      {/* Under the advice and above the case. The night before, somebody wants to
+          see every day's bag at once and notice the day that has nothing in it;
+          during the day, the same lines are on the day itself. Draws nothing at
+          all until a trip has a day pack. */}
+      <DayPacks
+        tripId={tripId}
+        rows={dayPack}
+        tips={dayTips}
+        people={going || travelers}
+        userId={userId}
+        readOnly={readOnly}
+        onChange={onDayPackChange}
       />
       {/* What this trip counts as, and where the list came from, in one strip.
  

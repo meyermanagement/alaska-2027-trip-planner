@@ -152,6 +152,7 @@ export default function TripView({
   trip,
   initialItinerary,
   initialPacking,
+  initialDayPack = [],
   initialTasks,
   initialNotes,
   initialCosts = [],
@@ -338,6 +339,9 @@ export default function TripView({
   }, [trip]);
   const [itinerary, setItinerary] = useState(initialItinerary);
   const [packing, setPacking] = useState(initialPacking);
+  // The bags carried on particular days. Held beside the suitcase list rather than
+  // inside it because the two lists mean different things by "packed".
+  const [dayPack, setDayPack] = useState(initialDayPack);
   const [tasks, setTasks] = useState(initialTasks);
   const [notes, setNotes] = useState(initialNotes);
   const [costs, setCosts] = useState(initialCosts);
@@ -402,6 +406,14 @@ export default function TripView({
           .order("category", { ascending: true })
           .order("sort_order", { ascending: true });
         if (data) setPacking(data);
+      } else if (table === "day_pack_items") {
+        const { data } = await supabase
+          .from("day_pack_items")
+          .select("*")
+          .eq("trip_id", trip.id)
+          .order("item_date", { ascending: true })
+          .order("sort_order", { ascending: true });
+        if (data) setDayPack(data);
       } else if (table === "predeparture_tasks") {
         const { data } = await supabase
           .from("predeparture_tasks")
@@ -440,6 +452,7 @@ export default function TripView({
     const tables = [
       "itinerary_items",
       "packing_items",
+      "day_pack_items",
       "predeparture_tasks",
       "trip_notes",
       "trip_travelers",
@@ -822,6 +835,7 @@ export default function TripView({
             counts={{
               item: tips.filter((tip) => tip.scope === "item").length,
               packing: tips.filter((tip) => tip.scope === "packing").length,
+              daypack: tips.filter((tip) => tip.scope === "daypack").length,
             }}
             everLooked={everLooked}
             onGo={setTab}
@@ -858,6 +872,11 @@ export default function TripView({
             onTaskChange={() => refetch("predeparture_tasks")}
             onOpenTasks={() => setTab("tasks")}
             tips={tips.filter((tip) => tip.scope === "item")}
+            dayPack={dayPack}
+            dayTips={tips.filter((tip) => tip.scope === "daypack")}
+            people={goingNames}
+            userId={userId}
+            onDayPackChange={() => refetch("day_pack_items")}
             onChange={() => refetch("itinerary_items")}
             readOnly={readOnly}
             today={today}
@@ -869,6 +888,9 @@ export default function TripView({
             items={packing}
             tripId={trip.id}
             tips={tips.filter((tip) => tip.scope === "packing")}
+            dayPack={dayPack}
+            dayTips={tips.filter((tip) => tip.scope === "daypack")}
+            onDayPackChange={() => refetch("day_pack_items")}
             today={today}
             everLooked={everLooked}
             travelers={travelers}

@@ -119,6 +119,7 @@ export default async function TripPage({ params, searchParams }) {
     pets,
     petLinks,
     basicHistory,
+    dayPack,
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -226,6 +227,16 @@ export default async function TripPage({ params, searchParams }) {
       .eq("trip_id", trip.id)
       .order("created_at", { ascending: false })
       .limit(40),
+    // What is carried on a given day, which is a different question from what is
+    // in the case. Read in the same breath as everything else: the itinerary
+    // draws a day's pack inside the day, so fetching it on the client would mean
+    // the bag arriving after the morning it belongs to.
+    supabase
+      .from("day_pack_items")
+      .select("*")
+      .eq("trip_id", trip.id)
+      .order("item_date", { ascending: true })
+      .order("sort_order", { ascending: true }),
   ]);
 
   // A draft gets its own screen. The trip screen below is built to answer "what
@@ -268,6 +279,7 @@ export default async function TripPage({ params, searchParams }) {
         trip={trip}
         initialItinerary={orderedItinerary}
         initialPacking={packing.data || []}
+        initialDayPack={dayPack.data || []}
         initialTasks={tasks.data || []}
         initialNotes={notes.data || []}
         initialCosts={costs.data || []}

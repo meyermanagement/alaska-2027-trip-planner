@@ -42,6 +42,7 @@ import { directionsToPlace } from "@/lib/travel/modes";
 import DayItemBrief from "@/components/DayItemBrief";
 import ItemDrag, { DragGrip } from "@/components/ItemDrag";
 import EarlyForecast from "@/components/EarlyForecast";
+import DayPack from "@/components/DayPack";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
 import { askQuietly, readStored } from "@/components/WhereIAm";
 import { nearerTruth } from "@/lib/places/here";
@@ -703,6 +704,14 @@ export default function Itinerary({
   tripName,
   destination = "",
   tips = [],
+  // The bag for one day, kept apart from the suitcase list. dayTips are the tips
+  // that named a day out loud; they are drawn inside the day's pack rather than
+  // on the Tips screen, which is the whole point of the feature.
+  dayPack = [],
+  dayTips = [],
+  people = [],
+  userId = null,
+  onDayPackChange = () => {},
   readOnly = false,
   // Today, worked out on the server in the family's own zone and handed down so
   // the first frame the browser draws opens on the same day it would have picked
@@ -2020,6 +2029,23 @@ export default function Itinerary({
                       Add something to this day
                     </button>
                   </div>
+                )}
+                {/* Last on the day, because it is the thing you check on the way
+                    out of the door rather than the thing you plan. Not on the
+                    unscheduled pile, which is not a morning anybody leaves on. */}
+                {date !== UNSCHEDULED && (
+                  <DayPack
+                    date={date}
+                    dayLabel={formatDay(date)}
+                    tripId={tripId}
+                    rows={dayPack}
+                    tips={dayTips}
+                    people={people}
+                    userId={userId}
+                    readOnly={readOnly}
+                    onChange={onDayPackChange}
+                    className="no-print"
+                  />
                 )}
               </div>
             </div>

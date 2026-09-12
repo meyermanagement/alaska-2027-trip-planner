@@ -626,6 +626,16 @@ export async function POST(request) {
         trip_id: tripId,
         itinerary_item_id: scope === "item" ? itemId : null,
         scope,
+        // Both of these are for day-carry advice, which is filed onto a day
+        // rather than onto the Tips screen. A look at one booking already knows
+        // the day the advice would be for, and the trip's own days are what a
+        // date the model offers has to agree with.
+        related_date: item?.item_date || null,
+        trip_days: Array.from(
+          new Set(
+            (itinerary || []).map((row) => row.item_date).filter(Boolean),
+          ),
+        ),
       },
       avoid,
       known: [
