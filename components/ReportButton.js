@@ -111,11 +111,11 @@ export default function ReportButton() {
       }`}
       style={{
         paddingBottom: crowded
-          ? /* Sitting in the same row as the compass rather than stacked above
-               it, and lifted the fourteen points that center a twenty-eight
-               point disc against a fifty-six point one, so the two read as one
-               pair on one line. */
-            "calc(max(1rem, calc(env(safe-area-inset-bottom) + 0.4rem)) + 0.875rem)"
+          ? /* The bar's own bottom padding, exactly, so the small disc sits on
+               the same floor as the compass rather than hovering at its
+               midline: two things resting on one line read as a pair, and the
+               larger one is the one that sets the line. */
+            "max(1rem, calc(env(safe-area-inset-bottom) + 0.4rem))"
           : "max(1.35rem, calc(env(safe-area-inset-bottom) + 0.75rem))",
       }}
     >
@@ -167,15 +167,15 @@ function FlagIcon({ className = "" }) {
       className={className}
       aria-hidden="true"
     >
-      {/* Nudged onto the middle of the viewBox: the two paths together run from
-          five to fourteen across and four to twenty-one down, so drawn as
-          written the flag sits left of center and low inside a round button.
-          Two and a half points right, half a point up puts its own middle on
-          the circle's. */}
-      <g transform="translate(2.5, -0.5)">
-        <path d="M5 21V4" />
-        <path d="M5 4h9l-1.2 3.4L14 11H5" />
-      </g>
+      {/* Solid rather than outlined, and set on the middle of the viewBox. The
+          outlined version was the same weight of line as the compass beside it
+          and lost its shape at fourteen points; filled, it reads as a flag at
+          any size, which matters most in the invitation, where a picture of
+          this button is all a new tester has to go on. The pole runs from four
+          to twenty and the pennant reaches to seventeen, so the mark's own
+          middle sits on the circle's. */}
+      <path d="M8 4V20" />
+      <path d="M8 4.6H17l-2.2 3.7L17 12H8Z" fill="currentColor" stroke="none" />
     </svg>
   );
 }
