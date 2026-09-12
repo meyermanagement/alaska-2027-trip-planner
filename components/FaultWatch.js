@@ -94,16 +94,14 @@ export default function FaultWatch() {
       const error = event?.error;
       const message =
         error?.message || event?.message || "Threw with no message";
-      const chunk =
-        /Loading chunk|ChunkLoadError|Importing a module script failed/i.test(
-          String(message),
-        );
+      const chunk = isStaleChunk(message);
       report(chunk ? "chunk" : "script", message, {
         stack: String(error?.stack || "").slice(0, MAX_FAULT_STACK_CHARS),
         at: event?.filename
           ? `${event.filename}:${event.lineno || 0}:${event.colno || 0}`
           : null,
       });
+      if (chunk) recoverFromStaleBuild();
     }
 
     function onRejection(event) {
@@ -111,9 +109,14 @@ export default function FaultWatch() {
       const message =
         (typeof reason === "string" ? reason : reason?.message) ||
         "Rejected with no message";
-      report("promise", message, {
+      // A failed import usually arrives here rather than as an error event, so
+      // the same failure has to be recognised on both doors or half of them get
+      // filed as an ordinary rejected promise and nothing is done about them.
+      const chunk = isStaleChunk(message);
+      report(chunk ? "chunk" : "promise", message, {
         stack: String(reason?.stack || "").slice(0, MAX_FAULT_STACK_CHARS),
       });
+      if (chunk) recoverFromStaleBuild();
     }
 
     window.addEventListener("error", onError);
@@ -161,4 +164,56 @@ export default function FaultWatch() {
   }, []);
 
   return null;
+}
+
+/**
+ * The failure a deploy causes on somebody else's phone.
+ *
+ * Every build names its files after a hash of their contents, so a screen the
+ * app has not opened yet is fetched by a name that only exists in the build the
+ * page was loaded from. Ship a new build while a tester has the app open --
+ * which during a beta is most of the day -- and the next screen they tap asks
+ * for a file that is no longer there. Nothing is wrong with their phone, their
+ * signal or the app: they are simply holding yesterday.
+ */
+const STALE_CHUNK =
+  /Loading chunk|ChunkLoadError|Importing a module script failed|error loading dynamically imported module|Failed to fetch dynamically imported module/i;
+
+function isStaleChunk(message) {
+  return STALE_CHUNK.test(String(message || ""));
+}
+
+/** At most one recovery a minute, so a file genuinely gone cannot loop. */
+const RELOAD_KEY = "alyeska:stale-build-reload";
+const RELOAD_GAP_MS = 60000;
+
+/**
+ * Fetch the page again, once.
+ *
+ * The tap that failed went nowhere, so there is nothing on screen worth
+ * preserving and a reload puts the tester on the current build without asking
+ * them to understand any of the above. Two guards keep that from becoming its
+ * own bug: a reload is only attempted once a minute, because if the file is
+ * missing rather than renamed the reload will fail the same way and a loop is
+ * worse than a broken tap; and nothing is reloaded out from under somebody who
+ * is in the middle of typing, because losing a half-written message to Aly to
+ * fix a problem they never saw is not a repair.
+ */
+function recoverFromStaleBuild() {
+  try {
+    const last = Number(window.sessionStorage.getItem(RELOAD_KEY) || 0);
+    if (Date.now() - last < RELOAD_GAP_MS) return;
+    const focused = document.activeElement;
+    const typing =
+      focused &&
+      (focused.isContentEditable ||
+        ((focused.tagName === "INPUT" || focused.tagName === "TEXTAREA") &&
+          String(focused.value || "").length > 0));
+    if (typing) return;
+    window.sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+    // A beat, so the report above is on the wire before the page goes.
+    window.setTimeout(() => window.location.reload(), 300);
+  } catch {
+    /* a browser that will not keep a flag is not one to reload in a loop */
+  }
 }
