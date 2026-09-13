@@ -30,6 +30,7 @@ import TripArtifact from "./TripArtifact";
 import { tripPath, tripRef } from "@/lib/trips/route";
 import { buildArtifact } from "@/lib/trips/artifact";
 import { receiptTone, receiptLabel } from "@/lib/agent/receipt";
+import { openingLine } from "@/lib/agent/waiting";
 import Thinking from "./Thinking";
 import RichText from "./RichText";
 import { askPlaceholder } from "@/lib/agent/placeholders";
@@ -649,11 +650,15 @@ export default function ChatPanel({
   // takes five. Whatever it finds is saved as it goes, so closing the drawer
   // halfway costs the rest of the look and nothing that was already found.
   async function carryOut(look, askId = null) {
-    setLooking("Looking…");
+    // The look is being run on the back of a question, so it says what that
+    // question was about while it walks, the same opening the plain wait uses.
+    const opening = openingLine(lastAsked);
+    setLooking(opening);
     const { found, error } = await runLook({
       tripId: look.tripId,
       steps: look.steps,
       onNote: setLooking,
+      opening,
     });
     setLooking("");
     const said = error
