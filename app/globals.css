@@ -5433,6 +5433,17 @@ html[data-route="3"] .quick-tall .quick-heading {
     left: var(--nav-rail-w);
   }
 
+  /* The flag rides in the same centred column as the bottom bar, which is right
+     while the compass is down there: the two marks line up. With the rail there
+     is no compass at the bottom of the screen, so that column leaves the flag
+     stranded in the middle of a wide window, several hundred points from the
+     corner the invitation tells a tester to look in. Here it goes back to the
+     corner it is described as being in, just clear of the rail. */
+  .aly-clear-row {
+    max-width: none;
+    margin-inline: 0;
+  }
+
   /* The bar and the arc are the same menu as the rail. Only one of them is the
      menu on a given window. */
   [data-navbar="1"] {

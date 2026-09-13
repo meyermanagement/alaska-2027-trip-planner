@@ -90,15 +90,21 @@ export default function ReportButton() {
           : "max(1.35rem, calc(env(safe-area-inset-bottom) + 0.75rem))",
       }}
     >
-      {/* The same centered column the menu bar uses, so on a wide screen the
-          icon lands beside the compass rather than out at the window's edge
-          while the compass sits where the column starts. When the compass is
-          down there, the flag is pushed clear of its fifty-six points and
-          given a gap: beside the compass, not above it, because two discs on
-          one line read as one corner of the screen and a disc floating over
-          another reads as something that came loose. */}
+      {/* The same centered column the menu bar uses, so while the compass is at
+          the bottom of the screen the flag lands beside it rather than out at
+          the window's edge with the compass where the column starts. When the
+          compass is down there, the flag is pushed clear of its fifty-six
+          points and given a gap: beside the compass, not above it, because two
+          discs on one line read as one corner of the screen and a disc floating
+          over another reads as something that came loose.
+
+          On a window wide enough for the rail there is no compass down here at
+          all, and a mark alone at the left edge of a centred column is a mark
+          adrift in the middle of the screen. The stylesheet drops the column
+          there and lets it settle into the corner the copy promises -- see
+          .aly-clear-row in globals.css. */}
       <div
-        className="mx-auto flex w-full max-w-5xl justify-start"
+        className="aly-clear-row mx-auto flex w-full max-w-5xl justify-start"
         style={{ paddingLeft: crowded ? "4.125rem" : undefined }}
       >
         <button
