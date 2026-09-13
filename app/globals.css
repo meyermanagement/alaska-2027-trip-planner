@@ -5314,6 +5314,225 @@ html[data-route="3"] .quick-tall .quick-heading {
    report flag -- have to be told about the rail separately, because a fixed
    element is measured against the window and would otherwise sit underneath
    her. */
+/* The menu pinned down the side of the page, on a window wide enough for it.
+   See the comment above the rail in components/NavTabs.js for why it exists at
+   all; this is where its three widths are settled.
+
+   Below 1100 there is no rail: the compass and its arc are the menu, exactly as
+   before, and everything here is switched off.
+
+   From 1100 the bottom bar goes away and the rail arrives as a strip of icons,
+   4.5rem of it. The labels are not removed -- they are clipped to a pixel, the
+   way .sr-only does it -- so the accessible name of every row survives and a
+   keyboard walks the same menu the eye sees. The one thing genuinely taken out
+   is the way out of a trip, which is a real button and cannot be left invisible
+   and pressable.
+
+   From 1500 the words come back at 20.5rem. That is the longest label in the menu
+   -- Travel Checklist, in small caps -- measured at the largest text size the
+   reader can choose, plus the disc, the badge, the count and the chevron around
+   it. The bands' letter-spacing is pulled in a little here for the same reason:
+   a heading that fits is worth more than a heading that is airy and ends in an
+   ellipsis.
+
+   The page is narrowed by padding on the body, the same mechanism the docked Aly
+   panel uses on the other edge, so every `.screen` recenters in what is left and
+   the two rails can be open at once. The pieces of furniture that float above
+   the page rather than sitting in it -- the report flag, and the bar itself while
+   it is still being drawn -- are measured against the window, so they are told
+   about the rail separately. */
+.nav-rail {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --nav-rail-w: 4.5rem;
+  }
+
+  .nav-rail {
+    position: fixed;
+    inset-block: 0;
+    left: 0;
+    z-index: 30;
+    display: flex;
+    width: var(--nav-rail-w);
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1rem 0.6rem calc(1rem + env(safe-area-inset-bottom));
+    border-right: 1px solid var(--line);
+    background: color-mix(in srgb, var(--color-ink) 3.5%, transparent);
+    /* The arc's pill faces, edges and shadow are a property of the surface the
+       arc is -- a handful of objects thrown over a dimmed page, which need
+       something behind them to be read against. The rail is furniture on the
+       page itself: the rows are flat, and only the one you are on is painted. */
+    --arc-face: transparent;
+    --arc-edge: transparent;
+    --arc-shadow: none;
+  }
+
+  .nav-rail .arc-pill,
+  .nav-rail .arc-hero {
+    /* The rail is a flex column, so the rows already stretch to it. Widths are
+       left alone here on purpose: a child row carries an indent, and 100% of the
+       column plus that indent is a row hanging off the right edge. */
+    width: auto;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    /* Nothing is thrown out of a button here, so nothing flies in. */
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .nav-rail .arc-hero {
+    position: relative;
+  }
+
+  .nav-rail-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.15rem 0.3rem 0.5rem;
+    color: var(--color-ink);
+  }
+
+  .nav-rail-find {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-white) 70%, transparent);
+    padding: 0.35rem 0.6rem;
+  }
+
+  .nav-rail-col {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.3rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .nav-rail-ask {
+    padding-top: 0.5rem;
+  }
+
+  .nav-rail-ask-wide > * {
+    width: 100%;
+  }
+
+  body {
+    padding-left: var(--nav-rail-w);
+  }
+
+  .aly-clear {
+    left: var(--nav-rail-w);
+  }
+
+  /* The bar and the arc are the same menu as the rail. Only one of them is the
+     menu on a given window. */
+  [data-navbar="1"] {
+    display: none;
+  }
+}
+
+/* The strip. Words clipped rather than deleted, discs centered. */
+@media (min-width: 1100px) and (max-width: 1499.98px) {
+  .nav-rail-find,
+  .nav-rail-word,
+  .nav-rail-ask-wide,
+  .nav-rail .arc-band-out {
+    display: none;
+  }
+
+  .nav-rail .arc-label,
+  .nav-rail .arc-sub,
+  .nav-rail .arc-count,
+  .nav-rail .arc-hero > span:not(.arc-hero-mark) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .nav-rail .arc-chev {
+    display: none;
+  }
+
+  /* A child row on the strip. The indent and the hairline it hangs off are how a
+     child says it belongs to the band above it when there are words to indent;
+     with 72 pixels to work in there is nothing to indent into, and both would
+     put the disc off the left edge of the rail. The smaller disc is what says it
+     is a child here. */
+  .nav-rail .arc-pill.kid {
+    margin-left: 0;
+    padding-inline: 0.25rem;
+  }
+
+  .nav-rail .arc-pill.kid::before {
+    display: none;
+  }
+
+  .nav-rail .arc-pill,
+  .nav-rail .arc-hero,
+  .nav-rail-brand,
+  .nav-rail-ask {
+    justify-content: center;
+    padding-inline: 0.25rem;
+  }
+
+  .nav-rail-ask {
+    display: flex;
+  }
+}
+
+@media (min-width: 1500px) {
+  :root {
+    --nav-rail-w: 20.5rem;
+  }
+
+  .nav-rail-ask-narrow {
+    display: none;
+  }
+
+  /* The band that also carries the way out of a trip, stacked. It is the same
+     trade the narrowest phone makes: 19rem split between a heading in small caps
+     and All trips leaves the heading about 60 pixels, which came out as "Trav…".
+     The divider turns on its side instead -- group on the top line, way out on
+     the bottom, still one object with two targets. */
+  .nav-rail .arc-pill.group.split {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-rail .arc-band-out {
+    justify-content: flex-start;
+    gap: 0.4rem;
+    min-height: 40px;
+    padding: 0 0.6rem 0 42px;
+    border-left: 0;
+    border-top: 1px solid var(--arc-band-edge);
+  }
+
+  .nav-rail .arc-band-out > :last-child {
+    margin-left: auto;
+  }
+
+  .nav-rail .arc-pill.group .arc-label {
+    /* Clear of the attention badge, which is pinned to the corner of the disc
+       and overhangs it. In the arc the same badge has the pill's own padding to
+       overhang into; here the label starts sooner. */
+    margin-left: 0.35rem;
+    letter-spacing: 0.06em;
+  }
+}
+
 html[data-aly="docked"] body {
   padding-right: var(--aly-rail);
 }

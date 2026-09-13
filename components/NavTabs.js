@@ -507,7 +507,11 @@ export default function NavTabs({
   // to snapshot at fetch time.
   const rowsForFilterRef = useRef([]);
   useEffect(() => {
-    if (!open) return undefined;
+    // Not gated on the menu being open any more: on a wide window the column is
+    // pinned to the side of the page and its field is always there, so "the menu
+    // is open" stopped being the same question as "is anybody typing". The query
+    // itself is the gate -- it can only be non-empty if one of the two fields is
+    // on screen, and it is cleared when the arc closes.
     const q = query.trim();
     if (!q) {
       setNavFilter({ query: "", keys: null });
@@ -555,7 +559,7 @@ export default function NavTabs({
     return () => {
       clearTimeout(timer);
     };
-  }, [query, open, pathname]);
+  }, [query, pathname]);
 
   // The plate above the arc. "Happening now" while they are away and a
   // countdown before they leave, because those are two different sentences and
@@ -844,77 +848,16 @@ export default function NavTabs({
     }
   }
 
-  return (
+  // The column itself: the trip plate, the rows, and the line that says a filter
+  // matched nothing. Built once and drawn twice -- thrown up out of the compass
+  // as an arc on a phone, and stood up as a rail down the side of a wide desktop
+  // window. One column means the two never disagree about what is in the menu,
+  // which group is open, or which row you are standing on; the only difference
+  // between them is the shape they are poured into, and that is settled in the
+  // stylesheet rather than here.
+  const column = (
     <>
-      {/* The menu is an arc struck off the compass rather than a sheet raised
-          from the bottom edge.
-
-          A sheet is a second screen: it takes the whole width, covers what you
-          were looking at, and has to be dismissed. This is a handful of objects
-          thrown up out of the disc you just pressed, with the
-          page still visible everywhere around them — so the menu belongs
-          visibly to the button that opened it and to the corner it came from,
-          and the screen underneath is never fully taken away.
-
-          The column reads downward, the way every other list in the app does,
-          with the Travel Journal first and Settings last. Running it the other
-          way -- outward from the thumb -- was a nice idea about where a hand is
-          and a bad one about where the eye starts: it put the least-used door
-          directly beneath the trip plate, at the top of the shape, where the
-          reading begins.
-
-          Each node is a frosted pill and not a bare circle because the second
-          line survives — the explanation of what each screen is for, which the
-          desktop dock used to get and the phone never could. Two lines of small
-          text cannot be read off a photograph, so they need something behind
-          them; a pill carrying both is about 250 of the 312 pixels a phone
-          gives you, and there is no width left over to bow the column out into a
-          curve. That is no loss: a curve reads as one list of equals, and these
-          rows are no longer equals -- three of them are doors to a group, and
-          what is behind an opened one is set in underneath it.
-
-          Above the arc, on its own full-width plate, the trip the family is
-          actually pointed at: the one they are on, or the next one they are
-          going on. It is a card rather than another node because it is a
-          different kind of thing from a destination in the app — it is where
-          most presses of this menu were heading anyway, and answering that
-          before any of the doors is the point of putting it there.
-
-          It sits above the bar it rose from, and below the Ask Aly drawer, so
-          that if both ever open the conversation is in front. */}
-      {present && (
-        <div
-          className={`aly-clear no-print fixed inset-0 z-[38] ${open ? "arc-in" : "arc-out"}`}
-        >
-          <button
-            type="button"
-            aria-label="Close the menu"
-            onClick={() => setOpen(false)}
-            /* Face and blur come from --arc-scrim in the stylesheet, so each
-               skin sets its own: a light skin needs the page taken down far
-               enough that the frosted pills are plainly in front of it, and a
-               dark skin needs less of that and a colder black. The page is
-               still meant to be there underneath. */
-            className="arc-scrim absolute inset-0"
-          />
-          <div
-            ref={sheetRef}
-            tabIndex={-1}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Main menu"
-            className="menu-arc absolute inset-x-0 bottom-0 outline-none"
-            style={{
-              paddingBottom:
-                "max(5.1rem, calc(env(safe-area-inset-bottom) + 4.6rem))",
-            }}
-          >
-            {/* Anchored to the same left edge the compass is on, so the arc
-                reads as having been thrown from it rather than floating in the
-                middle of a wide screen. */}
-            <div className="mx-auto max-w-5xl px-4">
-              <div className="flex max-w-[25rem] flex-col items-start gap-1.5">
-                {hero}
+      {hero}
                 {/* Read downward, in the order the rows are written: the trip
                     plate, then the Travel Journal under it, then the other two
                     groups, with Settings last. The arc used to run the other
@@ -1113,6 +1056,179 @@ export default function NavTabs({
                     {"\u201D"}.
                   </p>
                 )}
+    </>
+  );
+
+  return (
+    <>
+      {/* The same column, pinned open down the side of the page, on any window
+          wide enough to hold it beside the app rather than over it.
+
+          A menu that has to be summoned is right on a phone, where the screen is
+          the width of one column and nothing can be spared for a second one. On
+          a desk it is a press and a wait in front of every navigation, and the
+          arc it opens is a modal covering a page that had room for both. So on a
+          wide window the doors are simply there, and the compass and its arc go
+          away: two ways to reach the same rows, one of them hidden, is how you
+          get a person pressing a disc that opens a sheet over a menu already on
+          screen.
+
+          It is the same `column` the arc draws, not a second copy of the menu --
+          one set of rows, one open group, one filter, drawn in two places. The
+          rail turns off what the arc's own surface supplied: the frosted pill
+          faces, the shadow and the stagger, which are all things thrown out of a
+          button and wrong for furniture that was there when the page arrived.
+
+          Between 1100 and 1500 it is a strip of icons: the labels stay in the
+          document, clipped rather than removed, so a screen reader and the
+          keyboard still get the whole menu while the eye gets 72 pixels of
+          instrument panel. Above 1500 the words come back. */}
+      <nav
+        aria-label="Main menu"
+        className="nav-rail no-print"
+        data-navrail="1"
+      >
+        <Link href="/" className="nav-rail-brand" aria-label="Alyeska, home">
+          <AlyeskaMark
+            className="h-9 w-9 shrink-0"
+            bezel
+            compact
+            aurora
+            auroraId="alyeska-aurora-rail"
+            spinning={navFetching}
+          />
+          <span className="nav-rail-word font-display text-lg font-semibold">
+            Alyeska
+          </span>
+        </Link>
+        {/* The same field as the one in the pill beside the compass, and the
+            same state behind it. On the strip there is no room for it and it is
+            taken out of the document rather than clipped: a text box nobody can
+            see is worse than no text box, and the rows are all still reachable
+            by eye. */}
+        <div className="nav-rail-find">
+          <SearchIcon className="h-4 w-4 shrink-0 text-ink/50" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setQuery("");
+            }}
+            placeholder="What would you like to do?"
+            aria-label="Filter the menu"
+            className="min-w-0 flex-1 bg-transparent text-base text-ink placeholder:text-ink/50 focus:outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear the filter"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink/60 transition hover:bg-ink/5 hover:text-ink"
+            >
+              <CloseIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="nav-rail-col">{column}</div>
+        {/* Hiding the bottom bar takes the round Ask Aly disc with it, so she
+            comes to the foot of the rail instead -- the widest thing in it, at
+            the end of the column, where the eye lands last. Drawn twice, as a
+            pill for the labeled rail and a disc for the strip, because which one
+            fits is a question about the width of the furniture and the stylesheet
+            is what knows the width. */}
+        {showAsk && (
+          <div className="nav-rail-ask">
+            {askLive ? (
+              <>
+                <span className="nav-rail-ask-wide">
+                  <AskAlyTrigger href={askHref} />
+                </span>
+                <span className="nav-rail-ask-narrow">
+                  <AskAlyTrigger href={askHref} round />
+                </span>
+              </>
+            ) : (
+              <span
+                aria-hidden="true"
+                className="nav-rail-ask-narrow inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-teal text-on-accent opacity-60 shadow-[var(--disc-shadow)] ring-1 ring-ink/10"
+              >
+                <BubbleIcon className="h-8 w-8 shrink-0" />
+              </span>
+            )}
+          </div>
+        )}
+      </nav>
+
+      {/* The menu is an arc struck off the compass rather than a sheet raised
+          from the bottom edge.
+
+          A sheet is a second screen: it takes the whole width, covers what you
+          were looking at, and has to be dismissed. This is a handful of objects
+          thrown up out of the disc you just pressed, with the
+          page still visible everywhere around them — so the menu belongs
+          visibly to the button that opened it and to the corner it came from,
+          and the screen underneath is never fully taken away.
+
+          The column reads downward, the way every other list in the app does,
+          with the Travel Journal first and Settings last. Running it the other
+          way -- outward from the thumb -- was a nice idea about where a hand is
+          and a bad one about where the eye starts: it put the least-used door
+          directly beneath the trip plate, at the top of the shape, where the
+          reading begins.
+
+          Each node is a frosted pill and not a bare circle because the second
+          line survives — the explanation of what each screen is for, which the
+          desktop dock used to get and the phone never could. Two lines of small
+          text cannot be read off a photograph, so they need something behind
+          them; a pill carrying both is about 250 of the 312 pixels a phone
+          gives you, and there is no width left over to bow the column out into a
+          curve. That is no loss: a curve reads as one list of equals, and these
+          rows are no longer equals -- three of them are doors to a group, and
+          what is behind an opened one is set in underneath it.
+
+          Above the arc, on its own full-width plate, the trip the family is
+          actually pointed at: the one they are on, or the next one they are
+          going on. It is a card rather than another node because it is a
+          different kind of thing from a destination in the app — it is where
+          most presses of this menu were heading anyway, and answering that
+          before any of the doors is the point of putting it there.
+
+          It sits above the bar it rose from, and below the Ask Aly drawer, so
+          that if both ever open the conversation is in front. */}
+      {present && (
+        <div
+          className={`aly-clear no-print fixed inset-0 z-[38] ${open ? "arc-in" : "arc-out"}`}
+        >
+          <button
+            type="button"
+            aria-label="Close the menu"
+            onClick={() => setOpen(false)}
+            /* Face and blur come from --arc-scrim in the stylesheet, so each
+               skin sets its own: a light skin needs the page taken down far
+               enough that the frosted pills are plainly in front of it, and a
+               dark skin needs less of that and a colder black. The page is
+               still meant to be there underneath. */
+            className="arc-scrim absolute inset-0"
+          />
+          <div
+            ref={sheetRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Main menu"
+            className="menu-arc absolute inset-x-0 bottom-0 outline-none"
+            style={{
+              paddingBottom:
+                "max(5.1rem, calc(env(safe-area-inset-bottom) + 4.6rem))",
+            }}
+          >
+            {/* Anchored to the same left edge the compass is on, so the arc
+                reads as having been thrown from it rather than floating in the
+                middle of a wide screen. */}
+            <div className="mx-auto max-w-5xl px-4">
+              <div className="flex max-w-[25rem] flex-col items-start gap-1.5">
+                {column}
               </div>
             </div>
           </div>

@@ -46,8 +46,21 @@ export default function ReportButton() {
   // screen that has the bar, so the icon lifts above it rather than landing on
   // it. On the onboarding screens, where the bar is absent on purpose, it stays
   // in the corner.
+  // Drawn, and drawn where the flag is: on a window wide enough for the pinned
+  // menu the bar is still in the document and hidden by the stylesheet, so its
+  // presence is not the question -- its height is. Rechecked when the window
+  // crosses the width where the rail takes over, because the bar can go away
+  // under a person dragging a window edge.
   useEffect(() => {
-    setCrowded(Boolean(document.querySelector("[data-navbar]")));
+    const look = () => {
+      const bar = document.querySelector("[data-navbar]");
+      setCrowded(Boolean(bar && bar.getBoundingClientRect().height > 0));
+    };
+    look();
+    if (typeof window.matchMedia !== "function") return undefined;
+    const wide = window.matchMedia("(min-width: 1100px)");
+    wide.addEventListener("change", look);
+    return () => wide.removeEventListener("change", look);
   }, [pathname]);
 
   useEffect(() => {
