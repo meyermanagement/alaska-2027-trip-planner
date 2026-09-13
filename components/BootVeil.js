@@ -430,6 +430,20 @@ export default function BootVeil() {
 
   return (
     <div id="boot-veil" aria-hidden="true">
+      <BootStage />
+    </div>
+  );
+}
+
+// Both openings, with none of the machinery that decides between them or takes
+// them away. The veil above wraps this in the element the stylesheet hides once
+// the app has arrived; the page at /login/opening wraps the same markup in one
+// that is never hidden, so an opening can be watched for as long as it takes to
+// judge rather than for the second it is normally up. Which of the two shows is
+// the stylesheet's business either way: it reads data-boot on the document.
+export function BootStage() {
+  return (
+    <>
       <QuickVeil />
       <div className="boot-mark">
         <svg viewBox="0 0 32 32" fill="none">
@@ -486,6 +500,6 @@ export default function BootVeil() {
           </span>
         </p>
       </div>
-    </div>
+    </>
   );
 }

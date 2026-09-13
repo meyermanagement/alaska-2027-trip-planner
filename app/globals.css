@@ -238,7 +238,12 @@ body {
  * app -- so the stylesheet lifts it after five seconds on its own.
  * ------------------------------------------------------------------ */
 
-#boot-veil {
+/* The stage at /login/opening is the same picture in an element the rules below
+   never hide, which is the only way to watch an opening that is designed to get
+   out of the way. It shares this block so there is one description of what the
+   veil looks like. */
+#boot-veil,
+#boot-stage {
   position: fixed;
   inset: 0;
   z-index: 90;

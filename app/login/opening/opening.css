@@ -1,0 +1,83 @@
+/* The stage itself is described with the veil in globals.css. Everything here is
+   the small desk of controls that sits on top of it, and it has to outrank the
+   stage's own z-index of 90 to be reachable at all. */
+.opening-desk {
+  position: fixed;
+  z-index: 95;
+  right: max(1.1rem, env(safe-area-inset-right));
+  bottom: max(1.1rem, env(safe-area-inset-bottom));
+  left: auto;
+  width: min(22rem, calc(100vw - 2.2rem));
+  padding: 0.95rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: var(--color-white);
+  box-shadow: 0 0.6rem 1.6rem rgb(36 31 24 / 12%);
+}
+
+.opening-lede {
+  margin: 0 0 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-ink);
+}
+
+.opening-note {
+  margin: 0.7rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+.opening-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.opening-row + .opening-row {
+  margin-top: 0.4rem;
+}
+
+.opening-desk button,
+.opening-desk a {
+  /* Forty-four pixels tall at the default root size, because this is used on a
+     phone as often as on a desk. */
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--color-sand);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.opening-desk button.on {
+  border-color: var(--color-teal);
+  background: var(--color-teal);
+  color: var(--color-white);
+}
+
+.opening-show {
+  position: fixed;
+  z-index: 95;
+  right: max(1.1rem, env(safe-area-inset-right));
+  bottom: max(1.1rem, env(safe-area-inset-bottom));
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--color-white);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  cursor: pointer;
+}
