@@ -322,7 +322,10 @@ html[data-boot="quick"] #boot-veil {
 
 .quick-grid {
   position: absolute;
-  inset: 0;
+  /* Larger than the veil and centered on it. The ground turns a couple of
+     degrees while it slides, and an inset of zero would swing a corner of the
+     graticule into view when it did. */
+  inset: -32%;
   opacity: 0.12;
   background-image:
     repeating-linear-gradient(
@@ -335,6 +338,21 @@ html[data-boot="quick"] #boot-veil {
       currentColor 0 1px,
       transparent 1px 4.75rem
     );
+  transform-origin: 50% 50%;
+  /* Two motions on two clocks, and neither one ever restarts where you can see
+     it. The pan moves the graticule itself by exactly one cell, so the frame it
+     ends on is pixel-identical to the frame it began on and the scroll has no
+     seam -- it can run as long as the page takes to arrive. The sway and the
+     breath ride the transform on a much longer period that is not a multiple of
+     the pan, so the two never line up and the ground never looks like a loop
+     being replayed. The sway is started a quarter of the way in, because eased
+     motion has no speed at its own beginning and the first second of a load is
+     the only second most people ever see. Portrait climbs; the landscape rule
+     below crosses. */
+  animation:
+    quick-pan-tall 3.4s linear infinite,
+    quick-sway 11s ease-in-out -2.75s infinite;
+  will-change: background-position, transform;
 }
 
 .quick-title {
@@ -376,6 +394,17 @@ html[data-boot="quick"] #boot-veil {
    the shape of the window is the only thing that actually matters, and it is
    also the only thing that stays true when the phone is turned on its side. */
 @media (orientation: landscape) {
+  /* Crossing rather than climbing: the ground slides left as well as down,
+     because the needle is heading up and to the right. The sway keeps its own
+     name and its own clock. */
+  .quick-grid {
+    animation-name: quick-pan-wide, quick-sway;
+    /* A cell left and a cell down is a longer trip than a cell down, so it is
+       given proportionally longer to make it and the ground moves at one
+       speed whichever way the screen is turned. */
+    animation-duration: 4.8s, 11s;
+  }
+
   .quick-tall {
     display: none;
   }
@@ -827,6 +856,55 @@ html[data-boot="quick"] #boot-veil {
   }
   100% {
     transform: rotate(450deg);
+  }
+}
+
+/* One cell of the graticule, and no more. The gradients repeat every 4.75rem,
+   so moving the background exactly that far leaves the picture where it started
+   without anything appearing to jump -- which is what lets the ground scroll for
+   as long as the load takes instead of playing an eight-second clip over and
+   over. Both layers are moved together; the pair of values is the vertical
+   gradient and the horizontal one. */
+@keyframes quick-pan-tall {
+  from {
+    background-position:
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      0 4.75rem,
+      0 4.75rem;
+  }
+}
+
+@keyframes quick-pan-wide {
+  from {
+    background-position:
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      -4.75rem 4.75rem,
+      -4.75rem 4.75rem;
+  }
+}
+
+/* The turn and the zoom. Eleven seconds is deliberately not a multiple of
+   either pan, and it is eased at both ends, so the ground is always either
+   coming in or backing off and never snaps -- there is no frame where it reads
+   as having started again. Kept above 1 the whole way: at any less the
+   oversized grid stops covering the corners once it has turned. */
+@keyframes quick-sway {
+  0% {
+    transform: rotate(-2.4deg) scale(1.06);
+  }
+  50% {
+    transform: rotate(2.4deg) scale(1.18);
+  }
+  100% {
+    transform: rotate(-2.4deg) scale(1.06);
   }
 }
 
@@ -1470,7 +1548,8 @@ html[data-boot="quick"] #boot-veil {
 
   .quick-route,
   .quick-needle,
-  .quick-heading {
+  .quick-heading,
+  .quick-grid {
     animation: none;
   }
 
