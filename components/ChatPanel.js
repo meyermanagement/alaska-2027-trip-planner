@@ -60,7 +60,7 @@ const SUGGESTIONS = {
   tasks: [
     "What still isn't done?",
     "Remind me to do online check-in the day before we fly",
-    "Add a task to refill prescriptions a week before",
+    "Add a reminder to refill prescriptions a week before",
   ],
   notes: [
     "What notes do we have?",
@@ -92,7 +92,7 @@ const SUGGESTIONS = {
 const SECTION_LABELS = {
   itinerary: "Itinerary",
   packing: "Packing",
-  tasks: "Tasks",
+  tasks: "Reminders",
   notes: "Notes",
 };
 

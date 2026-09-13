@@ -74,7 +74,7 @@ export default function CalendarLink() {
         In your calendar
       </h2>
       <p className="mt-2 text-[0.88rem] leading-relaxed text-ink-soft">
-        Every dated task, every booking with a date, and a band across each
+        Every dated reminder, every booking with a date, and a band across each
         trip, as a calendar you subscribe to once. Google Calendar, Apple
         Calendar and Outlook all re-read it on their own, so a time that changes
         here changes there.

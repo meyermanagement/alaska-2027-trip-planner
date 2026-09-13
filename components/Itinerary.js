@@ -1416,7 +1416,7 @@ export default function Itinerary({
             <span className="font-semibold text-ink">
               {untracked.length} things still need booking
             </span>{" "}
-            and are not on the task list yet.
+            and are not on the reminder list yet.
           </p>
           <button
             type="button"
@@ -1426,7 +1426,7 @@ export default function Itinerary({
           >
             {taskBusyId === "all"
               ? "Adding…"
-              : `Make ${untracked.length} tasks`}
+              : `Make ${untracked.length} reminders`}
           </button>
         </div>
       )}
@@ -1932,14 +1932,14 @@ export default function Itinerary({
                                   <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">
                                     <span aria-hidden="true">✓</span>
                                     {taskByItem.get(item.id).is_done
-                                      ? "Booking task is done"
-                                      : "On the task list"}
+                                      ? "Booking reminder is done"
+                                      : "On the reminder list"}
                                     <button
                                       type="button"
                                       onClick={onOpenTasks}
                                       className="font-semibold text-teal underline decoration-teal/30 underline-offset-4 hover:decoration-teal"
                                     >
-                                      Open Tasks
+                                      Open Reminders
                                     </button>
                                   </p>
                                 ) : readOnly ? null : (
@@ -1951,7 +1951,7 @@ export default function Itinerary({
                                   >
                                     {taskBusyId === item.id
                                       ? "Adding…"
-                                      : "Make this a task"}
+                                      : "Make this a reminder"}
                                   </button>
                                 ))}
                               <div className="no-print mt-3 flex flex-wrap items-center gap-1.5">

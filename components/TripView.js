@@ -111,7 +111,7 @@ const TABS = [
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
   { id: "tips", label: "Tips" },
-  { id: "tasks", label: "Tasks" },
+  { id: "tasks", label: "Reminders" },
   // Money comes after the two lists it is worked out from and after the tasks,
   // because it is the tab you go to on purpose rather than the one you live on.
   { id: "budget", label: "Budget" },
@@ -581,7 +581,7 @@ export default function TripView({
 
   const stats = [
     { label: "Packed", value: `${packedCount}/${packing.length}` },
-    { label: "Tasks done", value: `${taskCount}/${tasks.length}` },
+    { label: "Reminders done", value: `${taskCount}/${tasks.length}` },
     { label: "Needs booking", value: openBookings },
   ];
 

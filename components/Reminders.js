@@ -423,7 +423,7 @@ export default function Reminders({
         {groups.length === 0 && (
           <p className="card p-6 text-center text-sm text-ink-soft">
             {rows.length === 0
-              ? "All clear — every task on every upcoming trip is done."
+              ? "All clear — every reminder on every upcoming trip is done."
               : "Nothing matches those filters."}
           </p>
         )}

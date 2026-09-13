@@ -137,7 +137,7 @@ export default function Tasks({
   }
 
   async function remove(task) {
-    if (!window.confirm(`Delete the task “${task.title}”?`)) return;
+    if (!window.confirm(`Delete the reminder “${task.title}”?`)) return;
     await supabase.from("predeparture_tasks").delete().eq("id", task.id);
     onChange();
   }
@@ -247,7 +247,7 @@ export default function Tasks({
             <AddToCalendar
               compact
               events={openEvents}
-              title={trip?.name ? `${trip.name} tasks` : "Trip tasks"}
+              title={trip?.name ? `${trip.name} reminders` : "Trip reminders"}
             />
           )}
           <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
@@ -270,7 +270,7 @@ export default function Tasks({
             onClick={() => setAdding(true)}
             aria-expanded={false}
           >
-            + Add a task
+            + Add a reminder
           </button>
         </div>
       )}
@@ -286,7 +286,7 @@ export default function Tasks({
         >
           <input
             className="field"
-            placeholder="Add a task"
+            placeholder="Add a reminder"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             autoFocus
@@ -383,7 +383,7 @@ export default function Tasks({
                     <form onSubmit={saveEdit} className="space-y-2">
                       <input
                         className="field"
-                        placeholder="Task"
+                        placeholder="Reminder"
                         value={editDraft.title}
                         onChange={(e) =>
                           setEditDraft({ ...editDraft, title: e.target.value })
@@ -569,7 +569,7 @@ export default function Tasks({
                     // be blank under a header saying 8 of 8 complete. Say where
                     // the rows went, and offer the way back to them.
                     "All clear — everything on this list is done."
-                  : "All clear — no open tasks."}
+                  : "All clear — no open reminders."}
             {priority !== "all" && (
               <button
                 type="button"

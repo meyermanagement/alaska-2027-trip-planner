@@ -2,7 +2,7 @@
 
 // The one question a task has to answer: when.
 //
-// Two screens ask it — the Tasks tab inside a trip, and the Reminders page across
+// Two screens ask it — the Reminders tab inside a trip, and the Reminders page across
 // all of them — so the control, the two columns it writes to, and the pill that
 // reads them back live here rather than being written twice and drifting apart.
 
