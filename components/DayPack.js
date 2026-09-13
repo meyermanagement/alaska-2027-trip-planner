@@ -472,13 +472,12 @@ export default function DayPack({
           open={open}
           onToggle={() => setOpen((was) => !was)}
         />
-        {open ? (
-          <div className="zone-kids">
-            <div className="rounded-[0.875rem] border border-line bg-white/60 px-3 py-2.5">
-              {body}
-            </div>
-          </div>
-        ) : null}
+        {/* Opened, the things in the bag are held by the band's own hairline and
+            nothing else. A box of their own around them was a second face on the
+            screen competing with the band above it, and the band is the thing
+            worth noticing on a day: this is what is in the bag, not another card
+            among the bookings. */}
+        {open ? <div className="zone-kids py-1">{body}</div> : null}
       </section>
     );
   }

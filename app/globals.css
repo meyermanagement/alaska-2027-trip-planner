@@ -1913,10 +1913,16 @@ html[data-skin="sodium"] .zone-kids {
 /* A band that opens the zone it names, inside a day. This one is not a heading
    pretending to be quiet: it is the bag, above five bookings, and the tint a
    heading band uses put it behind them on the very screen where it is the first
-   thing you want. So it wears what the things inside a day wear -- the card's own
-   face, hairline and shadow -- and reads as the one you can open rather than as a
-   label the day happens to start with. Plus the two things a control owes the
-   person pressing it: a chevron that turns, and a press that moves. */
+   thing you want. Wearing the card's own white face did not work either, because
+   that is what every booking on the day wears, so the one thing you can open
+   looked like the four things you cannot.
+
+   So it takes the accent's soft face instead -- the only band on a day that is
+   not white -- with its name, count, icon and chevron in the accent to match. The
+   face is a token each skin sets rather than a blend, which is what lets the two
+   dark skins and the glass one carry it: over frosted panes a blend has nothing
+   solid to tint. Plus the two things a control owes the person pressing it: a
+   chevron that turns, and a press that moves. */
 /* The heading that wraps the control, carrying none of its own space. */
 .zb-heading {
   margin: 0;
@@ -1928,8 +1934,8 @@ html[data-skin="sodium"] .zone-kids {
   min-height: 44px;
   cursor: pointer;
   text-align: left;
-  background: var(--color-white);
-  border-color: var(--line);
+  background: var(--color-teal-soft);
+  border-color: color-mix(in srgb, var(--color-teal) 32%, var(--line));
   box-shadow: var(--shadow-card);
   transition:
     box-shadow 0.18s ease,
@@ -1937,8 +1943,22 @@ html[data-skin="sodium"] .zone-kids {
     transform 0.12s ease;
 }
 
+.zone-band.zb-toggle .zb-tile,
+.zone-band.zb-toggle .zb-name,
+.zone-band.zb-toggle .zb-count,
+.zone-band.zb-toggle .zb-chevron {
+  color: var(--color-teal);
+}
+
+/* The count sits at 0.7 on a white face to keep it behind the name. On the tinted
+   face it is accent ink on accent wash already, so the same fade takes it under
+   the line a small screen has to read. */
+.zone-band.zb-toggle .zb-count {
+  opacity: 0.85;
+}
+
 .zone-band.zb-toggle:hover {
-  border-color: var(--line-hover);
+  border-color: color-mix(in srgb, var(--color-teal) 52%, var(--line));
   box-shadow: var(--shadow-card-lift);
 }
 
