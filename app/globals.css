@@ -80,11 +80,10 @@
      Nothing in the app should set a font size in pixels or in a raw rem again.
      If a surface needs a size these do not have, the scale is wrong, not the
      surface. */
-  /* The reader's own step, and one on the ladder already: what shipped first as
-     "Large" is now what the app opens at, because the size below it was too
-     small to read comfortably on either a phone or a desk. Regular, Large and
-     Largest are the three steps above it, so the control still offers a step up
-     from wherever the reader is. */
+  /* The reader's own step. Regular is 1.09 rather than 1, because the size the
+     app first shipped at was too small to read comfortably on either a phone or
+     a desk; that size is still on the ladder, one rung down, under the name it
+     deserves. Small, Regular, Large. */
   --text-scale: 1.09;
   --fs-2xs: calc(0.75rem * var(--text-scale));
   --fs-xs: calc(0.8125rem * var(--text-scale));
@@ -204,21 +203,28 @@
    is a promise that every one of those rows survives every value of it. These
    three are measured.
 
-   Roughly eight percent a step, from the 1.09 the app now opens at: body text on
-   a phone runs 17.4, 18.9 and 20.2 pixels across the three settings, and on a
-   desk 18.5, 20.1 and 21.4. The top step is where it is because it is the most
+   Roughly eight percent a step, with Regular at 1.09 in the middle: body text on
+   a phone runs 16, 17.4 and 18.9 pixels across Small, Regular and Large, and on
+   a desk 17, 18.5 and 20.1. The top step is where it is because it is the most
    the app's tightest rows -- a time, a title and a pill on one line at 320 -- go
    on holding.
 
    Set on <html> by the script in the root layout before the first paint, from a
    cookie, exactly the way the skin is -- see lib/textsize.js. A reader who has
    never chosen gets the block above and no attribute at all. */
-html[data-text="large"] {
-  --text-scale: 1.18;
+html[data-text="small"] {
+  --text-scale: 1;
 }
 
-html[data-text="largest"] {
-  --text-scale: 1.26;
+/* Written out even though it is the same number as :root, because the picker
+   sets the attribute on <html> the moment a card is pressed and a reader
+   stepping back down to Regular needs a block for it to land on. */
+html[data-text="regular"] {
+  --text-scale: 1.09;
+}
+
+html[data-text="large"] {
+  --text-scale: 1.18;
 }
 
 html,

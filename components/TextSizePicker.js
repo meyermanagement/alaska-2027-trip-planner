@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  DEFAULT_TEXT_SIZE,
-  TEXT_SIZES,
-  textSizeOr,
-} from "@/lib/textsize";
+import { TEXT_SIZES, textSizeOr } from "@/lib/textsize";
 
 /**
  * Choosing how big the words are, for one person.
@@ -19,7 +15,7 @@ import {
  * never a lie about what was remembered.
  *
  * The three buttons show their own size rather than describing it, which is why
- * the word Regular is drawn small and Largest is drawn large. Each one is only
+ * the word Small is drawn small and Large is drawn large. Each one is only
  * roughly what it will do -- the buttons scale one word, the setting scales the
  * app -- but it is enough to choose by without pressing anything.
  *
@@ -70,8 +66,8 @@ export default function TextSizePicker({ size: saved }) {
     <section>
       <h2 className="font-display text-xl font-semibold">Text size</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Every word in the app, one step or two larger. Yours alone, on every
-        device you sign in on.
+        Every word in the app, a step smaller or a step larger. Yours alone, on
+        every device you sign in on.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -120,7 +116,7 @@ export default function TextSizePicker({ size: saved }) {
         </p>
       ) : null}
 
-      {chosen !== DEFAULT_TEXT_SIZE ? (
+      {chosen === TEXT_SIZES[TEXT_SIZES.length - 1].id ? (
         <p className="mt-3 text-xs text-ink-faint">
           If you need the words bigger than this, your browser&rsquo;s own zoom
           goes further and moves everything else with them.
