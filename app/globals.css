@@ -80,7 +80,12 @@
      Nothing in the app should set a font size in pixels or in a raw rem again.
      If a surface needs a size these do not have, the scale is wrong, not the
      surface. */
-  --text-scale: 1;
+  /* The reader's own step, and one on the ladder already: what shipped first as
+     "Large" is now what the app opens at, because the size below it was too
+     small to read comfortably on either a phone or a desk. Regular, Large and
+     Largest are the three steps above it, so the control still offers a step up
+     from wherever the reader is. */
+  --text-scale: 1.09;
   --fs-2xs: calc(0.75rem * var(--text-scale));
   --fs-xs: calc(0.8125rem * var(--text-scale));
   --fs-sm: calc(0.9375rem * var(--text-scale));
@@ -199,19 +204,21 @@
    is a promise that every one of those rows survives every value of it. These
    three are measured.
 
-   1.09 and 1.18 rather than 1.1 and 1.2 because they land the phone's body text
-   on 17 and 19 pixels whole. Half a pixel of body text is not a size, it is a
-   blurrier version of the size below it.
+   Roughly eight percent a step, from the 1.09 the app now opens at: body text on
+   a phone runs 17.4, 18.9 and 20.2 pixels across the three settings, and on a
+   desk 18.5, 20.1 and 21.4. The top step is where it is because it is the most
+   the app's tightest rows -- a time, a title and a pill on one line at 320 -- go
+   on holding.
 
    Set on <html> by the script in the root layout before the first paint, from a
    cookie, exactly the way the skin is -- see lib/textsize.js. A reader who has
    never chosen gets the block above and no attribute at all. */
 html[data-text="large"] {
-  --text-scale: 1.09;
+  --text-scale: 1.18;
 }
 
 html[data-text="largest"] {
-  --text-scale: 1.18;
+  --text-scale: 1.26;
 }
 
 html,
