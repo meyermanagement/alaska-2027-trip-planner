@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BootStage } from "@/components/BootVeil";
+import { SKINS } from "@/lib/skins";
 import "./opening.css";
 
 // Which opening the stylesheet draws is decided by one attribute on the
@@ -18,6 +19,27 @@ export default function OpeningWatch() {
   // word arriving. CSS animations only play again if the element is new.
   const [run, setRun] = useState(0);
   const [bare, setBare] = useState(false);
+  // Read off the document rather than assumed, because the script in the head
+  // has already put whichever skin this browser last chose onto <html>, and
+  // starting anywhere else would flash a skin nobody asked for. Null until the
+  // effect below runs, so the server and the first client render agree.
+  const [skin, setSkin] = useState(null);
+
+  // Only for as long as this page is open. The chosen skin is written to the
+  // document and not to the cookie, so looking at an opening in Sodium at
+  // midnight does not leave the whole app wearing Sodium in the morning.
+  useEffect(() => {
+    const root = document.documentElement;
+    const had = root.dataset.skin;
+    if (skin === null) {
+      setSkin(had ?? null);
+      return undefined;
+    }
+    root.dataset.skin = skin;
+    return () => {
+      if (had) root.dataset.skin = had;
+    };
+  }, [skin]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -28,6 +50,11 @@ export default function OpeningWatch() {
     };
   }, [kind]);
 
+  // The skin is in the stage's key as well as the opening, because a skin
+  // rewrites the custom properties the animations were resolved against and
+  // switching one underneath a running opening can leave the map drawn in the
+  // colors of neither. Remounting draws the whole picture again in the skin that
+  // was asked for, which is also what somebody judging a skin wants to see.
   const replay = (next) => {
     setKind(next);
     setRun((n) => n + 1);
@@ -35,7 +62,11 @@ export default function OpeningWatch() {
 
   return (
     <>
-      <div id="boot-stage" key={`${kind}-${run}`} aria-hidden="true">
+      <div
+        id="boot-stage"
+        key={`${kind}-${run}-${skin ?? "none"}`}
+        aria-hidden="true"
+      >
         <BootStage />
       </div>
 
@@ -64,6 +95,24 @@ export default function OpeningWatch() {
             <button type="button" onClick={() => replay(kind)}>
               Play again
             </button>
+          </div>
+          <div className="opening-row opening-skins">
+            {SKINS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={skin === s.id ? "on" : ""}
+                onClick={() => setSkin(s.id)}
+                title={s.tag}
+              >
+                <span
+                  className="opening-swatch"
+                  style={{ background: s.swatch[0], borderColor: s.swatch[1] }}
+                  aria-hidden="true"
+                />
+                {s.name}
+              </button>
+            ))}
           </div>
           <div className="opening-row">
             <button type="button" onClick={() => setBare(true)}>

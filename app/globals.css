@@ -3168,7 +3168,8 @@ html[data-skin="aurora"] body {
   background-attachment: scroll, scroll, fixed, fixed, fixed;
 }
 
-html[data-skin="aurora"] #boot-veil {
+html[data-skin="aurora"] #boot-veil,
+html[data-skin="aurora"] #boot-stage {
   background-color: #05080d;
   background-image:
     radial-gradient(
@@ -3292,7 +3293,8 @@ html[data-skin="daybreak"] body {
   background-attachment: scroll, scroll, fixed, fixed, fixed;
 }
 
-html[data-skin="daybreak"] #boot-veil {
+html[data-skin="daybreak"] #boot-veil,
+html[data-skin="daybreak"] #boot-stage {
   background-color: #eff5f5;
   background-image:
     radial-gradient(
@@ -3437,7 +3439,8 @@ html[data-skin="frost"] body {
   background-attachment: scroll, scroll, fixed, fixed, fixed;
 }
 
-html[data-skin="frost"] #boot-veil {
+html[data-skin="frost"] #boot-veil,
+html[data-skin="frost"] #boot-stage {
   background-color: #f7f8fb;
   background-image:
     radial-gradient(
@@ -3558,7 +3561,8 @@ html[data-skin="sodium"] body {
   background-attachment: scroll, scroll, fixed, fixed, fixed;
 }
 
-html[data-skin="sodium"] #boot-veil {
+html[data-skin="sodium"] #boot-veil,
+html[data-skin="sodium"] #boot-stage {
   background-color: #0c0908;
   background-image:
     radial-gradient(
