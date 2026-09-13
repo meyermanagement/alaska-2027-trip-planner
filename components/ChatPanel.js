@@ -208,6 +208,10 @@ export default function ChatPanel({
   conversationId = null,
   conversationTitle = null,
   conversationTripName = null,
+  // The drawer could not reach the conversation this trip already had. Said on
+  // the empty panel, because an empty panel is exactly what that looks like.
+  resumeFailed = false,
+  onResumeRetry = null,
   // The trip that conversation is about, when it is about one. Carried
   // separately from `trip` because a conversation opened from the list can be
   // about a trip nobody is standing on.
@@ -323,6 +327,10 @@ export default function ChatPanel({
   // was ours stops the id arriving from the server from reading the whole thing
   // back and throwing away what is already there.
   const startedHereRef = useRef(null);
+  // A thread the server joined that this panel had not managed to resume. Set
+  // during the send and cleared by reading the rest of it back, so what was said
+  // before today arrives above the answer instead of staying invisible.
+  const earlierRef = useRef(null);
 
   // Conversations live in the database, so picking one from the list reads back
   // exactly what was said — same on a phone as on a laptop.
@@ -502,6 +510,13 @@ export default function ChatPanel({
         conversationRef.current = data.conversationId;
         startedHereRef.current = data.conversationId;
         onConversationStarted?.(data.conversationId);
+        // It filed the message into a conversation that was already going. The
+        // panel asked for a new one -- or thought it had -- so everything said
+        // before this press is missing from the screen while Aly is answering
+        // as though she can see it, which she can. Read it back below.
+        if (data.conversationCreated === false) {
+          earlierRef.current = data.conversationId;
+        }
       }
 
       if (!res.ok) {
@@ -555,6 +570,29 @@ export default function ChatPanel({
       // the ordinary Ask again button under the thread is the right weight for
       // it.
       if (data.retryable) setRetryAsk(clean);
+      // Before the look, because a look writes a line of its own on top of the
+      // thread and reading the transcript back afterwards would drop it.
+      if (earlierRef.current) {
+        const id = earlierRef.current;
+        earlierRef.current = null;
+        try {
+          const past = await fetch(
+            `/api/chat/history?conversationId=${encodeURIComponent(id)}`,
+          );
+          if (past.ok) {
+            const rows = (await past.json())?.messages;
+            // The question and the answer are both saved by now, so the
+            // transcript is a superset of what is on screen. Only trusted when
+            // it is: a shorter answer would be a step backwards.
+            if (Array.isArray(rows) && rows.length > messages.length) {
+              setMessages(rows);
+            }
+          }
+        } catch {
+          // The answer is on screen either way, and the rest of the thread is
+          // one reopen away. Not worth interrupting the family about.
+        }
+      }
       // She asked to go and look. The reply above already said she was going to,
       // so this is the part that actually happens: the same loop the button
       // drives, with the panel standing in for the button's progress line.
@@ -931,6 +969,28 @@ export default function ChatPanel({
         )}
         {messages.length === 0 && !busy && !loadingHistory && (
           <div className="space-y-3">
+            {/* Said before the greeting, because on a trip with a conversation
+                behind it this is the only thing on screen worth reading. */}
+            {resumeFailed && (
+              <div className="rounded-xl border border-[var(--line)] bg-sand px-3.5 py-2.5 text-sm">
+                <p className="font-semibold text-ink">
+                  I could not pick up your last conversation.
+                </p>
+                <p className="mt-1 text-ink-soft">
+                  Nothing is lost — it is still on your list of conversations,
+                  and anything you ask now goes into it.
+                </p>
+                {onResumeRetry && (
+                  <button
+                    type="button"
+                    onClick={onResumeRetry}
+                    className="mt-2 inline-flex min-h-11 items-center rounded-full border border-[var(--line)] px-4 text-sm font-semibold text-ink-soft transition hover:border-teal hover:text-teal sm:min-h-10"
+                  >
+                    Try again
+                  </button>
+                )}
+              </div>
+            )}
             <p className="text-sm text-ink-soft">
               {trip ? (
                 <>

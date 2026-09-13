@@ -31,6 +31,12 @@ export default function AskAlyDrawer({
   // alternative is drawing an empty panel and having last week's messages drop
   // in underneath whatever they have started typing.
   const [resuming, setResuming] = useState(false);
+  // The resume did not answer. Not the same thing as there being nothing to
+  // resume: this is the app failing to reach a conversation that exists, and the
+  // panel says so rather than presenting an empty box as a fresh start.
+  const [resumeFailed, setResumeFailed] = useState(false);
+  // What the last opening asked for, so Try again can ask for exactly that.
+  const lastOpening = useRef(null);
   // Beside the app, or over it. A window has to be wide enough to hold the 960
   // content column and Aly's 400 at once before docking her is a kindness rather
   // than a squeeze -- below that she goes back to covering the page, which is the
@@ -80,6 +86,8 @@ export default function AskAlyDrawer({
   const openWith = useCallback(
     async (opening) => {
       const wanted = opening?.focus || focus || null;
+      lastOpening.current = opening || null;
+      setResumeFailed(false);
       setOpen(true);
       if (wanted === "new_trip" || wanted === "log_trip") {
         setCurrent({
@@ -98,17 +106,19 @@ export default function AskAlyDrawer({
       }
       setResuming(true);
       setCurrent(null);
-      let found = null;
-      try {
-        const params = new URLSearchParams();
-        if (trip?.id) params.set("tripId", trip.id);
-        if (wanted) params.set("focus", wanted);
-        const res = await fetch(`/api/chat/resume?${params.toString()}`);
-        if (res.ok) found = (await res.json())?.conversation || null;
-      } catch {
-        // Nothing to report. A resume that does not answer means a new
-        // conversation, which is what pressing this always used to do.
-      }
+      const params = new URLSearchParams();
+      if (trip?.id) params.set("tripId", trip.id);
+      if (wanted) params.set("focus", wanted);
+      let asked = await askResume(params);
+      // One more go, once, when it did not answer rather than answered nothing.
+      // The overwhelming reason for that is a token that expired while the app
+      // was closed, and the route refreshes the session before it decides
+      // nobody is signed in -- so a second attempt is usually the one that
+      // works, and it costs a few hundred milliseconds of the wait the panel is
+      // already showing.
+      if (asked.failed) asked = await askResume(params);
+      const found = asked.conversation;
+      setResumeFailed(asked.failed);
       setCurrent({
         id: found?.id || null,
         // A trip's thread is headed with the trip, not with the first thing ever
@@ -126,11 +136,18 @@ export default function AskAlyDrawer({
     [focus, trip?.id, trip?.name],
   );
 
+  // Try again, on whatever the last press asked for.
+  const retryResume = useCallback(
+    () => openWith(lastOpening.current),
+    [openWith],
+  );
+
   const close = useCallback(() => {
     setOpen(false);
     setSeed(null);
     setCurrent(null);
     setResuming(false);
+    setResumeFailed(false);
     if (needsRefresh.current) {
       needsRefresh.current = false;
       onRefresh?.();
@@ -279,6 +296,8 @@ export default function AskAlyDrawer({
           conversationTripId={current.tripId}
           conversationTripRef={current.tripRef}
           conversationOwnerName={current.ownerName}
+          resumeFailed={resumeFailed && !current.id}
+          onResumeRetry={retryResume}
           onConversationStarted={(id) =>
             setCurrent((c) => (c && !c.id ? { ...c, id } : c))
           }
@@ -346,4 +365,37 @@ export default function AskAlyDrawer({
       </aside>
     </div>
   );
+}
+
+/**
+ * Asking which conversation to reopen, and telling silence apart from an answer.
+ *
+ * The old version of this treated every unhappy ending the same way -- a 401, a
+ * network drop, a login page handed back where JSON was expected -- and opened a
+ * new conversation, silently. On a trip with sixty messages behind it that reads
+ * as the thread having been lost.
+ *
+ * So a failure is named. `failed` means the app could not reach the answer;
+ * `conversation: null` with `failed` false means there genuinely is nothing to
+ * pick up, which is the ordinary state of a trip nobody has asked about yet and
+ * deserves no notice at all.
+ */
+async function askResume(params) {
+  try {
+    const res = await fetch(`/api/chat/resume?${params.toString()}`, {
+      cache: "no-store",
+    });
+    // Content type checked before parsing: middleware answers a request with no
+    // session by handing back the login page, and HTML parsed as JSON is the
+    // failure this whole change is about.
+    const isJson = (res.headers.get("content-type") || "").includes("json");
+    const body = isJson ? await res.json().catch(() => null) : null;
+    if (!res.ok || !body) return { conversation: null, failed: true };
+    return {
+      conversation: body.conversation || null,
+      failed: Boolean(body.failed),
+    };
+  } catch {
+    return { conversation: null, failed: true };
+  }
 }

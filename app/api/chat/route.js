@@ -226,14 +226,15 @@ export async function POST(request) {
   // Which conversation this belongs to. The client sends one it picked from the
   // list, or nothing at all, in which case a new one starts here and its id goes
   // back with the reply.
-  const { id: conversationId } = await ensureConversation(supabase, user.id, {
-    conversationId:
-      typeof payload?.conversationId === "string"
-        ? payload.conversationId
-        : null,
-    tripId: threadTripId,
-    focus,
-  });
+  const { id: conversationId, created: conversationCreated } =
+    await ensureConversation(supabase, user.id, {
+      conversationId:
+        typeof payload?.conversationId === "string"
+          ? payload.conversationId
+          : null,
+      tripId: threadTripId,
+      focus,
+    });
   if (!conversationId) {
     return NextResponse.json(
       { error: "Could not open that conversation." },
@@ -1032,6 +1033,11 @@ export async function POST(request) {
     // the panel only offers a retry when it fails.
     retryable: reply === LOST_IT,
     conversationId,
+    // Whether this message opened the conversation or joined one already going.
+    // The panel needs to know: a thread it did not manage to resume is older
+    // than the screen it is on, and the rest of it has to be read back rather
+    // than assumed to be absent.
+    conversationCreated,
     sources: result.sources || [],
     places,
     followups,
