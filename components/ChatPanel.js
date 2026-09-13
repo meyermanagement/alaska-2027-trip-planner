@@ -428,6 +428,16 @@ export default function ChatPanel({
   // heading in small capitals, which reads as a section label. So it gets said
   // again, in plain words, directly above the box you would type the answer
   // into -- the only place you are looking once you have decided to reply.
+  // What the wait is about. The last user turn in the thread is the question in
+  // flight -- including on a retry, where the question is already on screen and
+  // is not added again.
+  const lastAsked = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i]?.role === "user") return messages[i].text || "";
+    }
+    return "";
+  }, [messages]);
+
   const asked = useMemo(() => {
     if (busy || pending || looking) return null;
     const last = messages[messages.length - 1];
@@ -1146,7 +1156,12 @@ export default function ChatPanel({
           </div>
         ))}
 
-        {busy && !looking && <Thinking onStop={stopAsking} />}
+        {busy && !looking && (
+          /* The last thing the family typed is the last user turn in the thread,
+             which is true on a retry as well, where the question is not typed
+             again. It is what the opening line is built from. */
+          <Thinking onStop={stopAsking} question={lastAsked} />
+        )}
 
         {/* The look reports its own real steps -- which trip, which day, what it
             is reading -- so those words are handed straight through and get the

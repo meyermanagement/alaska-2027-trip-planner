@@ -12,14 +12,20 @@ import { elapsedSaid, waitingLine } from "@/lib/agent/waiting";
  * again. This gives them three things instead: something that visibly moves, a
  * count of how long it has actually been, and a way out.
  *
- * Everything it says is either the elapsed time or a statement about the elapsed
- * time. It never claims to know which step she is on, because from in here it
- * does not -- the one caller that does know its steps passes its own words in as
- * `label` and gets the movement and the count around them.
+ * After the first line, everything it says is a statement about the elapsed time.
+ * It never claims to know which step she is on, because from in here it does not
+ * -- the one caller that does know its steps passes its own words in as `label`
+ * and gets the movement and the count around them.
+ *
+ * The first line is the exception, and it is not a guess: given the question that
+ * was just asked, it names the subject the family raised, so the wait is about
+ * their question from the first frame instead of being about the software. See
+ * lib/agent/waiting.js for why that is honest and naming a day would not be.
  */
 
 export default function Thinking({
   label = null,
+  question = null,
   onStop = null,
   stopLabel = "Stop",
 }) {
@@ -36,9 +42,9 @@ export default function Thinking({
     return () => window.clearInterval(tick);
   }, [label]);
 
-  // A caller with real steps says what it is doing; without one, the honest
-  // thing to say is how long it has been.
-  const said = label || waitingLine(seconds);
+  // A caller with real steps says what it is doing; without one, the words are
+  // the subject that was asked about and then how long it has been.
+  const said = label || waitingLine(seconds, question);
 
   return (
     <div className="flex justify-start">
