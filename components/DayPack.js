@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { dayPackLines, packedLabel } from "@/lib/daypack/pack";
+import { dayPackLines, isThing, packedLabel } from "@/lib/daypack/pack";
+import { announceTipResolved } from "@/lib/tips/cleared";
 import { ensureCaseRow, matchCaseRow } from "@/lib/daypack/link";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
 import { assigneeColor } from "@/lib/format";
@@ -17,11 +18,18 @@ import ConfirmSheet from "./ConfirmSheet";
  * means "it is on me today". So a rain shell can be in the case for the whole trip
  * and still be unticked here on the morning it rains.
  *
- * Advice arrives as a line. A pro tip filed onto this day is drawn like everything
- * else, with a tick box, and ticking it is what turns it into a real line -- the row
- * is written with the tip's id on it and the tip itself is marked done, so it stops
- * being advice at the same moment it becomes a thing in the bag. Nobody has to
- * copy anything out.
+ * Advice arrives two ways, and the difference matters. A tip that names a thing is
+ * drawn like everything else, with a tick box, and ticking it is what turns it into
+ * a real line -- the row is written with the tip's id on it and the tip itself is
+ * marked done, so it stops being advice at the same moment it becomes a thing in the
+ * bag. Nobody has to copy anything out.
+ *
+ * A tip that names no thing is a note, and it sits under the bag rather than in it.
+ * "Pare down day pack gear for the floatplane" is real advice about a real weight
+ * limit and there is nothing in it to pack; when it had a tick box, the only way to
+ * agree with it was to put that sentence on the trip's packing list as an item.
+ * Either kind can be waved off without being agreed with, which is what the cross
+ * and the tick at the end of each line are for.
  */
 export default function DayPack({
   date,
@@ -49,10 +57,27 @@ export default function DayPack({
   // packing row the answer is about.
   const [ask, setAsk] = useState(null);
 
+  // Tips put away by hand, held here until the page comes back with them gone.
+  // The write is a status change on a tip, not a delete of a row, so nothing on
+  // the screen would move on its own without this.
+  const [putAway, setPutAway] = useState([]);
+
   const lines = useMemo(
-    () => dayPackLines({ rows, tips, date }),
-    [rows, tips, date],
+    () =>
+      dayPackLines({ rows, tips, date }).filter(
+        (line) => !line.tipId || !putAway.includes(line.tipId),
+      ),
+    [rows, tips, date, putAway],
   );
+
+  // Two kinds of thing arrive on a day and they are not the same kind. Things go
+  // in the bag and have a tick box. Notes are what Aly worked out about the day
+  // itself -- that the floatplane weighs your bag, that ponchos are handed out at
+  // the gate -- and there is nothing to tick on them. They used to be drawn with
+  // a tick box anyway, which meant the only way to agree with one was to put its
+  // whole sentence on the trip's packing list as an item.
+  const things = lines.filter(isThing);
+  const notes = lines.filter((line) => !isThing(line));
 
   // A day with nothing in the bag is still a day somebody can put something in
   // the bag for, so the card stays -- but not for somebody who cannot write to
@@ -202,6 +227,33 @@ export default function DayPack({
     onChange();
   }
 
+  // Waving off advice. A tip is not a row, so there is nothing to delete: it goes
+  // to the cleared status the Tips screen uses, which is reversible, keeps the
+  // fingerprint, and is what stops the same sentence being found again on the
+  // next look. Announced on the way out because the same tip may be sitting in
+  // the band at the top of the screen, which is a different React tree.
+  async function clearTip(line) {
+    if (readOnly || !line.tipId) return;
+    setError("");
+    setBusy(line.key);
+    setPutAway((was) => [...was, line.tipId]);
+    announceTipResolved(line.tipId, "cleared");
+    try {
+      const res = await fetch(`/api/tips/${line.tipId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cleared" }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setPutAway((was) => was.filter((id) => id !== line.tipId));
+      announceTipResolved(line.tipId, null);
+      setError("That did not save. It is still here — try again.");
+    }
+    setBusy(null);
+    onChange();
+  }
+
   async function add(event) {
     event.preventDefault();
     const name = item.trim();
@@ -267,9 +319,9 @@ export default function DayPack({
         </div>
       ) : null}
 
-      {lines.length > 0 && (
+      {things.length > 0 && (
         <ul className={heading ? "mt-2 space-y-1.5" : "space-y-1.5"}>
-          {lines.map((line) => (
+          {things.map((line) => (
             <li key={line.key} className="flex items-start gap-2.5">
               <input
                 type="checkbox"
@@ -319,12 +371,23 @@ export default function DayPack({
                   row's own padding so the line does not get any taller for it.
                   It used to be a text × in a pinch of side padding, about a third
                   the area, and people missed it. */}
-              {!readOnly && line.kind === "row" && (
+              {/* A suggestion gets one too, and it used to get nothing until you
+                  agreed with it -- the only way to make Aly's line go away was to
+                  tick it, which put it in the bag and on the packing list. The
+                  gesture looks the same and does something different underneath:
+                  a row is taken off the day, a suggestion is waved off. */}
+              {!readOnly && (line.kind === "row" || line.kind === "tip") && (
                 <button
                   type="button"
-                  onClick={() => remove(line)}
+                  onClick={() =>
+                    line.kind === "tip" ? clearTip(line) : remove(line)
+                  }
                   disabled={busy === line.key}
-                  aria-label={`Take “${line.item}” off the day pack`}
+                  aria-label={
+                    line.kind === "tip"
+                      ? `Not needed — clear “${line.item}”`
+                      : `Take “${line.item}” off the day pack`
+                  }
                   className="-my-1.5 -mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-ink/[0.06] hover:text-ink"
                 >
                   <svg
@@ -345,12 +408,63 @@ export default function DayPack({
         </ul>
       )}
 
-      {lines.length === 0 && (
+      {things.length === 0 && (
         <p className="mt-1 text-xs text-ink-soft">
           {date
             ? "Nothing in the bag for this day yet."
             : "Nothing carried on every day of this trip yet."}
         </p>
+      )}
+
+      {/* Worth knowing. Set apart from the bag by a rule and a quiet heading
+          rather than by a box, because it is the same subject read a different
+          way: this is about the bag, not in it. No tick box, because there is
+          nothing here to pack -- only a sentence, and a way to say you have read
+          it. */}
+      {notes.length > 0 && (
+        <div className="mt-3 border-t border-line pt-2">
+          <h5 className="text-[0.7rem] font-semibold uppercase tracking-wide text-ink-soft">
+            Worth knowing
+          </h5>
+          <ul className="mt-1.5 space-y-2">
+            {notes.map((line) => (
+              <li key={line.key} className="flex items-start gap-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="text-sm font-medium text-ink">
+                    {line.item}
+                  </span>
+                  {line.why && (
+                    <span className="mt-0.5 block text-xs text-ink-soft">
+                      {line.why}
+                    </span>
+                  )}
+                </span>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => clearTip(line)}
+                    disabled={busy === line.key}
+                    aria-label={`Got it — clear “${line.item}”`}
+                    className="-my-1.5 -mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-ink/[0.06] hover:text-ink"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {error && <p className="mt-2 text-xs text-amber">{error}</p>}
@@ -482,7 +596,14 @@ export default function DayPack({
         <ZoneBand
           icon={<SunIcon className="h-[15px] w-[15px]" />}
           name={heading || "Day pack"}
-          count={count || (lines.length ? "" : "Nothing in it yet")}
+          count={
+            count ||
+            (notes.length
+              ? "Worth knowing"
+              : lines.length
+                ? ""
+                : "Nothing in it yet")
+          }
           level={4}
           open={open}
           onToggle={() => setOpen((was) => !was)}
