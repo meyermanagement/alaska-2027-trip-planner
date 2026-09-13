@@ -838,6 +838,17 @@ export async function POST(request) {
           // where that gets fixed. Written here rather than proposed as a second
           // change because it is not a separate decision: agreeing to carry the
           // binoculars on Wednesday is agreeing that the binoculars come.
+          // A link she offers has to be a line on this trip. The database now
+          // pairs the two, so a borrowed id from another holiday is refused
+          // outright; dropped here instead, which turns it into an honest match
+          // on this trip rather than a failed change.
+          if (
+            row.from_packing_id &&
+            rowTrip.get(row.from_packing_id) &&
+            rowTrip.get(row.from_packing_id) !== row.trip_id
+          ) {
+            row.from_packing_id = null;
+          }
           if (!row.from_packing_id) {
             const made = await ensureCaseRow(supabase, {
               tripId: row.trip_id,
@@ -849,6 +860,18 @@ export async function POST(request) {
               row.from_packing_id = made.id;
               if (made.created) extra = " and added it to the packing list";
             }
+          }
+          // The database will not take a carried line that names no packing
+          // line, so a failed list write is this change failing, and it says
+          // which half went wrong instead of returning a constraint message.
+          if (!row.from_packing_id) {
+            results.push({
+              ok: false,
+              summary: action.summary,
+              error:
+                "The packing list could not be updated, so this was not added to the day.",
+            });
+            continue;
           }
         }
         // One line per thing per day, and the database enforces it with a unique

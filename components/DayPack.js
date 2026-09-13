@@ -78,6 +78,17 @@ export default function DayPack({
         assignee: "Shared",
         userId,
       });
+      // The packing line is a precondition now, not a courtesy: the database
+      // refuses a carried line that names nothing. So a failed list write stops
+      // here and says which half failed, rather than letting the insert fail on
+      // a constraint and reading as "that could not be saved" for no reason.
+      if (!inCase.id) {
+        setError(
+          "The packing list could not be updated, so this was not added to the day.",
+        );
+        setBusy(null);
+        return;
+      }
       const { error: writeError } = await supabase
         .from("day_pack_items")
         .insert({
@@ -206,6 +217,15 @@ export default function DayPack({
       assignee: who || "Shared",
       userId,
     });
+    // Same precondition as above. Nothing goes on somebody's back on a day the
+    // trip does not admit it is coming.
+    if (!inCase.id) {
+      setBusy(null);
+      setError(
+        "The packing list could not be updated, so this was not added to the day.",
+      );
+      return;
+    }
     const { error: writeError } = await supabase.from("day_pack_items").insert({
       trip_id: tripId,
       item_date: date,
