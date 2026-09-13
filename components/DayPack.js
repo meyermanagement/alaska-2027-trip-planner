@@ -314,15 +314,30 @@ export default function DayPack({
                   </span>
                 )}
               </span>
+              {/* Taking a thing out is a real control, so it gets a real target: a
+                  36px square a thumb can find on a phone, pulled back into the
+                  row's own padding so the line does not get any taller for it.
+                  It used to be a text × in a pinch of side padding, about a third
+                  the area, and people missed it. */}
               {!readOnly && line.kind === "row" && (
                 <button
                   type="button"
                   onClick={() => remove(line)}
                   disabled={busy === line.key}
                   aria-label={`Take “${line.item}” off the day pack`}
-                  className="shrink-0 rounded px-1 text-xs text-ink-soft transition hover:text-ink"
+                  className="-my-1.5 -mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-ink/[0.06] hover:text-ink"
                 >
-                  ×
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5"
+                  >
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
                 </button>
               )}
             </li>
