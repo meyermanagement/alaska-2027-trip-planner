@@ -439,14 +439,13 @@ export default function ProTips({
 
       {shown.length ? (
         <ul className="space-y-3">
-          {shown.map((tip, index) => (
+          {shown.map((tip) => (
             <TipCard
               key={tip.id}
               tip={tip}
               today={today}
               onResolve={readOnly ? null : resolve}
               onTask={readOnly || !tip.trip_id ? null : makeTask}
-              defaultOpen={index === 0}
             />
           ))}
         </ul>
@@ -470,13 +469,22 @@ const TONES = {
 // paragraph, a reason and two links -- worth reading once and then in the way.
 // So the title and its date carry the tip, and the rest is a tap away: enough to
 // decide whether to open it, and the urgent ones are said again in the band at
-// the top of every screen regardless. The first one starts open, because a tab
-// that opens as a list of headlines does not show what a tip actually is.
+// the top of every screen regardless. Every one of them starts shut, including
+// the first: an opened tip is four or five lines deep, so the one that happened
+// to be first pushed the second and third headline off a phone screen and made
+// the list look like one tip rather than six. What a tip is, is obvious from the
+// first tap; what a screen holds is not obvious if the top of it is filled.
+//
+// Because nothing is open on arrival, the chevron has to carry the whole
+// invitation. A bare 16px stroke in the body's own gray reads as punctuation, so
+// it sits in a tinted disc in the accent color: the same shape the day-pack band
+// and the menu dial use for something that opens, at a size the eye finds while
+// scanning past the titles.
 //
 // The body is in the tree either way and hidden with a class rather than
 // unmounted, so printing a trip prints every tip in full.
-function TipCard({ tip, today, onResolve, onTask, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
+function TipCard({ tip, today, onResolve, onTask }) {
+  const [open, setOpen] = useState(false);
   const when = tipWhen(tip, today);
   const sources = Array.isArray(tip.sources) ? tip.sources.slice(0, 3) : [];
 
@@ -502,15 +510,15 @@ function TipCard({ tip, today, onResolve, onTask, defaultOpen = false }) {
         </span>
         <span
           aria-hidden="true"
-          className={`no-print mt-0.5 shrink-0 text-ink-soft transition-transform ${
+          className={`no-print grid size-8 shrink-0 place-items-center rounded-full border border-teal/30 bg-teal-soft text-teal transition-transform ${
             open ? "rotate-180" : ""
           }`}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
             <path
               d="M4 6.5L8 10.5L12 6.5"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
