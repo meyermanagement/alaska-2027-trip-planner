@@ -7230,7 +7230,7 @@ html[data-skin="sodium"] .menu-arc {
   --arc-band-face: color-mix(in srgb, var(--color-ink) 4%, transparent);
   --arc-band-edge: color-mix(in srgb, var(--color-ink) 11%, transparent);
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   gap: 0.5rem;
   padding: 0.35rem 0.7rem 0.35rem 0.5rem;
   border-radius: 0.7rem;
@@ -7279,7 +7279,7 @@ html[data-skin="sodium"] .arc-pill.group.open {
 
 .arc-pill.group .arc-label {
   flex: 1 1 auto;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -7288,7 +7288,7 @@ html[data-skin="sodium"] .arc-pill.group.open {
 
 /* How many screens are behind the band. */
 .arc-count {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--color-ink-soft);
   opacity: 0.7;
 }
@@ -7377,17 +7377,20 @@ html[data-skin="sodium"] .arc-pill.group.open {
    importance, which it is not. */
 .arc-pill.group.slim {
   --arc-band-face: transparent;
-  min-height: 38px;
+  min-height: 46px;
 }
 
 .arc-pill.group.slim .arc-disc svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
+/* Drawn at the same size as the three groups above it. It was a step smaller
+   in every dimension, which made the least-visited row in the menu also the
+   hardest one to read and the hardest one to hit -- quiet is the transparent
+   face's job, and small is not the same thing as quiet. */
 .arc-pill.group.slim .arc-label {
-  font-size: 0.68rem;
-  opacity: 0.85;
+  font-size: 0.78rem;
 }
 
 .arc-pill.group.slim .arc-chev {
@@ -7395,8 +7398,8 @@ html[data-skin="sodium"] .arc-pill.group.open {
 }
 
 .arc-pill.group.slim .arc-chev svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .arc-chev {
@@ -7410,23 +7413,33 @@ html[data-skin="sodium"] .arc-pill.group.open {
   transform: rotate(180deg);
 }
 
+/* A destination is the thing people came to the menu to press, and it used to
+   be the smallest object in it: 40px tall against the 44px the rest of the app
+   holds to, a 13.8px name over a 10.9px second line, and -- because the pill
+   was cut to the width of its own words -- a target 207px wide on a 320px
+   phone with two thirds of the row beside it doing nothing. So: a full thumb
+   high, stretched to the width of the column like the band it hangs under, and
+   both lines a step up. Stretching is what buys the reach; the height and the
+   type are what buy the reading. */
 .arc-pill.kid {
+  align-self: stretch;
   margin-left: 34px;
-  padding: 0.22rem 0.85rem 0.22rem 0.24rem;
+  min-height: 46px;
+  padding: 0.35rem 1rem 0.35rem 0.3rem;
   gap: 0.5rem;
 }
 
 .arc-pill.kid .arc-disc {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 
 .arc-pill.kid .arc-label {
-  font-size: 0.86rem;
+  font-size: 0.95rem;
 }
 
 .arc-pill.kid .arc-sub {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 /* The hairline the children hang off. Drawn per row and overlapping, so a group

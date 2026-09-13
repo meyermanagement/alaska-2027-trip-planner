@@ -913,7 +913,7 @@ export default function NavTabs({
                 reads as having been thrown from it rather than floating in the
                 middle of a wide screen. */}
             <div className="mx-auto max-w-5xl px-4">
-              <div className="flex max-w-[23rem] flex-col items-start gap-1.5">
+              <div className="flex max-w-[25rem] flex-col items-start gap-1.5">
                 {hero}
                 {/* Read downward, in the order the rows are written: the trip
                     plate, then the Travel Journal under it, then the other two
@@ -1071,14 +1071,14 @@ export default function NavTabs({
                           href={row.href}
                           className={
                             row.kid
-                              ? "h-[15px] w-[15px] shrink-0"
+                              ? "h-[17px] w-[17px] shrink-0"
                               : "h-[18px] w-[18px] shrink-0"
                           }
                         >
                           <Icon
                             className={
                               row.kid
-                                ? "h-[15px] w-[15px] shrink-0"
+                                ? "h-[17px] w-[17px] shrink-0"
                                 : "h-[18px] w-[18px] shrink-0"
                             }
                           />
