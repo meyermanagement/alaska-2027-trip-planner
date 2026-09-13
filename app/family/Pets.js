@@ -435,7 +435,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Name
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.name}
             onChange={set("name")}
           />
@@ -443,7 +443,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Species
           <select
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.species}
             onChange={set("species")}
           >
@@ -457,7 +457,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Breed (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.breed}
             onChange={set("breed")}
           />
@@ -465,7 +465,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Sex (optional)
           <select
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.sex}
             onChange={set("sex")}
           >
@@ -481,7 +481,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
           <label className="block text-xs font-semibold">
             {profile.fixedLabel} (optional)
             <select
-              className="field mt-1 text-sm"
+              className="field mt-1 text-base"
               value={form.is_sterilized}
               onChange={set("is_sterilized")}
             >
@@ -498,7 +498,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
           Date of birth (optional)
           <input
             type="date"
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.date_of_birth}
             onChange={set("date_of_birth")}
           />
@@ -511,7 +511,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
               step="0.1"
               min="0"
               inputMode="decimal"
-              className="field mt-1 text-sm"
+              className="field mt-1 text-base"
               value={form.weight_lb}
               onChange={set("weight_lb")}
             />
@@ -523,7 +523,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           How they travel (optional)
           <select
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.travel_style}
             onChange={set("travel_style")}
           >
@@ -577,7 +577,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
               {paper.label} (optional)
               <input
                 type="date"
-                className="field mt-1 text-sm"
+                className="field mt-1 text-base"
                 value={form[paper.column]}
                 onChange={set(paper.column)}
               />
@@ -593,7 +593,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
           <label className="block text-xs font-semibold">
             {profile.carrier.label} (optional)
             <input
-              className="field mt-1 text-sm"
+              className="field mt-1 text-base"
               placeholder={profile.carrier.placeholder}
               value={form.carrier_size}
               onChange={set("carrier_size")}
@@ -603,7 +603,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Microchip number (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.microchip_number}
             onChange={set("microchip_number")}
           />
@@ -611,7 +611,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Vet (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.vet_name}
             onChange={set("vet_name")}
           />
@@ -620,7 +620,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
           Vet phone (optional)
           <input
             type="tel"
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.vet_phone}
             onChange={set("vet_phone")}
           />
@@ -628,7 +628,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Medication (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.medications}
             onChange={set("medications")}
           />
@@ -636,7 +636,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Food (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.dietary_notes}
             onChange={set("dietary_notes")}
           />
@@ -644,7 +644,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold sm:col-span-2">
           Temperament (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             placeholder={profile.temperamentPlaceholder}
             value={form.temperament_notes}
             onChange={set("temperament_notes")}
@@ -657,7 +657,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
         <label className="block text-xs font-semibold sm:col-span-2">
           Notes (optional)
           <textarea
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             rows={2}
             value={form.notes}
             onChange={set("notes")}

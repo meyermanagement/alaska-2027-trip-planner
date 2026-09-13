@@ -139,7 +139,7 @@ export default function AddToCalendar({
         title={single ? `Add “${single.title}” to your calendar` : label}
         className={
           compact
-            ? "flex items-center gap-1 rounded-full border border-[var(--line)] px-2 py-1.5 text-[0.68rem] font-semibold text-ink-soft transition hover:border-teal hover:text-teal sm:px-2.5 sm:py-1"
+            ? "flex items-center gap-1 rounded-full border border-[var(--line)] px-2 py-1.5 text-2xs font-semibold text-ink-soft transition hover:border-teal hover:text-teal sm:px-2.5 sm:py-1"
             : "btn btn-ghost inline-flex items-center gap-1.5"
         }
       >
@@ -169,7 +169,7 @@ export default function AddToCalendar({
             }}
             className="z-50 overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_10px_30px_rgba(20,32,30,0.16)]"
           >
-            <p className="border-b border-sand px-3.5 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+            <p className="border-b border-sand px-3.5 py-2 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
               {single ? whenLabel(single) : `${list.length} dated entries`}
             </p>
             {items.map((item) =>

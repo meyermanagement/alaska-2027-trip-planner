@@ -92,7 +92,7 @@ export default function RemoveTrip({ trip, onGone, afterHref = null }) {
         Type the trip name to confirm
         <input
           type="text"
-          className="field mt-1 text-sm"
+          className="field mt-1 text-base"
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           placeholder={name}

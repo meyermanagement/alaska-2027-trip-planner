@@ -39,7 +39,7 @@ function Option({ option, first }) {
 
   // Tall enough to be a target for a thumb, which 27 pixels was not, and the
   // same height whether or not it links so the row stays one row.
-  const chip = `inline-flex min-h-[2.2rem] items-center gap-1.5 rounded-full border px-3 py-1 text-[0.72rem] ${
+  const chip = `inline-flex min-h-[2.2rem] items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
     first
       ? "border-teal/40 bg-white text-ink"
       : "border-[var(--line)] bg-white/70 text-ink-soft"
@@ -107,7 +107,7 @@ export default function WaysThere({
 
   return (
     <div className="mt-2">
-      <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-ink-faint">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
         {title || "Getting there"}
         {distance ? (
           <span className="normal-case"> &middot; {distance}</span>
@@ -118,7 +118,7 @@ export default function WaysThere({
           <Option key={option.mode} option={option} first={n === 0} />
         ))}
       </ul>
-      {why && <p className="mt-1 text-[0.72rem] text-ink-soft">{why}</p>}
+      {why && <p className="mt-1 text-xs text-ink-soft">{why}</p>}
     </div>
   );
 }

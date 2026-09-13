@@ -343,7 +343,7 @@ export default function DayPack({
                 </span>
                 {line.assignee && line.assignee !== "Shared" && (
                   <span
-                    className={`ml-2 whitespace-nowrap rounded-full px-1.5 py-0.5 align-middle text-[0.7rem] ${assigneeColor(
+                    className={`ml-2 whitespace-nowrap rounded-full px-1.5 py-0.5 align-middle text-xs ${assigneeColor(
                       line.assignee,
                     )}`}
                   >
@@ -351,12 +351,12 @@ export default function DayPack({
                   </span>
                 )}
                 {line.everyDay && (
-                  <span className="ml-2 whitespace-nowrap rounded-full bg-sand px-1.5 py-0.5 align-middle text-[0.7rem] text-ink-soft">
+                  <span className="ml-2 whitespace-nowrap rounded-full bg-sand px-1.5 py-0.5 align-middle text-xs text-ink-soft">
                     Every day
                   </span>
                 )}
                 {line.kind === "tip" && (
-                  <span className="ml-2 whitespace-nowrap rounded-full bg-amber/15 px-1.5 py-0.5 align-middle text-[0.7rem] font-semibold text-amber">
+                  <span className="ml-2 whitespace-nowrap rounded-full bg-amber/15 px-1.5 py-0.5 align-middle text-xs font-semibold text-amber">
                     From a tip
                   </span>
                 )}
@@ -423,7 +423,7 @@ export default function DayPack({
           it. */}
       {notes.length > 0 && (
         <div className="mt-3 border-t border-line pt-2">
-          <h5 className="text-[0.7rem] font-semibold uppercase tracking-wide text-ink-soft">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
             Worth knowing
           </h5>
           <ul className="mt-1.5 space-y-2">
@@ -479,13 +479,13 @@ export default function DayPack({
                 onChange={(event) => setItem(event.target.value)}
                 placeholder="Binoculars"
                 aria-label="What goes in the bag"
-                className="min-w-0 flex-1 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-ink"
+                className="min-w-0 flex-1 rounded-lg border border-line bg-white px-2.5 py-1.5 text-base text-ink"
               />
               <select
                 value={who}
                 onChange={(event) => setWho(event.target.value)}
                 aria-label="Whose"
-                className="rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink"
+                className="rounded-lg border border-line bg-white px-2 py-1.5 text-base text-ink"
               >
                 <option value="Shared">Shared</option>
                 {people.map((name) => (

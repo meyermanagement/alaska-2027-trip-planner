@@ -288,7 +288,7 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
 
   if (!loaded) {
     return (
-      <p className="text-[0.86rem] text-ink-soft">Reading your policies…</p>
+      <p className="text-sm text-ink-soft">Reading your policies…</p>
     );
   }
 
@@ -296,7 +296,7 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
     <div className="space-y-4">
       <section className="card p-4 sm:p-5">
         <h2 className="text-base font-semibold text-ink">Insurance</h2>
-        <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink-soft">
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
           The policy that matters when the trip goes wrong: what it pays for,
           who it names, and the number to call. Open a document once while you
           have signal and it opens again without any — the file is kept on the
@@ -311,13 +311,13 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
       </section>
 
       {error && (
-        <p aria-live="polite" className="text-[0.86rem] text-rose">
+        <p aria-live="polite" className="text-sm text-rose">
           {error}
         </p>
       )}
 
       {onTrip.length === 0 && (
-        <p className="text-[0.86rem] leading-relaxed text-ink-soft">
+        <p className="text-sm leading-relaxed text-ink-soft">
           No policy is on this trip yet.
         </p>
       )}
@@ -367,7 +367,7 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
                 key={policy.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--line)] px-3 py-2"
               >
-                <span className="min-w-0 text-[0.86rem] text-ink">
+                <span className="min-w-0 text-sm text-ink">
                   {policyLine(policy)}
                   <span className="ml-2 text-xs text-ink-soft">
                     {kindLabel(policy.kind)}
@@ -546,7 +546,7 @@ function PolicyCard({
       )}
 
       {policy.notes && (
-        <p className="mt-2.5 whitespace-pre-line text-[0.86rem] leading-relaxed text-ink-soft">
+        <p className="mt-2.5 whitespace-pre-line text-sm leading-relaxed text-ink-soft">
           {policy.notes}
         </p>
       )}

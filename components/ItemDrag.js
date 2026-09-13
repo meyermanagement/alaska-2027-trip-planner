@@ -382,7 +382,7 @@ export default function ItemDrag({
             {formatTime(hmOf(drag.mins))}
           </span>
           {moved && (
-            <span className="ml-1.5 text-[0.7rem] opacity-70">
+            <span className="ml-1.5 text-xs opacity-70">
               {drag.mins > base ? "later" : "earlier"}
             </span>
           )}
@@ -489,7 +489,7 @@ function Rail({ base, mins, top = 0, preview = false }) {
           />
           {!preview && (s.onHour || s.at === mins) && (
             <span
-              className={`tabular text-[0.6rem] font-semibold leading-none ${
+              className={`tabular text-2xs font-semibold leading-none ${
                 s.at === mins ? "text-teal" : "text-ink-faint"
               }`}
             >
@@ -653,7 +653,7 @@ function DayRail({ dayKeys, from, at, left, preview = false }) {
           >
             {!preview && (
               <span
-                className={`tabular block pt-[0.3rem] text-[0.6rem] font-semibold uppercase leading-none tracking-[0.06em] ${
+                className={`tabular block pt-[0.3rem] text-2xs font-semibold uppercase leading-none tracking-[0.06em] ${
                   here ? "text-teal" : "text-ink-faint"
                 }`}
               >
@@ -668,7 +668,7 @@ function DayRail({ dayKeys, from, at, left, preview = false }) {
             )}
             {!preview && (
               <span
-                className={`tabular block pt-[0.15rem] text-[0.78rem] font-semibold leading-none ${
+                className={`tabular block pt-[0.15rem] text-xs font-semibold leading-none ${
                   here ? "text-teal" : "text-ink-soft"
                 }`}
               >

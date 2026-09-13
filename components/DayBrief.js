@@ -172,7 +172,7 @@ export default function DayBrief({
   return (
     <section className="no-print mb-3 rounded-2xl border border-teal/25 bg-teal/[0.04] px-4 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-teal">
+        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-teal">
           {whenSaid}
         </p>
         {/* Two ends of a travel day, stacked so the arrow reads down the way the
@@ -247,7 +247,7 @@ export default function DayBrief({
                 : `Ask about ${dayWord} — the weather, what time to leave, or somewhere to eat…`
             }
             aria-label={`Ask Aly about ${dayWord}`}
-            className="min-w-0 flex-1 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-sm placeholder:text-ink-faint focus:border-teal focus:outline-none"
+            className="min-w-0 flex-1 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-base placeholder:text-ink-faint focus:border-teal focus:outline-none"
           />
           <button
             type="submit"
@@ -273,7 +273,7 @@ export default function DayBrief({
             key={q}
             type="button"
             onClick={() => ask(q)}
-            className="rounded-full border border-teal/25 bg-white px-3 py-1 text-[0.72rem] font-semibold text-teal hover:border-teal"
+            className="rounded-full border border-teal/25 bg-white px-3 py-1 text-xs font-semibold text-teal hover:border-teal"
           >
             {q}
           </button>
@@ -286,7 +286,7 @@ export default function DayBrief({
           not a change to the plan, and a day they cannot get advice about is not
           the same day. */}
       {pending > 0 && (
-        <p className="mt-2 flex flex-wrap items-center gap-2 text-[0.78rem] text-ink-soft">
+        <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-soft">
           {researching ? (
             <span className="flex items-center gap-2">
               <span className="aly-dots" aria-hidden="true">
@@ -317,7 +317,7 @@ export default function DayBrief({
         </p>
       )}
       {researchError && (
-        <p className="mt-1.5 text-[0.78rem] text-rose">{researchError}</p>
+        <p className="mt-1.5 text-xs text-rose">{researchError}</p>
       )}
     </section>
   );

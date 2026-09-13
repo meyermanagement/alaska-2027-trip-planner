@@ -90,7 +90,7 @@ export default function DayDone({
 
       {!readOnly && toRate.length > 0 && (
         <div className="mt-3 border-t border-teal/25 pt-3">
-          <p className="text-[0.78rem] font-semibold uppercase tracking-[0.06em] text-teal/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.06em] text-teal/80">
             {toRate.length === 1
               ? "One place to rate while it is fresh"
               : `${toRate.length} places to rate while they are fresh`}

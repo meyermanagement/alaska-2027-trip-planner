@@ -342,7 +342,7 @@ export default function WelcomeForm({
                     Date of birth (optional)
                     <input
                       type="date"
-                      className="field mt-1 text-sm"
+                      className="field mt-1 text-base"
                       value={row.dob || ""}
                       onChange={(e) => setPerson(i, { dob: e.target.value })}
                       max={new Date().toISOString().slice(0, 10)}
@@ -351,7 +351,7 @@ export default function WelcomeForm({
                   <label className="block text-xs font-semibold text-ink-soft">
                     Gender (optional)
                     <select
-                      className="field mt-1 text-sm"
+                      className="field mt-1 text-base"
                       value={row.gender || ""}
                       onChange={(e) => setPerson(i, { gender: e.target.value })}
                     >
@@ -412,7 +412,7 @@ export default function WelcomeForm({
                   <label className="block text-xs font-semibold text-ink-soft">
                     What kind
                     <select
-                      className="field mt-1 text-sm"
+                      className="field mt-1 text-base"
                       value={row.species}
                       onChange={(e) => setPet(i, { species: e.target.value })}
                     >

@@ -23,7 +23,7 @@ function Line({ label, children, tone = "soft" }) {
   const color = tone === "warn" ? "text-amber" : "text-ink-soft";
   return (
     <p
-      className={`flex flex-wrap gap-x-1.5 text-[0.82rem] leading-relaxed ${color}`}
+      className={`flex flex-wrap gap-x-1.5 text-sm leading-relaxed ${color}`}
     >
       <span className="font-semibold">{label}</span>
       <span className="min-w-0">{children}</span>

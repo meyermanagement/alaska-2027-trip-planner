@@ -56,12 +56,12 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
 
   return (
     <section aria-label="Tips on the other tabs" className="card mb-5 p-5">
-      <h3 className="text-[0.7rem] font-bold uppercase tracking-[0.09em] text-ink-soft">
+      <h3 className="text-xs font-bold uppercase tracking-[0.09em] text-ink-soft">
         Elsewhere on this trip
       </h3>
       {summary.places.length ? (
         <>
-          <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink-soft">
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
             {justNow ? "That look also filed " : "There are "}
             {summary.places
               // "2 on the Itinerary" is shorter than "2 tips on the Itinerary"
@@ -81,7 +81,7 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
                 key={place.tab || place.label}
                 type="button"
                 onClick={() => place.tab && onGo(place.tab)}
-                className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+                className="btn btn-ghost px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em]"
               >
                 {`Read ${place.label.replace(/^the /, "")}`}
               </button>
@@ -89,7 +89,7 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
           </div>
         </>
       ) : (
-        <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink-soft">
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
           {everLooked
             ? "Nothing on the Itinerary or Packing tabs at the moment. A look covers your next few bookings and your packing list as well as the trip itself, so anything worth saying about those will land there."
             : "A look covers your next few bookings and your packing list too — press Check for pro tips at the top of this trip. Whatever it finds about those lands on the Itinerary and Packing tabs, and this will say how much went where."}
@@ -641,7 +641,7 @@ export default function TripView({
                   <span className="emoji-badge" aria-hidden="true">
                     {info.cover_emoji}
                   </span>
-                  <h1 className="font-display text-2xl leading-tight font-semibold sm:text-[1.7rem]">
+                  <h1 className="font-display text-2xl leading-tight font-semibold sm:text-2xl">
                     {info.name}
                   </h1>
                   {countdown !== null && countdown >= 0 && (
@@ -753,7 +753,7 @@ export default function TripView({
               >
                 {g.label}
                 {badge && (!here || tab !== "tips") && (
-                  <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.7rem] leading-[1.15rem] font-bold text-on-accent">
+                  <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-xs leading-[1.15rem] font-bold text-on-accent">
                     {tipCount}
                     <span className="sr-only"> tips to read</span>
                   </span>
@@ -794,7 +794,7 @@ export default function TripView({
               >
                 {t.label}
                 {t.id === "tips" && tipCount > 0 && (
-                  <span className="ml-1.5 inline-block min-w-[1.05rem] rounded-full bg-rose px-1 text-[0.65rem] leading-[1.05rem] font-bold text-on-accent">
+                  <span className="ml-1.5 inline-block min-w-[1.05rem] rounded-full bg-rose px-1 text-2xs leading-[1.05rem] font-bold text-on-accent">
                     {tipCount}
                     <span className="sr-only"> tips to read</span>
                   </span>

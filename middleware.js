@@ -8,6 +8,12 @@ import {
   SKIN_COOKIE_STALE,
   skinOr,
 } from "@/lib/skins";
+import {
+  DEFAULT_TEXT_SIZE,
+  TEXT_COOKIE,
+  TEXT_COOKIE_MAX_AGE,
+  textSizeOr,
+} from "@/lib/textsize";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 
@@ -157,17 +163,37 @@ export async function middleware(request) {
   // It is a preference and nothing else. Nothing is granted or refused on the
   // strength of it, which is why it is allowed to be readable and why a stale
   // one costs a page in the wrong colors and nothing more.
-  if (user && !isPublic && !request.cookies.get(SKIN_COOKIE)) {
+  //
+  // How big the words are rides along with it. It is the same kind of value --
+  // a preference on the profile that a script in the head needs before the page
+  // paints -- so it is read in the same query rather than in a second one: the
+  // two together cost one round trip on the first authed request of the year.
+  const wantsSkin = !request.cookies.get(SKIN_COOKIE);
+  const wantsText = !request.cookies.get(TEXT_COOKIE);
+  if (user && !isPublic && (wantsSkin || wantsText)) {
     const { data: mine } = await supabase
       .from("profiles")
-      .select("skin")
+      .select("skin, text_size")
       .eq("id", user.id)
       .maybeSingle();
-    response.cookies.set(SKIN_COOKIE, skinOr(mine?.skin) || DEFAULT_SKIN, {
-      maxAge: SKIN_COOKIE_MAX_AGE,
-      sameSite: "lax",
-      path: "/",
-    });
+    if (wantsSkin) {
+      response.cookies.set(SKIN_COOKIE, skinOr(mine?.skin) || DEFAULT_SKIN, {
+        maxAge: SKIN_COOKIE_MAX_AGE,
+        sameSite: "lax",
+        path: "/",
+      });
+    }
+    if (wantsText) {
+      response.cookies.set(
+        TEXT_COOKIE,
+        textSizeOr(mine?.text_size) || DEFAULT_TEXT_SIZE,
+        {
+          maxAge: TEXT_COOKIE_MAX_AGE,
+          sameSite: "lax",
+          path: "/",
+        },
+      );
+    }
   }
 
   // And the cookie this one used to be called, on its way out. Harmless if left

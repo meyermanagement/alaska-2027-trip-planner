@@ -80,21 +80,21 @@ export default function ClearedInbox() {
         if (isOpen && rows === null && !busy) load();
       }}
     >
-      <summary className="cursor-pointer list-none text-[0.72rem] font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
+      <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
         {open ? "Hide" : "Show"} messages that have left the inbox
       </summary>
 
       <div className="mt-4">
         {problem ? (
-          <p role="alert" className="text-[0.82rem] text-rose">
+          <p role="alert" className="text-sm text-rose">
             {problem}
           </p>
         ) : null}
         {busy && rows === null ? (
-          <p className="text-[0.84rem] text-ink-soft">Fetching…</p>
+          <p className="text-sm text-ink-soft">Fetching…</p>
         ) : null}
         {rows && !rows.length ? (
-          <p className="text-[0.84rem] leading-relaxed text-ink-soft">
+          <p className="text-sm leading-relaxed text-ink-soft">
             Nothing has left the inbox yet. Everything you file or throw out
             ends up here, and can be put back.
           </p>
@@ -117,14 +117,14 @@ export default function ClearedInbox() {
                   <h4 className="font-semibold leading-snug text-ink-soft">
                     {message.subject || "(no subject)"}
                   </h4>
-                  <p className="mt-1 text-[0.86rem] leading-relaxed text-ink-faint">
+                  <p className="mt-1 text-sm leading-relaxed text-ink-faint">
                     {message.from_name ||
                       message.from_email ||
                       "Unknown sender"}
                     {", "}
                     {dayOf(message.received_at)}
                   </p>
-                  <p className="mt-1 text-[0.86rem] leading-relaxed text-ink-faint">
+                  <p className="mt-1 text-sm leading-relaxed text-ink-faint">
                     {wasFiled ? (
                       <>
                         {message.auto_filed ? "Aly filed it" : "Filed"} to{" "}
@@ -149,7 +149,7 @@ export default function ClearedInbox() {
 
                   {asking ? (
                     <div className="mt-3 rounded-lg border border-[var(--line-strong)] bg-sand p-3">
-                      <p className="text-[0.84rem] leading-relaxed text-ink-soft">
+                      <p className="text-sm leading-relaxed text-ink-soft">
                         {message.itinerary_rows > 0
                           ? `Putting this back takes ${rowCount(
                               message.itinerary_rows,
@@ -160,14 +160,14 @@ export default function ClearedInbox() {
                         <button
                           type="button"
                           onClick={() => reopen(message)}
-                          className="btn btn-primary px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
+                          className="btn btn-primary px-3 py-1 text-2xs font-semibold uppercase tracking-[0.06em]"
                         >
                           Put it back
                         </button>
                         <button
                           type="button"
                           onClick={() => setAskingId(null)}
-                          className="rounded-lg px-2 py-1 text-[0.78rem] text-ink-soft underline underline-offset-2 transition hover:text-teal"
+                          className="rounded-lg px-2 py-1 text-xs text-ink-soft underline underline-offset-2 transition hover:text-teal"
                         >
                           Leave it
                         </button>
@@ -180,7 +180,7 @@ export default function ClearedInbox() {
                         wasFiled ? setAskingId(message.id) : reopen(message)
                       }
                       disabled={working}
-                      className="btn btn-ghost mt-3 inline-flex items-center gap-1.5 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em] disabled:cursor-progress disabled:opacity-60"
+                      className="btn btn-ghost mt-3 inline-flex items-center gap-1.5 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.06em] disabled:cursor-progress disabled:opacity-60"
                     >
                       {working ? (
                         <>

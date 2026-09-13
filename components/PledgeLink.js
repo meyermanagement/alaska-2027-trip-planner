@@ -95,7 +95,7 @@ function PledgePanel({ onClose, closeRef }) {
       <div className="card relative flex max-h-[88dvh] w-full max-w-2xl flex-col overflow-hidden shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
           <div>
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-ink-soft">
+            <p className="text-2xs font-semibold uppercase tracking-[0.09em] text-ink-soft">
               What we promise
             </p>
             <h2 className="mt-0.5 font-display text-2xl font-semibold text-ink">

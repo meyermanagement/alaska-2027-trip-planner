@@ -399,7 +399,7 @@ export default function MeetAly({
                 {/* Spelled out rather than section-label: that rule is
                     unlayered in globals.css and would win over the teal. */}
                 <p
-                  className="ma-in mt-3.5 text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal"
+                  className="ma-in mt-3.5 text-2xs font-semibold uppercase tracking-[0.09em] text-teal"
                   style={{ animationDelay: `${at + 0.1}s` }}
                 >
                   {a.heading}

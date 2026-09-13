@@ -94,7 +94,7 @@ export default function TripArtifact({
         </button>
         {artifact.pendingCount > 0 && (
           <span
-            className="shrink-0 rounded-full border border-dashed border-amber bg-amber/10 px-2 py-0.5 text-[0.65rem] font-semibold text-ink"
+            className="shrink-0 rounded-full border border-dashed border-amber bg-amber/10 px-2 py-0.5 text-2xs font-semibold text-ink"
             aria-live="polite"
           >
             {artifact.pendingCount} waiting
@@ -122,7 +122,7 @@ export default function TripArtifact({
                     isPendingField(artifact, "end_date")));
               return (
                 <div key={basic.id} className="min-w-0">
-                  <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-faint">
+                  <dt className="text-2xs font-semibold uppercase tracking-wide text-ink-faint">
                     {basic.label}
                   </dt>
                   <dd
@@ -136,7 +136,7 @@ export default function TripArtifact({
                   >
                     {basic.answered ? basic.value : "Not said yet"}
                     {basic.answered && pending && (
-                      <span className="ml-1 text-[0.65rem] font-normal text-ink-soft">
+                      <span className="ml-1 text-2xs font-normal text-ink-soft">
                         · unsaved
                       </span>
                     )}
@@ -148,13 +148,13 @@ export default function TripArtifact({
 
           {days.length > 0 && (
             <div>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-faint">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-ink-faint">
                 {logged ? "What you did" : "Itinerary"}
               </p>
               <div className="mt-1 space-y-1">
                 {days.map((day) => (
                   <div key={day.date || "undated"}>
-                    <p className="tabular text-[0.7rem] font-semibold text-ink-soft">
+                    <p className="tabular text-xs font-semibold text-ink-soft">
                       {day.date || "Day not set"}
                     </p>
                     <ul className="mt-0.5 space-y-1">
@@ -172,7 +172,7 @@ export default function TripArtifact({
                             {item.title}
                           </span>
                           {item.pending && (
-                            <span className="shrink-0 text-[0.65rem] text-ink-soft">
+                            <span className="shrink-0 text-2xs text-ink-soft">
                               unsaved
                             </span>
                           )}
@@ -190,7 +190,7 @@ export default function TripArtifact({
               a number would hide exactly that. */}
           {(artifact.packing.length > 0 || packingNote) && (
             <div>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-faint">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-ink-faint">
                 {logged ? "What you packed" : "Packing"}
               </p>
               {packingNote && (
@@ -200,7 +200,7 @@ export default function TripArtifact({
                 {artifact.packing.map((row, i) => (
                   <li
                     key={`${row.title}-${i}`}
-                    className={`rounded-full border px-2 py-0.5 text-[0.7rem] ${mark(row.pending)}`}
+                    className={`rounded-full border px-2 py-0.5 text-xs ${mark(row.pending)}`}
                   >
                     {row.title}
                     {row.assignee && row.assignee !== "Shared" && (
@@ -214,7 +214,7 @@ export default function TripArtifact({
 
           {artifact.tasks.length > 0 && (
             <div>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-faint">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-ink-faint">
                 To book or sort
               </p>
               <ul className="mt-1 space-y-1">
@@ -227,7 +227,7 @@ export default function TripArtifact({
                       {row.title}
                     </span>
                     {(row.date || row.timing) && (
-                      <span className="tabular shrink-0 text-[0.65rem] text-ink-soft">
+                      <span className="tabular shrink-0 text-2xs text-ink-soft">
                         {row.date || row.timing.replace(/_/g, " ")}
                       </span>
                     )}
@@ -239,7 +239,7 @@ export default function TripArtifact({
 
           {artifact.notes.length > 0 && (
             <div>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-faint">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-ink-faint">
                 {logged ? "For next time" : "Notes"}
               </p>
               <ul className="mt-1 space-y-1">
@@ -262,7 +262,7 @@ export default function TripArtifact({
           )}
 
           {artifact.pendingCount > 0 && (
-            <p className="text-[0.7rem] leading-snug text-ink-soft">
+            <p className="text-xs leading-snug text-ink-soft">
               Anything dashed is proposed, not saved. Press the card below to
               keep it, or say what to change first.
             </p>

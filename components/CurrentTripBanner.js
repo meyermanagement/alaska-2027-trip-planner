@@ -60,11 +60,11 @@ export default function CurrentTripBanner({ trip, today }) {
         {/* The day count comes before the trip name and never truncates: on a
             narrow screen the useful half of this band is which day it is. */}
         {where && (
-          <span className="shrink-0 whitespace-nowrap text-[0.7rem] font-bold uppercase tracking-[0.09em] text-on-accent/80">
+          <span className="shrink-0 whitespace-nowrap text-xs font-bold uppercase tracking-[0.09em] text-on-accent/80">
             Day {where.day} of {where.of}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-[0.9rem] font-semibold">
+        <span className="min-w-0 flex-1 truncate text-base font-semibold">
           {trip.name}
         </span>
         {/* Spelled out where there is room, and an arrow where there is not —
@@ -82,12 +82,12 @@ export default function CurrentTripBanner({ trip, today }) {
             centring the box leaves the arrow looking pushed right and dropped. A
             little padding on its right and two units up puts it where the eye
             expects it. */}
-        <span className="hidden shrink-0 whitespace-nowrap text-[0.85rem] font-semibold text-on-accent sm:inline">
+        <span className="hidden shrink-0 whitespace-nowrap text-sm font-semibold text-on-accent sm:inline">
           Today’s plan →
         </span>
         <span
           aria-hidden="true"
-          className="-my-2 flex shrink-0 -translate-y-[2px] items-center justify-center pl-1 pr-1.5 text-[1.7rem] leading-none text-on-accent sm:hidden"
+          className="-my-2 flex shrink-0 -translate-y-[2px] items-center justify-center pl-1 pr-1.5 text-2xl leading-none text-on-accent sm:hidden"
         >
           →
         </span>

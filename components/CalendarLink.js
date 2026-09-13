@@ -70,10 +70,10 @@ export default function CalendarLink() {
 
   return (
     <section className="card no-print mb-5 p-5" aria-label="Calendar">
-      <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.09em] text-ink-soft">
+      <h2 className="text-xs font-bold uppercase tracking-[0.09em] text-ink-soft">
         In your calendar
       </h2>
-      <p className="mt-2 text-[0.88rem] leading-relaxed text-ink-soft">
+      <p className="mt-2 text-sm leading-relaxed text-ink-soft">
         Every dated reminder, every booking with a date, and a band across each
         trip, as a calendar you subscribe to once. Google Calendar, Apple
         Calendar and Outlook all re-read it on their own, so a time that changes
@@ -82,20 +82,20 @@ export default function CalendarLink() {
 
       {url ? (
         <>
-          <p className="mt-3 break-all rounded-xl border border-[var(--line)] bg-white/70 p-3 font-mono text-[0.76rem] text-ink-soft">
+          <p className="mt-3 break-all rounded-xl border border-[var(--line)] bg-white/70 p-3 font-mono text-xs text-ink-soft">
             {url}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={copy}
-              className="btn-primary px-4 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn-primary px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.06em]"
             >
               {copied ? "Copied" : "Copy the address"}
             </button>
             <a
               href={url}
-              className="btn btn-ghost px-4 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn btn-ghost px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.06em]"
             >
               Download once
             </a>
@@ -103,12 +103,12 @@ export default function CalendarLink() {
               type="button"
               onClick={() => make(true)}
               disabled={busy}
-              className="px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-ink-faint underline decoration-transparent underline-offset-2 hover:text-ink-soft hover:decoration-ink-faint disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint underline decoration-transparent underline-offset-2 hover:text-ink-soft hover:decoration-ink-faint disabled:opacity-50"
             >
               {busy ? "Working…" : "Start a new address"}
             </button>
           </div>
-          <p className="mt-3 text-[0.78rem] leading-relaxed text-ink-faint">
+          <p className="mt-3 text-xs leading-relaxed text-ink-faint">
             Anyone with this address can read the calendar, so treat it like a
             key rather than a link. In Google Calendar it goes under Other
             calendars, From URL; on an iPhone it is Calendar, Add account,
@@ -122,7 +122,7 @@ export default function CalendarLink() {
             type="button"
             onClick={() => make(false)}
             disabled={busy}
-            className="btn-primary px-4 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em] disabled:opacity-50"
+            className="btn-primary px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-50"
           >
             {busy ? "Working…" : "Make a calendar address"}
           </button>
@@ -130,7 +130,7 @@ export default function CalendarLink() {
       )}
 
       {problem ? (
-        <p role="alert" className="mt-2 text-[0.82rem] text-rose">
+        <p role="alert" className="mt-2 text-sm text-rose">
           {problem}
         </p>
       ) : null}

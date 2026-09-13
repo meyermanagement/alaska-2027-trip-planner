@@ -278,7 +278,7 @@ export default function ConversationList({ onPick, onNew, onClose }) {
                         c.visibility === "private" ? "family" : "private",
                       )
                     }
-                    className="absolute right-11 top-1 flex h-9 items-center rounded-full px-3 text-[0.68rem] font-semibold uppercase tracking-wide text-ink-soft transition hover:bg-sand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:opacity-50"
+                    className="absolute right-11 top-1 flex h-9 items-center rounded-full px-3 text-2xs font-semibold uppercase tracking-wide text-ink-soft transition hover:bg-sand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:opacity-50"
                   >
                     {c.visibility === "private" ? "Just you" : "Shared"}
                   </button>

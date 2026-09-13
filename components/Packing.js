@@ -1693,13 +1693,13 @@ export default function Packing({
                       askTemplate.before.assignee,
                     )}.`}
               </p>
-              <p className="mt-1 text-[0.8rem] leading-snug text-ink-soft">
+              <p className="mt-1 text-sm leading-snug text-ink-soft">
                 Change it on the template too, so trips you build from it start
                 with this version? Either way, trips you have already made do
                 not change.
               </p>
               {askTemplate.message && (
-                <p className="mt-1.5 text-[0.8rem] font-semibold text-rose">
+                <p className="mt-1.5 text-sm font-semibold text-rose">
                   {askTemplate.message}
                 </p>
               )}
@@ -1769,7 +1769,7 @@ export default function Packing({
               <button
                 type="button"
                 onClick={() => setFind("")}
-                className="absolute inset-y-0 right-2 my-auto h-6 rounded-md px-2 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-soft hover:bg-sand hover:text-ink"
+                className="absolute inset-y-0 right-2 my-auto h-6 rounded-md px-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft hover:bg-sand hover:text-ink"
               >
                 Clear
               </button>
@@ -1880,7 +1880,7 @@ export default function Packing({
                   ? `Nothing under ${onlyCategory}.`
                   : "Nothing here can be packed ahead."}
             </p>
-            <p className="mt-1 text-[0.8rem] text-ink-soft">
+            <p className="mt-1 text-sm text-ink-soft">
               {items.length} {items.length === 1 ? "item" : "items"} on the
               list, hidden by what is set above.
             </p>
@@ -1900,7 +1900,7 @@ export default function Packing({
         {grouped.map(([category, rows]) => (
           <div key={category} className="card overflow-hidden">
             <div className="flex items-center gap-x-3 border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
-              <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
                 {category}
               </h3>
               {/* No packed-of-total count here any more. The bar at the top of

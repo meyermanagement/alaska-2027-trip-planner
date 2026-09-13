@@ -362,12 +362,12 @@ export default function InboxScreen({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       {isUnknown ? (
-                        <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-amber">
+                        <span className="rounded-full bg-amber/15 px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.08em] text-amber">
                           Needs a person
                         </span>
                       ) : attributed ? (
                         <span
-                          className="rounded-full bg-sand-deep/60 px-2 py-0.5 text-[0.7rem] text-ink-soft"
+                          className="rounded-full bg-sand-deep/60 px-2 py-0.5 text-xs text-ink-soft"
                           style={
                             attributed.color
                               ? {
@@ -585,7 +585,7 @@ function FilePicker({
       <select
         value={tripId}
         onChange={(e) => setTripId(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-sm text-ink"
+        className="mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-base text-ink"
       >
         <option value="">
           {policy ? "Not yet — just save the policy" : "Pick a trip"}
@@ -618,7 +618,7 @@ function FilePicker({
           <select
             value={travelerId}
             onChange={(e) => setTravelerId(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-sm text-ink"
+            className="mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-base text-ink"
           >
             <option value="">Pick a person</option>
             {travelers.map((t) => (
@@ -723,7 +723,7 @@ function FilePicker({
                       className="mt-0.5 h-4 w-4 shrink-0 accent-teal"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="mr-2 rounded-full bg-sand-deep/60 px-1.5 py-0.5 text-[0.65rem] uppercase tracking-[0.06em] text-ink-soft">
+                      <span className="mr-2 rounded-full bg-sand-deep/60 px-1.5 py-0.5 text-2xs uppercase tracking-[0.06em] text-ink-soft">
                         {p.category}
                       </span>
                       <span className="font-medium text-ink">{p.title}</span>
@@ -731,7 +731,7 @@ function FilePicker({
                         <span className="text-ink-soft"> · {p.item_date}</span>
                       ) : null}
                       {p.confidence === "low" ? (
-                        <span className="ml-2 text-[0.7rem] text-ink-faint">
+                        <span className="ml-2 text-xs text-ink-faint">
                           low confidence
                         </span>
                       ) : null}
@@ -790,7 +790,7 @@ function TrustPicker({ travelers, fromEmail, busy, onCancel, onConfirm }) {
       <select
         value={travelerId}
         onChange={(e) => setTravelerId(e.target.value)}
-        className="mt-3 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-sm text-ink"
+        className="mt-3 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-base text-ink"
       >
         <option value="">Pick a person</option>
         {travelers.map((t) => (

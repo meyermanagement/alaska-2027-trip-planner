@@ -231,7 +231,7 @@ export default function AboutYouForm({
       )}
       {done && practice && (
         <div className="mt-4 rounded-2xl border border-teal/40 bg-teal-soft/40 p-4">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+          <p className="text-2xs font-semibold uppercase tracking-[0.09em] text-teal">
             What would have been saved
           </p>
           <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">

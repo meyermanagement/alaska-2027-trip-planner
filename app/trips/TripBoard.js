@@ -137,14 +137,14 @@ function UpcomingCard({ trip, canRemove = false }) {
             the trip is read against the place it is about. */}
         <div className="relative grid gap-2 p-4 pt-8 sm:p-[17px] sm:pt-10">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-[1.2rem] leading-none" aria-hidden="true">
+            <span className="text-lg leading-none" aria-hidden="true">
               {trip.cover_emoji}
             </span>
-            <h3 className="font-display text-xl font-semibold sm:text-[1.32rem]">
+            <h3 className="font-display text-xl font-semibold sm:text-xl">
               {trip.name}
             </h3>
           </div>
-          <p className="text-[0.82rem] font-medium opacity-95">
+          <p className="text-sm font-medium opacity-95">
             {formatRange(trip.start_date, trip.end_date)}
             {trip.destination && (
               <>
@@ -310,11 +310,11 @@ function PastCard({ trip, canArchive = false }) {
             <span className="text-base leading-none" aria-hidden="true">
               {trip.cover_emoji}
             </span>
-            <h3 className="font-display truncate text-[0.98rem] font-semibold">
+            <h3 className="font-display truncate text-base font-semibold">
               {trip.name}
             </h3>
           </div>
-          <p className="text-[0.74rem] font-medium opacity-95">
+          <p className="text-xs font-medium opacity-95">
             {formatRange(trip.start_date, trip.end_date)}
             {trip.destination && (
               <>

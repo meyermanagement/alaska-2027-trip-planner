@@ -1053,7 +1053,7 @@ function DocForm({ doc, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Type
           <select
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.doc_type}
             onChange={set("doc_type")}
           >
@@ -1067,7 +1067,7 @@ function DocForm({ doc, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Label (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             placeholder="United MileagePlus, Missouri license…"
             value={form.label}
             onChange={set("label")}
@@ -1076,7 +1076,7 @@ function DocForm({ doc, onCancel, onSave }) {
         <label className="block text-xs font-semibold sm:col-span-2">
           Number
           <input
-            className="field mt-1 font-mono text-sm"
+            className="field mt-1 font-mono text-base"
             autoComplete="off"
             value={form.number}
             onChange={set("number")}
@@ -1085,7 +1085,7 @@ function DocForm({ doc, onCancel, onSave }) {
         <label className="block text-xs font-semibold">
           Issued by (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             placeholder="United States, Missouri, CBP…"
             value={form.issuing_authority}
             onChange={set("issuing_authority")}
@@ -1095,7 +1095,7 @@ function DocForm({ doc, onCancel, onSave }) {
           Issued on (optional)
           <input
             type="date"
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.issue_date}
             onChange={set("issue_date")}
           />
@@ -1104,7 +1104,7 @@ function DocForm({ doc, onCancel, onSave }) {
           Expires (optional)
           <input
             type="date"
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.expiration_date}
             onChange={set("expiration_date")}
           />
@@ -1112,7 +1112,7 @@ function DocForm({ doc, onCancel, onSave }) {
         <label className="block text-xs font-semibold sm:col-span-2">
           Notes (optional)
           <textarea
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             rows={2}
             placeholder="Where the physical copy lives, renewal appointment, anything else."
             value={form.notes}
@@ -1643,7 +1643,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
         <label className="block text-xs font-semibold">
           Name
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.name}
             onChange={set("name")}
           />
@@ -1652,7 +1652,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           Date of birth (optional)
           <input
             type="date"
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.date_of_birth}
             onChange={set("date_of_birth")}
           />
@@ -1660,7 +1660,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
         <label className="block text-xs font-semibold">
           Gender (optional)
           <select
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             value={form.gender}
             onChange={set("gender")}
           >
@@ -1674,7 +1674,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           </select>
           {form.gender === OWN_TERM && (
             <input
-              className="field mt-2 text-sm"
+              className="field mt-2 text-base"
               placeholder="In their own words"
               value={form.gender_own}
               onChange={set("gender_own")}
@@ -1692,7 +1692,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           Email for signing in (optional)
           <input
             type="email"
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             placeholder="name@gmail.com"
             value={form.email}
             onChange={set("email")}
@@ -1708,7 +1708,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
         <label className="block text-xs font-semibold sm:col-span-2">
           Notes (optional)
           <textarea
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             rows={2}
             placeholder="Seat preferences, dietary needs, anything worth remembering when booking."
             value={form.notes}
@@ -1752,7 +1752,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           <label className="block text-xs font-semibold">
             Cell phone provider (optional)
             <input
-              className="field mt-1 text-sm"
+              className="field mt-1 text-base"
               placeholder="Verizon"
               value={form.phone_carrier}
               onChange={set("phone_carrier")}
@@ -1762,7 +1762,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           <label className="block text-xs font-semibold">
             Phone or device (optional)
             <input
-              className="field mt-1 text-sm"
+              className="field mt-1 text-base"
               placeholder="iPhone 15 Pro"
               value={form.phone_device}
               onChange={set("phone_device")}
@@ -1801,7 +1801,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           <label className="mt-2 block text-xs font-semibold">
             Anything else about getting around (optional)
             <textarea
-              className="field mt-1 text-sm"
+              className="field mt-1 text-base"
               rows={2}
               placeholder="Cannot manage long stairs; needs a seat near the front on tours."
               value={form.accessibility_notes}
@@ -1813,7 +1813,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
         <label className="block text-xs font-semibold">
           Languages spoken (optional)
           <input
-            className="field mt-1 text-sm"
+            className="field mt-1 text-base"
             placeholder="English, Spanish"
             value={form.languages}
             onChange={set("languages")}

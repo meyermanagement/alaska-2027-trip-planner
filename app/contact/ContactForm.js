@@ -236,7 +236,7 @@ export default function ContactForm({ defaultEmail = "" }) {
                 >
                   ×
                 </button>
-                <p className="truncate px-1.5 py-1 text-[0.68rem] text-ink-soft">
+                <p className="truncate px-1.5 py-1 text-2xs text-ink-soft">
                   {s.file.name || "Screenshot"}
                 </p>
               </li>

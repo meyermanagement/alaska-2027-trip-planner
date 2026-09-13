@@ -381,7 +381,7 @@ export default function RewardsBoard({
                 key={spend.key}
                 className="rounded-xl border border-[var(--line)] bg-white/70 px-4 py-3"
               >
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
                   {spend.label}
                 </p>
                 <ul className="mt-1.5 space-y-1.5">
@@ -684,7 +684,7 @@ export default function RewardsBoard({
                         </p>
                       ) : null}
                       {row.points_checked_on && (
-                        <p className="text-[0.68rem] text-ink-faint">
+                        <p className="text-2xs text-ink-faint">
                           checked {row.points_checked_on}
                         </p>
                       )}
@@ -696,7 +696,7 @@ export default function RewardsBoard({
                       {rules.map((rule, i) => (
                         <span
                           key={i}
-                          className="rounded-full border border-[var(--line)] bg-white/70 px-2.5 py-1 text-[0.7rem] font-medium text-ink-soft"
+                          className="rounded-full border border-[var(--line)] bg-white/70 px-2.5 py-1 text-xs font-medium text-ink-soft"
                         >
                           {formatRule(rule)}
                         </span>
@@ -706,7 +706,7 @@ export default function RewardsBoard({
 
                   {credits.length > 0 && (
                     <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/60 px-3 py-2">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                      <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
                         Statement credits
                       </p>
                       <ul className="mt-1 space-y-0.5">

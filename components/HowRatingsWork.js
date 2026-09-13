@@ -37,7 +37,7 @@ export default function HowRatingsWork({
         className={`flex w-full items-center ${headerJustify} text-left`}
       >
         <span
-          className={`section-label text-amber ${compact ? "text-[0.72rem]" : ""}`}
+          className={`section-label text-amber ${compact ? "text-xs" : ""}`}
         >
           How ratings work
         </span>

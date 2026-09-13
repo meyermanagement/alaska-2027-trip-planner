@@ -30,7 +30,7 @@ export default async function SettingsPage() {
   const [{ data: profile }, { data: mine }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("display_name, skin")
+      .select("display_name, skin, text_size")
       .eq("id", user.id)
       .maybeSingle(),
     // Their traveler row, if the seat has been claimed, only to say what name
@@ -50,6 +50,7 @@ export default async function SettingsPage() {
       email={user.email}
       displayName={profile?.display_name}
       skin={profile?.skin}
+      textSize={profile?.text_size}
       mine={mine}
     />
   );

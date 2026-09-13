@@ -34,7 +34,7 @@ export default function InboxAddressChip({ address, note }) {
       <button
         type="button"
         onClick={onCopy}
-        className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full bg-sand px-2.5 py-1 text-left font-mono text-[0.72rem] text-ink transition hover:bg-sand-deep"
+        className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full bg-sand px-2.5 py-1 text-left font-mono text-xs text-ink transition hover:bg-sand-deep"
         aria-label={`Copy ${address} to clipboard`}
       >
         {/* A monospaced address plus the word Copy is wider than the column
@@ -44,7 +44,7 @@ export default function InboxAddressChip({ address, note }) {
         <span className="break-all">{address}</span>
         <span
           aria-hidden="true"
-          className="text-[0.65rem] uppercase tracking-[0.08em] text-ink-faint"
+          className="text-2xs uppercase tracking-[0.08em] text-ink-faint"
         >
           {copied ? "Copied" : "Copy"}
         </span>

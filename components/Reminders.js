@@ -213,7 +213,7 @@ export default function Reminders({
         {groups.map(([bucket, list]) => (
           <div key={bucket.id} className="card overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
-              <h2 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
                 {bucket.label}
               </h2>
               <span className="text-xs font-semibold text-ink-soft">
@@ -294,7 +294,7 @@ export default function Reminders({
                               ? setEditingId(null)
                               : startEdit(row.task)
                           }
-                          className="rounded-lg px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-ink-faint transition hover:bg-sand hover:text-teal"
+                          className="rounded-lg px-2 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint transition hover:bg-sand hover:text-teal"
                           aria-expanded={editingId === row.task.id}
                         >
                           {editingId === row.task.id ? "Close" : "Edit"}

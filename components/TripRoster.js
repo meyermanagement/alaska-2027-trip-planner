@@ -205,7 +205,7 @@ export default function TripRoster({
           {/* On a draft the roster is usually empty, and saying so is more use
               than a row of untouched names with no explanation. */}
           {draft && !readOnly && goingNames.length === 0 && (
-            <p className="mt-1.5 text-[0.82rem] text-ink-soft">
+            <p className="mt-1.5 text-sm text-ink-soft">
               Nobody is on it yet. Tap whoever is coming — it can change as
               often as the plan does, and nothing is packed for a draft either
               way.
@@ -214,7 +214,7 @@ export default function TripRoster({
           {rosterNote && (
             <p
               aria-live="polite"
-              className="no-print mt-1.5 text-[0.82rem] text-ink-soft"
+              className="no-print mt-1.5 text-sm text-ink-soft"
             >
               {rosterNote}
             </p>
@@ -265,7 +265,7 @@ export default function TripRoster({
                     </span>
                   ) : (
                     <select
-                      className="field py-1 text-xs"
+                      className="field py-1 text-base"
                       style={{ width: "auto", maxWidth: "100%" }}
                       value={arrangement}
                       disabled={petBusy === pet.id}
@@ -295,7 +295,7 @@ export default function TripRoster({
               being worked out with a dog and a horse on it needs to know which
               is which, because the answer changes what has to be arranged. */}
           {draft && petsOnTrip.length === 0 && !readOnly && (
-            <p className="mt-1.5 text-[0.82rem] text-ink-soft">
+            <p className="mt-1.5 text-sm text-ink-soft">
               {pets.length === 1
                 ? `Say whether ${pets[0].name} is coming, boarding or staying home — the ${speciesLabel(pets[0].species).toLowerCase()} is usually the part of a plan that has to be settled first.`
                 : "Say what happens to each of them — boarding and sitters are usually the part of a plan that has to be settled first."}
@@ -304,7 +304,7 @@ export default function TripRoster({
           {petNote && (
             <p
               aria-live="polite"
-              className="no-print mt-1.5 text-[0.82rem] text-ink-soft"
+              className="no-print mt-1.5 text-sm text-ink-soft"
             >
               {petNote}
             </p>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { SKIN_COOKIE } from "@/lib/skins";
+import { TEXT_COOKIE } from "@/lib/textsize";
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -14,5 +15,7 @@ export async function POST(request) {
   // not, because it is there. Cleared here, so the login page is the app's own
   // colors and the next person's own skin arrives with their first page.
   response.cookies.set(SKIN_COOKIE, "", { maxAge: 0, path: "/" });
+  // And the size the last person chose, for the same reason.
+  response.cookies.set(TEXT_COOKIE, "", { maxAge: 0, path: "/" });
   return response;
 }

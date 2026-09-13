@@ -60,7 +60,7 @@ export default function RichText({ text }) {
             // it opens the reply.
             <h4
               key={i}
-              className="mt-3 text-[0.9375rem] font-semibold leading-snug text-ink first:mt-0"
+              className="mt-3 text-base font-semibold leading-snug text-ink first:mt-0"
             >
               <Spans spans={b.spans} />
             </h4>

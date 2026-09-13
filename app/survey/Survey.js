@@ -312,7 +312,7 @@ function Scale({ question, value, onChange }) {
           </button>
         )}
       </div>
-      <div className="mt-1.5 flex max-w-[17rem] justify-between text-[0.7rem] text-ink-soft">
+      <div className="mt-1.5 flex max-w-[17rem] justify-between text-xs text-ink-soft">
         <span>{question.low}</span>
         <span>{question.high}</span>
       </div>
@@ -367,7 +367,7 @@ function Money({ value, onChange, prompt }) {
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
         placeholder="12, 10-15, or nothing"
-        className="field text-sm"
+        className="field text-base"
       />
     </label>
   );
@@ -381,7 +381,7 @@ function Words({ value, onChange, prompt }) {
         rows={3}
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
-        className="field text-sm leading-relaxed"
+        className="field text-base leading-relaxed"
       />
     </label>
   );

@@ -94,7 +94,7 @@ function Spread({ spread, answered }) {
                 style={{ height: `${count ? Math.max(share * 100, 8) : 0}%` }}
               />
             </div>
-            <p className="tabular mt-0.5 text-center text-[0.65rem] text-ink-soft">
+            <p className="tabular mt-0.5 text-center text-2xs text-ink-soft">
               {index + 1}
             </p>
           </div>
@@ -116,7 +116,7 @@ function ByTraveler({ parts }) {
   const said = parts.filter((part) => part.value !== null);
   if (said.length < 2) return null;
   return (
-    <p className="mt-1.5 text-[0.7rem] leading-relaxed text-ink-soft">
+    <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
       {said.map((part, index) => (
         <span key={part.label}>
           {index ? " · " : ""}
@@ -145,7 +145,7 @@ function ScaleRow({ question, sheets, segments }) {
   return (
     <div className="border-t border-[var(--line)] pt-3 first:border-0 first:pt-0">
       <p className="text-sm font-medium text-ink">{question.prompt}</p>
-      <p className="mt-1 text-[0.78rem] text-ink-soft">
+      <p className="mt-1 text-xs text-ink-soft">
         {answered ? (
           <>
             <span className="tabular font-semibold text-ink">{average}</span> of
@@ -162,7 +162,7 @@ function ScaleRow({ question, sheets, segments }) {
       </p>
       {answered ? <Spread spread={spread} answered={answered} /> : null}
       {answered ? <ByTraveler parts={parts} /> : null}
-      <p className="mt-1 text-[0.65rem] text-ink-soft">
+      <p className="mt-1 text-2xs text-ink-soft">
         1 {question.low} · 5 {question.high}
       </p>
     </div>
@@ -186,7 +186,7 @@ function ChoiceRow({ question, sheets }) {
             .filter((one) => one.count)
             .sort((a, b) => b.count - a.count)
             .map(({ option, count }) => (
-              <li key={option} className="flex gap-2 text-[0.78rem]">
+              <li key={option} className="flex gap-2 text-xs">
                 <span className="tabular w-6 shrink-0 font-semibold text-ink">
                   {count}
                 </span>
@@ -195,7 +195,7 @@ function ChoiceRow({ question, sheets }) {
             ))}
         </ul>
       ) : (
-        <p className="mt-1 text-[0.78rem] text-ink-soft">
+        <p className="mt-1 text-xs text-ink-soft">
           Nobody has answered this yet.
         </p>
       )}
@@ -233,7 +233,7 @@ function MoneyRow({ question, sheets, segments }) {
   return (
     <div className="border-t border-[var(--line)] pt-3 first:border-0 first:pt-0">
       <p className="text-sm font-medium text-ink">{question.prompt}</p>
-      <p className="mt-1 text-[0.78rem] text-ink-soft">
+      <p className="mt-1 text-xs text-ink-soft">
         {said.length ? (
           middle === null ? (
             `${said.length} ${said.length === 1 ? "answer" : "answers"}, none of them a number.`
@@ -255,7 +255,7 @@ function MoneyRow({ question, sheets, segments }) {
       {said.length ? (
         <ul className="mt-1.5 space-y-1">
           {said.map((one) => (
-            <li key={one.email} className="text-[0.78rem] text-ink-soft">
+            <li key={one.email} className="text-xs text-ink-soft">
               <span className="text-ink">{one.words}</span>
               {" · "}
               {one.email}
@@ -281,15 +281,15 @@ function TextRow({ question, sheets }) {
         <ul className="mt-2 space-y-2.5">
           {said.map((one) => (
             <li key={one.email}>
-              <p className="whitespace-pre-line text-[0.85rem] leading-relaxed text-ink">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-ink">
                 {one.words}
               </p>
-              <p className="mt-0.5 text-[0.7rem] text-ink-soft">{one.email}</p>
+              <p className="mt-0.5 text-xs text-ink-soft">{one.email}</p>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-1 text-[0.78rem] text-ink-soft">
+        <p className="mt-1 text-xs text-ink-soft">
           Nobody has written anything here yet.
         </p>
       )}
@@ -314,7 +314,7 @@ export default function SurveySheets({ sheets = [], keyMissing = false }) {
 
   return (
     <main className="screen px-5 pb-16 pt-7">
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.09em] text-ink-soft">
+      <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-soft">
         <a href="/admin" className="hover:text-teal">
           Beta desk
         </a>
@@ -367,9 +367,9 @@ export default function SurveySheets({ sheets = [], keyMissing = false }) {
                       {sheet.email}
                     </p>
                     {tag ? (
-                      <p className="mt-0.5 text-[0.78rem] text-teal">{tag}</p>
+                      <p className="mt-0.5 text-xs text-teal">{tag}</p>
                     ) : null}
-                    <p className="mt-0.5 text-[0.78rem] text-ink-soft">
+                    <p className="mt-0.5 text-xs text-ink-soft">
                       <span className="tabular">
                         {answered} of {SURVEY_TOTAL}
                       </span>{" "}

@@ -73,21 +73,21 @@ export default function ClearedTips() {
         if (isOpen && rows === null && !busy) load();
       }}
     >
-      <summary className="cursor-pointer list-none text-[0.72rem] font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
+      <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
         {open ? "Hide" : "Show"} tips you have cleared
       </summary>
 
       <div className="mt-4">
         {problem ? (
-          <p role="alert" className="text-[0.82rem] text-rose">
+          <p role="alert" className="text-sm text-rose">
             {problem}
           </p>
         ) : null}
         {busy && rows === null ? (
-          <p className="text-[0.84rem] text-ink-soft">Fetching…</p>
+          <p className="text-sm text-ink-soft">Fetching…</p>
         ) : null}
         {rows && !rows.length ? (
-          <p className="text-[0.84rem] leading-relaxed text-ink-soft">
+          <p className="text-sm leading-relaxed text-ink-soft">
             Nothing cleared yet. Anything you clear ends up here, in case it
             stops being wrong, and can be brought back.
           </p>
@@ -106,26 +106,26 @@ export default function ClearedTips() {
                   {WALLET_SCOPES.includes(tip.scope) ? (
                     <Link
                       href="/wallet"
-                      className="text-[0.78rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                      className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                     >
                       {tip.about || "Wallet"}
                     </Link>
                   ) : tip.trips?.slug || tip.trips?.public_id ? (
                     <Link
                       href={tripPath(tip.trips)}
-                      className="text-[0.76rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                      className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                     >
                       {tip.trips.name}
                     </Link>
                   ) : null}
                 </div>
-                <p className="mt-1 text-[0.86rem] leading-relaxed text-ink-faint">
+                <p className="mt-1 text-sm leading-relaxed text-ink-faint">
                   {tip.body}
                 </p>
                 <button
                   type="button"
                   onClick={() => restore(tip)}
-                  className="btn btn-ghost mt-3 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
+                  className="btn btn-ghost mt-3 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.06em]"
                 >
                   Bring it back
                 </button>

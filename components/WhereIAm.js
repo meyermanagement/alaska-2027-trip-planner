@@ -246,7 +246,7 @@ export default function WhereIAm({ here, onChange }) {
             onChange={(e) => setText(e.target.value)}
             placeholder="Skagway, or Mambo Beach"
             aria-label="Where you are right now"
-            className="field h-9 flex-1 py-1 text-xs"
+            className="field h-9 flex-1 py-1 text-base"
           />
           <button
             type="submit"

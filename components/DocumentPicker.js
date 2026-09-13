@@ -97,7 +97,7 @@ export default function DocumentPicker({
           type="file"
           accept={ACCEPT_ATTR}
           onChange={pick}
-          className="mt-1 block w-full text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-teal file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-on-accent hover:file:bg-teal/90"
+          className="mt-1 block w-full text-base text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-teal file:px-3 file:py-1.5 file:text-base file:font-semibold file:text-on-accent hover:file:bg-teal/90"
         />
       </label>
       <p className="text-[11px] leading-snug text-ink-soft">
@@ -165,7 +165,7 @@ export default function DocumentPicker({
         </p>
       )}
 
-      <p className="text-[0.7rem] text-ink-soft">
+      <p className="text-xs text-ink-soft">
         Photos or PDFs up to 25 MB. Only your family can open what you upload.
       </p>
     </div>

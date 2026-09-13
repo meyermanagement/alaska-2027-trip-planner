@@ -560,7 +560,7 @@ export default function Templates({
                 <button
                   type="button"
                   onClick={() => setFind("")}
-                  className="absolute inset-y-0 right-2 my-auto h-6 rounded-md px-2 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-soft hover:bg-sand hover:text-ink"
+                  className="absolute inset-y-0 right-2 my-auto h-6 rounded-md px-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft hover:bg-sand hover:text-ink"
                 >
                   Clear
                 </button>
@@ -631,7 +631,7 @@ export default function Templates({
                 ? `Nothing on this template looks like “${find}”.`
                 : `Nothing under ${onlyCategory}.`}
             </p>
-            <p className="mt-1 text-[0.8rem] text-ink-soft">
+            <p className="mt-1 text-sm text-ink-soft">
               {mine.length} {mine.length === 1 ? "item" : "items"} on the list,
               hidden by what is set above.
             </p>
@@ -697,7 +697,7 @@ export default function Templates({
               section.groups.map(([category, rows]) => (
                 <div key={category}>
                   <div className="flex items-center gap-x-3 bg-white px-4 pb-1 pt-3">
-                    <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
                       {category}
                     </h3>
                     {/* The same small word that edits a row, on the heading of
@@ -743,7 +743,7 @@ export default function Templates({
                             />
                             <div className="grid gap-2 sm:grid-cols-3">
                               <label className="block">
-                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                                <span className="mb-1 block text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
                                   Category
                                 </span>
                                 <input
@@ -760,7 +760,7 @@ export default function Templates({
                                 />
                               </label>
                               <label className="block">
-                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                                <span className="mb-1 block text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
                                   Who packs it
                                 </span>
                                 <select
@@ -781,7 +781,7 @@ export default function Templates({
                                 </select>
                               </label>
                               <label className="block">
-                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                                <span className="mb-1 block text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
                                   Quantity
                                 </span>
                                 <input

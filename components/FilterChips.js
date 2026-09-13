@@ -16,7 +16,7 @@
 export default function FilterChips({ legend, options, value, onChange }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+      <span className="mr-1 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
         {legend}
       </span>
       {options.map((option) => {
@@ -27,7 +27,7 @@ export default function FilterChips({ legend, options, value, onChange }) {
             type="button"
             aria-pressed={active}
             onClick={() => onChange(option.id)}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] transition ${
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] transition ${
               active
                 ? "border-teal/80 bg-teal text-on-accent"
                 : "border-[var(--line)] bg-white/70 text-ink-soft hover:border-teal/30 hover:text-teal"

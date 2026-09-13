@@ -330,7 +330,7 @@ export default function ProTips({
       className={compact ? "mt-3 mb-3" : "card mb-5 p-5"}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-[0.7rem] font-bold uppercase tracking-[0.09em] text-ink-soft">
+        <h3 className="text-xs font-bold uppercase tracking-[0.09em] text-ink-soft">
           {heading}
           {shown.length > 1 ? ` · ${shown.length}` : ""}
         </h3>
@@ -374,7 +374,7 @@ export default function ProTips({
       </div>
 
       {problem ? (
-        <p role="alert" className="mb-2 text-[0.82rem] text-rose">
+        <p role="alert" className="mb-2 text-sm text-rose">
           {problem}
         </p>
       ) : null}
@@ -382,7 +382,7 @@ export default function ProTips({
         <div className="mb-3">
           <p
             aria-live="polite"
-            className="flex items-center gap-2 text-[0.82rem] text-ink-soft"
+            className="flex items-center gap-2 text-sm text-ink-soft"
           >
             <Spinner className="h-4 w-4 shrink-0 text-teal" />
             <span>
@@ -413,7 +413,7 @@ export default function ProTips({
         </div>
       ) : note ? (
         <div className="mb-2">
-          <p aria-live="polite" className="text-[0.82rem] text-ink-soft">
+          <p aria-live="polite" className="text-sm text-ink-soft">
             {note}
           </p>
           {/* Directly under the sentence that names them, and directly under the
@@ -427,7 +427,7 @@ export default function ProTips({
                   key={place.tab}
                   type="button"
                   onClick={() => onGo(place.tab)}
-                  className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+                  className="btn btn-ghost px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em]"
                 >
                   {`Open ${place.label.replace(/^the /, "")}`}
                 </button>
@@ -450,7 +450,7 @@ export default function ProTips({
           ))}
         </ul>
       ) : (
-        <p className="text-[0.86rem] leading-relaxed text-ink-soft">
+        <p className="text-sm leading-relaxed text-ink-soft">
           {looked ? emptyLooked : emptyFresh}
         </p>
       )}
@@ -527,16 +527,16 @@ function TipCard({ tip, today, onResolve, onTask }) {
       </button>
 
       <div className={open ? "px-4 pb-4" : "hidden px-4 pb-4 print:block"}>
-        <p className="text-[0.9rem] leading-relaxed text-ink-soft">
+        <p className="text-base leading-relaxed text-ink-soft">
           {tip.body}
         </p>
         {tip.because ? (
-          <p className="mt-2 border-l-2 border-teal/30 pl-3 text-[0.8rem] leading-relaxed text-ink-faint">
+          <p className="mt-2 border-l-2 border-teal/30 pl-3 text-sm leading-relaxed text-ink-faint">
             Why you: {tip.because}
           </p>
         ) : null}
         {sources.length ? (
-          <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.75rem]">
+          <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
             {sources.map((source) => (
               <a
                 key={source.url}
@@ -556,7 +556,7 @@ function TipCard({ tip, today, onResolve, onTask }) {
               <button
                 type="button"
                 onClick={() => onTask(tip)}
-                className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+                className="btn btn-ghost px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em]"
               >
                 Remind me
               </button>
@@ -565,7 +565,7 @@ function TipCard({ tip, today, onResolve, onTask }) {
               <button
                 type="button"
                 onClick={() => onResolve(tip, "cleared")}
-                className="btn btn-ghost px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em]"
+                className="btn btn-ghost px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em]"
               >
                 Clear
               </button>

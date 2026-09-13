@@ -38,7 +38,7 @@ export default function InterviewLauncher({ progress }) {
         any of its own width. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal">
+          <p className="text-2xs font-semibold uppercase tracking-[0.09em] text-teal">
             What I still want to ask
           </p>
           <p className="mt-1 font-display text-lg text-ink">

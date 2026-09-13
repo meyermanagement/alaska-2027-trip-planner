@@ -99,7 +99,7 @@ export default function LastMinuteTasks({
                   {task.title}
                   {task.assignee && (
                     <span
-                      className={`ml-2 whitespace-nowrap rounded-full px-1.5 py-0.5 align-middle text-[0.7rem] ${assigneeColor(
+                      className={`ml-2 whitespace-nowrap rounded-full px-1.5 py-0.5 align-middle text-xs ${assigneeColor(
                         task.assignee,
                       )}`}
                     >

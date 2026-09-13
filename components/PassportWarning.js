@@ -43,9 +43,9 @@ export default function PassportWarning({ warnings = [], compact = true }) {
           {lead.map((warning) => (
             <li
               key={warning.tripId}
-              className="text-[0.92rem] leading-snug sm:flex sm:items-baseline sm:gap-2"
+              className="text-base leading-snug sm:flex sm:items-baseline sm:gap-2"
             >
-              <span className="mr-2 whitespace-nowrap text-[0.68rem] font-bold uppercase tracking-[0.09em] opacity-90">
+              <span className="mr-2 whitespace-nowrap text-2xs font-bold uppercase tracking-[0.09em] opacity-90">
                 {warning.severity === "expired"
                   ? "Expires too soon"
                   : warning.severity === "short"
@@ -56,7 +56,7 @@ export default function PassportWarning({ warnings = [], compact = true }) {
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-[0.82rem]">
+        <p className="mt-2 text-sm">
           {rest > 0 ? (
             <span className="mr-2 opacity-90">
               And {rest} more {rest === 1 ? "trip" : "trips"}.
@@ -91,7 +91,7 @@ export function PassportWarningPanel({ warnings = [] }) {
           key={warning.tripId}
           className="rounded-2xl border border-rose/40 bg-rose/8 p-5"
         >
-          <p className="text-[0.7rem] font-bold uppercase tracking-[0.09em] text-rose">
+          <p className="text-xs font-bold uppercase tracking-[0.09em] text-rose">
             {warning.tripName}
           </p>
           <h3 className="mt-1 font-display text-lg font-semibold leading-snug text-ink">
@@ -126,7 +126,7 @@ export function PassportWarningPanel({ warnings = [] }) {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[0.82rem] leading-relaxed text-ink-soft">
+          <p className="mt-3 text-sm leading-relaxed text-ink-soft">
             Renewals are quoted in weeks rather than days, and the six-month
             window is checked by the airline at check-in as well as at the
             border, so it is worth doing long before it feels urgent.

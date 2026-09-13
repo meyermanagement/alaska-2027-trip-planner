@@ -50,7 +50,7 @@ export default function InboxBanner({ count = 0 }) {
           <rect x="3" y="5" width="18" height="14" rx="2.5" />
           <path d="M3.5 7.5l8.5 6 8.5-6" />
         </svg>
-        <p className="min-w-0 flex-1 truncate text-[0.9rem] leading-snug">
+        <p className="min-w-0 flex-1 truncate text-base leading-snug">
           <span className="font-semibold">
             {count} {noun}
           </span>{" "}

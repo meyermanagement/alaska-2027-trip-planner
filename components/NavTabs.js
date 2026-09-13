@@ -618,13 +618,13 @@ export default function NavTabs({
           {trip.cover_emoji || "🧭"}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="arc-hero-when block text-[0.58rem] font-bold uppercase tracking-[0.12em]">
+          <span className="arc-hero-when block text-2xs font-bold uppercase tracking-[0.12em]">
             {where ? "Happening now" : "Next trip"}
           </span>
-          <span className="block truncate font-display text-[0.95rem] font-semibold leading-tight">
+          <span className="block truncate font-display text-base font-semibold leading-tight">
             {trip.name}
           </span>
-          <span className="arc-sub block truncate text-[0.72rem] leading-tight">
+          <span className="arc-sub block truncate text-xs leading-tight">
             {where
               ? `Day ${where.day} of ${where.of} · back to today`
               : [soon, formatRange(trip.start_date, lastDayOf(trip))]
@@ -1091,10 +1091,10 @@ export default function NavTabs({
                         )}
                       </span>
                       <span className="min-w-0">
-                        <span className="arc-label block truncate font-display text-[0.95rem] font-semibold leading-tight">
+                        <span className="arc-label block truncate font-display text-base font-semibold leading-tight">
                           {row.label}
                         </span>
-                        <span className="arc-sub block truncate text-[0.72rem] leading-tight">
+                        <span className="arc-sub block truncate text-xs leading-tight">
                           {row.sub}
                         </span>
                       </span>
@@ -1106,7 +1106,7 @@ export default function NavTabs({
                     say so, in one small line the same width as the pills, so
                     the field they typed into does not look broken. */}
                 {filterReady && rows.length === 0 && !hero && (
-                  <p className="px-1 py-2 text-[0.78rem] text-ink/60">
+                  <p className="px-1 py-2 text-xs text-ink/60">
                     Nothing in the menu matches
                     {" \u201C"}
                     {query.trim()}
@@ -1160,7 +1160,7 @@ export default function NavTabs({
           <div
             className={`pointer-events-auto relative flex items-center transition-[background-color,border-color,box-shadow,padding,gap] duration-200 ${
               open
-                ? "h-14 flex-1 gap-1 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face-open)] pr-3 shadow-[var(--disc-shadow)]"
+                ? "h-14 min-w-0 flex-1 gap-1 rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face-open)] pr-3 shadow-[var(--disc-shadow)]"
                 : "h-14 w-14"
             }`}
           >
@@ -1229,7 +1229,7 @@ export default function NavTabs({
                 the compass would put the badge on top of the search
                 field. */}
               {attention > 0 && !isActive("/reminders") && !open && (
-                <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-[0.62rem] font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
+                <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-2xs font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
                   {attention}
                   <span className="sr-only"> reminders needing attention</span>
                 </span>
@@ -1256,7 +1256,7 @@ export default function NavTabs({
                   }}
                   placeholder="What would you like to do?"
                   aria-label="Filter the menu"
-                  className="ml-1 min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink/50 focus:outline-none"
+                  className="ml-1 min-w-0 flex-1 bg-transparent text-base text-ink placeholder:text-ink/50 focus:outline-none"
                 />
                 {query && (
                   <button

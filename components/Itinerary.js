@@ -451,7 +451,7 @@ function ClosedRow({
         {rateable &&
           (readOnly ? (
             <span
-              className="tabular ml-auto shrink-0 pb-2 pl-3 text-[0.78rem] leading-none sm:pb-0 sm:pl-0"
+              className="tabular ml-auto shrink-0 pb-2 pl-3 text-xs leading-none sm:pb-0 sm:pl-0"
               aria-label={stars ? `Rated ${stars} out of 5` : "Not rated"}
             >
               <span className="text-amber" aria-hidden="true">
@@ -474,7 +474,7 @@ function ClosedRow({
                   disabled={saving}
                   aria-label={`${n} star${n === 1 ? "" : "s"}`}
                   aria-pressed={stars === n}
-                  className="-my-1 px-px py-1.5 text-[0.95rem] leading-none transition disabled:opacity-50"
+                  className="-my-1 px-px py-1.5 text-base leading-none transition disabled:opacity-50"
                 >
                   <span
                     className={n <= stars ? "text-amber" : "text-sand-deep"}
@@ -512,7 +512,7 @@ function ClosedRow({
       {noteOpen && (
         <form onSubmit={submit} className="space-y-2 px-3 pb-3 pt-1">
           <textarea
-            className="field text-sm"
+            className="field text-base"
             rows={2}
             autoFocus
             value={draft}
@@ -610,7 +610,7 @@ function ReviewRow({ item, target, busy, onSave }) {
       {open ? (
         <form onSubmit={submit} className="mt-2 space-y-2">
           <textarea
-            className="field text-sm"
+            className="field text-base"
             rows={2}
             autoFocus
             value={draft}
@@ -1422,7 +1422,7 @@ export default function Itinerary({
             type="button"
             onClick={makeAllBookingTasks}
             disabled={taskBusyId === "all"}
-            className="btn btn-ghost text-[0.8rem]"
+            className="btn btn-ghost text-sm"
           >
             {taskBusyId === "all"
               ? "Adding…"
@@ -1561,18 +1561,18 @@ export default function Itinerary({
               role="tabpanel"
             >
               <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <h3 className="text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
                   {date === UNSCHEDULED ? "Not scheduled yet" : formatDay(date)}
                 </h3>
                 {date !== UNSCHEDULED && dayKeys.length > 1 && (
-                  <span className="text-[0.72rem] text-ink-faint">
+                  <span className="text-xs text-ink-faint">
                     Day {i + 1} of {dayKeys.length}
                   </span>
                 )}
                 {/* Said in words as well as in the ring below, because the ring
                     is invisible to a screen reader and to anybody skimming. */}
                 {date === today && plan.past > 0 && plan.ahead > 0 && (
-                  <span className="text-[0.72rem] text-ink-faint">
+                  <span className="text-xs text-ink-faint">
                     {plan.ahead} still to come
                   </span>
                 )}
@@ -1660,7 +1660,7 @@ export default function Itinerary({
                             </span>
                           )}
                           {href && (
-                            <span className="ml-auto shrink-0 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-teal/80">
+                            <span className="ml-auto shrink-0 text-xs font-semibold uppercase tracking-[0.06em] text-teal/80">
                               Directions
                             </span>
                           )}
@@ -1723,7 +1723,7 @@ export default function Itinerary({
                         onSubmit={saveEdit}
                         className="card space-y-3 border-teal/40 p-4 ring-1 ring-teal/30"
                       >
-                        <p className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
+                        <p className="tabular text-sm font-semibold tracking-[0.01em] text-teal">
                           Editing this item
                         </p>
                         <ItemFields
@@ -1798,7 +1798,7 @@ export default function Itinerary({
                             {CATEGORY_ICONS[item.category]}
                           </span>
                           {item.start_time && (
-                            <span className="tabular shrink-0 text-[0.78rem] font-semibold tracking-[0.01em]">
+                            <span className="tabular shrink-0 text-xs font-semibold tracking-[0.01em]">
                               {formatTime(item.start_time)}
                             </span>
                           )}
@@ -1806,7 +1806,7 @@ export default function Itinerary({
                             {item.title}
                           </span>
                           {item.status === "cancelled" && (
-                            <span className="shrink-0 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-rose/80">
+                            <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.06em] text-rose/80">
                               Cancelled
                             </span>
                           )}
@@ -1860,7 +1860,7 @@ export default function Itinerary({
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 {item.start_time && (
-                                  <span className="tabular text-[0.8rem] font-semibold tracking-[0.01em] text-teal">
+                                  <span className="tabular text-sm font-semibold tracking-[0.01em] text-teal">
                                     {formatTime(item.start_time)}
                                   </span>
                                 )}
@@ -1929,7 +1929,7 @@ export default function Itinerary({
                                 )}
                               {item.status === "needs_booking" &&
                                 (taskByItem.has(item.id) ? (
-                                  <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-[0.78rem] text-ink-soft">
+                                  <p className="no-print mt-2 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
                                     <span aria-hidden="true">✓</span>
                                     {taskByItem.get(item.id).is_done
                                       ? "Booking reminder is done"
@@ -1947,7 +1947,7 @@ export default function Itinerary({
                                     type="button"
                                     onClick={() => makeBookingTask(item)}
                                     disabled={taskBusyId === item.id}
-                                    className="no-print mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-[0.72rem] font-semibold text-amber hover:border-amber hover:bg-amber/15 disabled:opacity-60"
+                                    className="no-print mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-xs font-semibold text-amber hover:border-amber hover:bg-amber/15 disabled:opacity-60"
                                   >
                                     {taskBusyId === item.id
                                       ? "Adding…"
@@ -1958,7 +1958,7 @@ export default function Itinerary({
                                 {!readOnly && (
                                   <button
                                     onClick={() => startEdit(item)}
-                                    className="rounded-full bg-teal/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
+                                    className="rounded-full bg-teal/10 px-3 py-1 text-2xs font-bold uppercase tracking-wide text-teal hover:bg-teal/20"
                                   >
                                     Edit
                                   </button>
@@ -1983,14 +1983,14 @@ export default function Itinerary({
                                       <button
                                         key={s}
                                         onClick={() => updateStatus(item, s)}
-                                        className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-soft hover:border-teal hover:text-teal"
+                                        className="rounded-full border border-[var(--line)] px-2.5 py-1 text-2xs font-semibold text-ink-soft hover:border-teal hover:text-teal"
                                       >
                                         {STATUS_STYLES[s].label}
                                       </button>
                                     ))}
                                     <button
                                       onClick={() => remove(item)}
-                                      className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-[0.68rem] font-semibold text-rose/80 hover:border-rose/30"
+                                      className="ml-auto rounded-full border border-transparent px-2.5 py-1 text-2xs font-semibold text-rose/80 hover:border-rose/30"
                                     >
                                       Delete
                                     </button>

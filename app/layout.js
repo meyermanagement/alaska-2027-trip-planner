@@ -13,6 +13,11 @@ import {
   SKINS,
   SKIN_COOKIE,
 } from "@/lib/skins";
+import {
+  DEFAULT_TEXT_SIZE,
+  TEXT_COOKIE,
+  TEXT_SIZES,
+} from "@/lib/textsize";
 
 // One editorial serif for names and headings, one quiet sans for everything
 // else. Loaded properly rather than falling back to whatever the device has.
@@ -121,6 +126,13 @@ if(!opened)document.cookie="${BOOT_COOKIE}=1;path=/;samesite=lax";
 // skin is -- the veil is in the first frame of HTML, and a route chosen after
 // hydration would swap the map under a compass already travelling it.
 d.dataset.route=String(1+Math.floor(Math.random()*${ROUTE_COUNT}));
+// How big the words are, read here for the same reason the skin is: the type
+// scale is on <html>, so a size settled after hydration means every word in the
+// app resizing under the reader a moment after it arrived.
+var sizes=${JSON.stringify(TEXT_SIZES.map((size) => size.id))};
+var tm=document.cookie.match(/(?:^|; )${TEXT_COOKIE}=([^;]*)/);
+var ts=tm?decodeURIComponent(tm[1]):"";
+d.dataset.text=sizes.indexOf(ts)>-1?ts:"${DEFAULT_TEXT_SIZE}";
 d.style.colorScheme=bars[id][1]?"dark":"light";
 var paint=function(){var t=document.querySelectorAll('meta[name="theme-color"]');
 // Nothing rendered one, so this is where the tag comes from. Made here in the
@@ -144,6 +156,7 @@ export default function RootLayout({ children }) {
       data-skin={DEFAULT_SKIN}
       data-boot="full"
       data-route="1"
+      data-text={DEFAULT_TEXT_SIZE}
       className={`${displayFace.variable} ${sansFace.variable}`}
       /* The script below rewrites both of these attributes before React ever
          runs, which is the whole point of it -- and React, finding the document

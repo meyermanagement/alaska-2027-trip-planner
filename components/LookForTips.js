@@ -203,14 +203,14 @@ export default function LookForTips({
       {problem ? (
         <p
           role="alert"
-          className="mt-1.5 text-[0.78rem] leading-snug text-rose"
+          className="mt-1.5 text-xs leading-snug text-rose"
         >
           {problem}
         </p>
       ) : busy ? (
         <p
           aria-live="polite"
-          className="mt-1.5 text-[0.78rem] leading-snug text-ink-soft"
+          className="mt-1.5 text-xs leading-snug text-ink-soft"
         >
           {note || "Looking…"}
           {elapsed ? ` \u00b7 ${elapsed}s` : ""}
@@ -218,7 +218,7 @@ export default function LookForTips({
       ) : note ? (
         <p
           aria-live="polite"
-          className="mt-1.5 text-[0.78rem] leading-snug text-ink-soft"
+          className="mt-1.5 text-xs leading-snug text-ink-soft"
         >
           {note}
         </p>
@@ -234,7 +234,7 @@ export default function LookForTips({
               key={place.tab}
               type="button"
               onClick={() => onGo(place.tab)}
-              className="btn btn-ghost px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em]"
+              className="btn btn-ghost px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.06em]"
             >
               {`Open ${place.label.replace(/^the /, "")}`}
             </button>

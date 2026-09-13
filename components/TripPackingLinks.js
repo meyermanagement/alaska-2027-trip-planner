@@ -50,7 +50,7 @@ export default function TripPackingLinks({ trips = [] }) {
                trip's name in it. Nothing forces the name onto one line either:
                a household with a long trip name on a 320px phone should get a
                two-line pill rather than one that runs off the side of the box. */
-            className="rounded-full border border-teal/25 bg-white max-w-full px-3 py-1.5 text-[0.82rem] font-medium transition hover:border-teal hover:text-teal"
+            className="rounded-full border border-teal/25 bg-white max-w-full px-3 py-1.5 text-sm font-medium transition hover:border-teal hover:text-teal"
           >
             {trip.name}
             {trip.total ? (

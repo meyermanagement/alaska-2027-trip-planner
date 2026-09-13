@@ -57,7 +57,7 @@ export function AutoGrowTextarea({ value, onChange, focusRef, ...rest }) {
       }}
       value={value}
       onChange={onChange}
-      className="field w-full min-h-16 overflow-hidden text-sm"
+      className="field w-full min-h-16 overflow-hidden text-base"
       rows={2}
       maxLength={MAX_MOMENT_LENGTH}
       {...rest}

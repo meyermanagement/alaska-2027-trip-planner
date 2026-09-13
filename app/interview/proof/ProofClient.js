@@ -99,7 +99,7 @@ function PlanRows({ rows, fallback, at = 0 }) {
   // wins the cascade over any Tailwind text color, which would quietly render
   // the slot labels in gray however they are classed here.
   const slot =
-    "text-[0.7rem] font-semibold uppercase tracking-[0.09em] text-teal";
+    "text-xs font-semibold uppercase tracking-[0.09em] text-teal";
   return (
     <ol className="space-y-3">
       {rows.map((row, i) => (
@@ -136,7 +136,7 @@ function Extras({ label, rows, note, at = 0 }) {
   return (
     <section className="mt-3 border-t border-teal/30 pt-3">
       <h2
-        className="ma-in text-[0.7rem] font-semibold uppercase tracking-[0.09em] text-teal"
+        className="ma-in text-xs font-semibold uppercase tracking-[0.09em] text-teal"
         style={{ animationDelay: `${at}s` }}
       >
         {label}
@@ -591,7 +591,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               {/* Same cascade trap as the slot labels above: section-label
                   would override the teal, so the label is spelled out. */}
               <p
-                className="ma-in text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-teal"
+                className="ma-in text-2xs font-semibold uppercase tracking-[0.09em] text-teal"
                 style={{ animationDelay: `${BEAT.plan - 0.12}s` }}
               >
                 A day in {data.destination}

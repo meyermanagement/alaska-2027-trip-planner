@@ -196,7 +196,7 @@ export default function PlaceList({ groups, trips }) {
           <label className="ml-auto flex items-center gap-1.5">
             <span className="text-xs font-semibold text-ink-soft">Sort</span>
             <select
-              className="rounded-full border border-[var(--line)] bg-white px-2.5 py-1 text-xs font-semibold text-ink-soft"
+              className="rounded-full border border-[var(--line)] bg-white px-2.5 py-1 text-base font-semibold text-ink-soft"
               value={sort}
               onChange={(e) => setSort(e.target.value)}
             >
@@ -410,7 +410,7 @@ function Place({ item, showTrip, onSave, onSaveDetails }) {
             )}
           </p>
           {showTrip && item.trip && (
-            <p className="mt-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-ink-soft">
+            <p className="mt-1.5 text-xs font-semibold uppercase tracking-[0.04em] text-ink-soft">
               {item.trip.cover_emoji} {item.trip.name}
             </p>
           )}
@@ -456,7 +456,7 @@ function Place({ item, showTrip, onSave, onSaveDetails }) {
       {editing ? (
         <form onSubmit={saveReview} className="no-print mt-2.5 space-y-2">
           <textarea
-            className="field text-sm"
+            className="field text-base"
             rows={2}
             autoFocus
             value={draft}

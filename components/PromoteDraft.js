@@ -501,7 +501,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
                             onClick={() => toggle(t.id)}
                             disabled={working}
                             aria-pressed={on}
-                            className={`inline-block max-w-full rounded-[999px] border px-2.5 py-1 text-left text-[0.675rem] font-semibold uppercase leading-snug tracking-[0.06em] [overflow-wrap:anywhere] ${
+                            className={`inline-block max-w-full rounded-[999px] border px-2.5 py-1 text-left text-2xs font-semibold uppercase leading-snug tracking-[0.06em] [overflow-wrap:anywhere] ${
                               on
                                 ? "border-teal/40 bg-teal/10 font-semibold text-teal"
                                 : "border-[var(--line)] bg-white text-ink-soft"

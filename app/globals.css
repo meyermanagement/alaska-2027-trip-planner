@@ -38,9 +38,58 @@
   --font-sans:
     var(--font-sans-face), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Helvetica, Arial, sans-serif;
+
+  /* The type scale. Every size in the app comes through one of these six names,
+     and each name resolves to a --fs-* variable set further down, which is what
+     makes both the phone-to-desktop step and the reader's own text size setting
+     possible without touching a single class string. The app spent a long time
+     without a body size at all: twelve pixels and fourteen were doing the work
+     of body text in over a thousand places, and sixteen appeared nineteen times
+     by accident. These are the settlement.
+
+     2xs is not body text. It exists for the uppercase eyebrows above a heading
+     and the counts inside a pill, where the words are two or three long and the
+     tracking is doing the reading. Anything a person reads a sentence of starts
+     at xs. */
+  --text-2xs: var(--fs-2xs);
+  --text-2xs--line-height: 1.35;
+  --text-xs: var(--fs-xs);
+  --text-xs--line-height: 1.45;
+  --text-sm: var(--fs-sm);
+  --text-sm--line-height: 1.5;
+  --text-base: var(--fs-base);
+  --text-base--line-height: 1.55;
+  --text-lg: var(--fs-lg);
+  --text-lg--line-height: 1.4;
+  --text-xl: var(--fs-xl);
+  --text-xl--line-height: 1.3;
+  --text-2xl: var(--fs-2xl);
+  --text-2xl--line-height: 1.22;
+  --text-3xl: var(--fs-3xl);
+  --text-3xl--line-height: 1.15;
 }
 
 :root {
+  /* What the six type names above actually measure. Two things move them: the
+     window, which steps every size up once at 768px because a desktop is read
+     from twice the distance a phone is, and --text-scale, which is the reader's
+     own setting and multiplies the lot. Sizes are written in rem so a person who
+     has raised the text size in their browser or on their phone keeps that on
+     top of ours.
+
+     Nothing in the app should set a font size in pixels or in a raw rem again.
+     If a surface needs a size these do not have, the scale is wrong, not the
+     surface. */
+  --text-scale: 1;
+  --fs-2xs: calc(0.75rem * var(--text-scale));
+  --fs-xs: calc(0.8125rem * var(--text-scale));
+  --fs-sm: calc(0.9375rem * var(--text-scale));
+  --fs-base: calc(1rem * var(--text-scale));
+  --fs-lg: calc(1.125rem * var(--text-scale));
+  --fs-xl: calc(1.3rem * var(--text-scale));
+  --fs-2xl: calc(1.6rem * var(--text-scale));
+  --fs-3xl: calc(2rem * var(--text-scale));
+
   color-scheme: light;
 
   /* One hairline and one shadow, used everywhere, so surfaces agree. */
@@ -128,6 +177,43 @@
   --arc-scrim-blur: 5px;
 }
 
+/* One step up for a window big enough to be a desktop or a tablet held in
+   landscape. The break is 768 rather than the 640 Tailwind's sm sits at, because
+   a phone turned sideways is still being read at phone distance. */
+@media (min-width: 768px) {
+  :root {
+    --fs-2xs: calc(0.8125rem * var(--text-scale));
+    --fs-xs: calc(0.875rem * var(--text-scale));
+    --fs-sm: calc(1rem * var(--text-scale));
+    --fs-base: calc(1.0625rem * var(--text-scale));
+    --fs-lg: calc(1.1875rem * var(--text-scale));
+    --fs-xl: calc(1.4rem * var(--text-scale));
+    --fs-2xl: calc(1.75rem * var(--text-scale));
+    --fs-3xl: calc(2.2rem * var(--text-scale));
+  }
+}
+
+/* The reader's own choice of size, and the only thing in the app that touches
+   --text-scale. Three steps rather than a slider: the app is full of rows that
+   hold a time, a title and a pill on one line, and a number somebody can drag
+   is a promise that every one of those rows survives every value of it. These
+   three are measured.
+
+   1.09 and 1.18 rather than 1.1 and 1.2 because they land the phone's body text
+   on 17 and 19 pixels whole. Half a pixel of body text is not a size, it is a
+   blurrier version of the size below it.
+
+   Set on <html> by the script in the root layout before the first paint, from a
+   cookie, exactly the way the skin is -- see lib/textsize.js. A reader who has
+   never chosen gets the block above and no attribute at all. */
+html[data-text="large"] {
+  --text-scale: 1.09;
+}
+
+html[data-text="largest"] {
+  --text-scale: 1.18;
+}
+
 html,
 body {
   /* The five ground layers are further down, in their own body rule. */
@@ -137,8 +223,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The size lives here rather than on html because the app measures itself in
+   rem: the content cap is 60rem and Aly's docked rail is 25rem, and moving the
+   root size would move both of those along with the words. Setting it on the
+   body leaves that arithmetic alone while giving anything with no size class of
+   its own -- and every form field, which inherits -- the same 16 on a phone and
+   17 on a desktop that text-base gets. */
 body {
   font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.55;
   letter-spacing: 0;
 }
 
@@ -388,7 +482,7 @@ html[data-boot="quick"] #boot-veil {
   top: max(1.15rem, env(safe-area-inset-top));
   left: max(1.15rem, env(safe-area-inset-left));
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.26em;
   text-transform: uppercase;
@@ -4346,7 +4440,7 @@ html[data-route="3"] .quick-tall .quick-heading {
      half-second of Georgia standing in for Fraunces on a cold cache. */
   opacity: 0;
   animation: boot-word 0.45s ease 0.34s forwards;
-  font-size: 1.2rem;
+  font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--color-ink);
@@ -4384,7 +4478,7 @@ html[data-route="3"] .quick-tall .quick-heading {
 }
 
 .boot-tag-fixed {
-  font-size: 0.9rem;
+  font-size: var(--fs-base);
   letter-spacing: 0.04em;
   color: var(--color-ink-soft);
 }
@@ -4401,7 +4495,7 @@ html[data-route="3"] .quick-tall .quick-heading {
 .boot-tag-slot span {
   grid-area: word;
   text-align: center;
-  font-size: 1.32rem;
+  font-size: var(--fs-xl);
   font-weight: 600;
   letter-spacing: -0.012em;
   color: var(--color-teal);
@@ -5306,7 +5400,7 @@ button.card:hover {
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, currentColor 16%, transparent);
   padding: 0.16rem 0.55rem;
-  font-size: 0.675rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -5331,14 +5425,14 @@ button.card:hover {
   box-shadow:
     inset 0 1px 0 var(--color-white),
     0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent);
-  font-size: 1.4rem;
+  font-size: var(--fs-xl);
   line-height: 1;
 }
 
 .emoji-badge-lg {
   width: 3.25rem;
   height: 3.25rem;
-  font-size: 1.7rem;
+  font-size: var(--fs-2xl);
 }
 
 /* A zone band: the heading for one region of a long screen.
@@ -5395,7 +5489,7 @@ html[data-skin="sodium"] .zone-kids {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -5474,7 +5568,7 @@ html[data-skin="sodium"] .zone-kids {
 /* How much is in the zone, where a sentence explaining the zone used to be. */
 .zone-band .zb-count {
   flex: 0 0 auto;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--color-ink-soft);
   opacity: 0.7;
 }
@@ -5496,13 +5590,20 @@ html[data-skin="sodium"] .zone-kids {
 }
 
 .section-label {
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--color-ink-soft);
 }
 
+/* Every field in the app inherits the page's type rather than the browser's,
+   which is what this line has always done. The rule worth writing down beside it
+   is the floor: iOS Safari zooms the whole page in when you tap a field whose
+   text is under 16 pixels, and it does not zoom back out, so the reader is left
+   scrolled sideways. Forty-five fields in the app were at fifteen or thirteen
+   pixels and did exactly that. A field never takes text-xs or text-sm -- the
+   smallest a field goes is text-base, which is 16 on a phone. */
 input,
 textarea,
 select {
@@ -5576,7 +5677,7 @@ input[type="month"]::-webkit-date-and-time-value {
   border-radius: 999px;
   padding: 0.55rem 1.05rem;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   letter-spacing: -0.003em;
   transition:
     transform 0.12s ease,
@@ -5597,7 +5698,7 @@ input[type="month"]::-webkit-date-and-time-value {
 
 .btn-sm {
   padding: 0.4rem 0.8rem;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
 }
 
 .btn-sm svg {
@@ -5692,7 +5793,7 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 .day-tile-top,
 .day-tile-foot {
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -5701,7 +5802,7 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 .day-tile-num {
   font-family: var(--font-sans);
-  font-size: 1.6rem;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
   line-height: 1.15;
@@ -5719,7 +5820,7 @@ input[type="month"]::-webkit-date-and-time-value {
   justify-content: center;
 }
 .day-tile-loose {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--color-ink-soft);
   line-height: 1.2;
@@ -5790,7 +5891,7 @@ input[type="month"]::-webkit-date-and-time-value {
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--color-white) 70%, transparent);
   color: var(--color-ink-soft);
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   line-height: 1;
   box-shadow: var(--shadow-card);
 }
@@ -5812,13 +5913,13 @@ input[type="month"]::-webkit-date-and-time-value {
   }
   .day-tile-top,
   .day-tile-foot {
-    font-size: 0.58rem;
+    font-size: var(--fs-2xs);
   }
   .day-tile-num {
-    font-size: 1.15rem;
+    font-size: var(--fs-lg);
   }
   .day-tile-loose {
-    font-size: 0.72rem;
+    font-size: var(--fs-xs);
   }
   .day-tile-dot {
     width: 0.22rem;
@@ -5874,7 +5975,7 @@ input[type="month"]::-webkit-date-and-time-value {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: var(--radius-control);
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
 }
 
 /* ------------------------------------------------------------------ *
@@ -6368,7 +6469,7 @@ input[type="month"]::-webkit-date-and-time-value {
   border: 0;
   background: transparent;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--color-ink-soft);
   padding: 0.55rem 0.8rem;
@@ -6388,7 +6489,7 @@ input[type="month"]::-webkit-date-and-time-value {
   .tab {
     padding-left: 0.55rem;
     padding-right: 0.55rem;
-    font-size: 0.85rem;
+    font-size: var(--fs-sm);
   }
 }
 
@@ -7209,7 +7310,7 @@ html[data-skin="sodium"] .menu-arc {
   border-radius: 999px;
   background: var(--color-rose);
   color: var(--color-on-accent);
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -7279,7 +7380,7 @@ html[data-skin="sodium"] .arc-pill.group.open {
 
 .arc-pill.group .arc-label {
   flex: 1 1 auto;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -7288,7 +7389,7 @@ html[data-skin="sodium"] .arc-pill.group.open {
 
 /* How many screens are behind the band. */
 .arc-count {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: var(--color-ink-soft);
   opacity: 0.7;
 }
@@ -7326,7 +7427,7 @@ html[data-skin="sodium"] .arc-pill.group.open {
   align-self: stretch;
   padding: 0 0.7rem;
   border-left: 1px solid var(--arc-band-edge);
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -7390,7 +7491,7 @@ html[data-skin="sodium"] .arc-pill.group.open {
    hardest one to read and the hardest one to hit -- quiet is the transparent
    face's job, and small is not the same thing as quiet. */
 .arc-pill.group.slim .arc-label {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
 }
 
 .arc-pill.group.slim .arc-chev {
@@ -7435,11 +7536,11 @@ html[data-skin="sodium"] .arc-pill.group.open {
 }
 
 .arc-pill.kid .arc-label {
-  font-size: 0.95rem;
+  font-size: var(--fs-base);
 }
 
 .arc-pill.kid .arc-sub {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
 }
 
 /* The hairline the children hang off. Drawn per row and overlapping, so a group
@@ -7537,7 +7638,7 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   line-height: 1;
   background: color-mix(
     in srgb,

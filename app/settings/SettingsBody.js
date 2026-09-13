@@ -1,6 +1,7 @@
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
 import SkinPicker from "@/components/SkinPicker";
+import TextSizePicker from "@/components/TextSizePicker";
 import { SETTINGS_FOCUS } from "@/lib/agent/context";
 
 /**
@@ -17,7 +18,13 @@ import { SETTINGS_FOCUS } from "@/lib/agent/context";
  * So Settings is the two things it always meant to be: how the app looks, and
  * whose account this is.
  */
-export default function SettingsBody({ email, displayName, skin, mine }) {
+export default function SettingsBody({
+  email,
+  displayName,
+  skin,
+  textSize,
+  mine,
+}) {
   return (
     <>
       <TopBar />
@@ -26,6 +33,8 @@ export default function SettingsBody({ email, displayName, skin, mine }) {
 
         <div className="mt-6 space-y-10">
           <SkinPicker skin={skin} />
+
+          <TextSizePicker size={textSize} />
 
           <section>
             <h2 className="font-display text-xl font-semibold">Signed in</h2>

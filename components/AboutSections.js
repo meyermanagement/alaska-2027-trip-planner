@@ -184,7 +184,7 @@ export default function AboutSections({
               <div>
                 <p
                   aria-hidden="true"
-                  className="text-[0.65rem] font-semibold uppercase tracking-[0.09em] text-ink-faint"
+                  className="text-2xs font-semibold uppercase tracking-[0.09em] text-ink-faint"
                 >
                   {idx + 1} of {ABOUT_ME_MICRO_PROMPTS.length}
                 </p>
@@ -209,7 +209,7 @@ export default function AboutSections({
               ref={(el) => {
                 promptRefs.current[p.key] = el;
               }}
-              className={`field text-sm leading-relaxed transition-colors ${
+              className={`field text-base leading-relaxed transition-colors ${
                 isFlashed
                   ? "border-teal ring-2 ring-teal/30 bg-teal-soft/25"
                   : ""

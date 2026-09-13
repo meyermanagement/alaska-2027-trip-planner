@@ -87,11 +87,11 @@ export default function TipStrip({ tips = [], today }) {
         {shown.map((tip) => {
           const when = tipWhen(tip, today);
           return (
-            <div key={tip.id} className="text-[0.88rem] leading-snug">
+            <div key={tip.id} className="text-sm leading-snug">
               {/* Stacked rather than one long row: on a phone a four-column row
                   turns the body into a column two words wide. */}
               <p>
-                <span className="mr-2 text-[0.68rem] font-bold uppercase tracking-[0.09em] text-amber">
+                <span className="mr-2 text-2xs font-bold uppercase tracking-[0.09em] text-amber">
                   {when.label}
                 </span>
                 <span className="font-semibold text-ink">{tip.title}</span>
@@ -101,7 +101,7 @@ export default function TipStrip({ tips = [], today }) {
                 {tip.trips?.slug || tip.trips?.public_id ? (
                   <Link
                     href={tripPath(tip.trips)}
-                    className="text-[0.78rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                    className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                   >
                     {tip.trips.name}
                   </Link>
@@ -110,7 +110,7 @@ export default function TipStrip({ tips = [], today }) {
                   // about a card is unreadable without the card in front of you.
                   <Link
                     href="/wallet"
-                    className="text-[0.78rem] font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                    className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
                   >
                     {tip.about || "Wallet"}
                   </Link>
@@ -119,7 +119,7 @@ export default function TipStrip({ tips = [], today }) {
                   <button
                     type="button"
                     onClick={() => makeTask(tip)}
-                    className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-teal hover:underline"
+                    className="text-xs font-semibold uppercase tracking-[0.06em] text-teal hover:underline"
                   >
                     Remind me
                   </button>
@@ -127,7 +127,7 @@ export default function TipStrip({ tips = [], today }) {
                 <button
                   type="button"
                   onClick={() => resolve(tip, "cleared")}
-                  className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-ink-soft hover:text-teal"
+                  className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-soft hover:text-teal"
                 >
                   Clear
                 </button>

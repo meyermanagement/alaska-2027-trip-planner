@@ -151,7 +151,7 @@ export default async function RewardsPage() {
         {/* Said once, at the bottom, rather than on every card. A welcome offer
             is a moving target and the only page that is authoritative about it is
             the issuer's own. */}
-        <p className="mt-6 text-[0.78rem] leading-relaxed text-ink-faint">
+        <p className="mt-6 text-xs leading-relaxed text-ink-faint">
           Anything above about a card&rsquo;s welcome bonus was read off a page
           on the day it was found, and offers change without notice. Check the
           issuer&rsquo;s own application page before you apply. Aly is a travel

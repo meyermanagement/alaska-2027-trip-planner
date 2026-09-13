@@ -79,7 +79,7 @@ export default function AboutYouForm({ initialAbout, travelerName }) {
         About me
         <textarea
           ref={textareaRef}
-          className="field mt-1 min-h-32 overflow-hidden text-sm"
+          className="field mt-1 min-h-32 overflow-hidden text-base"
           rows={6}
           value={aboutMe}
           onChange={(e) => setAboutMe(e.target.value)}
