@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { lookSummary, runLook } from "@/lib/tips/run";
+import { lookOpening, lookSummary, runLook } from "@/lib/tips/run";
 import { Spinner } from "./LinkPending";
 import { BinocularsIcon } from "./Icons";
 import { mayWrite } from "@/lib/travelers/allowed";
@@ -77,6 +77,9 @@ export default function LookForTips({
     setBusy(true);
     setProblem("");
     const steps = chain && chain.length ? chain : [{ scope }];
+    // Named for where it is going, so the wait says something about this trip
+    // rather than about the software. See lookOpening.
+    const opening = lookOpening(steps);
     const {
       found,
       error,
@@ -88,6 +91,7 @@ export default function LookForTips({
       steps,
       onNote: setNote,
       onProgress: setProgress,
+      opening,
     });
     const took = tookMs ? ` (${Math.max(1, Math.round(tookMs / 1000))}s)` : "";
     // Whatever was found is already saved, so ask the server for the list again

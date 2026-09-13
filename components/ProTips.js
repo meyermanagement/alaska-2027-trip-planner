@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { useRouter } from "next/navigation";
 import { compareTips, lookedToday, tipWhen } from "@/lib/tips/tip";
-import { lookSummary, runLook } from "@/lib/tips/run";
+import { lookOpening, lookSummary, runLook } from "@/lib/tips/run";
 import { formatFullDay } from "@/lib/format";
 import { Spinner } from "./LinkPending";
 import { BinocularsIcon } from "./Icons";
@@ -226,6 +226,9 @@ export default function ProTips({
     setBusy(true);
     setProblem("");
     const steps = chain && chain.length ? chain : [{ scope, itemId }];
+    // Named for where it is going, so the wait says something about this trip
+    // rather than about the software. See lookOpening.
+    const opening = lookOpening(steps);
     const {
       found,
       error,
@@ -237,6 +240,7 @@ export default function ProTips({
       steps,
       onNote: setNote,
       onProgress: setProgress,
+      opening,
     });
     // Said out loud, because a look that takes twenty seconds and says so reads as
     // work being done, while the same twenty seconds in silence reads as broken.
