@@ -77,6 +77,12 @@ export const viewport = {
 // than from the stylesheet, so it has to be set here too. Without it, choosing
 // Midnight Aurora repainted the whole app and left a spruce band across the top
 // of the phone.
+// How many crossings the short opening has to choose from. The routes themselves
+// live in components/BootVeil.js and their keyframes in app/globals.css; this is
+// the one number the head script needs, and adding a fourth crossing means
+// changing it here as well as there.
+const ROUTE_COUNT = 3;
+
 const applySkin = `(function(){try{
 var m=document.cookie.match(/(?:^|; )${SKIN_COOKIE}=([^;]*)/);
 var s=m?decodeURIComponent(m[1]):"";
@@ -107,6 +113,14 @@ d.dataset.skin=id;
 var opened=/(?:^|; )${BOOT_COOKIE}=1/.test(document.cookie);
 d.dataset.boot=opened?"quick":"full";
 if(!opened)document.cookie="${BOOT_COOKIE}=1;path=/;samesite=lax";
+// And which crossing the short one flies. There are ${ROUTE_COUNT} of them, drawn from
+// the same rules, and one is drawn at random per document load: the endless
+// route means a single crossing could run all day, but somebody who opens the
+// app four times before lunch would be carried over the same piece of coast
+// four times. Picked here rather than in a component for the same reason the
+// skin is -- the veil is in the first frame of HTML, and a route chosen after
+// hydration would swap the map under a compass already travelling it.
+d.dataset.route=String(1+Math.floor(Math.random()*${ROUTE_COUNT}));
 d.style.colorScheme=bars[id][1]?"dark":"light";
 var paint=function(){var t=document.querySelectorAll('meta[name="theme-color"]');
 // Nothing rendered one, so this is where the tag comes from. Made here in the
@@ -129,6 +143,7 @@ export default function RootLayout({ children }) {
       lang="en"
       data-skin={DEFAULT_SKIN}
       data-boot="full"
+      data-route="1"
       className={`${displayFace.variable} ${sansFace.variable}`}
       /* The script below rewrites both of these attributes before React ever
          runs, which is the whole point of it -- and React, finding the document

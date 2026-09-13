@@ -12,6 +12,16 @@ import "./opening.css";
 // lifted after a second.
 const BOOT_ATTR = "boot";
 
+// The crossings the short opening chooses between, by the names they are known by
+// here rather than by their numbers -- a person judging one wants to know what it
+// is meant to feel like. The ids are the ones the stylesheet keys on, and the
+// count has to agree with ROUTE_COUNT in app/layout.js.
+const CROSSINGS = [
+  { id: "1", name: "Long swing" },
+  { id: "2", name: "Late arcs" },
+  { id: "3", name: "Coastline" },
+];
+
 export default function OpeningWatch() {
   const [kind, setKind] = useState("quick");
   // Bumping this remounts the stage, which is what restarts the one-shot parts
@@ -24,6 +34,9 @@ export default function OpeningWatch() {
   // starting anywhere else would flash a skin nobody asked for. Null until the
   // effect below runs, so the server and the first client render agree.
   const [skin, setSkin] = useState(null);
+  // Which crossing is on screen. Null until the effect reads what the head script
+  // drew for this load, so the page shows the same one the app would have.
+  const [crossing, setCrossing] = useState(null);
 
   // Only for as long as this page is open. The chosen skin is written to the
   // document and not to the cookie, so looking at an opening in Sodium at
@@ -40,6 +53,22 @@ export default function OpeningWatch() {
       if (had) root.dataset.skin = had;
     };
   }, [skin]);
+
+  // Same bargain as the skin: written to the document for as long as this page is
+  // open, and put back on the way out, so watching the coastline crossing here
+  // does not decide what the next real load flies.
+  useEffect(() => {
+    const root = document.documentElement;
+    const had = root.dataset.route;
+    if (crossing === null) {
+      setCrossing(had ?? CROSSINGS[0].id);
+      return undefined;
+    }
+    root.dataset.route = crossing;
+    return () => {
+      if (had) root.dataset.route = had;
+    };
+  }, [crossing]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -64,7 +93,7 @@ export default function OpeningWatch() {
     <>
       <div
         id="boot-stage"
-        key={`${kind}-${run}-${skin ?? "none"}`}
+        key={`${kind}-${run}-${skin ?? "none"}-${crossing ?? "none"}`}
         aria-hidden="true"
       >
         <BootStage />
@@ -115,16 +144,30 @@ export default function OpeningWatch() {
             ))}
           </div>
           <div className="opening-row">
+            {CROSSINGS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={crossing === c.id ? "on" : ""}
+                onClick={() => setCrossing(c.id)}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+          <div className="opening-row">
             <button type="button" onClick={() => setBare(true)}>
               Hide these controls
             </button>
             <Link href="/">Back to the app</Link>
           </div>
           <p className="opening-note">
-            The ground scrolls by exactly one cell of the graticule, so it can
-            run as long as you leave this page open without ever appearing to
-            start over. The turn and the zoom are on a separate eleven second
-            period, which is worth waiting out at least once.
+            The ground scrolls by a whole number of graticule cells, so a
+            crossing can run as long as you leave this page open without ever
+            appearing to start over. The turn and the zoom are on a separate
+            eleven second period, which is worth waiting out at least once. A
+            real load draws one of the three crossings at random; here you can
+            ask for the one you want to look at.
           </p>
         </div>
       )}

@@ -56,11 +56,13 @@ import { useEffect, useState } from "react";
 // long enough on screen to be read as claims rather than as a spinner.
 const HOLD_MS = 5700;
 
-// The short opening's hold. Long enough that it cannot flicker -- a veil that
-// appears and vanishes inside a tenth of a second is worse than none -- and
-// short enough that it never reads as a wait. It has no rotation to finish and
-// nothing to claim, so there is nothing to hold it for beyond the page arriving.
-const QUICK_HOLD_MS = 480;
+// The short opening's hold. It was 480ms, which is the least it can be without
+// flickering, and at that length the crossing was over before anyone could see
+// where it was going: a compass appeared, the map moved a finger's width, and the
+// page arrived. It is now long enough to read as a journey -- the ground turns,
+// a waypoint passes under the housing -- and still short enough that nobody
+// waits on it, because the page behind it is already built by the time it lifts.
+const QUICK_HOLD_MS = 1500;
 
 // Longest. Past this the page is shown whatever state it is in, because a veil
 // held over a screen that is never going to finish is just a hidden error. It
@@ -69,8 +71,8 @@ const QUICK_HOLD_MS = 480;
 const CAP_MS = 7200;
 
 // And its cap, which has to sit above QUICK_HOLD_MS and below the stylesheet's
-// own fail-safe for the short veil.
-const QUICK_CAP_MS = 2600;
+// own fail-safe for the short veil. Both moved up with the hold.
+const QUICK_CAP_MS = 4200;
 
 // The housing: the graduated bezel the menu dial wears, with the rim drawn in
 // as well -- the splash has no button border to borrow one from. A hairline ring
@@ -244,25 +246,92 @@ function Housing({ live }) {
 // The keyframes that move the map along these come from
 // scripts/opening-route.mjs, which walks these very paths at a constant speed.
 // Change a path here and run that script again.
-const TALL_TILE = {
-  kind: "tall",
-  box: "0 0 40 57",
-  span: 57,
-  axis: "y",
-  route: "M20 57C20 47 6 45 6 36S34 30 34 21S20 10 20 0",
-  stop: [20, 57],
-  waypoint: [34, 21],
-};
-
-const WIDE_TILE = {
-  kind: "wide",
-  box: "0 0 114 40",
-  span: 114,
-  axis: "x",
-  route: "M0 20C10 20 14 8 24 8S44 32 54 32S78 6 88 6S106 20 114 20",
-  stop: [0, 20],
-  waypoint: [54, 32],
-};
+// Three crossings, each with a tile for a screen taller than it is wide and one
+// for a screen wider than it is tall. Which one a load gets is decided by the
+// script in the document head and written to html[data-route], so it is settled
+// before the first paint; the stylesheet then shows that one field and hides the
+// other five, and drives the camera with that crossing's own keyframes. All six
+// are in the markup because the veil is in the first frame of HTML and cannot
+// wait for hydration to be told which piece of coast this load is on.
+//
+// Each tile begins and ends at the same offset across itself and leaves at the
+// angle it arrived, so copies laid end to end draw a single line with no joint in
+// it, and each spans a whole number of the graticule's 4.75rem cells -- twelve
+// climbing, twenty-four crossing -- so the moment the map has travelled one tile
+// it is exactly where it started. That is what makes a crossing endless rather
+// than eight seconds long. The three differ in temper rather than in shape: one
+// long swing, two big late arcs, and a fussier coastline.
+//
+// The keyframes that carry the map along these come from
+// scripts/opening-route.mjs, which holds the same six paths and walks them at a
+// constant speed. Change a path here and change it there, or the compass will
+// travel beside its own route instead of along it.
+const ROUTES = [
+  {
+    id: 1,
+    tall: {
+      kind: "tall",
+      box: "0 0 40 57",
+      span: 57,
+      axis: "y",
+      route: "M20 57C20 47 6 45 6 36S34 30 34 21S20 10 20 0",
+      stop: [20, 57],
+      waypoint: [34, 21],
+    },
+    wide: {
+      kind: "wide",
+      box: "0 0 114 40",
+      span: 114,
+      axis: "x",
+      route: "M0 20C10 20 14 8 24 8S44 32 54 32S78 6 88 6S106 20 114 20",
+      stop: [0, 20],
+      waypoint: [54, 32],
+    },
+  },
+  {
+    id: 2,
+    tall: {
+      kind: "tall",
+      box: "0 0 40 57",
+      span: 57,
+      axis: "y",
+      route: "M20 57C20 48 36 47 36 38S4 33 4 24S20 9 20 0",
+      stop: [20, 57],
+      waypoint: [4, 24],
+    },
+    wide: {
+      kind: "wide",
+      box: "0 0 114 40",
+      span: 114,
+      axis: "x",
+      route: "M0 20C14 20 18 34 32 34S60 4 74 4S100 20 114 20",
+      stop: [0, 20],
+      waypoint: [74, 4],
+    },
+  },
+  {
+    id: 3,
+    tall: {
+      kind: "tall",
+      box: "0 0 40 57",
+      span: 57,
+      axis: "y",
+      route: "M20 57C20 50 27 48 27 42S13 36 13 30S27 24 27 18S20 7 20 0",
+      stop: [20, 57],
+      waypoint: [13, 30],
+    },
+    wide: {
+      kind: "wide",
+      box: "0 0 114 40",
+      span: 114,
+      axis: "x",
+      route:
+        "M0 20C8 20 12 30 20 30S32 8 40 8S52 26 60 26S74 12 82 12S96 24 104 24S112 20 114 20",
+      stop: [0, 20],
+      waypoint: [60, 26],
+    },
+  },
+];
 
 const TILE_COPIES = [-1, 0, 1];
 
@@ -317,9 +386,9 @@ function QuickMark({ gradientId }) {
 // stretched to the screen -- it is sized in rems -- which is what keeps the
 // waypoints round and lets the needle read a true heading instead of one
 // corrected for a squashed picture.
-function QuickField({ tile }) {
+function QuickField({ tile, route }) {
   return (
-    <div className={`quick-field quick-${tile.kind}`}>
+    <div className={`quick-field quick-${tile.kind} quick-r${route}`}>
       <svg className="quick-plot" viewBox={tile.box} fill="none">
         {TILE_COPIES.map((copy) => (
           <g
@@ -396,8 +465,20 @@ function QuickVeil() {
             lines in the drawings, because they have a whole window to cover. */}
         <div className="quick-grid" />
         <div className="quick-cam">
-          <QuickField tile={TALL_TILE} />
-          <QuickField tile={WIDE_TILE} />
+          {ROUTES.map((route) => (
+            <QuickField
+              key={`tall-${route.id}`}
+              tile={route.tall}
+              route={route.id}
+            />
+          ))}
+          {ROUTES.map((route) => (
+            <QuickField
+              key={`wide-${route.id}`}
+              tile={route.wide}
+              route={route.id}
+            />
+          ))}
         </div>
       </div>
       {/* The compass does not travel across the screen any more -- it is held in

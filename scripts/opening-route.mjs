@@ -15,37 +15,104 @@
 
 const CELL = 4.75;
 
-// Tall: a climb. Both ends sit at x=20 with a vertical tangent, and the tile is
-// twelve cells high, which is taller than a phone held upright -- so no one ever
-// sees the same bend twice on one screen.
-const TALL = {
-  name: "tall",
-  span: 12 * CELL, // 57rem
-  axis: "y",
-  width: 40,
-  height: 12 * CELL,
-  segments: [
-    ["C", 20, 57, 20, 47, 6, 45, 6, 36],
-    ["S", 34, 30, 34, 21],
-    ["S", 20, 10, 20, 0],
-  ],
+// Three crossings, each drawn as a pair of tiles -- one for a screen taller than
+// it is wide and one for a screen wider than it is tall. Which pair a load gets
+// is decided once, in the script in the document head, so a family that opens
+// the app four times in an afternoon is carried over four different pieces of
+// coast rather than the same one four times.
+//
+// Every tile in a column obeys the same two rules, which is what lets them share
+// one set of styles: the portrait ones run from x=20 at the bottom to x=20 at the
+// top with a vertical tangent at both ends and stand twelve graticule cells high,
+// and the landscape ones run from y=20 on the left edge to y=20 on the right with
+// a horizontal tangent at both ends and lie twenty-four cells across. Equal spans
+// also mean equal clocks, so the map moves at one speed whichever crossing came
+// up.
+const ROUTES = [
+  {
+    id: 1,
+    // A long swing out to the west and back: one decision, taken slowly.
+    tall: [
+      ["C", 20, 57, 20, 47, 6, 45, 6, 36],
+      ["S", 34, 30, 34, 21],
+      ["S", 20, 10, 20, 0],
+    ],
+    wide: [
+      ["C", 0, 20, 10, 20, 14, 8, 24, 8],
+      ["S", 44, 32, 54, 32],
+      ["S", 78, 6, 88, 6],
+      ["S", 106, 20, 114, 20],
+    ],
+  },
+  {
+    id: 2,
+    // Wider and later: it holds its line, then commits to two big arcs. The
+    // portrait one reaches within four rems of both edges of its tile, which is
+    // the most a phone can be given before the route leaves the screen sideways.
+    tall: [
+      ["C", 20, 57, 20, 48, 36, 47, 36, 38],
+      ["S", 4, 33, 4, 24],
+      ["S", 20, 9, 20, 0],
+    ],
+    wide: [
+      ["C", 0, 20, 14, 20, 18, 34, 32, 34],
+      ["S", 60, 4, 74, 4],
+      ["S", 100, 20, 114, 20],
+    ],
+  },
+  {
+    // Six bends against the others' three, so the camera is turning more often
+    // and a frame is worth more: sampled half again as densely, which is what
+    // brings the compass back inside two pixels of its own line.
+    frames: { tall: 56, wide: 64 },
+    id: 3,
+    // A coastline: shorter bends, more of them, none of them dramatic. This is
+    // the one that reads as detail rather than as a journey, and it is the reason
+    // the set is worth having -- three tempers, not three drawings.
+    tall: [
+      ["C", 20, 57, 20, 50, 27, 48, 27, 42],
+      ["S", 13, 36, 13, 30],
+      ["S", 27, 24, 27, 18],
+      ["S", 20, 7, 20, 0],
+    ],
+    wide: [
+      ["C", 0, 20, 8, 20, 12, 30, 20, 30],
+      ["S", 32, 8, 40, 8],
+      ["S", 52, 26, 60, 26],
+      ["S", 74, 12, 82, 12],
+      ["S", 96, 24, 104, 24],
+      ["S", 112, 20, 114, 20],
+    ],
+  },
+];
+
+// The two shapes of tile, and the geometry every route in that column shares.
+const SHAPES = {
+  tall: {
+    name: "tall",
+    axis: "y",
+    width: 40,
+    height: 12 * CELL,
+    span: 12 * CELL,
+  },
+  wide: {
+    name: "wide",
+    axis: "x",
+    width: 24 * CELL,
+    height: 40,
+    span: 24 * CELL,
+  },
 };
 
-// Wide: a crossing. Both ends sit at y=20 with a horizontal tangent, and the
-// tile is twenty-four cells across, wider than a laptop window.
-const WIDE = {
-  name: "wide",
-  span: 24 * CELL, // 114rem
-  axis: "x",
-  width: 24 * CELL,
-  height: 40,
-  segments: [
-    ["C", 0, 20, 10, 20, 14, 8, 24, 8],
-    ["S", 44, 32, 54, 32],
-    ["S", 78, 6, 88, 6],
-    ["S", 106, 20, 114, 20],
-  ],
-};
+// A tile is a shape plus one route's segments.
+function tileOf(route, kind) {
+  return {
+    ...SHAPES[kind],
+    id: route.id,
+    segments: route[kind],
+    frames: route.frames?.[kind] ?? 48,
+  };
+}
 
 // Cubic segments, with the shorthand's first control point reflected the way
 // SVG reflects it, so the path in the component and the path sampled here are
@@ -158,15 +225,18 @@ function heading(frame) {
   return round((Math.atan2(frame.dx, -frame.dy) * 180) / Math.PI);
 }
 
-function emit(tile) {
-  // Thirty-six frames. The camera is interpolated in straight lines between
-  // them, so too few leaves the compass cutting the corner of its own route at
-  // the tightest bends; this many holds it inside a pixel or two of the line
-  // everywhere, which is closer than the width of the dash.
-  const frames = walk(tile, 36);
+function keyframes(tile) {
+  // Forty-eight frames by default. The camera is interpolated in straight lines
+  // between them, so too few leaves the compass cutting the corner of its own
+  // route at the tightest bends and the needle reading a heading it had a moment
+  // ago; this many holds the housing inside a pixel or two of the line and the
+  // needle inside a few degrees of the tangent. Routes with more bends per tile
+  // ask for more, and say so themselves.
+  const frames = walk(tile, tile.frames);
+  const suffix = `${tile.name}-${tile.id}`;
   const lines = [];
 
-  lines.push(`@keyframes quick-cam-${tile.name} {`);
+  lines.push(`@keyframes quick-cam-${suffix} {`);
   for (const frame of frames) {
     const o = offset(tile, frame);
     lines.push(`  ${round(frame.at)}% {`);
@@ -175,7 +245,7 @@ function emit(tile) {
   }
   lines.push("}", "");
 
-  lines.push(`@keyframes quick-ground-${tile.name} {`);
+  lines.push(`@keyframes quick-ground-${suffix} {`);
   for (const frame of frames) {
     const o = offset(tile, frame);
     lines.push(`  ${round(frame.at)}% {`);
@@ -186,7 +256,7 @@ function emit(tile) {
   }
   lines.push("}", "");
 
-  lines.push(`@keyframes quick-head-${tile.name} {`);
+  lines.push(`@keyframes quick-head-${suffix} {`);
   for (const frame of frames) {
     lines.push(`  ${round(frame.at)}% {`);
     lines.push(`    transform: rotate(${heading(frame)}deg);`);
@@ -195,13 +265,124 @@ function emit(tile) {
   lines.push("}", "");
 
   const parked = frames[Math.round(frames.length / 2) - 1];
-  const o = offset(tile, parked);
-  lines.push(
-    `/* parked, ${tile.name}: cam translate(${o.x}rem, ${o.y}rem)` +
-      ` -- ground ${o.x}rem ${o.y}rem -- needle ${heading(parked)}deg */`,
-    "",
-  );
-  return lines.join("\n");
+  return {
+    css: lines.join("\n"),
+    parked: offset(tile, parked),
+    heading: heading(parked),
+  };
 }
 
-process.stdout.write([emit(TALL), emit(WIDE)].join("\n"));
+// Route one is also the fallback: a document with no attribute on it, because a
+// script was blocked or an old page is still in a cache, gets the first
+// crossing rather than none of them.
+function pick(id) {
+  if (id === ROUTES[0].id) {
+    return `html${ROUTES.slice(1)
+      .map((route) => `:not([data-route="${route.id}"])`)
+      .join("")}`;
+  }
+  return `html[data-route="${id}"]`;
+}
+
+const indent = (text, pad) =>
+  text
+    .split("\n")
+    .map((line) => (line ? `${pad}${line}` : line))
+    .join("\n");
+
+// Which crossing a load is on decides three animation names, one displayed field
+// per orientation, and -- for anyone who has asked their machine to stop moving
+// things -- where the whole picture parks. All of it is written out here rather
+// than by hand, because there are eighteen keyframes now and a name typed
+// wrongly in a stylesheet fails silently: the map simply sits still.
+function bindings(parked) {
+  const rows = (kind, body) =>
+    ROUTES.map((route) => indent(body(route, kind), "")).join("\n\n");
+
+  const fields = (shown, hidden) =>
+    [
+      ROUTES.map(
+        (route) => `${pick(route.id)} .quick-${shown}.quick-r${route.id}`,
+      ).join(",\n") + " {\n  display: block;\n}",
+      ROUTES.map(
+        (route) => `${pick(route.id)} .quick-${hidden}.quick-r${route.id}`,
+      ).join(",\n") + " {\n  display: none;\n}",
+    ].join("\n\n");
+
+  const motion = (kind) =>
+    rows(
+      kind,
+      (route) =>
+        `${pick(route.id)} .quick-cam {\n  animation-name: quick-cam-${kind}-${route.id};\n}\n\n` +
+        `${pick(route.id)} .quick-grid {\n  animation-name: quick-ground-${kind}-${route.id};\n}`,
+    );
+
+  const heads = (kind) =>
+    rows(
+      kind,
+      (route) =>
+        `${pick(route.id)} .quick-${kind} .quick-heading {\n` +
+        `  animation-name: quick-head-${kind}-${route.id};\n}`,
+    );
+
+  const still = (kind) =>
+    rows(kind, (route) => {
+      const p = parked[`${kind}-${route.id}`];
+      return (
+        `${pick(route.id)} .quick-cam {\n  animation: none;\n` +
+        `  transform: translate(${p.at.x}rem, ${p.at.y}rem);\n}\n\n` +
+        `${pick(route.id)} .quick-grid {\n  animation: none;\n  background-position:\n` +
+        `    ${p.at.x}rem ${p.at.y}rem,\n    ${p.at.x}rem ${p.at.y}rem;\n}\n\n` +
+        `${pick(route.id)} .quick-${kind} .quick-heading {\n  animation: none;\n` +
+        `  transform: rotate(${p.heading}deg);\n}`
+      );
+    });
+
+  return [
+    "/* Written by scripts/opening-route.mjs together with the keyframes above:",
+    "   the names, the fields and the parked values all have to agree with them.",
+    "   Everything from the first keyframe to the end marker is generated. */",
+    "",
+    "/* Only one field is ever shown: the crossing this load drew, in the shape",
+    "   the window is. Portrait first, then the landscape overrides. */",
+    ".quick-field {\n  display: none;\n}",
+    "",
+    fields("tall", "wide"),
+    "",
+    motion("tall"),
+    "",
+    heads("tall"),
+    "",
+    "@media (orientation: landscape) {",
+    indent(
+      [fields("wide", "tall"), motion("wide"), heads("wide")].join("\n\n"),
+      "  ",
+    ),
+    "}",
+    "",
+    "/* Parked halfway along whichever tile came up, needle on the heading it",
+    "   would have had there, for anyone who has asked for less movement. */",
+    "@media (prefers-reduced-motion: reduce) {",
+    indent(still("tall"), "  "),
+    "",
+    "  @media (orientation: landscape) {",
+    indent(still("wide"), "    "),
+    "  }",
+    "}",
+    "",
+    "/* End of the generated crossings. */",
+    "",
+  ].join("\n");
+}
+
+const blocks = [];
+const parked = {};
+for (const route of ROUTES) {
+  for (const kind of ["tall", "wide"]) {
+    const out = keyframes(tileOf(route, kind));
+    blocks.push(out.css);
+    parked[`${kind}-${route.id}`] = { at: out.parked, heading: out.heading };
+  }
+}
+
+process.stdout.write([...blocks, bindings(parked)].join("\n"));
