@@ -46,7 +46,7 @@
 // they share its ground, its skin colors and its fail-safe, and the stylesheet
 // shows one and hides the other on the strength of html[data-boot].
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // Shortest time the mark stays up: one full turn of the tagline, three words at
 // 1.9s each. It was 620ms, chosen so a fast open stayed fast, which meant the
@@ -340,10 +340,32 @@ function QuickVeil() {
   );
 }
 
+// How long after the veil lifts the markup is taken out of the document. Longer
+// than the 420ms fade in globals.css, with room for a slow frame, and short
+// enough that it is gone before anybody could navigate back into it.
+//
+// It has to leave, not merely hide. Everything that hides it hangs off
+// data-booted on <html>, and that flag is a thing another party can take away:
+// a re-render that reconciles the element, a browser restoring a page from its
+// back-forward cache, anything that hands React a fresh <html> to own. The
+// moment the flag goes the stylesheet has no reason to keep the veil down, its
+// fail-safe animation starts again from the top, and a compass fades up over an
+// app the family was already using. An element that is not there cannot come
+// back, which is the only version of this that cannot happen twice.
+const REMOVE_MS = 900;
+
 export default function BootVeil() {
+  const [gone, setGone] = useState(false);
+
   useEffect(() => {
     const root = document.documentElement;
-    if (root.dataset.booted) return;
+    // Already lifted before this mounted -- a remount, or a second copy in a
+    // tree that re-rendered. There is nothing to hold and nothing to fade, so
+    // the only useful thing left to do is get out of the document.
+    if (root.dataset.booted) {
+      setGone(true);
+      return;
+    }
 
     // Set by the script in the head, from the session cookie. Absent means no
     // script ran at all, and the full opening is the safer thing to show then:
@@ -352,10 +374,24 @@ export default function BootVeil() {
     const hold = quick ? QUICK_HOLD_MS : HOLD_MS;
 
     let done = false;
+    let leave = null;
+    // Watches the one attribute the whole mechanism rests on, for as long as the
+    // veil is still in the document. If something clears data-booted in the
+    // window between the lift and the removal, it is put straight back -- a
+    // frame of compass is still a compass.
+    const guard = new MutationObserver(() => {
+      if (done && !root.dataset.booted) root.dataset.booted = "1";
+    });
+
     const lift = () => {
       if (done) return;
       done = true;
       root.dataset.booted = "1";
+      guard.observe(root, {
+        attributes: true,
+        attributeFilter: ["data-booted"],
+      });
+      leave = setTimeout(() => setGone(true), REMOVE_MS);
     };
 
     const cap = setTimeout(lift, quick ? QUICK_CAP_MS : CAP_MS);
@@ -382,8 +418,15 @@ export default function BootVeil() {
     return () => {
       clearTimeout(cap);
       if (wait) clearTimeout(wait);
+      if (leave) clearTimeout(leave);
+      guard.disconnect();
     };
   }, []);
+
+  // Hidden by the stylesheet from the moment data-booted is set; this is what
+  // takes the markup out afterwards. Returning null before the first paint would
+  // defeat the entire point of the file, so it can only happen after a lift.
+  if (gone) return null;
 
   return (
     <div id="boot-veil" aria-hidden="true">

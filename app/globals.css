@@ -269,6 +269,14 @@ html[data-booted] #boot-veil {
   transform: translateY(-8px);
   visibility: hidden;
   pointer-events: none;
+  /* The fail-safe below is the veil's own insurance against a component that
+     never ran, and it outranks these declarations while it is filling. It also
+     restarts whenever the animation shorthand changes -- which it does the
+     moment anything rewrites data-boot -- and a restarted animation drops the
+     fill it was holding. Once the veil has lifted there is nothing left to
+     insure, so it is taken off, and the lift cannot be undone by an attribute
+     changing underneath it. */
+  animation: none;
 }
 
 @keyframes boot-failsafe {
