@@ -233,8 +233,38 @@ function Housing({ live }) {
 // is the second set of sampled numbers: the tangent of the curve at each of
 // those thirteen points, applied to the needle inside a housing that stays put.
 // It is a compass being carried, not one being read.
-const TALL_ROUTE = "M40 348C40 296 152 300 152 248S48 196 48 140S150 92 150 36";
-const WIDE_ROUTE = "M32 164C84 164 96 116 148 116S212 60 264 60S324 30 348 24";
+// Two tiles, one per shape of screen, measured in rems at the same scale the
+// graticule repeats at. Each one begins and ends at the same offset across the
+// tile and leaves at the same angle it arrived, so copies laid end to end draw a
+// single line with no joint in it, and each one spans a whole number of the
+// graticule's 4.75rem cells -- twelve of them climbing, twenty-four crossing --
+// so the moment the map has travelled one tile it is exactly where it started.
+// That is what makes the crossing endless rather than eight seconds long.
+//
+// The keyframes that move the map along these come from
+// scripts/opening-route.mjs, which walks these very paths at a constant speed.
+// Change a path here and run that script again.
+const TALL_TILE = {
+  kind: "tall",
+  box: "0 0 40 57",
+  span: 57,
+  axis: "y",
+  route: "M20 57C20 47 6 45 6 36S34 30 34 21S20 10 20 0",
+  stop: [20, 57],
+  waypoint: [34, 21],
+};
+
+const WIDE_TILE = {
+  kind: "wide",
+  box: "0 0 114 40",
+  span: 114,
+  axis: "x",
+  route: "M0 20C10 20 14 8 24 8S44 32 54 32S78 6 88 6S106 20 114 20",
+  stop: [0, 20],
+  waypoint: [54, 32],
+};
+
+const TILE_COPIES = [-1, 0, 1];
 
 // The mark itself, at a size in rems: it rides on the map but it is not stretched
 // by it, because a compass drawn wider than it is tall is a broken compass.
@@ -280,40 +310,62 @@ function QuickMark({ gradientId }) {
   );
 }
 
-// One field per orientation. Both are always in the markup and a media query
-// shows one, which is how the drawing can be right for the shape of the screen
-// instead of merely fitted to it: the tall route climbs, the wide one crosses,
-// and each has its own turns and therefore its own headings.
-function QuickField({ kind, box, route }) {
+// One field per orientation, and each field is the same tile laid down three
+// times: the one you are on, the one ahead of you and the one behind. Three is
+// enough because a tile is longer than the window it is drawn in, so there is
+// always route above the top edge and below the bottom one. The drawing is not
+// stretched to the screen -- it is sized in rems -- which is what keeps the
+// waypoints round and lets the needle read a true heading instead of one
+// corrected for a squashed picture.
+function QuickField({ tile }) {
   return (
-    <div className={`quick-field quick-${kind}`}>
-      {/* The route stretches with the window -- that is the whole point of
-          preserveAspectRatio none -- and the stroke does not, which is what
-          keeps the dashes even and round-ended at any shape of screen. */}
-      <svg
-        className="quick-plot"
-        viewBox={box}
-        preserveAspectRatio="none"
-        fill="none"
-      >
-        <path
-          className="quick-route"
-          d={route}
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.42"
-          vectorEffect="non-scaling-stroke"
-        />
+    <div className={`quick-field quick-${tile.kind}`}>
+      <svg className="quick-plot" viewBox={tile.box} fill="none">
+        {TILE_COPIES.map((copy) => (
+          <g
+            key={copy}
+            transform={
+              tile.axis === "x"
+                ? `translate(${copy * tile.span} 0)`
+                : `translate(0 ${copy * tile.span})`
+            }
+          >
+            <path
+              className="quick-route"
+              d={tile.route}
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              opacity="0.42"
+              vectorEffect="non-scaling-stroke"
+            />
+            {/* The places the route is going. The ring is where one tile hands
+                over to the next, so one of these arrives from off the edge of
+                the screen every time the map has travelled a tile -- that is
+                the next location, and it is the reason the journey reads as
+                going somewhere rather than as a line being dragged. The dot is
+                a lesser stop halfway between. */}
+            <circle
+              className="quick-stop"
+              cx={tile.stop[0]}
+              cy={tile.stop[1]}
+              r="0.62"
+              stroke="currentColor"
+              strokeWidth="2"
+              vectorEffect="non-scaling-stroke"
+              opacity="0.55"
+            />
+            <circle
+              className="quick-waypoint"
+              cx={tile.waypoint[0]}
+              cy={tile.waypoint[1]}
+              r="0.4"
+              fill="currentColor"
+              opacity="0.45"
+            />
+          </g>
+        ))}
       </svg>
-      {/* Where it started and where it is going, placed as a share of the field
-          rather than drawn in the stretched picture, so they stay round. The far
-          one is hollow, so the pair reads as a journey with a direction. */}
-      <span className="quick-end quick-from" />
-      <span className="quick-end quick-to" />
-      <div className="quick-travel">
-        <QuickMark gradientId={`${AURORA_QUICK}-${kind}`} />
-      </div>
     </div>
   );
 }
@@ -321,10 +373,6 @@ function QuickField({ kind, box, route }) {
 function QuickVeil() {
   return (
     <div className="boot-quick" aria-hidden="true">
-      {/* Lines of latitude and longitude, edge to edge, faint enough to read as
-          paper rather than as a grid to be counted. Gradients rather than lines
-          in the drawings, because they have a whole window to cover. */}
-      <div className="quick-grid" />
       {/* The name, set the way a chart is titled rather than the way a splash is
           branded: top left, letterspaced, over a hairline, quiet enough that the
           route stays the thing you look at. The full opening already introduces
@@ -334,8 +382,33 @@ function QuickVeil() {
         Alyeska
         <span className="quick-rule" />
       </p>
-      <QuickField kind="tall" box="0 0 200 380" route={TALL_ROUTE} />
-      <QuickField kind="wide" box="0 0 380 200" route={WIDE_ROUTE} />
+      {/* The map, and the camera looking at it. The world turns and breathes;
+          inside it the camera slides the ground and the route together by
+          exactly the amount that keeps the compass on the line, and because the
+          slide happens inside the turn rather than outside it, the point the
+          compass sits on stays put however far the ground has tilted or zoomed.
+          The graticule is a sibling rather than a child of the camera: it is
+          moved by its own background instead of by a transform, which keeps it
+          the size of the window rather than the size of the journey. */}
+      <div className="quick-world">
+        {/* Lines of latitude and longitude, edge to edge, faint enough to read
+            as paper rather than as a grid to be counted. Gradients rather than
+            lines in the drawings, because they have a whole window to cover. */}
+        <div className="quick-grid" />
+        <div className="quick-cam">
+          <QuickField tile={TALL_TILE} />
+          <QuickField tile={WIDE_TILE} />
+        </div>
+      </div>
+      {/* The compass does not travel across the screen any more -- it is held in
+          the middle of it and the country comes to it, which is what a map on a
+          phone does. Only the needle moves, and only to the heading. */}
+      <div className="quick-pin quick-tall">
+        <QuickMark gradientId={`${AURORA_QUICK}-tall`} />
+      </div>
+      <div className="quick-pin quick-wide">
+        <QuickMark gradientId={`${AURORA_QUICK}-wide`} />
+      </div>
     </div>
   );
 }

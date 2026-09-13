@@ -343,21 +343,42 @@ html[data-boot="quick"] #boot-veil {
       currentColor 0 1px,
       transparent 1px 4.75rem
     );
+  /* The ground is moved by its background and not by a transform, and by exactly
+     the same offsets the camera moves the route by. Same motion, but the element
+     stays the size of the window instead of the size of the journey -- which is
+     the difference between one cheap layer and a layer several screens across on
+     a phone. It works because the graticule repeats every 4.75rem and each tile
+     spans a whole number of cells, so a shift of a whole tile is invisible: the
+     scroll has no seam and can run for as long as the load takes. Portrait
+     climbs; the landscape rule below crosses. */
+  animation: quick-ground-tall 10s linear infinite;
+  will-change: background-position;
+}
+
+/* The turn and the breath, on the whole map at once so the graticule and the
+   route stay locked to each other. Eleven seconds is deliberately not a multiple
+   of either crossing, and it is eased at both ends, so the ground is always
+   either coming in or backing off and there is no frame where it reads as having
+   started again. Started a quarter of the way in, because eased motion has no
+   speed at its own beginning and the first second of a load is the only second
+   most people ever see. */
+.quick-world {
+  position: absolute;
+  inset: 0;
   transform-origin: 50% 50%;
-  /* Two motions on two clocks, and neither one ever restarts where you can see
-     it. The pan moves the graticule itself by exactly one cell, so the frame it
-     ends on is pixel-identical to the frame it began on and the scroll has no
-     seam -- it can run as long as the page takes to arrive. The sway and the
-     breath ride the transform on a much longer period that is not a multiple of
-     the pan, so the two never line up and the ground never looks like a loop
-     being replayed. The sway is started a quarter of the way in, because eased
-     motion has no speed at its own beginning and the first second of a load is
-     the only second most people ever see. Portrait climbs; the landscape rule
-     below crosses. */
-  animation:
-    quick-pan-tall 3.4s linear infinite,
-    quick-sway 11s ease-in-out -2.75s infinite;
-  will-change: background-position, transform;
+  animation: quick-sway 11s ease-in-out -2.75s infinite;
+}
+
+/* The camera. It slides the map by whatever it takes to hold the compass on the
+   line, and it sits inside the turn rather than outside it: a translate applied
+   after a rotate and a scale would have walked the compass off its own route by
+   as much as the zoom, while one applied before them leaves the middle of the
+   screen the middle of the screen whatever the map is doing around it. */
+.quick-cam {
+  position: absolute;
+  inset: 0;
+  animation: quick-cam-tall 10s linear infinite;
+  will-change: transform;
 }
 
 .quick-title {
@@ -399,15 +420,21 @@ html[data-boot="quick"] #boot-veil {
    the shape of the window is the only thing that actually matters, and it is
    also the only thing that stays true when the phone is turned on its side. */
 @media (orientation: landscape) {
-  /* Crossing rather than climbing: the ground slides left as well as down,
-     because the needle is heading up and to the right. The sway keeps its own
-     name and its own clock. */
+  /* Crossing rather than climbing, and on a longer clock: the landscape tile is
+     twenty-four cells wide against the portrait one's twelve high, and a window
+     turned on its side is wider than it is tall, so the longer tile takes
+     proportionally longer to cross and the map moves at about one speed
+     whichever way the screen is held. The ground and the camera share the
+     duration exactly, because the moment they disagree the route starts sliding
+     across the graticule. */
   .quick-grid {
-    animation-name: quick-pan-wide, quick-sway;
-    /* A cell left and a cell down is a longer trip than a cell down, so it is
-       given proportionally longer to make it and the ground moves at one
-       speed whichever way the screen is turned. */
-    animation-duration: 4.8s, 11s;
+    animation-name: quick-ground-wide;
+    animation-duration: 16s;
+  }
+
+  .quick-cam {
+    animation-name: quick-cam-wide;
+    animation-duration: 16s;
   }
 
   .quick-tall {
@@ -419,11 +446,29 @@ html[data-boot="quick"] #boot-veil {
   }
 }
 
+/* Sized in rems, not stretched to the window, and centred on it -- so the tile
+   is the same shape on every screen, the waypoints stay round, and the headings
+   the sampler worked out are true. Overflow visible, because two of the three
+   copies of the tile are always outside the drawing's own box. */
 .quick-plot {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  left: 50%;
+  top: 50%;
+  overflow: visible;
+}
+
+.quick-tall .quick-plot {
+  width: 40rem;
+  height: 57rem;
+  margin-left: -20rem;
+  margin-top: -28.5rem;
+}
+
+.quick-wide .quick-plot {
+  width: 114rem;
+  height: 40rem;
+  margin-left: -57rem;
+  margin-top: -20rem;
 }
 
 /* The route is drawn as a dashed line that runs -- the dashes travel with the
@@ -434,82 +479,28 @@ html[data-boot="quick"] #boot-veil {
   animation: quick-run 1.1s linear infinite;
 }
 
-.quick-end {
+/* Held in the middle of the screen, outside the world, so the housing keeps its
+   size and its level while the country tilts underneath it. */
+.quick-pin {
   position: absolute;
-  border-radius: 999px;
+  left: 50%;
+  top: 50%;
   transform: translate(-50%, -50%);
 }
 
-.quick-from {
-  width: 0.6rem;
-  height: 0.6rem;
-  background: currentColor;
-  opacity: 0.5;
-}
-
-.quick-to {
-  width: 0.85rem;
-  height: 0.85rem;
-  border: 2px solid currentColor;
-  opacity: 0.55;
-}
-
-.quick-tall .quick-from {
-  left: 20%;
-  top: 91.58%;
-}
-
-.quick-tall .quick-to {
-  left: 75%;
-  top: 9.47%;
-}
-
-.quick-wide .quick-from {
-  left: 8.42%;
-  top: 82%;
-}
-
-.quick-wide .quick-to {
-  left: 91.58%;
-  top: 12%;
-}
-
-/* The travelling layer is the size of the field, so a translate in per cent is a
-   share of the screen: that is what lets one set of keyframes work at any window
-   size while the mark inside keeps a size measured in rems. */
-.quick-travel {
-  position: absolute;
-  inset: 0;
-}
-
-.quick-travel > svg {
-  position: absolute;
-  left: 0;
-  top: 0;
+.quick-pin > svg {
+  display: block;
   width: clamp(2.6rem, 9.5vmin, 4.25rem);
   height: auto;
-  transform: translate(-50%, -50%);
 }
 
-/* Out to the far point and back again, on one long keyframe rather than an
-   alternating one. Alternating would have run the headings backwards on the way
-   home; here the return leg carries its own headings, a hundred and eighty
-   degrees off the outward ones, and there is a beat at each end where the mark
-   stands still and turns itself around. */
-.quick-tall .quick-travel {
-  animation: quick-tall 8.4s linear infinite;
-}
-
+/* The heading, on the same clock as the map it is reading. */
 .quick-tall .quick-heading {
-  animation: quick-tall-heading 8.4s linear infinite;
-}
-
-.quick-wide .quick-travel {
-  animation: quick-wide 8.4s linear infinite;
+  animation: quick-head-tall 10s linear infinite;
 }
 
 .quick-wide .quick-heading {
-  animation: quick-wide-heading 8.4s linear infinite;
+  animation: quick-head-wide 16s linear infinite;
 }
 
 /* The needle keeps its drift, on a shorter loop than the splash's. A compass
@@ -528,371 +519,844 @@ html[data-boot="quick"] #boot-veil {
   animation: boot-drift 3.4s ease-in-out infinite;
 }
 
-@keyframes quick-tall {
+/* The endless crossing, generated by scripts/opening-route.mjs from the very
+   paths the component draws. Three families of keyframes on one clock: where the
+   camera has to put the map, where the graticule's own background has to be to
+   agree with it, and what heading the needle is reading. The first and last
+   frames of each are a whole tile apart -- twelve cells climbing, twenty-four
+   crossing -- which is the same picture, so the loop has no seam and the journey
+   never appears to start over. Walked at a constant speed rather than a constant
+   bezier parameter, because a compass that hurried through the bends and
+   dawdled on the straights would read as a machine. */
+@keyframes quick-cam-tall {
   0% {
-    transform: translate(20%, 91.58%);
+    transform: translate(0rem, -28.5rem);
   }
-  3.75% {
-    transform: translate(28.75%, 83.62%);
+  2.78% {
+    transform: translate(0.28rem, -26.12rem);
   }
-  7.5% {
-    transform: translate(48%, 78.42%);
+  5.56% {
+    transform: translate(1.14rem, -23.89rem);
   }
-  11.25% {
-    transform: translate(67.25%, 73.22%);
+  8.33% {
+    transform: translate(2.47rem, -21.9rem);
   }
-  15% {
-    transform: translate(76%, 65.26%);
+  11.11% {
+    transform: translate(4.1rem, -20.14rem);
   }
-  18.75% {
-    transform: translate(67.88%, 57.12%);
+  13.89% {
+    transform: translate(5.89rem, -18.55rem);
   }
-  22.5% {
-    transform: translate(50%, 51.45%);
+  16.67% {
+    transform: translate(7.74rem, -17.02rem);
   }
-  26.25% {
-    transform: translate(32.12%, 45.58%);
+  19.44% {
+    transform: translate(9.57rem, -15.47rem);
   }
-  30% {
-    transform: translate(24%, 36.84%);
+  22.22% {
+    transform: translate(11.28rem, -13.79rem);
   }
-  33.75% {
-    transform: translate(31.97%, 28.42%);
+  25% {
+    transform: translate(12.73rem, -11.89rem);
   }
-  37.5% {
-    transform: translate(49.5%, 23.16%);
+  27.78% {
+    transform: translate(13.7rem, -9.7rem);
   }
-  41.25% {
-    transform: translate(67.03%, 17.89%);
+  30.56% {
+    transform: translate(14rem, -7.33rem);
   }
-  45% {
-    transform: translate(75%, 9.47%);
+  33.33% {
+    transform: translate(13.2rem, -5.11rem);
+  }
+  36.11% {
+    transform: translate(11.4rem, -3.54rem);
+  }
+  38.89% {
+    transform: translate(9.26rem, -2.47rem);
+  }
+  41.67% {
+    transform: translate(6.99rem, -1.69rem);
+  }
+  44.44% {
+    transform: translate(4.68rem, -1.05rem);
+  }
+  47.22% {
+    transform: translate(2.34rem, -0.51rem);
   }
   50% {
-    transform: translate(75%, 9.47%);
+    transform: translate(0rem, 0rem);
   }
-  53.75% {
-    transform: translate(67.03%, 17.89%);
+  52.78% {
+    transform: translate(-2.34rem, 0.51rem);
   }
-  57.5% {
-    transform: translate(49.5%, 23.16%);
+  55.56% {
+    transform: translate(-4.68rem, 1.05rem);
   }
-  61.25% {
-    transform: translate(31.97%, 28.42%);
+  58.33% {
+    transform: translate(-6.99rem, 1.69rem);
   }
-  65% {
-    transform: translate(24%, 36.84%);
+  61.11% {
+    transform: translate(-9.26rem, 2.47rem);
   }
-  68.75% {
-    transform: translate(32.12%, 45.58%);
+  63.89% {
+    transform: translate(-11.4rem, 3.54rem);
   }
-  72.5% {
-    transform: translate(50%, 51.45%);
+  66.67% {
+    transform: translate(-13.2rem, 5.11rem);
   }
-  76.25% {
-    transform: translate(67.88%, 57.12%);
+  69.44% {
+    transform: translate(-14rem, 7.33rem);
   }
-  80% {
-    transform: translate(76%, 65.26%);
+  72.22% {
+    transform: translate(-13.7rem, 9.7rem);
   }
-  83.75% {
-    transform: translate(67.25%, 73.22%);
+  75% {
+    transform: translate(-12.73rem, 11.89rem);
   }
-  87.5% {
-    transform: translate(48%, 78.42%);
+  77.78% {
+    transform: translate(-11.28rem, 13.79rem);
   }
-  91.25% {
-    transform: translate(28.75%, 83.62%);
+  80.56% {
+    transform: translate(-9.57rem, 15.47rem);
   }
-  95% {
-    transform: translate(20%, 91.58%);
+  83.33% {
+    transform: translate(-7.74rem, 17.02rem);
+  }
+  86.11% {
+    transform: translate(-5.89rem, 18.55rem);
+  }
+  88.89% {
+    transform: translate(-4.1rem, 20.14rem);
+  }
+  91.67% {
+    transform: translate(-2.47rem, 21.9rem);
+  }
+  94.44% {
+    transform: translate(-1.14rem, 23.89rem);
+  }
+  97.22% {
+    transform: translate(-0.28rem, 26.12rem);
   }
   100% {
-    transform: translate(20%, 91.58%);
+    transform: translate(0rem, 28.5rem);
   }
 }
 
-@keyframes quick-tall-heading {
+@keyframes quick-ground-tall {
+  0% {
+    background-position:
+      0rem -28.5rem,
+      0rem -28.5rem;
+  }
+  2.78% {
+    background-position:
+      0.28rem -26.12rem,
+      0.28rem -26.12rem;
+  }
+  5.56% {
+    background-position:
+      1.14rem -23.89rem,
+      1.14rem -23.89rem;
+  }
+  8.33% {
+    background-position:
+      2.47rem -21.9rem,
+      2.47rem -21.9rem;
+  }
+  11.11% {
+    background-position:
+      4.1rem -20.14rem,
+      4.1rem -20.14rem;
+  }
+  13.89% {
+    background-position:
+      5.89rem -18.55rem,
+      5.89rem -18.55rem;
+  }
+  16.67% {
+    background-position:
+      7.74rem -17.02rem,
+      7.74rem -17.02rem;
+  }
+  19.44% {
+    background-position:
+      9.57rem -15.47rem,
+      9.57rem -15.47rem;
+  }
+  22.22% {
+    background-position:
+      11.28rem -13.79rem,
+      11.28rem -13.79rem;
+  }
+  25% {
+    background-position:
+      12.73rem -11.89rem,
+      12.73rem -11.89rem;
+  }
+  27.78% {
+    background-position:
+      13.7rem -9.7rem,
+      13.7rem -9.7rem;
+  }
+  30.56% {
+    background-position:
+      14rem -7.33rem,
+      14rem -7.33rem;
+  }
+  33.33% {
+    background-position:
+      13.2rem -5.11rem,
+      13.2rem -5.11rem;
+  }
+  36.11% {
+    background-position:
+      11.4rem -3.54rem,
+      11.4rem -3.54rem;
+  }
+  38.89% {
+    background-position:
+      9.26rem -2.47rem,
+      9.26rem -2.47rem;
+  }
+  41.67% {
+    background-position:
+      6.99rem -1.69rem,
+      6.99rem -1.69rem;
+  }
+  44.44% {
+    background-position:
+      4.68rem -1.05rem,
+      4.68rem -1.05rem;
+  }
+  47.22% {
+    background-position:
+      2.34rem -0.51rem,
+      2.34rem -0.51rem;
+  }
+  50% {
+    background-position:
+      0rem 0rem,
+      0rem 0rem;
+  }
+  52.78% {
+    background-position:
+      -2.34rem 0.51rem,
+      -2.34rem 0.51rem;
+  }
+  55.56% {
+    background-position:
+      -4.68rem 1.05rem,
+      -4.68rem 1.05rem;
+  }
+  58.33% {
+    background-position:
+      -6.99rem 1.69rem,
+      -6.99rem 1.69rem;
+  }
+  61.11% {
+    background-position:
+      -9.26rem 2.47rem,
+      -9.26rem 2.47rem;
+  }
+  63.89% {
+    background-position:
+      -11.4rem 3.54rem,
+      -11.4rem 3.54rem;
+  }
+  66.67% {
+    background-position:
+      -13.2rem 5.11rem,
+      -13.2rem 5.11rem;
+  }
+  69.44% {
+    background-position:
+      -14rem 7.33rem,
+      -14rem 7.33rem;
+  }
+  72.22% {
+    background-position:
+      -13.7rem 9.7rem,
+      -13.7rem 9.7rem;
+  }
+  75% {
+    background-position:
+      -12.73rem 11.89rem,
+      -12.73rem 11.89rem;
+  }
+  77.78% {
+    background-position:
+      -11.28rem 13.79rem,
+      -11.28rem 13.79rem;
+  }
+  80.56% {
+    background-position:
+      -9.57rem 15.47rem,
+      -9.57rem 15.47rem;
+  }
+  83.33% {
+    background-position:
+      -7.74rem 17.02rem,
+      -7.74rem 17.02rem;
+  }
+  86.11% {
+    background-position:
+      -5.89rem 18.55rem,
+      -5.89rem 18.55rem;
+  }
+  88.89% {
+    background-position:
+      -4.1rem 20.14rem,
+      -4.1rem 20.14rem;
+  }
+  91.67% {
+    background-position:
+      -2.47rem 21.9rem,
+      -2.47rem 21.9rem;
+  }
+  94.44% {
+    background-position:
+      -1.14rem 23.89rem,
+      -1.14rem 23.89rem;
+  }
+  97.22% {
+    background-position:
+      -0.28rem 26.12rem,
+      -0.28rem 26.12rem;
+  }
+  100% {
+    background-position:
+      0rem 28.5rem,
+      0rem 28.5rem;
+  }
+}
+
+@keyframes quick-head-tall {
   0% {
     transform: rotate(0deg);
   }
-  3.75% {
-    transform: rotate(53.6deg);
+  2.78% {
+    transform: rotate(-13.91deg);
   }
-  7.5% {
-    transform: rotate(66.8deg);
+  5.56% {
+    transform: rotate(-27.9deg);
   }
-  11.25% {
-    transform: rotate(53.6deg);
+  8.33% {
+    transform: rotate(-38.95deg);
   }
-  15% {
+  11.11% {
+    transform: rotate(-46.11deg);
+  }
+  13.89% {
+    transform: rotate(-49.82deg);
+  }
+  16.67% {
+    transform: rotate(-50.54deg);
+  }
+  19.44% {
+    transform: rotate(-48.25deg);
+  }
+  22.22% {
+    transform: rotate(-42.28deg);
+  }
+  25% {
+    transform: rotate(-31.46deg);
+  }
+  27.78% {
+    transform: rotate(-15.73deg);
+  }
+  30.56% {
+    transform: rotate(2.3deg);
+  }
+  33.33% {
+    transform: rotate(36.81deg);
+  }
+  36.11% {
+    transform: rotate(58.03deg);
+  }
+  38.89% {
+    transform: rotate(68.02deg);
+  }
+  41.67% {
+    transform: rotate(73.18deg);
+  }
+  44.44% {
+    transform: rotate(76.01deg);
+  }
+  47.22% {
+    transform: rotate(77.46deg);
+  }
+  50% {
+    transform: rotate(77.91deg);
+  }
+  52.78% {
+    transform: rotate(77.46deg);
+  }
+  55.56% {
+    transform: rotate(76.01deg);
+  }
+  58.33% {
+    transform: rotate(73.18deg);
+  }
+  61.11% {
+    transform: rotate(68.02deg);
+  }
+  63.89% {
+    transform: rotate(58.03deg);
+  }
+  66.67% {
+    transform: rotate(36.81deg);
+  }
+  69.44% {
+    transform: rotate(2.3deg);
+  }
+  72.22% {
+    transform: rotate(-15.73deg);
+  }
+  75% {
+    transform: rotate(-31.46deg);
+  }
+  77.78% {
+    transform: rotate(-42.28deg);
+  }
+  80.56% {
+    transform: rotate(-48.25deg);
+  }
+  83.33% {
+    transform: rotate(-50.54deg);
+  }
+  86.11% {
+    transform: rotate(-49.82deg);
+  }
+  88.89% {
+    transform: rotate(-46.11deg);
+  }
+  91.67% {
+    transform: rotate(-38.95deg);
+  }
+  94.44% {
+    transform: rotate(-27.9deg);
+  }
+  97.22% {
+    transform: rotate(-13.91deg);
+  }
+  100% {
     transform: rotate(0deg);
   }
-  18.75% {
-    transform: rotate(-50deg);
+}
+
+@keyframes quick-cam-wide {
+  0% {
+    transform: translate(57rem, 0rem);
   }
-  22.5% {
-    transform: rotate(-62.6deg);
+  2.78% {
+    transform: translate(53.16rem, 0.63rem);
   }
-  26.25% {
-    transform: rotate(-48.3deg);
+  5.56% {
+    transform: translate(49.66rem, 2.35rem);
   }
-  30% {
-    transform: rotate(0deg);
+  8.33% {
+    transform: translate(46.53rem, 4.7rem);
   }
-  33.75% {
+  11.11% {
+    transform: translate(43.55rem, 7.23rem);
+  }
+  13.89% {
+    transform: translate(40.43rem, 9.59rem);
+  }
+  16.67% {
+    transform: translate(36.95rem, 11.34rem);
+  }
+  19.44% {
+    transform: translate(33.11rem, 12rem);
+  }
+  22.22% {
+    transform: translate(29.36rem, 11.03rem);
+  }
+  25% {
+    transform: translate(26.15rem, 8.82rem);
+  }
+  27.78% {
+    transform: translate(23.32rem, 6.12rem);
+  }
+  30.56% {
+    transform: translate(20.7rem, 3.21rem);
+  }
+  33.33% {
+    transform: translate(18.18rem, 0.22rem);
+  }
+  36.11% {
+    transform: translate(15.67rem, -2.77rem);
+  }
+  38.89% {
+    transform: translate(13.07rem, -5.7rem);
+  }
+  41.67% {
+    transform: translate(10.29rem, -8.44rem);
+  }
+  44.44% {
+    transform: translate(7.14rem, -10.75rem);
+  }
+  47.22% {
+    transform: translate(3.46rem, -11.98rem);
+  }
+  50% {
+    transform: translate(-0.32rem, -11.18rem);
+  }
+  52.78% {
+    transform: translate(-3.64rem, -9.13rem);
+  }
+  55.56% {
+    transform: translate(-6.63rem, -6.6rem);
+  }
+  58.33% {
+    transform: translate(-9.42rem, -3.87rem);
+  }
+  61.11% {
+    transform: translate(-12.12rem, -1.03rem);
+  }
+  63.89% {
+    transform: translate(-14.77rem, 1.84rem);
+  }
+  66.67% {
+    transform: translate(-17.44rem, 4.69rem);
+  }
+  69.44% {
+    transform: translate(-20.19rem, 7.48rem);
+  }
+  72.22% {
+    transform: translate(-23.08rem, 10.11rem);
+  }
+  75% {
+    transform: translate(-26.24rem, 12.41rem);
+  }
+  77.78% {
+    transform: translate(-29.84rem, 13.89rem);
+  }
+  80.56% {
+    transform: translate(-33.71rem, 13.67rem);
+  }
+  83.33% {
+    transform: translate(-37.35rem, 12.26rem);
+  }
+  86.11% {
+    transform: translate(-40.67rem, 10.19rem);
+  }
+  88.89% {
+    transform: translate(-43.77rem, 7.8rem);
+  }
+  91.67% {
+    transform: translate(-46.79rem, 5.32rem);
+  }
+  94.44% {
+    transform: translate(-49.88rem, 2.93rem);
+  }
+  97.22% {
+    transform: translate(-53.23rem, 0.92rem);
+  }
+  100% {
+    transform: translate(-57rem, 0rem);
+  }
+}
+
+@keyframes quick-ground-wide {
+  0% {
+    background-position:
+      57rem 0rem,
+      57rem 0rem;
+  }
+  2.78% {
+    background-position:
+      53.16rem 0.63rem,
+      53.16rem 0.63rem;
+  }
+  5.56% {
+    background-position:
+      49.66rem 2.35rem,
+      49.66rem 2.35rem;
+  }
+  8.33% {
+    background-position:
+      46.53rem 4.7rem,
+      46.53rem 4.7rem;
+  }
+  11.11% {
+    background-position:
+      43.55rem 7.23rem,
+      43.55rem 7.23rem;
+  }
+  13.89% {
+    background-position:
+      40.43rem 9.59rem,
+      40.43rem 9.59rem;
+  }
+  16.67% {
+    background-position:
+      36.95rem 11.34rem,
+      36.95rem 11.34rem;
+  }
+  19.44% {
+    background-position:
+      33.11rem 12rem,
+      33.11rem 12rem;
+  }
+  22.22% {
+    background-position:
+      29.36rem 11.03rem,
+      29.36rem 11.03rem;
+  }
+  25% {
+    background-position:
+      26.15rem 8.82rem,
+      26.15rem 8.82rem;
+  }
+  27.78% {
+    background-position:
+      23.32rem 6.12rem,
+      23.32rem 6.12rem;
+  }
+  30.56% {
+    background-position:
+      20.7rem 3.21rem,
+      20.7rem 3.21rem;
+  }
+  33.33% {
+    background-position:
+      18.18rem 0.22rem,
+      18.18rem 0.22rem;
+  }
+  36.11% {
+    background-position:
+      15.67rem -2.77rem,
+      15.67rem -2.77rem;
+  }
+  38.89% {
+    background-position:
+      13.07rem -5.7rem,
+      13.07rem -5.7rem;
+  }
+  41.67% {
+    background-position:
+      10.29rem -8.44rem,
+      10.29rem -8.44rem;
+  }
+  44.44% {
+    background-position:
+      7.14rem -10.75rem,
+      7.14rem -10.75rem;
+  }
+  47.22% {
+    background-position:
+      3.46rem -11.98rem,
+      3.46rem -11.98rem;
+  }
+  50% {
+    background-position:
+      -0.32rem -11.18rem,
+      -0.32rem -11.18rem;
+  }
+  52.78% {
+    background-position:
+      -3.64rem -9.13rem,
+      -3.64rem -9.13rem;
+  }
+  55.56% {
+    background-position:
+      -6.63rem -6.6rem,
+      -6.63rem -6.6rem;
+  }
+  58.33% {
+    background-position:
+      -9.42rem -3.87rem,
+      -9.42rem -3.87rem;
+  }
+  61.11% {
+    background-position:
+      -12.12rem -1.03rem,
+      -12.12rem -1.03rem;
+  }
+  63.89% {
+    background-position:
+      -14.77rem 1.84rem,
+      -14.77rem 1.84rem;
+  }
+  66.67% {
+    background-position:
+      -17.44rem 4.69rem,
+      -17.44rem 4.69rem;
+  }
+  69.44% {
+    background-position:
+      -20.19rem 7.48rem,
+      -20.19rem 7.48rem;
+  }
+  72.22% {
+    background-position:
+      -23.08rem 10.11rem,
+      -23.08rem 10.11rem;
+  }
+  75% {
+    background-position:
+      -26.24rem 12.41rem,
+      -26.24rem 12.41rem;
+  }
+  77.78% {
+    background-position:
+      -29.84rem 13.89rem,
+      -29.84rem 13.89rem;
+  }
+  80.56% {
+    background-position:
+      -33.71rem 13.67rem,
+      -33.71rem 13.67rem;
+  }
+  83.33% {
+    background-position:
+      -37.35rem 12.26rem,
+      -37.35rem 12.26rem;
+  }
+  86.11% {
+    background-position:
+      -40.67rem 10.19rem,
+      -40.67rem 10.19rem;
+  }
+  88.89% {
+    background-position:
+      -43.77rem 7.8rem,
+      -43.77rem 7.8rem;
+  }
+  91.67% {
+    background-position:
+      -46.79rem 5.32rem,
+      -46.79rem 5.32rem;
+  }
+  94.44% {
+    background-position:
+      -49.88rem 2.93rem,
+      -49.88rem 2.93rem;
+  }
+  97.22% {
+    background-position:
+      -53.23rem 0.92rem,
+      -53.23rem 0.92rem;
+  }
+  100% {
+    background-position:
+      -57rem 0rem,
+      -57rem 0rem;
+  }
+}
+
+@keyframes quick-head-wide {
+  0% {
+    transform: rotate(90deg);
+  }
+  2.78% {
+    transform: rotate(71.51deg);
+  }
+  5.56% {
+    transform: rotate(57.16deg);
+  }
+  8.33% {
+    transform: rotate(50.26deg);
+  }
+  11.11% {
+    transform: rotate(50.17deg);
+  }
+  13.89% {
+    transform: rotate(56.86deg);
+  }
+  16.67% {
+    transform: rotate(71.02deg);
+  }
+  19.44% {
+    transform: rotate(89.49deg);
+  }
+  22.22% {
+    transform: rotate(117.08deg);
+  }
+  25% {
+    transform: rotate(130.23deg);
+  }
+  27.78% {
+    transform: rotate(136.37deg);
+  }
+  30.56% {
+    transform: rotate(139.26deg);
+  }
+  33.33% {
+    transform: rotate(140.19deg);
+  }
+  36.11% {
+    transform: rotate(139.5deg);
+  }
+  38.89% {
+    transform: rotate(136.95deg);
+  }
+  41.67% {
+    transform: rotate(131.43deg);
+  }
+  44.44% {
+    transform: rotate(119.73deg);
+  }
+  47.22% {
+    transform: rotate(94.17deg);
+  }
+  50% {
+    transform: rotate(65.31deg);
+  }
+  52.78% {
+    transform: rotate(52.99deg);
+  }
+  55.56% {
+    transform: rotate(47.25deg);
+  }
+  58.33% {
+    transform: rotate(44.32deg);
+  }
+  61.11% {
+    transform: rotate(42.97deg);
+  }
+  63.89% {
+    transform: rotate(42.75deg);
+  }
+  66.67% {
+    transform: rotate(43.6deg);
+  }
+  69.44% {
+    transform: rotate(45.78deg);
+  }
+  72.22% {
     transform: rotate(50.1deg);
   }
-  37.5% {
-    transform: rotate(64.8deg);
+  75% {
+    transform: rotate(58.9deg);
   }
-  41.25% {
-    transform: rotate(50.1deg);
+  77.78% {
+    transform: rotate(79.48deg);
   }
-  45% {
-    transform: rotate(0deg);
+  80.56% {
+    transform: rotate(103.64deg);
   }
-  50% {
-    transform: rotate(180deg);
+  83.33% {
+    transform: rotate(117.59deg);
   }
-  53.75% {
-    transform: rotate(230.1deg);
+  86.11% {
+    transform: rotate(125.45deg);
   }
-  57.5% {
-    transform: rotate(244.8deg);
+  88.89% {
+    transform: rotate(129.04deg);
   }
-  61.25% {
-    transform: rotate(230.1deg);
+  91.67% {
+    transform: rotate(129.23deg);
   }
-  65% {
-    transform: rotate(180deg);
+  94.44% {
+    transform: rotate(125.44deg);
   }
-  68.75% {
-    transform: rotate(131.7deg);
-  }
-  72.5% {
-    transform: rotate(117.4deg);
-  }
-  76.25% {
-    transform: rotate(130deg);
-  }
-  80% {
-    transform: rotate(180deg);
-  }
-  83.75% {
-    transform: rotate(233.6deg);
-  }
-  87.5% {
-    transform: rotate(246.8deg);
-  }
-  91.25% {
-    transform: rotate(233.6deg);
-  }
-  95% {
-    transform: rotate(180deg);
+  97.22% {
+    transform: rotate(114.69deg);
   }
   100% {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes quick-wide {
-  0% {
-    transform: translate(8.42%, 82%);
-  }
-  3.75% {
-    transform: translate(17.04%, 78.25%);
-  }
-  7.5% {
-    transform: translate(23.68%, 70%);
-  }
-  11.25% {
-    transform: translate(30.33%, 61.75%);
-  }
-  15% {
-    transform: translate(38.95%, 58%);
-  }
-  18.75% {
-    transform: translate(47.57%, 53.62%);
-  }
-  22.5% {
-    transform: translate(54.21%, 44%);
-  }
-  26.25% {
-    transform: translate(60.86%, 34.38%);
-  }
-  30% {
-    transform: translate(69.47%, 30%);
-  }
-  33.75% {
-    transform: translate(77.81%, 27.61%);
-  }
-  37.5% {
-    transform: translate(83.29%, 22.12%);
-  }
-  41.25% {
-    transform: translate(87.38%, 16.08%);
-  }
-  45% {
-    transform: translate(91.58%, 12%);
-  }
-  50% {
-    transform: translate(91.58%, 12%);
-  }
-  53.75% {
-    transform: translate(87.38%, 16.08%);
-  }
-  57.5% {
-    transform: translate(83.29%, 22.12%);
-  }
-  61.25% {
-    transform: translate(77.81%, 27.61%);
-  }
-  65% {
-    transform: translate(69.47%, 30%);
-  }
-  68.75% {
-    transform: translate(60.86%, 34.38%);
-  }
-  72.5% {
-    transform: translate(54.21%, 44%);
-  }
-  76.25% {
-    transform: translate(47.57%, 53.62%);
-  }
-  80% {
-    transform: translate(38.95%, 58%);
-  }
-  83.75% {
-    transform: translate(30.33%, 61.75%);
-  }
-  87.5% {
-    transform: translate(23.68%, 70%);
-  }
-  91.25% {
-    transform: translate(17.04%, 78.25%);
-  }
-  95% {
-    transform: translate(8.42%, 82%);
-  }
-  100% {
-    transform: translate(8.42%, 82%);
-  }
-}
-
-@keyframes quick-wide-heading {
-  0% {
     transform: rotate(90deg);
-  }
-  3.75% {
-    transform: rotate(64.1deg);
-  }
-  7.5% {
-    transform: rotate(53.1deg);
-  }
-  11.25% {
-    transform: rotate(64.1deg);
-  }
-  15% {
-    transform: rotate(90deg);
-  }
-  18.75% {
-    transform: rotate(60.4deg);
-  }
-  22.5% {
-    transform: rotate(48.8deg);
-  }
-  26.25% {
-    transform: rotate(60.4deg);
-  }
-  30% {
-    transform: rotate(90deg);
-  }
-  33.75% {
-    transform: rotate(71deg);
-  }
-  37.5% {
-    transform: rotate(54.3deg);
-  }
-  41.25% {
-    transform: rotate(53.5deg);
-  }
-  45% {
-    transform: rotate(76deg);
-  }
-  50% {
-    transform: rotate(256deg);
-  }
-  53.75% {
-    transform: rotate(233.5deg);
-  }
-  57.5% {
-    transform: rotate(234.3deg);
-  }
-  61.25% {
-    transform: rotate(251deg);
-  }
-  65% {
-    transform: rotate(270deg);
-  }
-  68.75% {
-    transform: rotate(240.4deg);
-  }
-  72.5% {
-    transform: rotate(228.8deg);
-  }
-  76.25% {
-    transform: rotate(240.4deg);
-  }
-  80% {
-    transform: rotate(270deg);
-  }
-  83.75% {
-    transform: rotate(244.1deg);
-  }
-  87.5% {
-    transform: rotate(233.1deg);
-  }
-  91.25% {
-    transform: rotate(244.1deg);
-  }
-  95% {
-    transform: rotate(270deg);
-  }
-  100% {
-    transform: rotate(450deg);
-  }
-}
-
-/* One cell of the graticule, and no more. The gradients repeat every 4.75rem,
-   so moving the background exactly that far leaves the picture where it started
-   without anything appearing to jump -- which is what lets the ground scroll for
-   as long as the load takes instead of playing an eight-second clip over and
-   over. Both layers are moved together; the pair of values is the vertical
-   gradient and the horizontal one. */
-@keyframes quick-pan-tall {
-  from {
-    background-position:
-      0 0,
-      0 0;
-  }
-  to {
-    background-position:
-      0 4.75rem,
-      0 4.75rem;
-  }
-}
-
-@keyframes quick-pan-wide {
-  from {
-    background-position:
-      0 0,
-      0 0;
-  }
-  to {
-    background-position:
-      -4.75rem 4.75rem,
-      -4.75rem 4.75rem;
   }
 }
 
@@ -1558,18 +2022,35 @@ html[data-boot="quick"] #boot-veil {
     animation: none;
   }
 
-  /* Parked halfway along, rather than stopped at the start line: the point of
-     the picture is a journey underway, and that survives being still. */
-  .quick-travel {
+  /* Parked halfway along a tile rather than at its join, and with the needle on
+     the heading it would be reading there: the point of the picture is a journey
+     underway, and that survives being still. The values are the fiftieth frame
+     printed by scripts/opening-route.mjs. */
+  .quick-world,
+  .quick-cam {
     animation: none;
   }
 
-  .quick-tall .quick-travel {
-    transform: translate(50%, 51.45%);
+  .quick-tall .quick-heading {
+    animation: none;
+    transform: rotate(77.91deg);
   }
 
-  .quick-wide .quick-travel {
-    transform: translate(54.21%, 44%);
+  .quick-wide .quick-heading {
+    animation: none;
+    transform: rotate(65.31deg);
+  }
+
+  @media (orientation: landscape) {
+    .quick-cam {
+      transform: translate(-0.32rem, -11.18rem);
+    }
+
+    .quick-grid {
+      background-position:
+        -0.32rem -11.18rem,
+        -0.32rem -11.18rem;
+    }
   }
 
   /* One word, standing still. The turn is the whole animation, so there is
