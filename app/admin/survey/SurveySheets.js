@@ -4,6 +4,8 @@ import {
   SURVEY_TOTAL,
   answeredCount,
   medianDollars,
+  travelerSegments,
+  travelerTag,
 } from "@/lib/beta/survey";
 
 /**
@@ -21,6 +23,13 @@ import {
  * Nothing here is a chart from a library. A scale question is a row of five
  * counts and an average, which is a table; the app has no chart dependency and
  * this is not the place to acquire one.
+ *
+ * Every number is also given by kind of traveler. A 3.4 out of five across
+ * everybody is the least useful figure on the page: it can be four novices who
+ * love it and two professionals who find it thin, which is a roadmap, or six
+ * people who all mildly like it, which is not. So each score and each price
+ * carries a line underneath saying how it landed per group, and the roll call
+ * says what kind of traveler each sheet came from.
  */
 
 function when(value) {
@@ -95,11 +104,44 @@ function Spread({ spread, answered }) {
   );
 }
 
-function ScaleRow({ question, sheets }) {
+/**
+ * How the same question landed per group, on one line.
+ *
+ * Deliberately not five more bar charts. With a beta of this size a group is two
+ * or three people, and the honest way to show two people is a number and the
+ * count beside it, so nobody reads a lone opinion as a trend. Groups where
+ * nobody answered this question are left out rather than printed as a dash.
+ */
+function ByTraveler({ parts }) {
+  const said = parts.filter((part) => part.value !== null);
+  if (said.length < 2) return null;
+  return (
+    <p className="mt-1.5 text-[0.7rem] leading-relaxed text-ink-soft">
+      {said.map((part, index) => (
+        <span key={part.label}>
+          {index ? " · " : ""}
+          {part.label}{" "}
+          <span className="tabular font-semibold text-ink">{part.value}</span>
+          <span className="tabular"> ({part.count})</span>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function ScaleRow({ question, sheets, segments }) {
   const { average, answered, unused, spread } = scaleRollup(
     question.id,
     sheets,
   );
+  const parts = segments.map((segment) => {
+    const roll = scaleRollup(question.id, segment.sheets);
+    return {
+      label: segment.label,
+      value: roll.answered ? roll.average : null,
+      count: roll.answered,
+    };
+  });
   return (
     <div className="border-t border-[var(--line)] pt-3 first:border-0 first:pt-0">
       <p className="text-sm font-medium text-ink">{question.prompt}</p>
@@ -119,6 +161,7 @@ function ScaleRow({ question, sheets }) {
         )}
       </p>
       {answered ? <Spread spread={spread} answered={answered} /> : null}
+      {answered ? <ByTraveler parts={parts} /> : null}
       <p className="mt-1 text-[0.65rem] text-ink-soft">
         1 {question.low} · 5 {question.high}
       </p>
@@ -168,7 +211,7 @@ function ChoiceRow({ question, sheets }) {
  * answer than 10, and rounding it into a column would throw away the condition
  * that came with it.
  */
-function MoneyRow({ question, sheets }) {
+function MoneyRow({ question, sheets, segments }) {
   const said = sheets
     .map((sheet) => ({
       email: sheet.email,
@@ -176,6 +219,17 @@ function MoneyRow({ question, sheets }) {
     }))
     .filter((one) => one.words);
   const middle = medianDollars(said.map((one) => one.words));
+  const parts = segments.map((segment) => {
+    const words = segment.sheets
+      .map((sheet) => sheet.answers?.[question.id])
+      .filter(Boolean);
+    const value = medianDollars(words);
+    return {
+      label: segment.label,
+      value: value === null ? null : money(value),
+      count: words.length,
+    };
+  });
   return (
     <div className="border-t border-[var(--line)] pt-3 first:border-0 first:pt-0">
       <p className="text-sm font-medium text-ink">{question.prompt}</p>
@@ -197,6 +251,7 @@ function MoneyRow({ question, sheets }) {
           "Nobody has answered this yet."
         )}
       </p>
+      <ByTraveler parts={parts} />
       {said.length ? (
         <ul className="mt-1.5 space-y-1">
           {said.map((one) => (
@@ -242,19 +297,20 @@ function TextRow({ question, sheets }) {
   );
 }
 
-function Row({ question, sheets }) {
+function Row({ question, sheets, segments }) {
   if (question.kind === "scale")
-    return <ScaleRow question={question} sheets={sheets} />;
+    return <ScaleRow question={question} sheets={sheets} segments={segments} />;
   if (question.kind === "choice")
     return <ChoiceRow question={question} sheets={sheets} />;
   if (question.kind === "money")
-    return <MoneyRow question={question} sheets={sheets} />;
+    return <MoneyRow question={question} sheets={sheets} segments={segments} />;
   return <TextRow question={question} sheets={sheets} />;
 }
 
 export default function SurveySheets({ sheets = [], keyMissing = false }) {
   const sent = sheets.filter((one) => one.submittedAt).length;
   const started = sheets.filter((one) => answeredCount(one.answers) > 0);
+  const segments = travelerSegments(started);
 
   return (
     <main className="screen px-5 pb-16 pt-7">
@@ -286,6 +342,7 @@ export default function SurveySheets({ sheets = [], keyMissing = false }) {
                       key={question.id}
                       question={question}
                       sheets={started}
+                      segments={segments}
                     />
                   ))}
                 </div>
@@ -303,11 +360,15 @@ export default function SurveySheets({ sheets = [], keyMissing = false }) {
             <ul className="card mt-3 divide-y divide-[var(--line)] p-0">
               {sheets.map((sheet) => {
                 const answered = answeredCount(sheet.answers);
+                const tag = travelerTag(sheet.answers);
                 return (
                   <li key={sheet.email} className="px-4 py-3">
                     <p className="text-sm font-medium text-ink">
                       {sheet.email}
                     </p>
+                    {tag ? (
+                      <p className="mt-0.5 text-[0.78rem] text-teal">{tag}</p>
+                    ) : null}
                     <p className="mt-0.5 text-[0.78rem] text-ink-soft">
                       <span className="tabular">
                         {answered} of {SURVEY_TOTAL}

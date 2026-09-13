@@ -8,7 +8,11 @@ import { stepLabel } from "@/lib/usage/steps";
 import TopBar from "@/components/TopBar";
 import AdminBody from "./AdminBody";
 import { FAULT_KIND } from "@/lib/feedback/shared";
-import { answeredCount, medianDollars } from "@/lib/beta/survey";
+import {
+  answeredCount,
+  medianDollars,
+  travelerSegments,
+} from "@/lib/beta/survey";
 
 export const metadata = { title: "Beta desk · Alyeska" };
 export const dynamic = "force-dynamic";
@@ -196,17 +200,26 @@ export default async function AdminPage() {
  * near the end, so the sheets in progress are exactly the ones whose numbers are
  * missing, and knowing how many there are is how you tell a quiet beta from an
  * unfinished one.
+ *
+ * The mix of travelers is carried up too, in the same words the survey offers, so
+ * the desk can tell at a glance whether the feedback under that price came from
+ * four people who travel once a year or one who travels for a living. Without it
+ * a median is a number with nobody attached to it.
  */
 function countSurvey(rows) {
   const sent = rows.filter((one) => one.submitted_at);
   const answers = rows.map((one) => one.answers || {});
+  const started = answers.filter((one) => answeredCount(one) > 0);
   return {
+    mix: travelerSegments(started.map((one) => ({ answers: one }))).map(
+      (segment) => ({ label: segment.label, count: segment.sheets.length }),
+    ),
     total: rows.length,
     sent: sent.length,
     writing: rows.length - sent.length,
     // Only sheets with something in them, so an account that opened the page
     // once and left does not read as an opinion.
-    started: answers.filter((one) => answeredCount(one) > 0).length,
+    started: started.length,
     fair: medianDollars(answers.map((one) => one.price_fair)),
     tooMuch: medianDollars(answers.map((one) => one.price_too_much)),
     lastAt: rows[0]?.updated_at || null,

@@ -14,9 +14,9 @@ import {
  *
  * There is no Submit that the answers depend on. Every field writes itself
  * within a second of being touched, the whole sheet is still there next week,
- * and the button at the bottom only says "I am done for now" -- because a
- * twenty-six question survey that loses an hour of typing to a closed tab is a
- * survey that gets answered once, badly, by whoever is most patient.
+ * and the button at the bottom only says "I am done for now" -- because a survey
+ * this long that loses an hour of typing to a closed tab is a survey that gets
+ * answered once, badly, by whoever is most patient.
  *
  * What gets sent is the field that changed, never the whole sheet. Two tabs open
  * on this page cannot have the second one overwrite the first one's paragraph
@@ -197,7 +197,7 @@ export default function Survey({ initialAnswers, initialSubmittedAt }) {
  *
  * Sticky at the top of the page rather than beside each field: a survey that
  * saves itself has to say so somewhere the eye can find without hunting, and
- * twenty-six little ticks is noise. It says the count too, because on a sheet
+ * one little tick per field is noise. It says the count too, because on a sheet
  * this long "how much is left" is the other question people have.
  */
 function SaveLine({ state, answered, submittedAt, onRetry }) {

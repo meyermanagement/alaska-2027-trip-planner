@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * Every survey sheet, on a page of its own.
  *
  * Split off the beta desk for the same reason the issue log was: the desk keeps
- * the count and the way in, and the answers themselves are twenty-six questions
+ * the count and the way in, and the answers themselves are thirty questions
  * a tester long, which is more than a summary line can hold and more than the
  * desk should have to scroll past.
  *

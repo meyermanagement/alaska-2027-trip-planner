@@ -120,6 +120,11 @@ export default function AdminBody({
               ? `${survey.started} ${survey.started === 1 ? "sheet" : "sheets"} with something in ${survey.started === 1 ? "it" : "them"}, ${survey.sent} sent and ${survey.writing} still being written.`
               : "Nobody has answered anything yet. The survey sits under More, and testers can change any answer afterwards."}
           </p>
+          {survey?.mix?.length ? (
+            <p className="mt-1 text-[0.78rem] text-ink-soft">
+              {survey.mix.map((one) => `${one.count} ${one.label}`).join(" · ")}
+            </p>
+          ) : null}
           {survey?.fair !== null && survey?.fair !== undefined ? (
             <p className="mt-1.5 text-sm text-ink-soft">
               A fair price, in the middle:{" "}
