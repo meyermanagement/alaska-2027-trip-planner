@@ -13,9 +13,10 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * It is deliberately not the Contact Us row in the menu. A bug is noticed while
  * you are looking at it, and a report that costs two taps and a menu is a report
  * that gets put off until the thing you meant to say has gone. So it sits on the
- * screen, small and out of the way, and it is on the onboarding screens too --
- * where the compass and Ask Aly are both absent on purpose, and where a first-run
- * problem is exactly the kind nobody is ever in a position to describe later.
+ * screen, small and out of the way, and it is on most of the onboarding screens
+ * too -- where the compass and Ask Aly are both absent on purpose, and where a
+ * first-run problem is exactly the kind nobody is ever in a position to describe
+ * later. The consent gate is the exception; see QUIET below.
  *
  * Only for the beta. The button is a beta instrument, so it is drawn only for
  * people in the beta -- see useBetaTester, which the menu's beta survey row uses
@@ -35,8 +36,28 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * stranded on top of the keys.
  */
 
+/**
+ * Screens the flag stays off.
+ *
+ * The consent gate asks somebody to read an agreement and say yes to it. A
+ * floating red flag in the corner of that is the app undercutting its own
+ * paperwork: it invites the reader to treat what they are agreeing to as a
+ * draft, and it sets a second, brighter thing to press beside the only decision
+ * the screen exists to collect. Anything wrong here is still reportable from
+ * every screen that comes after it, and the address in the agreement is on the
+ * first of these six screens in plain text.
+ *
+ * The practice copy is listed for the same reason it exists at all: a rehearsal
+ * has to show the screens a tester actually meets, and one carrying a control
+ * the real gate does not have is not a rehearsal.
+ */
+const QUIET = ["/welcome/beta", "/interview-check/beta"];
+
 export default function ReportButton() {
   const pathname = usePathname() || "";
+  const quiet = QUIET.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
   const tester = useBetaTester();
   const [menuOpen, setMenuOpen] = useState(false);
   const [crowded, setCrowded] = useState(false);
@@ -71,7 +92,7 @@ export default function ReportButton() {
     return () => window.removeEventListener(MENU_EVENT, onMenu);
   }, []);
 
-  if (!tester) return null;
+  if (!tester || quiet) return null;
 
   return (
     <div
