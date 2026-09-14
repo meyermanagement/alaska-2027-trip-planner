@@ -324,13 +324,13 @@ export default function PlaceCards({
           newest set, so pressing it cannot ask for more of a list four
           exchanges back. */}
       {onFindMore || onAlternatives ? (
-        <div className="mt-3.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="mt-3.5 flex flex-col gap-2">
           {onFindMore ? (
             <button
               type="button"
               onClick={onFindMore}
               disabled={busy}
-              className="btn btn-primary w-full sm:w-auto"
+              className="btn btn-primary w-full"
             >
               <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
                 <circle
@@ -365,7 +365,7 @@ export default function PlaceCards({
               type="button"
               onClick={onAlternatives}
               disabled={busy}
-              className="btn btn-ghost w-full sm:w-auto"
+              className="btn btn-ghost w-full"
             >
               <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
                 <path

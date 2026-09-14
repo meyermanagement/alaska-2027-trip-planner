@@ -259,6 +259,33 @@ body {
   max-width: var(--screen-max);
 }
 
+/* The interview is a question and a panel about what has been said so far, and
+   the question is the screen: it should be exactly as wide as a page of this app
+   is anywhere else, which is --screen-max. So the shell is capped at that plus
+   the panel and the gap between them, and the question column is a fraction
+   rather than a fixed 42rem. Below the two-column breakpoint the panel drops
+   under the question and the same cap still reads as one column.
+
+   Two things were wrong before. max-w-6xl is not a cap that survives here --
+   `.app-shell > *` sets max-width to 100% on every direct child of the shell,
+   and it is later in this file and beats a utility class -- so there was no cap
+   at all. And the two fixed tracks left their slack on the right, which put the
+   question left of centre by however much the window had spare.
+
+   The selector is written twice for that reason: the plain class for anywhere
+   this shell is used outside the app shell, and the child form so it outranks
+   that 100%. */
+.interview-shell,
+.app-shell > .interview-shell {
+  max-width: min(100%, calc(var(--screen-max) + 20rem + 1.5rem));
+}
+
+/* One column, so the same width as every other page. */
+.interview-shell-alone,
+.app-shell > .interview-shell-alone {
+  max-width: min(100%, var(--screen-max));
+}
+
 .font-display {
   font-family: var(--font-display);
   font-optical-sizing: auto;
@@ -5538,6 +5565,25 @@ html[data-route="3"] .quick-tall .quick-heading {
 
   .nav-rail-ask {
     display: flex;
+  }
+}
+
+/* Screens that have no rail must not be pushed over as if they had one.
+   The rail's width is a variable, and the page is moved out of its way by a
+   left pad on <body> plus a couple of things that measure their own left edge
+   off the same variable. Every screen in the app renders the menu, so that was
+   true everywhere -- until the flows that deliberately do not: the interview,
+   the opening, About you. Those pages kept the pad and lost the rail, so at
+   1500 the question sat 328 points right of where it belonged with nothing in
+   the gutter beside it, which reads as a screen that failed to centre rather
+   than as a screen with a menu.
+
+   So the width is asked of the document rather than assumed: no menu in the
+   page, no rail width, and everything measured off it collapses correctly at
+   once. */
+@media (min-width: 1100px) {
+  html:not(:has(.nav-rail)) {
+    --nav-rail-w: 0rem;
   }
 }
 

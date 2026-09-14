@@ -1268,7 +1268,21 @@ export default function InterviewBody({
     .filter((row) => row.text);
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 lg:grid-cols-[minmax(0,42rem)_minmax(0,20rem)]">
+    <div
+      className={`interview-shell mx-auto grid w-full gap-6 px-4 py-10 ${
+        // The panel about what has been said so far is not there until something
+        // has been said -- and on every arrival from Family it starts empty,
+        // because the lines are this sitting's answers. An unconditional second
+        // track reserved twenty rems for it anyway, which left the question
+        // sitting left of centre beside a column with nothing in it. So the
+        // second column is asked for only when there is a panel to put in it,
+        // and until then the question is one centred column the width of any
+        // other page in the app.
+        summaryLines.length > 0
+          ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]"
+          : "interview-shell-alone"
+      }`}
+    >
       <div className="flex min-h-[70vh] w-full flex-col items-center justify-center">
         <p className="section-label mb-2 self-start text-ink-soft">
           Question {index + 1} of {count}
