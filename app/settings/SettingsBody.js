@@ -1,6 +1,7 @@
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
 import SkinPicker from "@/components/SkinPicker";
+import BetaConsentControls from "@/components/BetaConsentControls";
 import TextSizePicker from "@/components/TextSizePicker";
 import { SETTINGS_FOCUS } from "@/lib/agent/context";
 
@@ -24,6 +25,7 @@ export default function SettingsBody({
   skin,
   textSize,
   mine,
+  consent,
 }) {
   return (
     <>
@@ -35,6 +37,13 @@ export default function SettingsBody({
           <SkinPicker skin={skin} />
 
           <TextSizePicker size={textSize} />
+
+          {/* Only for an account that agreed to something. It sits above the
+              account section rather than at the foot of the screen because it is
+              the one section here somebody arrives meaning to change and needs to
+              find without hunting -- a way to withdraw consent that has to be
+              scrolled past a color picker to reach is a way in name only. */}
+          {consent && <BetaConsentControls consent={consent} />}
 
           <section>
             <h2 className="font-display text-xl font-semibold">Signed in</h2>

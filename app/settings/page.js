@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import SettingsBody from "./SettingsBody";
+import { readConsent } from "@/lib/beta/consent";
 
 export const metadata = { title: "Settings · Alyeska" };
 
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
   const user = await whoIs(supabase);
   if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: mine }] = await Promise.all([
+  const [{ data: profile }, { data: mine }, consent] = await Promise.all([
     supabase
       .from("profiles")
       .select("display_name, skin, text_size")
@@ -43,6 +44,10 @@ export default async function SettingsPage() {
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle(),
+    // What they agreed to on the way in, so the answers can be taken back from
+    // the same screen that shows them. Null for an account with nothing
+    // recorded, and the section is simply not drawn.
+    readConsent(supabase, user.id),
   ]);
 
   return (
@@ -52,6 +57,7 @@ export default async function SettingsPage() {
       skin={profile?.skin}
       textSize={profile?.text_size}
       mine={mine}
+      consent={consent}
     />
   );
 }

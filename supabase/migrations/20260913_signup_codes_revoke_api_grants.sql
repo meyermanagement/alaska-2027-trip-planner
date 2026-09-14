@@ -1,0 +1,29 @@
+-- Close the grants under signup_codes.
+--
+-- The table has row level security on and no policies, which the database
+-- linter reports as rls_enabled_no_policy. That is the deny-everything state
+-- and here it is the intended one: a list of unspent ways into a closed beta is
+-- not something a tester, or a stranger, should be able to read. Adding a policy
+-- to quiet the linter would be the wrong repair.
+--
+-- Everything that legitimately touches the table goes around RLS on purpose.
+-- handle_new_user and redeem_signup_code are SECURITY DEFINER and owned by
+-- postgres, so they can read a code and spend it without the caller ever holding
+-- a right to it. The beta desk -- app/admin/page.js, app/api/admin/beta/route.js
+-- and lib/beta/tester.js -- reads with the service role key behind the admin
+-- allowlist in lib/auth/admin.js.
+--
+-- What was left underneath was Supabase's default privileges on the public
+-- schema: anon and authenticated each held select, insert, update, delete and
+-- truncate on this table. Unreachable today, because RLS refuses first, and
+-- verified so -- as anon, a count returned zero of the five rows that exist and
+-- an insert was rejected. But it made RLS the only thing standing, so a single
+-- carelessly written policy in some later migration would open a table nobody
+-- ever intended to be readable. It also left the table on the REST surface,
+-- where GET /rest/v1/signup_codes answered a stranger with an empty array
+-- instead of refusing, confirming that the table exists.
+--
+-- Two independent refusals is the right number for this one. Nothing in the app
+-- uses these grants; postgres and service_role keep theirs, and redemption still
+-- returns new_family when tested through the definer function.
+revoke all on public.signup_codes from anon, authenticated;

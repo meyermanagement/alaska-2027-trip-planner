@@ -237,6 +237,17 @@ const MORE_GROUP = {
       sub: "Questions, or anything you want to tell us",
       Icon: MailIcon,
     },
+    // Below the two rooms a family visits and above the housekeeping door,
+    // because it is the row somebody looks for exactly once and should still be
+    // able to find. It is also the only in-app way to reach the policy for an
+    // account that is not in the beta: the Settings section that links it is
+    // drawn from a consent record, and a general-release account has none.
+    {
+      href: "/privacy",
+      label: "Privacy and Terms",
+      sub: "What we hold, who sees it, how long it stays",
+      Icon: FolderIcon,
+    },
     SETTINGS,
   ],
 };
@@ -858,115 +869,108 @@ export default function NavTabs({
   const column = (
     <>
       {hero}
-                {/* Read downward, in the order the rows are written: the trip
+      {/* Read downward, in the order the rows are written: the trip
                     plate, then the Travel Journal under it, then the other two
                     groups, with Settings last. The arc used to run the other
                     way, outward from the thumb, which put the least-used door
                     directly under the plate and made the column read bottom-up
                     against every other list in the app. */}
-                {rows.map((row) => {
-                  if (row.kind === "group") {
-                    const isOpen = group === row.groupKey;
-                    const count = row.badge && !isOpen ? attention : 0;
-                    const toggle = () =>
-                      setGroup((held) =>
-                        held === row.groupKey ? null : row.groupKey,
-                      );
-                    /* What a band says: the icon, the name in small caps, how
+      {rows.map((row) => {
+        if (row.kind === "group") {
+          const isOpen = group === row.groupKey;
+          const count = row.badge && !isOpen ? attention : 0;
+          const toggle = () =>
+            setGroup((held) => (held === row.groupKey ? null : row.groupKey));
+          /* What a band says: the icon, the name in small caps, how
                        many screens are behind it, and the chevron. The sentence
                        it used to carry has gone with the pill -- a heading that
                        explains itself in two lines is competing with the screens
                        inside it, and the count answers the same question in one
                        character. */
-                    const face = (
-                      <>
-                        <span className="arc-disc">
-                          <row.Icon className="h-[15px] w-[15px] shrink-0" />
-                          {count > 0 && (
-                            <span className="arc-dot">
-                              {count}
-                              <span className="sr-only">
-                                {" "}
-                                needing attention
-                              </span>
-                            </span>
-                          )}
-                        </span>
-                        <span className="arc-label min-w-0 truncate">
-                          {row.label}
-                        </span>
-                        <span className="arc-count tabular">{row.count}</span>
-                        <span aria-hidden="true" className="arc-chev">
-                          <ChevronIcon className="h-[14px] w-[14px] shrink-0" />
-                        </span>
-                      </>
-                    );
+          const face = (
+            <>
+              <span className="arc-disc">
+                <row.Icon className="h-[15px] w-[15px] shrink-0" />
+                {count > 0 && (
+                  <span className="arc-dot">
+                    {count}
+                    <span className="sr-only"> needing attention</span>
+                  </span>
+                )}
+              </span>
+              <span className="arc-label min-w-0 truncate">{row.label}</span>
+              <span className="arc-count tabular">{row.count}</span>
+              <span aria-hidden="true" className="arc-chev">
+                <ChevronIcon className="h-[14px] w-[14px] shrink-0" />
+              </span>
+            </>
+          );
 
-                    /* Inside a trip, one band with two targets: the left of it
+          /* Inside a trip, one band with two targets: the left of it
                        opens the group, the right end leaves the trip. The
                        animation and the band face belong to the container, so
                        the two halves are bare buttons sharing one surface with a
                        hairline between them. */
-                    if (row.wayOut) {
-                      return (
-                        <div
-                          key={row.key}
-                          style={{ "--arc-i": row.i }}
-                          className={`arc-pill group split ${isOpen ? "open" : ""}`}
-                        >
-                          <button
-                            type="button"
-                            aria-expanded={isOpen}
-                            onClick={toggle}
-                            className="arc-band-main"
-                          >
-                            {face}
-                          </button>
-                          <Link
-                            href="/trips"
-                            className="arc-band-out"
-                            onPointerEnter={() => router.prefetch("/trips")}
-                            onPointerDown={() => router.prefetch("/trips")}
-                            onFocus={() => router.prefetch("/trips")}
-                            onClick={() => setOpen(false)}
-                          >
-                            <span>All trips</span>
-                            <PendingSwap
-                              href="/trips"
-                              className="h-[13px] w-[13px] shrink-0"
-                            >
-                              <ArrowIcon className="h-[13px] w-[13px] shrink-0" />
-                            </PendingSwap>
-                          </Link>
-                        </div>
-                      );
-                    }
+          if (row.wayOut) {
+            return (
+              <div
+                key={row.key}
+                style={{ "--arc-i": row.i }}
+                className={`arc-pill group split ${isOpen ? "open" : ""}`}
+              >
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  onClick={toggle}
+                  className="arc-band-main"
+                >
+                  {face}
+                </button>
+                <Link
+                  href="/trips"
+                  className="arc-band-out"
+                  onPointerEnter={() => router.prefetch("/trips")}
+                  onPointerDown={() => router.prefetch("/trips")}
+                  onFocus={() => router.prefetch("/trips")}
+                  onClick={() => setOpen(false)}
+                >
+                  <span>All trips</span>
+                  <PendingSwap
+                    href="/trips"
+                    className="h-[13px] w-[13px] shrink-0"
+                  >
+                    <ArrowIcon className="h-[13px] w-[13px] shrink-0" />
+                  </PendingSwap>
+                </Link>
+              </div>
+            );
+          }
 
-                    return (
-                      <button
-                        key={row.key}
-                        type="button"
-                        aria-expanded={isOpen}
-                        onClick={toggle}
-                        style={{ "--arc-i": row.i }}
-                        className={`arc-pill group ${
-                          row.slim ? "slim " : ""
-                        }${isOpen ? "open" : ""}`}
-                      >
-                        {face}
-                      </button>
-                    );
-                  }
+          return (
+            <button
+              key={row.key}
+              type="button"
+              aria-expanded={isOpen}
+              onClick={toggle}
+              style={{ "--arc-i": row.i }}
+              className={`arc-pill group ${
+                row.slim ? "slim " : ""
+              }${isOpen ? "open" : ""}`}
+            >
+              {face}
+            </button>
+          );
+        }
 
-                  const active = row.active;
-                  const count = row.badge ? attention : 0;
-                  const Icon = row.Icon;
-                  return (
-                    <Link
-                      key={row.key}
-                      href={row.href}
-                      aria-current={active ? "page" : undefined}
-                      /* A link on a page like these prefetches only as far as
+        const active = row.active;
+        const count = row.badge ? attention : 0;
+        const Icon = row.Icon;
+        return (
+          <Link
+            key={row.key}
+            href={row.href}
+            aria-current={active ? "page" : undefined}
+            /* A link on a page like these prefetches only as far as
                          the loading skeleton: enough to draw the frame
                          instantly, and nothing of what the screen is actually
                          made of, so the wait is still the whole server render
@@ -975,87 +979,85 @@ export default function NavTabs({
                          rather than on every row when the menu opens, because
                          warming six screens nobody asked for is how a phone on
                          mobile data ends up slower than it started. */
-                      onPointerEnter={() => router.prefetch(row.href)}
-                      onPointerDown={() => router.prefetch(row.href)}
-                      onFocus={() => router.prefetch(row.href)}
-                      onClick={(e) => {
-                        setOpen(false);
-                        // Already on the board: the three groups are all here, so
-                        // the router has nothing to fetch and a press through it
-                        // changed the address and drew no skeleton. Hand the
-                        // request to the board instead, which puts its skeleton up
-                        // and then draws the group. Modified clicks are left alone
-                        // so a row can still be opened in a new tab.
-                        const plain =
-                          !e.metaKey &&
-                          !e.ctrlKey &&
-                          !e.shiftKey &&
-                          !e.altKey &&
-                          e.button === 0;
-                        if (row.view && pathname === "/trips" && plain) {
-                          e.preventDefault();
-                          window.dispatchEvent(
-                            new CustomEvent(TRIPS_VIEW_EVENT, {
-                              detail: { view: row.view },
-                            }),
-                          );
-                        }
-                      }}
-                      style={{
-                        // Its place in the stagger, counted from the plate.
-                        "--arc-i": row.i,
-                      }}
-                      className={`arc-pill ${row.kid ? "kid " : ""}${
-                        active ? "on" : ""
-                      }`}
-                    >
-                      <span className="arc-disc">
-                        <PendingSwap
-                          href={row.href}
-                          className={
-                            row.kid
-                              ? "h-[17px] w-[17px] shrink-0"
-                              : "h-[18px] w-[18px] shrink-0"
-                          }
-                        >
-                          <Icon
-                            className={
-                              row.kid
-                                ? "h-[17px] w-[17px] shrink-0"
-                                : "h-[18px] w-[18px] shrink-0"
-                            }
-                          />
-                        </PendingSwap>
-                        {count > 0 && (
-                          <span className="arc-dot">
-                            {count}
-                            <span className="sr-only"> needing attention</span>
-                          </span>
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="arc-label block truncate font-display text-base font-semibold leading-tight">
-                          {row.label}
-                        </span>
-                        <span className="arc-sub block truncate text-xs leading-tight">
-                          {row.sub}
-                        </span>
-                      </span>
-                    </Link>
-                  );
-                })}
-                {/* When the filter is a match for nothing the column looks
+            onPointerEnter={() => router.prefetch(row.href)}
+            onPointerDown={() => router.prefetch(row.href)}
+            onFocus={() => router.prefetch(row.href)}
+            onClick={(e) => {
+              setOpen(false);
+              // Already on the board: the three groups are all here, so
+              // the router has nothing to fetch and a press through it
+              // changed the address and drew no skeleton. Hand the
+              // request to the board instead, which puts its skeleton up
+              // and then draws the group. Modified clicks are left alone
+              // so a row can still be opened in a new tab.
+              const plain =
+                !e.metaKey &&
+                !e.ctrlKey &&
+                !e.shiftKey &&
+                !e.altKey &&
+                e.button === 0;
+              if (row.view && pathname === "/trips" && plain) {
+                e.preventDefault();
+                window.dispatchEvent(
+                  new CustomEvent(TRIPS_VIEW_EVENT, {
+                    detail: { view: row.view },
+                  }),
+                );
+              }
+            }}
+            style={{
+              // Its place in the stagger, counted from the plate.
+              "--arc-i": row.i,
+            }}
+            className={`arc-pill ${row.kid ? "kid " : ""}${active ? "on" : ""}`}
+          >
+            <span className="arc-disc">
+              <PendingSwap
+                href={row.href}
+                className={
+                  row.kid
+                    ? "h-[17px] w-[17px] shrink-0"
+                    : "h-[18px] w-[18px] shrink-0"
+                }
+              >
+                <Icon
+                  className={
+                    row.kid
+                      ? "h-[17px] w-[17px] shrink-0"
+                      : "h-[18px] w-[18px] shrink-0"
+                  }
+                />
+              </PendingSwap>
+              {count > 0 && (
+                <span className="arc-dot">
+                  {count}
+                  <span className="sr-only"> needing attention</span>
+                </span>
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="arc-label block truncate font-display text-base font-semibold leading-tight">
+                {row.label}
+              </span>
+              <span className="arc-sub block truncate text-xs leading-tight">
+                {row.sub}
+              </span>
+            </span>
+          </Link>
+        );
+      })}
+      {/* When the filter is a match for nothing the column looks
                     empty for a reason the user cannot see from the outside;
                     say so, in one small line the same width as the pills, so
                     the field they typed into does not look broken. */}
-                {filterReady && rows.length === 0 && !hero && (
-                  <p className="px-1 py-2 text-xs text-ink/60">
-                    Nothing in the menu matches
-                    {" \u201C"}
-                    {query.trim()}
-                    {"\u201D"}.
-                  </p>
-                )}
+      {filterReady && rows.length === 0 && !hero && (
+        <p className="px-1 py-2 text-xs text-ink/60">
+          Nothing in the menu matches
+          {" \u201C"}
+          {query.trim()}
+          {"\u201D"}.
+        </p>
+      )}
     </>
   );
 
