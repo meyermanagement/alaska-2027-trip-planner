@@ -296,7 +296,15 @@ export default function PlaceCards({
               ) : null}
             </div>
           ) : null}
-          <ul className="grid gap-2 sm:grid-cols-2">
+          {/* One card at a time, at every width. Two across is decided by the
+              window, and these cards do not live in the window: they are read in
+              the Ask Aly panel, which is a rail of a few hundred pixels on a
+              desktop. Asking for two columns in there crushed the photograph,
+              the address and the price into half a rail each. A shortlist is
+              also meant to be read in order -- the first card is the
+              recommendation -- and a second column quietly says the two are
+              equals. */}
+          <ul className="grid gap-2">
             {section.places.map((place, i) => (
               <Card
                 key={`${place.name}-${i}`}
