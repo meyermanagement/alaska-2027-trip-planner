@@ -117,6 +117,12 @@ export default async function WelcomeNextStepsPage() {
               : undefined
           }
           done={setup?.done || []}
+          /* Tappable from the second arrival, for the same reason the menu is
+           back: somebody who came here to see what was left wants the screen
+           the row is about, not a description of it. Left alone during the
+           walkthrough, where four cards leading out of the flow would be four
+           ways to abandon it one screen before it ends. */
+          linked={revisit}
           inboxAddress={inboxAddressFor(household?.inbox_local_part)}
         />
       </main>

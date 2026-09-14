@@ -13,6 +13,7 @@ export default function NextStepsBody({
   nextHref = "/trips",
   inboxAddress,
   done,
+  linked,
   continueLabel,
   eyebrow,
   intro,
@@ -23,6 +24,7 @@ export default function NextStepsBody({
       onContinue={() => router.push(nextHref)}
       inboxAddress={inboxAddress}
       done={done}
+      linked={linked}
       {...(continueLabel ? { continueLabel } : {})}
       {...(eyebrow === null || eyebrow ? { eyebrow } : {})}
       {...(intro ? { intro } : {})}
