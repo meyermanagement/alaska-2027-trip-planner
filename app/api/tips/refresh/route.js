@@ -118,6 +118,8 @@ async function writeHouseTips({
   today,
   memberships,
   travelers,
+  policies,
+  insuredByPolicy,
   scope,
   existing,
 }) {
@@ -131,6 +133,9 @@ async function writeHouseTips({
     // The roaming, translation and equipment rules all read the people rather
     // than the trip, so they are useless without this.
     travelers: travelers || [],
+    // The insurance rule reads these two and nothing else reads them at all.
+    policies: policies || [],
+    insuredByPolicy: insuredByPolicy || new Map(),
   }).filter((tip) => tip.scope === scope);
   let housed = 0;
   if (house.length) {
@@ -361,6 +366,8 @@ export async function POST(request) {
     { data: facts },
     { data: memberships },
     { data: costs },
+    { data: tripPolicies },
+    { data: policyTravelers },
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -409,9 +416,32 @@ export async function POST(request) {
       .from("trip_costs")
       .select("id, label, category, cost_estimate, cost_actual, cost_note")
       .eq("trip_id", tripId),
+    // The policies this trip is covered by, and who each one names. Read here so
+    // the insurance rule can compare two date windows and two lists of people --
+    // both of which look fine on their own screens and only disagree when they
+    // are put side by side.
+    supabase
+      .from("trip_insurance_policies")
+      .select(
+        "policy_id, insurance_policies (id, provider, plan_name, kind, coverage_start, coverage_end)",
+      )
+      .eq("trip_id", tripId),
+    supabase
+      .from("insurance_policy_travelers")
+      .select("policy_id, traveler_id"),
   ]);
 
   const travelers = (going || []).map((row) => row.travelers).filter(Boolean);
+  const policies = (tripPolicies || [])
+    .map((row) => row.insurance_policies)
+    .filter(Boolean);
+  const insuredByPolicy = new Map();
+  for (const row of policyTravelers || []) {
+    if (!row?.policy_id || !row?.traveler_id) continue;
+    const held = insuredByPolicy.get(row.policy_id) || [];
+    held.push(row.traveler_id);
+    insuredByPolicy.set(row.policy_id, held);
+  }
 
   // The sheet the rest of this call works from. Reassigned rather than re-read
   // when it has just been researched, so the rules below run on today's answers
@@ -525,6 +555,8 @@ export async function POST(request) {
       today,
       memberships: memberships || [],
       travelers,
+      policies,
+      insuredByPolicy,
       scope,
       existing,
     });
@@ -574,6 +606,8 @@ export async function POST(request) {
     today,
     memberships: memberships || [],
     travelers,
+    policies,
+    insuredByPolicy,
     scope,
     existing,
   });

@@ -225,6 +225,7 @@ export async function POST(request) {
     pets,
     lessons,
     rewards,
+    policies,
   ] = await Promise.all([
     supabase.from("itinerary_items").select("id, title, trip_id"),
     supabase
@@ -247,6 +248,10 @@ export async function POST(request) {
     supabase.from("pets").select("id, name"),
     supabase.from("lessons").select("id, subject"),
     supabase.from("rewards_programs").select("id, brand"),
+    // The policies on file. Read for the same reason as the pets: a table this
+    // route does not load is a table Aly can never write to, however good the
+    // card looked in the panel.
+    supabase.from("insurance_policies").select("id, provider, plan_name"),
   ]);
 
   // Which trip each row sits in, so an edit lands on the right trip even when
@@ -301,6 +306,13 @@ export async function POST(request) {
     ),
     rewards_programs: new Map(
       (rewards.data || []).map((r) => [r.id, (r.brand || "").slice(0, 60)]),
+    ),
+    insurance_policies: new Map(
+      (policies.data || []).map((r) => [
+        r.id,
+        [r.provider, r.plan_name].filter(Boolean).join(" ").slice(0, 60) ||
+          "a policy",
+      ]),
     ),
     rowTrip,
   });
@@ -449,6 +461,60 @@ export async function POST(request) {
           known.trips.set(outcome.id, patch.name);
           const at = pendingTrips.indexOf(patch.name);
           if (at >= 0) pendingTrips.splice(at, 1);
+        }
+      } else if (table === "insurance_policies") {
+        // A policy is family-level like a preference, but attaching it to a trip
+        // writes a second row in the join table, so it cannot ride the plain
+        // family branch below. The attachment is deliberately forgiving: a policy
+        // that saved and failed to attach is still a policy on file, and saying
+        // so is better than throwing the whole thing away.
+        if (tool === "attach_policy") {
+          const { error: e } = await supabase
+            .from("trip_insurance_policies")
+            .upsert(
+              {
+                trip_id: action.attachTrip,
+                policy_id: id,
+                created_by: user.id,
+              },
+              { onConflict: "trip_id,policy_id" },
+            );
+          dbError = e;
+        } else if (tool === "update_policy") {
+          const { error: e } = await supabase
+            .from("insurance_policies")
+            .update({
+              ...patch,
+              updated_at: new Date().toISOString(),
+              updated_by: user.id,
+            })
+            .eq("id", id);
+          dbError = e;
+        } else {
+          const { data: made, error: e } = await supabase
+            .from("insurance_policies")
+            .insert({ ...patch, family_id: familyId, created_by: user.id })
+            .select("id")
+            .maybeSingle();
+          dbError = e;
+          if (!e && made?.id) {
+            known.insurance_policies?.set?.(made.id, patch.provider);
+            if (action.attachTrip) {
+              const { error: linkError } = await supabase
+                .from("trip_insurance_policies")
+                .upsert(
+                  {
+                    trip_id: action.attachTrip,
+                    policy_id: made.id,
+                    created_by: user.id,
+                  },
+                  { onConflict: "trip_id,policy_id" },
+                );
+              extra = linkError
+                ? ", though it did not attach to the trip — open the Insurance tab and attach it there"
+                : "";
+            }
+          }
         }
       } else if (tool === "create_template") {
         const outcome = await writeTemplate({ supabase, patch, familyId });

@@ -1,5 +1,7 @@
 "use client";
 
+import { canonicalCover, coverLabel } from "@/lib/insurance/policy";
+
 /**
  * The keep-or-edit strip that shows what Aly read from a scan.
  *
@@ -20,7 +22,13 @@
  * state through the setter it was handed.
  */
 
-const FIELD_LABELS = {
+// What a strip needs to know about the document it is describing: the fields it
+// walks, in the order the form beneath it draws them; which of those the form can
+// actually be filled from; how to say a raw value out loud; and the noun to use
+// for the document itself. Two documents are read in this app and both use this
+// component, because the question -- here is what was read, do you want it? --
+// is the same question whether the file was a passport or a policy.
+const IDENTITY_LABELS = {
   doc_type: "Type",
   number: "Number",
   issue_date: "Issued on",
@@ -31,7 +39,7 @@ const FIELD_LABELS = {
 
 // The order the strip walks the fields in. Matches the form's own layout so
 // the eye can move top-to-bottom between the two.
-const FIELD_ORDER = [
+const IDENTITY_ORDER = [
   "doc_type",
   "number",
   "issuing_authority",
@@ -42,7 +50,7 @@ const FIELD_ORDER = [
 
 // Full name is not stored on traveler_documents -- the strip shows it as a
 // sanity check the person can read, but no button offers to write it anywhere.
-const APPLIES_TO_FORM = new Set([
+const IDENTITY_APPLIES = new Set([
   "doc_type",
   "number",
   "issuing_authority",
@@ -65,25 +73,142 @@ function prettyDocType(value) {
   }
 }
 
-function prettyValue(field, value) {
+function prettyIdentity(field, value) {
   if (!value) return "";
   if (field === "doc_type") return prettyDocType(value);
   return value;
 }
 
-function rowsFrom(fields, form) {
+export const IDENTITY_SPEC = {
+  noun: "scan",
+  order: IDENTITY_ORDER,
+  labels: IDENTITY_LABELS,
+  applies: IDENTITY_APPLIES,
+  pretty: prettyIdentity,
+};
+
+function prettyMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: n % 1 === 0 ? 0 : 2,
+  });
+}
+
+function prettyPolicy(field, value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (field === "covers") {
+    return (
+      (Array.isArray(value) ? value : [])
+        // Through the same alias table the save goes through, so the strip cannot
+        // promise a benefit the form will then drop.
+        .map((c) => coverLabel(canonicalCover(c)) || c)
+        .join(", ")
+    );
+  }
+  if (field === "insured_names") {
+    return (Array.isArray(value) ? value : []).join(", ");
+  }
+  if (field === "kind") {
+    return value === "annual" ? "Annual plan" : "This trip";
+  }
+  if (
+    field === "premium" ||
+    field === "deductible" ||
+    field === "medical_limit" ||
+    field === "evacuation_limit"
+  ) {
+    return prettyMoney(value);
+  }
+  return String(value);
+}
+
+export const POLICY_SPEC = {
+  noun: "policy",
+  order: [
+    "provider",
+    "plan_name",
+    "policy_number",
+    "kind",
+    "coverage_start",
+    "coverage_end",
+    "covers",
+    "medical_limit",
+    "evacuation_limit",
+    "deductible",
+    "premium",
+    "emergency_phone",
+    "claims_phone",
+    "claims_url",
+    "notes",
+  ],
+  labels: {
+    provider: "Insurer",
+    plan_name: "Plan",
+    policy_number: "Policy number",
+    kind: "Covers",
+    coverage_start: "Cover starts",
+    coverage_end: "Cover ends",
+    covers: "Benefits",
+    medical_limit: "Medical limit",
+    evacuation_limit: "Evacuation limit",
+    deductible: "Deductible",
+    premium: "Premium",
+    emergency_phone: "24-hour line",
+    claims_phone: "Claims line",
+    claims_url: "Claims page",
+    notes: "Worth knowing",
+  },
+  // Every row the strip draws. The insured names are not among them: they are
+  // people rather than a field, so they are matched against the family and
+  // reported under the form instead of offered as a value to keep.
+  applies: new Set([
+    "provider",
+    "plan_name",
+    "policy_number",
+    "kind",
+    "coverage_start",
+    "coverage_end",
+    "covers",
+    "medical_limit",
+    "evacuation_limit",
+    "deductible",
+    "premium",
+    "emergency_phone",
+    "claims_phone",
+    "claims_url",
+    "notes",
+  ]),
+  pretty: prettyPolicy,
+};
+
+// Two values are the same value when they read the same, which is the only
+// comparison that means anything across a string field, a number field and a
+// list of benefits.
+function sameValue(spec, key, a, b) {
+  return spec.pretty(key, a) === spec.pretty(key, b);
+}
+
+function isEmpty(value) {
+  if (value === null || value === undefined || value === "") return true;
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+function rowsFrom(fields, form, spec) {
   const rows = [];
-  for (const key of FIELD_ORDER) {
-    if (!APPLIES_TO_FORM.has(key) && key !== "full_name") continue;
-    const read = fields[key] || "";
-    if (!read) continue;
-    const current = form[key] || "";
+  for (const key of spec.order) {
+    const read = fields[key];
+    if (isEmpty(read)) continue;
+    const current = form[key];
     let state = "keep";
-    if (!APPLIES_TO_FORM.has(key)) {
+    if (!spec.applies.has(key)) {
       state = "note";
-    } else if (current && current === read) {
+    } else if (!isEmpty(current) && sameValue(spec, key, current, read)) {
       state = "kept";
-    } else if (current && current !== read) {
+    } else if (!isEmpty(current)) {
       state = "replace";
     }
     rows.push({ key, read, current, state });
@@ -96,6 +221,7 @@ export default function ExtractedFieldsStrip({
   fields,
   error,
   form,
+  spec = IDENTITY_SPEC,
   onApply,
   onApplyAll,
   onDismiss,
@@ -105,7 +231,7 @@ export default function ExtractedFieldsStrip({
   if (status === "reading") {
     return (
       <div className="rounded-xl border border-teal/30 bg-teal-soft/40 p-3 text-xs text-ink-soft">
-        <p aria-live="polite">Aly is reading the scan…</p>
+        <p aria-live="polite">Aly is reading the {spec.noun}…</p>
       </div>
     );
   }
@@ -132,17 +258,18 @@ export default function ExtractedFieldsStrip({
 
   if (status !== "ready" || !fields) return null;
 
-  const rows = rowsFrom(fields, form);
+  const rows = rowsFrom(fields, form, spec);
   const applyable = rows.filter(
     (r) =>
-      APPLIES_TO_FORM.has(r.key) &&
-      (r.state === "keep" || r.state === "replace"),
+      spec.applies.has(r.key) && (r.state === "keep" || r.state === "replace"),
   );
 
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-teal/30 bg-teal-soft/40 p-3 text-xs text-ink-soft">
-        <p>Aly did not find any fields worth filling in from this scan.</p>
+        <p>
+          Aly did not find any fields worth filling in from this {spec.noun}.
+        </p>
         <div className="mt-2">
           <button
             type="button"
@@ -161,14 +288,16 @@ export default function ExtractedFieldsStrip({
     confidence === "low"
       ? "Low confidence — check each one."
       : confidence === "medium"
-        ? "Read from a photograph — worth a glance."
+        ? spec.noun === "policy"
+          ? "Read from a long document — worth a glance."
+          : "Read from a photograph — worth a glance."
         : "";
 
   return (
     <div className="rounded-xl border border-teal/30 bg-teal-soft/40 p-3">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-xs font-semibold text-ink">
-          Aly read this from the scan
+          Aly read this from the {spec.noun}
         </p>
         {confidenceNote && (
           <p className="text-[11px] text-ink-soft">{confidenceNote}</p>
@@ -181,10 +310,14 @@ export default function ExtractedFieldsStrip({
             className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs"
           >
             <span className="min-w-[7rem] font-semibold text-ink-soft">
-              {FIELD_LABELS[row.key]}
+              {spec.labels[row.key]}
             </span>
-            <span className="font-mono text-ink">
-              {prettyValue(row.key, row.read)}
+            {/* A claims URL is one unbroken word and the phone is 320px wide, so
+                a value that cannot fit is allowed to break mid-word. break-words
+                rather than break-all: the latter also chopped "Allianz Global
+                Assistance" in half. */}
+            <span className="min-w-0 break-words font-mono text-ink">
+              {spec.pretty(row.key, row.read)}
             </span>
             {row.state === "kept" && (
               <span className="text-[11px] text-ink-faint">already set</span>
@@ -204,7 +337,7 @@ export default function ExtractedFieldsStrip({
             {row.state === "replace" && (
               <>
                 <span className="text-[11px] text-ink-faint">
-                  now: {prettyValue(row.key, row.current)}
+                  now: {spec.pretty(row.key, row.current)}
                 </span>
                 <button
                   type="button"

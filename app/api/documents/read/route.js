@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
-import { extractDocumentFields } from "@/lib/documents/extract";
+import { extractDocumentFields, READER_KINDS } from "@/lib/documents/extract";
+import { aiAllowed } from "@/lib/beta/consent";
 
 /**
  * Read one uploaded document with a vision model, and return the few fields
@@ -13,12 +14,39 @@ import { extractDocumentFields } from "@/lib/documents/extract";
  * read-only: it fetches the file through the caller's session (Storage RLS
  * refuses paths outside their family), sends the bytes to Gemini, and hands
  * back what came back.
+ *
+ * Two kinds of document, named by the caller: an identity document, which is
+ * what the form on the People tab reads, and an insurance policy, which is what
+ * the Insurance tab on a trip reads. The kind picks the prompt and the schema;
+ * everything else about the request is the same.
  */
+export const runtime = "nodejs";
+
+// A certificate can be thirty pages and Pro reading thirty pages is slow. The
+// extractor gives up before this does, so the platform never cuts a socket the
+// browser is still waiting on.
+export const maxDuration = 60;
+
 export async function POST(request) {
   const supabase = await createClient();
   const me = await whoIs(supabase);
   if (!me) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  // The same permission the model layer enforces for Aly, asked here because
+  // this route does not go through her. It reaches Gemini on its own, with a
+  // photograph of a passport or a certificate naming everybody insured, which
+  // is precisely the personal data the consent screen is about. A door that
+  // asks and a door that does not are one door as far as a tester is concerned.
+  if (!(await aiAllowed(supabase, me.id))) {
+    return NextResponse.json(
+      {
+        error:
+          "Reading a document sends it to an AI service. Turn on AI assistance in Settings to use the reader, or type the fields in by hand.",
+      },
+      { status: 403 },
+    );
   }
 
   // Two call shapes, one route.
@@ -42,6 +70,7 @@ export async function POST(request) {
   const path = typeof body?.path === "string" ? body.path : "";
   const inlineData = typeof body?.data === "string" ? body.data : "";
   const inlineMime = typeof body?.mime === "string" ? body.mime : "";
+  const kind = READER_KINDS.includes(body?.kind) ? body.kind : "identity";
 
   let bytes;
   let mimeType;
@@ -89,7 +118,7 @@ export async function POST(request) {
   }
 
   try {
-    const fields = await extractDocumentFields({ bytes, mimeType });
+    const fields = await extractDocumentFields({ bytes, mimeType, kind });
     return NextResponse.json({ fields });
   } catch (err) {
     const status =

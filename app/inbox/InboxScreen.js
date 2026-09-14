@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { coverLabel } from "@/lib/insurance/policy";
+import { matchInsured } from "@/lib/insurance/insured";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
 import ClearedInbox from "@/components/ClearedInbox";
@@ -484,31 +485,6 @@ export default function InboxScreen({
       <ClearedInbox />
     </div>
   );
-}
-
-/** Printed names to the family's people, the same two passes the server uses. */
-function matchInsured(names, people) {
-  const norm = (s) =>
-    String(s || "")
-      .toLowerCase()
-      .replace(/[^a-z\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  const printed = (Array.isArray(names) ? names : []).map(norm).filter(Boolean);
-  if (!printed.length) return [];
-  return people
-    .filter((person) => {
-      const name = norm(person.name);
-      if (!name) return false;
-      const words = name.split(" ");
-      return printed.some(
-        (line) =>
-          line === name ||
-          words.every((word) => line.split(" ").includes(word)) ||
-          line.split(" ").includes(words[0]),
-      );
-    })
-    .map((person) => person.id);
 }
 
 function FilePicker({

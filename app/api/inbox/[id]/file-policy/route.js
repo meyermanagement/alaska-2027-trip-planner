@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { normalizeCovers } from "@/lib/insurance/policy";
+import { matchInsured } from "@/lib/insurance/insured";
 
 export const runtime = "nodejs";
 
@@ -237,42 +238,4 @@ export async function POST(request, { params }) {
     travelers: names.length,
     documents: copied,
   });
-}
-
-/**
- * Printed names to traveler ids. Exact full-name match first, then first
- * name, which is the same two-pass shape the booking parser uses for
- * attribution -- a certificate that says "MEYER/MARK A" should still find
- * Mark, and a certificate that says nothing useful should find nobody rather
- * than guess.
- */
-export function matchInsured(insuredNames, people) {
-  const norm = (s) =>
-    String(s || "")
-      .toLowerCase()
-      .replace(/[^a-z\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  const printed = (Array.isArray(insuredNames) ? insuredNames : [])
-    .map(norm)
-    .filter(Boolean);
-  if (!printed.length) return [];
-
-  const out = [];
-  for (const person of people) {
-    if (person?.is_person === false) continue;
-    const name = norm(person.name);
-    if (!name) continue;
-    const first = name.split(" ")[0];
-    const hit = printed.some(
-      (p) =>
-        p === name ||
-        // "meyer mark a" contains both words of "mark meyer", in either
-        // order, which is how airline and insurer formatting differs.
-        name.split(" ").every((word) => p.split(" ").includes(word)) ||
-        (first && p.split(" ").includes(first)),
-    );
-    if (hit) out.push(person.id);
-  }
-  return out;
 }
