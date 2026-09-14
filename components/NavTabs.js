@@ -20,6 +20,7 @@ import { PendingSwap } from "./LinkPending";
 import { SECONDARY } from "@/lib/travelers/access";
 import useBetaTester from "./useBetaTester";
 import useSoftKeyboard from "./useSoftKeyboard";
+import { SETUP_HREF } from "@/lib/setup/items";
 
 /**
  * The bar along the bottom of every signed-in screen, and the only navigation
@@ -311,6 +312,14 @@ const SECONDARY_ROWS = [
   SETTINGS,
 ];
 
+// One shared empty set, so a menu with nothing left to set up does not build a
+// new one on every render.
+const EMPTY_MARKS = new Set();
+
+// The row that reopens the welcome checklist, and the only way back to it: the
+// screen is shown once, on a path the owner walks a single time, and everything
+// explaining why any of the four things matter lives on it.
+
 const REMEMBERED = "alyeska.level";
 
 function remember(level) {
@@ -352,6 +361,11 @@ export default function NavTabs({
   // asking. Absent on the skeleton, which has no database.
   trip = null,
   today = null,
+  // What the family has not got round to yet, from the four things the welcome
+  // checklist asked for: how many are left, and which menu addresses they are
+  // behind. Absent for anybody the checklist was never shown to, and absent
+  // once all four are done, which is how the marks retire themselves.
+  setup = null,
 }) {
   // Read once, lazily, so the first frame the skeleton draws is already right
   // rather than being corrected a moment later.
@@ -410,6 +424,16 @@ export default function NavTabs({
     ? parseTripRef(pathname.split("/")[2] || "").key
     : "";
   const secondary = effective === SECONDARY;
+
+  // The rows carrying a mark, and how many things are still worth doing. A
+  // secondary traveler never sees either: none of the four is their work, and
+  // three of the four screens the database refuses them anyway.
+  const setupLeft = secondary ? 0 : Number(setup?.left || 0);
+  const setupMarks =
+    secondary || !setupLeft ? EMPTY_MARKS : new Set(setup?.marks || []);
+  // How many were asked for in the first place, so the subtitle reads "2 of 4"
+  // against the real list rather than a number written twice in two files.
+  const setupTotal = Number(setup?.total || 4);
 
   // Which group is open, and only ever one. The menu is thrown from a disc in
   // the bottom corner and has a phone's height to live in; two groups open at
@@ -727,6 +751,11 @@ export default function NavTabs({
           Icon: g.Icon,
           badge: g.badge,
           slim: Boolean(g.slim),
+          // Whether anything behind this band is still worth doing. Shown on
+          // the band only while it is shut, for the reason the reminders count
+          // is: a mark nobody can see until they open the right door is not a
+          // mark.
+          marked: g.kids.some((k) => setupMarks.has(k.href)),
           // How many screens are behind the band, said on the band. A heading
           // that opens should say how much it opens; it is also the only
           // number that replaces the sentence the group used to carry.
@@ -754,6 +783,7 @@ export default function NavTabs({
             active:
               onScreen(kid.href, pathname, Boolean(kid.view)) &&
               (!kid.view || (view || "upcoming") === kid.view),
+            marked: setupMarks.has(kid.href),
           },
           {
             key: kid.href,
@@ -868,6 +898,43 @@ export default function NavTabs({
   // stylesheet rather than here.
   const column = (
     <>
+      {/* The way back to the four things the welcome checklist asked for, and
+          the count of how many are left. It sits above everything, including
+          the current-trip plate: it is the shortest-lived row in the menu, it
+          retires itself the moment the fourth thing is done, and the whole
+          reason it exists is that the screen it opens is otherwise reachable
+          only on a path the owner walks once. Drawn as a page rather than a
+          band because it goes somewhere. */}
+      {setupLeft > 0 && shows("setup") && (
+        <Link
+          href={SETUP_HREF}
+          onPointerEnter={() => router.prefetch(SETUP_HREF)}
+          onPointerDown={() => router.prefetch(SETUP_HREF)}
+          onFocus={() => router.prefetch(SETUP_HREF)}
+          onClick={() => setOpen(false)}
+          style={{ "--arc-i": 0 }}
+          className="arc-pill arc-setup"
+        >
+          <span className="arc-disc">
+            <PendingSwap href={SETUP_HREF} className="h-[18px] w-[18px]">
+              <AlyeskaMark className="h-[18px] w-[18px]" compact />
+            </PendingSwap>
+            <span className="arc-new">
+              <span className="sr-only"> unfinished</span>
+            </span>
+          </span>
+          <span className="min-w-0">
+            <span className="arc-label block truncate font-display text-base font-semibold leading-tight">
+              Finish setting up
+            </span>
+            <span className="arc-sub block truncate text-xs leading-tight">
+              {setupLeft === setupTotal
+                ? "Four things worth doing"
+                : `${setupLeft} of ${setupTotal} still to do`}
+            </span>
+          </span>
+        </Link>
+      )}
       {hero}
       {/* Read downward, in the order the rows are written: the trip
                     plate, then the Travel Journal under it, then the other two
@@ -895,6 +962,14 @@ export default function NavTabs({
                   <span className="arc-dot">
                     {count}
                     <span className="sr-only"> needing attention</span>
+                  </span>
+                )}
+                {row.marked && !isOpen && (
+                  <span className="arc-new">
+                    <span className="sr-only">
+                      {" "}
+                      something in here is worth doing
+                    </span>
                   </span>
                 )}
               </span>
@@ -1032,6 +1107,11 @@ export default function NavTabs({
                 <span className="arc-dot">
                   {count}
                   <span className="sr-only"> needing attention</span>
+                </span>
+              )}
+              {row.marked && (
+                <span className="arc-new">
+                  <span className="sr-only"> worth doing</span>
                 </span>
               )}
             </span>
@@ -1350,6 +1430,20 @@ export default function NavTabs({
                 <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-2xs font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
                   {attention}
                   <span className="sr-only"> reminders needing attention</span>
+                </span>
+              )}
+              {/* And the quiet twin of it: while there is still something on
+                  the welcome checklist undone, the compass carries one small
+                  teal dot. Without it nothing about the four things is visible
+                  until somebody opens the menu, which is the state we are
+                  trying to get out of. Bottom of the disc, opposite the count,
+                  and gone the moment the fourth thing is done. */}
+              {setupLeft > 0 && !open && (
+                <span className="absolute -bottom-0.5 -right-0.5 h-[11px] w-[11px] rounded-full bg-teal ring-2 ring-[var(--disc-face)]">
+                  <span className="sr-only">
+                    {" "}
+                    things still worth doing in the menu
+                  </span>
                 </span>
               )}
             </button>

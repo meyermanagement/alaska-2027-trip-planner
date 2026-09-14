@@ -153,7 +153,32 @@ function CompassMark({ delay }) {
  * One thing worth doing, and its own arrival. Its observer is the row's, not
  * the list's, so the fourth row is still worth scrolling to.
  */
-function NextStepRow({ item, inboxAddress, booted, index }) {
+/**
+ * The mark on a row whose work is already behind it. Same weight as the compass
+ * it replaces, so the list does not change shape on a revisit -- a tick where
+ * the instrument was, and the row's own words left alone. The points under a
+ * done row still say why it mattered, which is the reason somebody came back.
+ */
+function DoneMark() {
+  return (
+    <span
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal/10 text-teal"
+      aria-hidden="true"
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M4.5 10.5 8 14l7.5-8"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function NextStepRow({ item, inboxAddress, booted, index, done = false }) {
   const [ref, shown] = useRevealed();
   const base = Math.min(index, BEAT.rowStepMax) * BEAT.rowStep;
   return (
@@ -162,8 +187,9 @@ function NextStepRow({ item, inboxAddress, booted, index }) {
       {...(booted && shown ? { "data-ma-shown": "1" } : {})}
       className="flex items-start gap-4 rounded-2xl border border-sand-deep bg-sand-soft/60 p-4"
     >
-      <CompassMark delay={base + BEAT.needle} />
+      {done ? <DoneMark /> : <CompassMark delay={base + BEAT.needle} />}
       <div className="min-w-0">
+        {done && <span className="sr-only">Done. </span>}
         <p
           className="ma-in font-display text-lg font-semibold text-ink"
           style={{ animationDelay: `${base + BEAT.title}s` }}
@@ -210,6 +236,11 @@ function NextStepRow({ item, inboxAddress, booted, index }) {
 export default function NextStepsChecklist({
   onContinue,
   inboxAddress = "",
+  // Which of the four are already behind them, by key. Empty on the first walk
+  // through, when nothing has been done yet and a screenful of ticks would be a
+  // lie; filled in when somebody comes back to this screen from the menu, where
+  // the whole reason they tapped it was to find out where they had got to.
+  done = [],
   continueLabel = "Take me to the trip builder",
   headline = "Four things worth doing next",
   intro = "None of it is required to keep going. Each one makes my answers fit your family better.",
@@ -270,6 +301,7 @@ export default function NextStepsChecklist({
             index={index}
             inboxAddress={inboxAddress}
             booted={booted}
+            done={done.includes(item.key)}
           />
         ))}
       </ol>

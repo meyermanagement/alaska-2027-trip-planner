@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import SkinPicker from "@/components/SkinPicker";
 import BetaConsentControls from "@/components/BetaConsentControls";
 import TextSizePicker from "@/components/TextSizePicker";
+import SetupDoneControl from "@/components/SetupDoneControl";
 import { SETTINGS_FOCUS } from "@/lib/agent/context";
 
 /**
@@ -26,6 +27,9 @@ export default function SettingsBody({
   textSize,
   mine,
   consent,
+  secondary = false,
+  setupDoneAt = null,
+  setupLeft = 0,
 }) {
   return (
     <>
@@ -44,6 +48,13 @@ export default function SettingsBody({
               find without hunting -- a way to withdraw consent that has to be
               scrolled past a color picker to reach is a way in name only. */}
           {consent && <BetaConsentControls consent={consent} />}
+
+          {/* Not for an invited member: none of the four things is theirs to do
+              and the menu never marks anything for them, so a control to turn
+              the marks off would be a switch wired to nothing. */}
+          {!secondary && (
+            <SetupDoneControl doneAt={setupDoneAt} left={setupLeft} />
+          )}
 
           <section>
             <h2 className="font-display text-xl font-semibold">Signed in</h2>

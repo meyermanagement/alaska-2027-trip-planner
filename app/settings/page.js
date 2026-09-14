@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import SettingsBody from "./SettingsBody";
 import { readConsent } from "@/lib/beta/consent";
+import { resolveAccess } from "@/lib/travelers/access";
+import { loadSetupState } from "@/lib/setup/state";
+import { todayISO } from "@/lib/reminders";
 
 export const metadata = { title: "Settings · Alyeska" };
 
@@ -27,6 +30,29 @@ export default async function SettingsPage() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
   if (!user) redirect("/login");
+
+  const access = await resolveAccess(supabase, user);
+  const secondary = Boolean(access?.can?.isSecondary);
+
+  // What the menu is marking, and whether this household has said it is done.
+  // The loader runs first because it stamps the column itself when the last of
+  // the four lands, and a read taken alongside it could show a stale null on the
+  // very load that finished the job.
+  const setup = secondary
+    ? null
+    : await loadSetupState(supabase, {
+        familyId: access?.familyId,
+        travelerId: access?.travelerId,
+        today: todayISO(),
+        secondary,
+      });
+  const { data: household } = secondary
+    ? { data: null }
+    : await supabase
+        .from("families")
+        .select("setup_done_at")
+        .eq("id", access?.familyId)
+        .maybeSingle();
 
   const [{ data: profile }, { data: mine }, consent] = await Promise.all([
     supabase
@@ -58,6 +84,9 @@ export default async function SettingsPage() {
       textSize={profile?.text_size}
       mine={mine}
       consent={consent}
+      secondary={secondary}
+      setupDoneAt={household?.setup_done_at || null}
+      setupLeft={setup?.left || 0}
     />
   );
 }

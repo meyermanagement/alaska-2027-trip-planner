@@ -7573,6 +7573,37 @@ html[data-skin="sodium"] .menu-arc {
   box-shadow: 0 0 0 2px var(--arc-face);
 }
 
+/* The mark for something worth doing, as opposed to something late. The
+   reminders count is a filled rose disc carrying a number, because a task that
+   is overdue is an interruption; these four are opportunities, and a number here
+   would put two numbers on one band arguing about which of them is urgent. So a
+   small solid teal dot, no number, in the corner opposite the count so a band
+   can carry both at once without them touching. */
+.arc-new {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-teal);
+  box-shadow: 0 0 0 2px var(--arc-face);
+}
+
+/* On a band there is no frosted face behind the dot to ring it against, and the
+   ring read as a second, larger circle. The band is flat, so the dot is too. */
+.arc-pill.group .arc-new {
+  box-shadow: none;
+}
+
+/* The one row in the menu that is temporary. Tinted rather than merely present,
+   because it is asking for something rather than answering a press, and it has
+   to be distinguishable from the trip plate directly under it. */
+.arc-setup {
+  border-color: color-mix(in srgb, var(--color-teal) 38%, transparent);
+  background: color-mix(in srgb, var(--color-teal) 9%, var(--arc-face));
+}
+
 /* Two levels, and a group is not a pill. Both things in this column used to be the same object:
    the same frosted face, the same round accent disc, the same serif name over
    the same second line, with a half-lit chevron as the only sign that one of

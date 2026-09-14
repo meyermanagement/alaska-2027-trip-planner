@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { countNeedingAttention, todayISO } from "@/lib/reminders";
 import { loadHeaderNotices } from "@/lib/tips/load";
 import { isOnTrip, resolveAccess } from "@/lib/travelers/access";
+import { loadSetupState } from "@/lib/setup/state";
 import CurrentTripBanner from "./CurrentTripBanner";
 import InboxBanner from "./InboxBanner";
 import NavTabs from "./NavTabs";
@@ -58,6 +59,19 @@ export default async function TopBar({ askHref, showAsk = true }) {
   // cash only" is worth as much to the person getting on the shuttle as to the
   // person who booked it. The buttons inside a tip card are gated separately.
   const secondary = Boolean(access?.can.isSecondary);
+
+  // What is left of the four things the welcome checklist asked for, so the menu
+  // can mark the rows the work is behind and count them. After the access read
+  // rather than alongside it, because it is scoped to the household and there is
+  // no household until resolveAccess has said which one. It costs one lookup by
+  // primary key for a family who has finished, and nothing at all for an invited
+  // member: see lib/setup/state.js for why it is a latch.
+  const setup = await loadSetupState(supabase, {
+    familyId: access?.familyId,
+    travelerId: access?.travelerId,
+    today,
+    secondary,
+  });
   const warnings = secondary ? [] : notices.warnings;
   const urgent = notices.urgent;
 
@@ -118,6 +132,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
         showAsk={showAsk}
         trip={menuTrip}
         today={today}
+        setup={setup}
       />
       <PassportWarning warnings={warnings} />
       {/* Under the passport band on purpose. A passport that will not last the
