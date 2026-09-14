@@ -200,32 +200,37 @@ function NextStepRow({
       {...(booted && shown ? { "data-ma-shown": "1" } : {})}
       className={`relative flex items-start gap-4 rounded-2xl border border-sand-deep bg-sand-soft/60 p-4${
         to
-          ? " transition-colors hover:border-teal/40 hover:bg-sand-soft focus-within:border-teal/60"
+          ? " cursor-pointer transition-colors hover:border-teal/40 hover:bg-sand-soft focus-within:border-teal/60"
           : ""
       }`}
     >
+      {/* The whole card is the target, and this is what makes it one: a sheet
+          laid over the card, named by its title, sitting above everything the
+          card draws.
+
+          Not the card wrapped in a link -- that would put the forwarding row's
+          copy button inside an anchor, which is invalid and would cost somebody
+          the one tap on this screen that was already doing something. And not
+          the title's own reach stretched over the card either, which is what
+          this was first: every line in the card arrives on a transform, a
+          transformed element is the containing block for anything absolute
+          inside it, so a reach written on the title covered the title and
+          nothing else. */}
+      {to && (
+        <Link
+          href={to}
+          aria-label={item.title}
+          className="absolute inset-0 z-10 rounded-2xl"
+        />
+      )}
       {done ? <DoneMark /> : <CompassMark delay={base + BEAT.needle} />}
       <div className="min-w-0">
         {done && <span className="sr-only">Done. </span>}
-        {/* The title carries the link, and its hit area is stretched over the
-            whole card with a pseudo-element rather than by wrapping the card in
-            an anchor. Wrapping would put the forwarding row's copy button inside
-            a link, which is invalid and would cost somebody the one tap on this
-            screen that was already doing something. */}
         <p
           className="ma-in font-display text-lg font-semibold text-ink"
           style={{ animationDelay: `${base + BEAT.title}s` }}
         >
-          {to ? (
-            <Link
-              href={to}
-              className="after:absolute after:inset-0 after:rounded-2xl after:content-['']"
-            >
-              {item.title}
-            </Link>
-          ) : (
-            item.title
-          )}
+          {item.title}
         </p>
         <p
           className="ma-in mt-0.5 text-sm leading-relaxed text-ink"
@@ -237,7 +242,7 @@ function NextStepRow({
         </p>
         {item.key === "forwarding" && inboxAddress && (
           <span
-            className="ma-chip relative z-10 inline-flex"
+            className="ma-chip relative z-20 inline-flex"
             style={{ animationDelay: `${base + BEAT.chip}s` }}
           >
             <InboxAddressChip address={inboxAddress} note="Your address:" />
