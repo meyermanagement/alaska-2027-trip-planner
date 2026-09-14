@@ -11,6 +11,7 @@ import {
   DATA_CATEGORIES,
   OPTIONAL_FEATURES,
   PRIVACY_PATH,
+  PRIVACY_VERSION,
   SUPPORT_EMAIL,
 } from "@/lib/beta/agreement";
 
@@ -39,6 +40,16 @@ import {
  * actually been scrolled to the end. It is a small friction and it is the point:
  * the record this writes says the person read it, so the screen should make that
  * closer to true than a checkbox under a folded paragraph does.
+ *
+ * `practice` mounts the same six screens for the practice hub with the write at
+ * the end removed. Every field, every rule and every word is the one a real
+ * tester meets -- including the scroll gate and the missing default on the AI
+ * question -- and the last button produces the row that would have been written
+ * instead of writing it. It is the only practice screen where the thing being
+ * rehearsed is a legal record, which is exactly why it needs rehearsing: the
+ * copy has to be read at the size and in the order a tester reads it, and the
+ * primary of a household that has already agreed can otherwise never see these
+ * screens again without bumping a version constant in production.
  */
 
 const STEPS = [
@@ -61,7 +72,7 @@ const GAP_NOTE = {
     "You withdrew your consent. Agreeing again turns your account back on.",
 };
 
-export default function BetaConsentFlow({ gap, email, existing }) {
+export default function BetaConsentFlow({ gap, email, existing, practice }) {
   const [step, setStep] = useState(0);
 
   const [agreed, setAgreed] = useState(false);
@@ -123,6 +134,15 @@ export default function BetaConsentFlow({ gap, email, existing }) {
 
   async function save() {
     if (saving) return;
+    // Practice stops here. Not "posts and ignores the answer" and not "posts to a
+    // different route": the consent table is append-only by trigger, so a
+    // rehearsal that reached the endpoint would leave a real row in a real
+    // history saying this person agreed today, which is the one thing this
+    // record must never say wrongly.
+    if (practice) {
+      setSaved(true);
+      return;
+    }
     setSaving(true);
     setFailed("");
     try {
@@ -176,7 +196,18 @@ export default function BetaConsentFlow({ gap, email, existing }) {
   }
 
   if (saved) {
-    return (
+    return practice ? (
+      <PracticeRecap
+        email={email}
+        agreed={agreed}
+        ageConfirmed={ageConfirmed}
+        dataAcknowledged={dataAcknowledged}
+        aiProcessing={aiProcessing === true}
+        diagnostics={diagnostics}
+        features={features}
+        sharingAcknowledged={sharingAcknowledged}
+      />
+    ) : (
       <Receipt
         email={email}
         aiProcessing={aiProcessing === true}
@@ -190,6 +221,17 @@ export default function BetaConsentFlow({ gap, email, existing }) {
     <div>
       <p className="section-label">Beta tester setup</p>
       <Progress step={step} />
+
+      {/* Said once, at the top, and then not repeated on every screen. A
+          rehearsal of a consent flow that keeps interrupting itself to say it is
+          a rehearsal is no longer a rehearsal of the flow. */}
+      {practice && step === 0 && (
+        <p className="mt-4 rounded-xl border border-[var(--line)] bg-white/60 px-4 py-3 text-sm text-ink">
+          Practice. Nothing here is recorded on your account, and your own
+          agreement is not touched. The last screen shows the row a real tester
+          would have written.
+        </p>
+      )}
 
       {gap && GAP_NOTE[gap] && step === 0 && (
         <p className="mt-4 rounded-xl border border-[var(--line)] bg-white/60 px-4 py-3 text-sm text-ink">
@@ -256,9 +298,11 @@ export default function BetaConsentFlow({ gap, email, existing }) {
         >
           {saving
             ? "Recording\u2026"
-            : step === STEPS.length - 1
-              ? "Agree and start testing"
-              : "Continue"}
+            : step < STEPS.length - 1
+              ? "Continue"
+              : practice
+                ? "Show what would be recorded"
+                : "Agree and start testing"}
         </button>
       </div>
 
@@ -645,6 +689,70 @@ function Receipt({ email, aiProcessing, diagnostics, features }) {
       </p>
       <a className="btn btn-primary mt-6" href="/auth/land">
         Meet Aly
+      </a>
+    </div>
+  );
+}
+
+/**
+ * What the last Continue would have written, for practice.
+ *
+ * The real receipt is written for somebody who has just agreed: it confirms, in
+ * their words, the few things they will want to check later. This one is written
+ * for whoever is testing the flow, so it names the columns -- the same ones
+ * beta_consents holds and beta_consent_events copies -- because the question
+ * being asked here is whether the screens and the record agree with each other.
+ */
+function PracticeRecap({
+  email,
+  agreed,
+  ageConfirmed,
+  dataAcknowledged,
+  aiProcessing,
+  diagnostics,
+  features,
+  sharingAcknowledged,
+}) {
+  const on = OPTIONAL_FEATURES.filter((f) => features[f.id]).map(
+    (f) => f.title,
+  );
+  const yes = (v) => (v ? "Yes" : "No");
+  return (
+    <div>
+      <p className="section-label">Practice</p>
+      <Heading sub="Nothing was recorded. This is the row the last button would have written.">
+        What would be recorded
+      </Heading>
+      <dl className="card mt-5 space-y-3 px-4 py-4">
+        <Fact term="Account" detail={email} />
+        <Fact term="Agreement version" detail={AGREEMENT_VERSION} />
+        <Fact term="Privacy version" detail={PRIVACY_VERSION} />
+        <Fact term="Build" detail={APP_BUILD} />
+        <Fact term="Agreed" detail={yes(agreed)} />
+        <Fact term="18 or older" detail={yes(ageConfirmed)} />
+        <Fact term="Read what is collected" detail={yes(dataAcknowledged)} />
+        <Fact
+          term="Aly"
+          detail={
+            aiProcessing
+              ? `Permitted. Provider recorded as ${AI_PROVIDER}.`
+              : "Declined. Nothing would be sent to an AI provider."
+          }
+        />
+        <Fact term="Diagnostics" detail={diagnostics ? "On" : "Off"} />
+        <Fact
+          term="Optional parts"
+          detail={on.length ? on.join(", ") : "None"}
+        />
+        <Fact term="Household understood" detail={yes(sharingAcknowledged)} />
+      </dl>
+      <p className="mt-4 text-sm text-ink-soft">
+        A real run also stamps the time it was accepted, and lands a matching
+        entry in the consent history, which nobody can edit or delete
+        afterwards.
+      </p>
+      <a className="btn btn-primary mt-6" href="/interview-check">
+        Back to practice
       </a>
     </div>
   );
