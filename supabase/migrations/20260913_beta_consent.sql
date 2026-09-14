@@ -191,3 +191,9 @@ drop policy if exists beta_consent_events_own_read on public.beta_consent_events
 create policy beta_consent_events_own_read on public.beta_consent_events
   for select to authenticated
   using (user_id = auth.uid());
+
+-- The trigger function is SECURITY DEFINER, which puts it on the REST surface at
+-- /rest/v1/rpc where the database linter rightly notices it. It returns trigger,
+-- so Postgres refuses to run it outside a trigger regardless, but nobody outside
+-- the trigger has any business naming it either.
+revoke execute on function public.beta_consent_log() from anon, authenticated, public;
