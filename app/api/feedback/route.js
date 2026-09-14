@@ -120,36 +120,47 @@ export async function POST(request) {
 
   // The row first, with no pictures on it yet. If the upload below falls over,
   // the report is still on the desk saying what went wrong.
-  const { data: row, error: writeError } = await supabase
-    .from("feedback")
-    .insert({
-      user_id: user.id,
-      email: user.email || null,
-      kind,
-      body,
-      path: path || null,
-      trip_id: tripId,
-      skin: skin || null,
-      viewport: viewport || null,
-      user_agent: userAgent || null,
-      build: build || null,
-      trail,
-    })
-    .select("id")
-    .single();
+  //
+  // Written with the service key rather than as the person reporting. They are
+  // allowed to write a report and not to read one back, which is the right way
+  // round for a table that holds other people's reports -- but it means asking
+  // for the new row's id in the same breath as writing it is refused, and the id
+  // is needed to file the pictures under the report. The account is still the
+  // one the session proved; the key only decides who is allowed to look.
+  // Without a service key -- only ever a local setup -- the report is still
+  // written, as the person, and the pictures are the thing given up rather than
+  // the report.
+  const desk = admin || supabase;
+  const asking = desk.from("feedback").insert({
+    user_id: user.id,
+    email: user.email || null,
+    kind,
+    body,
+    path: path || null,
+    trip_id: tripId,
+    skin: skin || null,
+    viewport: viewport || null,
+    user_agent: userAgent || null,
+    build: build || null,
+    trail,
+  });
+  const { data: row, error: writeError } = admin
+    ? await asking.select("id").single()
+    : await asking;
 
-  if (writeError || !row?.id) {
+  if (writeError) {
     return NextResponse.json(
       { ok: false, error: "That could not be saved. Try once more." },
       { status: 502 },
     );
   }
 
-  const stored = admin
-    ? await putShots(admin, user.id, row.id, checked.shots)
-    : [];
+  const stored =
+    admin && row?.id
+      ? await putShots(admin, user.id, row.id, checked.shots)
+      : [];
   if (stored.length) {
-    await supabase.from("feedback").update({ shots: stored }).eq("id", row.id);
+    await desk.from("feedback").update({ shots: stored }).eq("id", row.id);
   }
 
   const composed = compose({
