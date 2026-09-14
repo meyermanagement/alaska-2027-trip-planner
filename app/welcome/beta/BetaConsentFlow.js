@@ -65,6 +65,19 @@ const STEPS = [
 // paperwork moved. Naming the reason is the difference between a screen that
 // looks like a bug and one that looks like the promise in the agreement's
 // "Changes" section being kept.
+/**
+ * What is still missing on each screen that can hold Continue shut.
+ *
+ * Keyed by step so it cannot drift from `canContinue`: every index with a rule
+ * there has a sentence here, and the two are meant to be read together.
+ */
+const BLOCKED_BECAUSE = {
+  1: "Read to the end of the agreement, then tick both boxes to continue.",
+  2: "Tick the box to confirm you have read what the app collects.",
+  3: "Choose whether Aly may send your questions to an AI provider. There is no default, so you have to pick one.",
+  5: "Tick the box to confirm you understand who in your household sees what.",
+};
+
 const GAP_NOTE = {
   agreement: "The beta agreement has been updated since you last agreed.",
   privacy: "The privacy policy has been updated since you last agreed.",
@@ -86,10 +99,23 @@ export default function BetaConsentFlow({ gap, email, existing, practice }) {
   // Null until answered, so Continue on the AI screen has nothing to press. A
   // default of either true or false would be the app answering for them.
   const [aiProcessing, setAiProcessing] = useState(null);
+  // On to start, so a tester sees the app as it is meant to work rather than a
+  // hollowed-out version of it and a list of switches to guess at. Every one of
+  // these is a convenience the app performs on information it already holds --
+  // parsing what you forwarded, reading a field off a file you uploaded --
+  // rather than a new disclosure, and each says in one line what turning it off
+  // costs. The one screen that genuinely cannot be answered in advance is the
+  // AI question above, and that one still starts unanswered.
+  //
+  // Somebody re-agreeing keeps what they last chose: a version bump reopening
+  // this gate must not quietly switch back on something they deliberately
+  // turned off.
   const [features, setFeatures] = useState(() => {
     const start = {};
     for (const f of OPTIONAL_FEATURES) {
-      start[f.id] = Boolean(existing?.features?.[f.id]);
+      start[f.id] = existing?.features
+        ? Boolean(existing.features[f.id])
+        : true;
     }
     return start;
   });
@@ -306,10 +332,17 @@ export default function BetaConsentFlow({ gap, email, existing, practice }) {
         </button>
       </div>
 
-      {step === 1 && !readToEnd && (
-        <p className="mt-3 text-xs text-ink-soft">
-          Scroll to the end of the agreement to continue.
-        </p>
+      {/* Why the button is dead, on every screen that can hold it shut.
+
+          This used to say only "scroll to the end of the agreement", which left
+          the other three gated screens with a greyed-out button and no
+          explanation -- worst on the Aly screen, where the two options are
+          deliberately given no default, so the button is disabled the moment
+          the screen opens and nothing on it says why. A disabled primary with
+          no reason next to it reads as a broken app, and on a consent screen
+          the reader's next move is to stop trusting the thing asking. */}
+      {!canContinue && BLOCKED_BECAUSE[step] && (
+        <p className="mt-3 text-xs text-ink-soft">{BLOCKED_BECAUSE[step]}</p>
       )}
     </div>
   );
@@ -547,7 +580,9 @@ function Line({ term, detail }) {
 function AiChoice({ choice, setChoice }) {
   return (
     <section>
-      <Heading sub={`Aly runs on ${AI_PROVIDER}, which is not us.`}>
+      <Heading
+        sub={`Aly runs on ${AI_PROVIDER}, which is not us. Read this, then choose at the bottom.`}
+      >
         Aly and your information
       </Heading>
 
@@ -602,7 +637,7 @@ function AiChoice({ choice, setChoice }) {
 function Features({ features, setFeatures }) {
   return (
     <section>
-      <Heading sub="All off to start. Turn on what you want; each one says what happens if you leave it off.">
+      <Heading sub="All on to start. Turn off anything you would rather do yourself; each one says what that costs you.">
         Optional parts
       </Heading>
       <ul className="mt-4 space-y-2">
@@ -782,6 +817,16 @@ function Check({ checked, onChange, label, note, disabled }) {
   );
 }
 
+/**
+ * One of a pair of mutually exclusive answers.
+ *
+ * The dot earns its place. Without it these were two cards holding a bold line
+ * and a grey line, which is exactly what the explanatory cards higher up the
+ * same screen look like -- so the pair read as more things to read rather than
+ * a question to answer, and the only hint that anything had been chosen was a
+ * ring that nobody looks for on a card they have not realized is a control.
+ * An empty circle is the one shape that says "pick one" before it is touched.
+ */
 function Choice({ selected, onSelect, title, detail }) {
   return (
     <button
@@ -789,12 +834,26 @@ function Choice({ selected, onSelect, title, detail }) {
       role="radio"
       aria-checked={selected}
       onClick={onSelect}
-      className={`card w-full px-4 py-3 text-left ${
+      className={`card flex w-full items-start gap-3 px-4 py-3 text-left ${
         selected ? "ring-2 ring-[var(--color-teal)]" : ""
       }`}
     >
-      <span className="block text-sm font-semibold text-ink">{title}</span>
-      <span className="mt-1 block text-sm text-ink-soft">{detail}</span>
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border ${
+          selected
+            ? "border-[var(--color-teal)]"
+            : "border-[var(--line-strong)]"
+        }`}
+      >
+        {selected && (
+          <span className="block h-2.5 w-2.5 rounded-full bg-[var(--color-teal)]" />
+        )}
+      </span>
+      <span className="block">
+        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className="mt-1 block text-sm text-ink-soft">{detail}</span>
+      </span>
     </button>
   );
 }
