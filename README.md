@@ -23,6 +23,16 @@ Preloaded trips:
 
 All of the above runs on free tiers.
 
+React is pinned to an exact 19.1 version rather than tracking 19.x. React 19.2
+added Suspense boundary outlining, which allocates hidden segment ids from the
+same namespace React's own out-of-order segments use; when a boundary's content
+runs past the 12,800 byte chunk size the two collide and React's own inline
+splice script throws "Cannot read properties of null (reading 'parentNode')",
+leaving part of a page as its placeholder. It is upstream, unfixed as of React
+19.2.8, and it reached us as two reports off real phones on the two heaviest
+pages. See vercel/next.js#91806. Move the pin forward only once that issue is
+closed.
+
 ## Data model
 
 | Table                    | Purpose                                                       |
@@ -61,10 +71,10 @@ npm run dev
 
 ### Environment variables
 
-| Name                            | Where to find it                          |
-| ------------------------------- | ----------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase → Project Settings → API         |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API keys    |
+| Name                            | Where to find it                       |
+| ------------------------------- | -------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase → Project Settings → API      |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API keys |
 
 Both are safe to expose in the browser; row-level security is what protects the
 data.
