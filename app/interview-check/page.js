@@ -90,15 +90,15 @@ export default async function InterviewCheckPage() {
           <PracticeTile
             href="/interview-check/next-steps"
             title="Four things worth doing next"
-            body="The screen a new family sees right after Favorite moments. Purely informational -- answering About you and favorite moments for everybody else, the Wallet, forwarding trip confirmations, and adding past trips -- with a small compass mark orienting into place for each row."
+            body="The last screen of the walk, straight after the interview proof. Purely informational -- answering About you and favorite moments for everybody else, the Wallet, forwarding trip confirmations, and adding past trips -- with a small compass mark orienting into place for each row. All four are the household owner's to do, which is why it sits on their path and not on an invited member's."
           />
         </div>
 
         <p className="mt-8 text-xs text-ink-soft">
-          Two things are not here. Favorite moments, which the real walk asks
-          between the proof screen and the next-steps list, has no practice copy
-          yet. And animals travel trip by trip &mdash; the questions about a
-          specific animal on a specific trip live on the trip itself. The beta
+          Two things are not here. Favorite moments, which is asked only of
+          somebody invited into a household that already exists, has no practice
+          copy yet. And animals travel trip by trip &mdash; the questions about
+          a specific animal on a specific trip live on the trip itself. The beta
           consent rehearsal is the one screen here that never posts anything at
           all, not even to a demo endpoint: a consent record is append-only, so
           a practice run must not be able to leave one.
