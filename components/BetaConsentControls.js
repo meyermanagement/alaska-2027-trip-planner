@@ -4,8 +4,8 @@ import { useState } from "react";
 import {
   AI_PROVIDER,
   OPTIONAL_FEATURES,
-  PRIVACY_URL,
-  TERMS_URL,
+  PRIVACY_PATH,
+  TERMS_PATH,
 } from "@/lib/beta/agreement";
 
 /**
@@ -157,7 +157,7 @@ export default function BetaConsentControls({ consent }) {
       <p className="mt-3 text-sm text-ink-soft">
         <a
           className="underline"
-          href={TERMS_URL}
+          href={TERMS_PATH}
           target="_blank"
           rel="noreferrer"
         >
@@ -166,7 +166,7 @@ export default function BetaConsentControls({ consent }) {
         {" \u00b7 "}
         <a
           className="underline"
-          href={PRIVACY_URL}
+          href={PRIVACY_PATH}
           target="_blank"
           rel="noreferrer"
         >

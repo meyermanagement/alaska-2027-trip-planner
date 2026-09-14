@@ -10,7 +10,7 @@ import {
   BETA_ENDS,
   DATA_CATEGORIES,
   OPTIONAL_FEATURES,
-  PRIVACY_URL,
+  PRIVACY_PATH,
   SUPPORT_EMAIL,
 } from "@/lib/beta/agreement";
 
@@ -455,15 +455,18 @@ function YourData({
         />
       </div>
 
+      {/* Opens in its own tab rather than navigating, because leaving this screen
+          mid-flow would throw away five screens of answers that are not written
+          until the last one. The page it opens draws these same seven categories
+          from the same array, so nothing is worded twice. */}
       <p className="mt-5 text-sm text-ink-soft">
-        The full policy, in the same words:{" "}
         <a
           className="underline"
-          href={PRIVACY_URL}
+          href={PRIVACY_PATH}
           target="_blank"
           rel="noreferrer"
         >
-          {PRIVACY_URL}
+          Read the full privacy policy
         </a>
       </p>
 
