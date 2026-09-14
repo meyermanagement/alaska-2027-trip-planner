@@ -5548,6 +5548,19 @@ html[data-aly="docked"] body {
   padding-right: var(--aly-rail);
 }
 
+/* A page can ask for the bottom-left corner to be left empty, and the privacy
+   policy and the beta terms both do it while their reader is still being walked
+   in. The flag is mounted in the layout, so it cannot be conditioned on a page's
+   own data -- but it can be hidden by one.
+
+   Done here as well as in the component because the component learns about the
+   marker in an effect, one frame after the document paints, and a red flag that
+   appears and vanishes on a consent document is worse than one that simply
+   stays. This rule fires with the first frame. */
+body:has([data-quiet-chrome]) .aly-clear {
+  display: none;
+}
+
 html[data-aly="docked"] .aly-clear {
   right: var(--aly-rail);
 }

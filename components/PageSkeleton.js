@@ -16,8 +16,18 @@ import NavTabs from "./NavTabs";
  *
  * No band about the current trip, because whether there is one is a database
  * question too. It arrives with the page.
+ *
+ * `chrome` is for the handful of screens that may not draw a menu at all once
+ * they have their data -- the privacy policy and the beta terms, which hide it
+ * from a tester who is still being walked in. A skeleton that promises a menu
+ * and then takes it away is worse than one that never promised, so those pages
+ * pass false and let the bar arrive with the page.
  */
-export default async function PageSkeleton({ label = "Loading", children }) {
+export default async function PageSkeleton({
+  label = "Loading",
+  chrome = true,
+  children,
+}) {
   // Which menu to draw. Left for us by the middleware, which had already asked,
   // so reading it here costs nothing and the first frame is right rather than
   // being corrected a moment later. Awaiting cookies() touches no database.
@@ -26,7 +36,7 @@ export default async function PageSkeleton({ label = "Loading", children }) {
 
   return (
     <>
-      <NavTabs level={level} askLive={false} />
+      {chrome ? <NavTabs level={level} askLive={false} /> : null}
       <main
         className="mx-auto w-full max-w-5xl px-5 pb-16 pt-7"
         role="status"

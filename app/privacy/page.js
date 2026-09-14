@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
+import { midOnboarding } from "@/lib/auth/landing";
 import TopBar from "@/components/TopBar";
 import { LegalHeader, LegalSections } from "@/components/LegalProse";
 import { DATA_CATEGORIES, PRIVACY_VERSION } from "@/lib/beta/agreement";
@@ -38,10 +39,24 @@ export const dynamic = "force-dynamic";
 export default async function PrivacyPage() {
   const supabase = await createClient();
   const me = await whoIs(supabase);
+  // Drawn for a signed-in person who has finished being walked in, and for
+  // nobody else. A reviewer with no account sees the document alone, and so
+  // does a tester who arrived here from the consent gate -- see midOnboarding.
+  const chrome = me ? !(await midOnboarding(supabase, me.id)) : false;
 
   return (
     <>
-      {me ? <TopBar /> : null}
+      {chrome ? (
+        <TopBar />
+      ) : (
+        /* Tells the two things the layout hangs over every screen -- the report
+           flag, and the stylesheet rule that positions it -- to stay away. The
+           layout cannot ask this question itself: it renders once for every page
+           and reads nothing from the database on purpose. A marker in the
+           document is how a page tells it, the same way the flag already finds
+           the menu bar by looking for [data-navbar]. */
+        <div data-quiet-chrome="1" hidden />
+      )}
       {/* Its own width rather than the app's `screen`, and deliberately. `screen`
           is 60rem because it is sized for trip cards and lists; a paragraph set
           across the whole of it runs to about 150 characters, which is roughly

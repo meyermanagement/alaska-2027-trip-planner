@@ -61,6 +61,11 @@ export default function ReportButton() {
   const tester = useBetaTester();
   const [menuOpen, setMenuOpen] = useState(false);
   const [crowded, setCrowded] = useState(false);
+  // Set by a page that wants the corner left alone -- the privacy policy and
+  // the beta terms do it while their reader is still being walked in. Read from
+  // the document rather than handed down, because this button is mounted in the
+  // layout, above every page and outside all of them.
+  const [hushed, setHushed] = useState(false);
   const keyboardOpen = useSoftKeyboard();
 
   // Is the menu bar down there too? The compass stands in this corner on every
@@ -76,6 +81,7 @@ export default function ReportButton() {
     const look = () => {
       const bar = document.querySelector("[data-navbar]");
       setCrowded(Boolean(bar && bar.getBoundingClientRect().height > 0));
+      setHushed(Boolean(document.querySelector("[data-quiet-chrome]")));
     };
     look();
     if (typeof window.matchMedia !== "function") return undefined;
@@ -92,7 +98,7 @@ export default function ReportButton() {
     return () => window.removeEventListener(MENU_EVENT, onMenu);
   }, []);
 
-  if (!tester || quiet) return null;
+  if (!tester || quiet || hushed) return null;
 
   return (
     <div
