@@ -12,7 +12,8 @@ export const metadata = { title: "Practice · Alyeska" };
 /**
  * The practice hub.
  *
- * Aly asks the family in several places and none of them is a chat: an intro
+ * Aly asks the family in several places and none of them is a chat: the beta
+ * consent screens that stand between signing in and everything else, an intro
  * that says what she looks after, a welcome form for the shape of the
  * household, a paragraph on each person for what they are like on a trip, the
  * interview for how they travel, the proof screen that answers one real
@@ -57,9 +58,14 @@ export default async function InterviewCheckPage() {
 
         <div className="mt-6 space-y-3">
           <PracticeTile
+            href="/interview-check/beta"
+            title="Beta consent"
+            body="The six screens between signing in and everything else: what the beta is, the participation agreement behind a scroll gate, the seven kinds of information the app collects, whether Aly may send anything to an AI provider, the optional parts, and who in the household sees what. The last button shows the record instead of writing one."
+          />
+          <PracticeTile
             href="/interview-check/meet-aly"
             title="Meet Aly"
-            body="The first screen a new primary sees, before the family form. Aly says hello, lists the eight things she looks after, and answers a real question about any one of them live when you tap it."
+            body="The first screen after the consent gate, and before the family form. Aly says hello, lists the eight things she looks after, and answers a real question about any one of them live when you tap it."
           />
           <PracticeTile
             href="/interview-check/welcome"
@@ -91,8 +97,11 @@ export default async function InterviewCheckPage() {
         <p className="mt-8 text-xs text-ink-soft">
           Two things are not here. Favorite moments, which the real walk asks
           between the proof screen and the next-steps list, has no practice copy
-          yet. And animals travel trip by trip -- the questions about a specific
-          animal on a specific trip live on the trip itself.
+          yet. And animals travel trip by trip &mdash; the questions about a
+          specific animal on a specific trip live on the trip itself. The beta
+          consent rehearsal is the one screen here that never posts anything at
+          all, not even to a demo endpoint: a consent record is append-only, so
+          a practice run must not be able to leave one.
         </p>
       </main>
     </>
