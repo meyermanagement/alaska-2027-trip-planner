@@ -98,8 +98,7 @@ function PlanRows({ rows, fallback, at = 0 }) {
   // Not the section-label class. That rule is unlayered in globals.css and so
   // wins the cascade over any Tailwind text color, which would quietly render
   // the slot labels in gray however they are classed here.
-  const slot =
-    "text-xs font-semibold uppercase tracking-[0.09em] text-teal";
+  const slot = "text-xs font-semibold uppercase tracking-[0.09em] text-teal";
   return (
     <ol className="space-y-3">
       {rows.map((row, i) => (
@@ -775,12 +774,20 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
         ref={foot}
         {...(booted && footShown ? { "data-ma-shown": "1" } : {})}
       >
-        {/* This used to open one more onboarding screen, which said what Aly
-            would do and offered one more question to ask her. Two demos in a
-            row before the family had done anything, when the thing they need
-            next is a trip. So the proof screen is the last one, and this button
-            is the first real piece of work: the trip builder, because a family
-            reaching the end of this sequence has no trip yet. */}
+        {/* Onward to the four things worth doing next, which is where that
+            screen belongs: every one of its four rows is the household owner's
+            work -- the rest of the family's own words, the Wallet, the
+            forwarding address, past trips -- and this is the only path with an
+            owner on it. It used to sit at the end of the invited-member
+            walkthrough, where a secondary was bounced off it and the rows that
+            did survive pointed at a Family tab they cannot open.
+
+            It follows the proof rather than preceding it because the proof is
+            the argument: the family has just watched their own answers change a
+            real recommendation, which is the moment a list of four more things
+            to tell Aly reads as worth doing rather than as more forms. The
+            button on that screen carries them to the trip builder, which is
+            where this one used to go directly. */}
         <button
           type="button"
           onClick={() => {
@@ -788,11 +795,11 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               router.push(backHref || "/interview-check");
               return;
             }
-            router.push("/trips/new");
+            router.push("/welcome/next-steps");
           }}
           className="ma-cta btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
-          {demo ? "Take me to my trips" : "Plan our trip"}
+          {demo ? "Take me to my trips" : "What to do next"}
         </button>
       </div>
     </div>

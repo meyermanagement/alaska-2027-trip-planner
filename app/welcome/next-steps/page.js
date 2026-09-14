@@ -11,12 +11,18 @@ export const dynamic = "force-dynamic";
 /**
  * The last screen of the first-login walkthrough.
  *
- * Comes after Favorite moments. Purely informational: four things worth doing
- * before or during a first trip -- the rest of the family's own words, Wallet,
- * forwarding, past trips -- with a
- * compass mark orienting into place for each row. Nothing here is required
- * and nothing is written; the button hands the family off to the trip builder,
- * which is where the old flow went straight from moments.
+ * Comes after the interview proof. Purely informational: four things worth
+ * doing before or during a first trip -- the rest of the family's own words,
+ * Wallet, forwarding, past trips -- with a compass mark orienting into place
+ * for each row. Nothing here is required and nothing is written; the button
+ * hands the family off to the trip builder, which is where the proof screen
+ * used to go directly.
+ *
+ * It sat at the end of the invited-member walk until now, which was the wrong
+ * end of the app. All four rows are the household owner's work, and the guard
+ * below turned a secondary away from the screen regardless -- so the rows that
+ * survived pointed an invited member at a Family tab they cannot open. On this
+ * path the reader is the owner and every row is theirs to do.
  *
  * Deliberately does not check welcomed_at, so this page also serves as the
  * reference version reachable from the practice hub. A refresh from either
@@ -42,7 +48,11 @@ export default async function WelcomeNextStepsPage() {
   return (
     <main className="screen px-5 pb-16 pt-7">
       <NextStepsBody
-        nextHref="/trips"
+        /* The trip builder rather than the trips list, which is what the
+           button has said all along and where the proof screen sent people
+           before this screen moved behind it. A family arriving here has just
+           finished the interview and has no trip yet. */
+        nextHref="/trips/new"
         inboxAddress={inboxAddressFor(household?.inbox_local_part)}
       />
     </main>
