@@ -508,15 +508,37 @@ function QuickVeil() {
 // back, which is the only version of this that cannot happen twice.
 const REMOVE_MS = 900;
 
+// Whether this document has already shown an opening, kept in the module rather
+// than on the element.
+//
+// The flags on <html> are not ours alone. React rendered that element from the
+// server, and anything that makes it re-render the tree -- a recovered stream, a
+// remount after an error, a page restored from the back-forward cache -- hands
+// it back the values the server sent: data-boot at "full", and no data-booted at
+// all. A veil that mounts fresh into that document reads it as a cold open and
+// plays the full opening, five and a half seconds of compass and tagline, over
+// an app the family was already using. That is the order reported twice now:
+// the short opening, the app, and then the arrival.
+//
+// This latch cannot be reset by anything happening to the document, because it
+// is not written on the document. Once an opening has been shown and lifted,
+// every later mount in the same page returns nothing at all.
+let lifted = false;
+
 export default function BootVeil() {
-  const [gone, setGone] = useState(false);
+  const [gone, setGone] = useState(lifted);
 
   useEffect(() => {
     const root = document.documentElement;
     // Already lifted before this mounted -- a remount, or a second copy in a
     // tree that re-rendered. There is nothing to hold and nothing to fade, so
-    // the only useful thing left to do is get out of the document.
-    if (root.dataset.booted) {
+    // the only useful thing left to do is get out of the document. The flag on
+    // the element is put back at the same time: a re-render that dropped it is
+    // exactly how this mount happened, and everything else that waits for the
+    // app to arrive is watching it.
+    if (lifted || root.dataset.booted) {
+      lifted = true;
+      root.dataset.booted = "1";
       setGone(true);
       return;
     }
@@ -540,6 +562,7 @@ export default function BootVeil() {
     const lift = () => {
       if (done) return;
       done = true;
+      lifted = true;
       root.dataset.booted = "1";
       guard.observe(root, {
         attributes: true,
@@ -579,8 +602,11 @@ export default function BootVeil() {
 
   // Hidden by the stylesheet from the moment data-booted is set; this is what
   // takes the markup out afterwards. Returning null before the first paint would
-  // defeat the entire point of the file, so it can only happen after a lift.
-  if (gone) return null;
+  // defeat the entire point of the file, so it can only happen after a lift --
+  // this one, or an earlier one in the same document, which is what the latch
+  // above carries. Checked here rather than in the effect so a remount never
+  // paints even one frame of a second opening.
+  if (gone || lifted) return null;
 
   return (
     <div id="boot-veil" aria-hidden="true">
