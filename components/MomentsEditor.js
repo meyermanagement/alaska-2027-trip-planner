@@ -115,8 +115,7 @@ export default function MomentsEditor({
     reload();
   }, [reload]);
 
-  async function addMoment(e) {
-    e.preventDefault();
+  async function addMoment() {
     const body = newBody.trim();
     if (!body) return;
     setAddBusy(true);
@@ -290,10 +289,16 @@ export default function MomentsEditor({
         </ul>
       )}
 
-      <form
-        onSubmit={addMoment}
-        className="space-y-2 border-t border-sand-deep pt-3"
-      >
+      {/* Deliberately not a form.
+          This editor is used inside the person editor on the family screen,
+          which is a form of its own, and a form inside a form is not a thing
+          the web has. Written in JSX the browser builds both elements anyway,
+          and then submitting the inner one escaped every handler meant to catch
+          it: pressing Add navigated the page -- the whole screen reloading, mid
+          sentence, which is precisely what somebody adding a moment does not
+          need. A textarea does not submit on Enter, so the form element was
+          buying nothing here in the first place. */}
+      <div className="space-y-2 border-t border-sand-deep pt-3">
         <label className="block text-xs font-semibold">
           Add a moment
           <AutoGrowTextarea
@@ -305,14 +310,15 @@ export default function MomentsEditor({
         {addError && <p className="text-xs text-terra-deep">{addError}</p>}
         <div>
           <button
-            type="submit"
+            type="button"
+            onClick={addMoment}
             disabled={addBusy || !newBody.trim()}
             className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
           >
             {addBusy ? "Saving..." : "Add"}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
