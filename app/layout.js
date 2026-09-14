@@ -13,11 +13,7 @@ import {
   SKINS,
   SKIN_COOKIE,
 } from "@/lib/skins";
-import {
-  DEFAULT_TEXT_SIZE,
-  TEXT_COOKIE,
-  TEXT_SIZES,
-} from "@/lib/textsize";
+import { DEFAULT_TEXT_SIZE, TEXT_COOKIE, TEXT_SIZES } from "@/lib/textsize";
 
 // One editorial serif for names and headings, one quiet sans for everything
 // else. Loaded properly rather than falling back to whatever the device has.
@@ -149,6 +145,27 @@ return true;};
 if(!paint())document.addEventListener("DOMContentLoaded",paint);
 }catch(e){}})()`;
 
+// Pins the opening onto the veil, the instant the veil exists.
+//
+// Which of the two openings shows was decided by html[data-boot] alone, and that
+// attribute is shared: the server renders it "full", the head script corrects it
+// to "quick", and any later render of the root element hands React the server's
+// value back. A load correctly showing the map could therefore have the compass
+// switched on underneath it -- the crossing, then the arrival, on a load that
+// asked for one of them. That is the flash.
+//
+// So the choice is copied onto the element that is showing it, and the
+// stylesheet prefers what it finds there. This runs from the body, immediately
+// after the veil markup, which is the first moment the element exists and still
+// before the first paint -- doing it when the component mounts was too late,
+// because hydration is exactly when the re-render that resets the attribute
+// happens.
+const pinBoot = `(function(){try{
+var d=document.documentElement,v=document.getElementById("boot-veil");
+if(v){v.dataset.mode=d.dataset.boot==="quick"?"quick":"full";
+v.dataset.route=d.dataset.route||"1";}
+}catch(e){}})()`;
+
 export default function RootLayout({ children }) {
   return (
     <html
@@ -174,6 +191,7 @@ export default function RootLayout({ children }) {
             gets and there is no blank moment before it. It hides itself once
             the app underneath has painted -- see components/BootVeil.js. */}
         <BootVeil />
+        <script dangerouslySetInnerHTML={{ __html: pinBoot }} />
         <ServiceWorkerBoot />
         {/* Records which screen a signed-in person is on and how long it held
             them. Writes nothing for a visitor who is not signed in. */}

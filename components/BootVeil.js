@@ -46,7 +46,7 @@
 // they share its ground, its skin colors and its fail-safe, and the stylesheet
 // shows one and hides the other on the strength of html[data-boot].
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Shortest time the mark stays up: one full turn of the tagline, three words at
 // 1.9s each. It was 620ms, chosen so a fast open stayed fast, which meant the
@@ -527,6 +527,7 @@ let lifted = false;
 
 export default function BootVeil() {
   const [gone, setGone] = useState(lifted);
+  const veil = useRef(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -546,17 +547,63 @@ export default function BootVeil() {
     // Set by the script in the head, from the session cookie. Absent means no
     // script ran at all, and the full opening is the safer thing to show then:
     // it is the one that does not depend on anything having worked.
-    const quick = root.dataset.boot === "quick";
+    // What this load's opening is, taken from the veil rather than the document:
+    // the script under the veil markup wrote it there before the first paint, and
+    // by the time this mounts the attribute on <html> may already have been
+    // rewritten by a re-render. The document is the fallback for the case where
+    // no script ran, where "full" is the safer answer anyway.
+    const quick = (veil.current?.dataset.mode ?? root.dataset.boot) === "quick";
     const hold = quick ? QUICK_HOLD_MS : HOLD_MS;
+
+    // The choice, written onto the veil itself.
+    //
+    // Until now which opening showed was decided entirely by html[data-boot],
+    // and that attribute does not belong to us. The server renders it "full",
+    // the head script corrects it to "quick" before the first paint, and any
+    // later render of the root element hands React the value the server sent --
+    // so a load that was correctly showing the map could have the compass
+    // switched on underneath it, mid-veil, by something else entirely
+    // re-rendering. That is the flash: the crossing, then the arrival, in that
+    // order, on a load that only ever asked for one of them.
+    //
+    // So the decision is copied onto the element that is showing it, by the
+    // script under the veil markup in app/layout.js, before the first paint and
+    // long before this mounts -- hydration is itself one of the moments the
+    // attribute gets reset, so a pin written here would have been too late. This
+    // only makes sure it is there, for the case where that script did not run.
+    const boot = quick ? "quick" : "full";
+    // Which crossing the head script drew for this load. Held for the same
+    // reason: the stylesheet picks the map, the camera keyframes and the needle's
+    // headings off it, and a route swapped mid-flight moves the coast out from
+    // under a compass already travelling it.
+    const route = veil.current?.dataset.route || root.dataset.route || "1";
+    // The pin is rendered and then rewritten by the script, so there is always
+    // something here; this only matters if that script did not run, in which case
+    // it still says "full", which is what the document says too.
+    if (veil.current && veil.current.dataset.mode !== boot) {
+      veil.current.dataset.mode = boot;
+      veil.current.dataset.route = route;
+    }
 
     let done = false;
     let leave = null;
-    // Watches the one attribute the whole mechanism rests on, for as long as the
-    // veil is still in the document. If something clears data-booted in the
-    // window between the lift and the removal, it is put straight back -- a
-    // frame of compass is still a compass.
+    // Watches the three attributes the whole mechanism rests on, for as long as
+    // the veil is still in the document, and puts back anything taken away. The
+    // flag, because a frame of compass over a working app is still a compass.
+    // The choice and the crossing, because everything else keyed to them -- the
+    // fail-safe timing, which of the six maps is drawn, which way the needle
+    // reads -- lives in the stylesheet, and would otherwise change its mind
+    // under a veil already in the air.
     const guard = new MutationObserver(() => {
       if (done && !root.dataset.booted) root.dataset.booted = "1";
+      if (root.dataset.boot !== boot) root.dataset.boot = boot;
+      if (root.dataset.route !== route) root.dataset.route = route;
+    });
+    // Watching from the moment it mounts rather than from the lift: the switch
+    // this is here to prevent happens while the veil is up, not after it.
+    guard.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-booted", "data-boot", "data-route"],
     });
 
     const lift = () => {
@@ -564,10 +611,6 @@ export default function BootVeil() {
       done = true;
       lifted = true;
       root.dataset.booted = "1";
-      guard.observe(root, {
-        attributes: true,
-        attributeFilter: ["data-booted"],
-      });
       leave = setTimeout(() => setGone(true), REMOVE_MS);
     };
 
@@ -609,7 +652,23 @@ export default function BootVeil() {
   if (gone || lifted) return null;
 
   return (
-    <div id="boot-veil" aria-hidden="true">
+    <div
+      id="boot-veil"
+      ref={veil}
+      /* The opening this load is showing, and the crossing it is flying. Both
+         are rendered here with the same defaults the document carries, and both
+         are rewritten by the script under this markup in app/layout.js before
+         the first paint -- so React has to be told not to mind, exactly as it
+         is told about the same two attributes on <html>. Left out of the render
+         entirely, the script's values read as attributes the server never sent,
+         and hydration reports a mismatch it will not patch: a recoverable error
+         whose recovery is a fresh client render of the tree, which is the very
+         event this file spends its length defending against. */
+      data-mode="full"
+      data-route="1"
+      suppressHydrationWarning
+      aria-hidden="true"
+    >
       <BootStage />
     </div>
   );

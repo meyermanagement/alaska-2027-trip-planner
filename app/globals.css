@@ -423,6 +423,44 @@ html[data-boot="quick"] #boot-veil {
   animation: boot-failsafe 0s linear 5.4s forwards;
 }
 
+/* And the same choice, read off the veil instead of off the document.
+   components/BootVeil.js copies it there as soon as it mounts, and these rules
+   outrank the four above, so from that moment nothing rewriting data-boot can
+   change which opening is on screen. It is the same decision either way -- the
+   veil is only repeating what the head script told it -- but it is written on
+   the element that is showing it rather than on an element three parties share,
+   which is what stops a load showing the crossing and then the arrival. */
+html #boot-veil[data-mode="quick"] .boot-quick {
+  display: block;
+}
+
+html #boot-veil[data-mode="quick"] .boot-mark {
+  display: none;
+}
+
+html #boot-veil[data-mode="full"] .boot-quick {
+  display: none;
+}
+
+html #boot-veil[data-mode="full"] .boot-mark {
+  display: flex;
+}
+
+html #boot-veil[data-mode="quick"] {
+  animation: boot-failsafe 0s linear 5.4s forwards;
+}
+
+html #boot-veil[data-mode="full"] {
+  animation: boot-failsafe 0s linear 8s forwards;
+}
+
+/* Except once it has lifted, where there is nothing left to insure and a
+   restarted fail-safe would undo the lift it is meant to protect. Same reason as
+   the rule above it, and it has to outrank both of the two just written. */
+html[data-booted] #boot-veil[data-mode] {
+  animation: none;
+}
+
 .boot-quick {
   /* The whole veil, not a card in the middle of it. */
   position: absolute;
