@@ -5,6 +5,8 @@ import { resolveAccess } from "@/lib/travelers/access";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { loadSetupState } from "@/lib/setup/state";
 import { todayISO } from "@/lib/reminders";
+import TopBar from "@/components/TopBar";
+import AskAlyGeneral from "@/components/AskAlyGeneral";
 import NextStepsBody from "./NextStepsBody";
 
 export const metadata = { title: "Four things worth doing next · Alyeska" };
@@ -44,7 +46,7 @@ export default async function WelcomeNextStepsPage() {
   const [{ data: household }, { count: trips }, setup] = await Promise.all([
     supabase
       .from("families")
-      .select("inbox_local_part")
+      .select("inbox_local_part, next_steps_seen_at")
       .eq("id", access.familyId)
       .maybeSingle(),
     // Whether this household has any trip at all. It decides which screen the
@@ -64,27 +66,61 @@ export default async function WelcomeNextStepsPage() {
     }),
   ]);
 
+  // Bare on the first arrival, dressed like the rest of the app on every one
+  // after it. The walkthrough earns its missing menu -- one thing to read and
+  // one button to press -- but the menu now offers a way back here, and a
+  // screen with no menu reached from the menu is a dead end somebody has to
+  // escape with the browser's back button. welcomed_at cannot decide this: it
+  // is stamped two screens earlier, when the moments question is answered.
+  const revisit = Boolean(household?.next_steps_seen_at);
+  if (!revisit) {
+    const { error } = await supabase
+      .from("families")
+      .update({ next_steps_seen_at: new Date().toISOString() })
+      .eq("id", access.familyId)
+      .is("next_steps_seen_at", null);
+    // Worth knowing about and not worth failing over: a household whose stamp
+    // did not land reads the walkthrough version once more.
+    if (error) {
+      console.error("[welcome] could not stamp next_steps_seen_at", {
+        family: access.familyId,
+        code: error.code,
+        message: error.message,
+      });
+    }
+  }
+
   const returning = (trips || 0) > 0;
 
   return (
-    <main className="screen px-5 pb-16 pt-7">
-      <NextStepsBody
-        /* First time through, the trip builder: this screen sits at the end of
+    <>
+      {revisit && <TopBar />}
+      <main className="screen px-5 pb-16 pt-7">
+        <NextStepsBody
+          /* First time through, the trip builder: this screen sits at the end of
            the walkthrough and the family has no trip yet. On a revisit from the
            menu it is the way back to the trips they came from -- "take me to the
            trip builder" is an odd thing to be offered six weeks in by somebody
            who only wanted to see what was left. */
-        nextHref={returning ? "/trips" : "/trips/new"}
-        continueLabel={returning ? "Back to my trips" : undefined}
-        eyebrow={returning ? "Finishing setting up" : undefined}
-        intro={
-          returning
-            ? "Anything still without a tick is worth doing when you have a minute. Each one makes my answers fit your family better."
-            : undefined
-        }
-        done={setup?.done || []}
-        inboxAddress={inboxAddressFor(household?.inbox_local_part)}
-      />
-    </main>
+          nextHref={returning ? "/trips" : "/trips/new"}
+          continueLabel={
+            revisit
+              ? returning
+                ? "Back to my trips"
+                : "Build my first trip"
+              : undefined
+          }
+          eyebrow={revisit ? "Finishing setting up" : undefined}
+          intro={
+            revisit
+              ? "Anything still without a tick is worth doing when you have a minute. Each one makes my answers fit your family better."
+              : undefined
+          }
+          done={setup?.done || []}
+          inboxAddress={inboxAddressFor(household?.inbox_local_part)}
+        />
+      </main>
+      {revisit && <AskAlyGeneral />}
+    </>
   );
 }
