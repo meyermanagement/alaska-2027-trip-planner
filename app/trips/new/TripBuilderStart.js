@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import DictationHint from "@/components/DictationHint";
 import {
@@ -45,10 +45,28 @@ import {
  */
 export default function TripBuilderStart() {
   const [idea, setIdea] = useState("");
+  const boxRef = useRef(null);
   const clean = idea.trim();
 
   const read = readIdea(idea);
   const covered = new Set(read.filter((r) => r.mentioned).map((r) => r.id));
+
+  // The examples sit at the bottom of the screen and the box they fill is at the
+  // top, so on a phone pressing one used to look like nothing happening: the
+  // sentence went into a box three screens above the thumb. Take the page back
+  // to the top, then put the cursor at the end of the sentence so the first
+  // thing you can do is change it. preventScroll keeps the focus call from
+  // fighting the smooth scroll it was asked for.
+  function takeExample(example) {
+    setIdea(example);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    requestAnimationFrame(() => {
+      const box = boxRef.current;
+      if (!box) return;
+      box.focus({ preventScroll: true });
+      box.setSelectionRange(example.length, example.length);
+    });
+  }
 
   function start(seed) {
     const text = ideaAskingReality(seed);
@@ -72,6 +90,7 @@ export default function TripBuilderStart() {
       </p>
 
       <textarea
+        ref={boxRef}
         className="field mt-5 text-base leading-relaxed"
         rows={5}
         placeholder="I want to go to the big island of Hawaii for spring break next year so that I can swim with the manta rays…"
@@ -188,7 +207,7 @@ export default function TripBuilderStart() {
                 <button
                   type="button"
                   className="btn btn-ghost px-2.5 py-1 text-xs"
-                  onClick={() => setIdea(example)}
+                  onClick={() => takeExample(example)}
                 >
                   Start with it
                 </button>
