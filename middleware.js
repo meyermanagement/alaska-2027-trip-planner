@@ -14,6 +14,15 @@ import {
   TEXT_COOKIE_MAX_AGE,
   textSizeOr,
 } from "@/lib/textsize";
+import { AGREEMENT_VERSION } from "@/lib/beta/agreement";
+import {
+  CONSENT_COOKIE,
+  CONSENT_COOKIE_MAX_AGE,
+  CONSENT_PATH,
+  consentCookieSatisfies,
+  consentIsCurrent,
+  consentOpenPath,
+} from "@/lib/beta/consent";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 
@@ -201,6 +210,55 @@ export async function middleware(request) {
   // is no longer set to, and a browser should not carry that around.
   for (const stale of SKIN_COOKIE_STALE) {
     if (request.cookies.get(stale)) response.cookies.delete(stale);
+  }
+
+  // The beta gate.
+  //
+  // lib/auth/landing.js already sends a tester here on the way in from either
+  // sign-in door, and that is the part that puts the screens in the right place
+  // in the walkthrough. This is the part that makes them unskippable: a bookmark
+  // straight into /trips, a link from an email, or a tab left open from before
+  // the agreement was reissued never passes through that function at all.
+  //
+  // The cookie is the same kind of thing the access level above it is: a hint,
+  // held for ten minutes, so this costs one query per session rather than one per
+  // navigation and prefetch. It is checked for the current agreement version by
+  // name, so bumping the version invalidates every cookie in the field without
+  // waiting for one to expire. Nothing is granted on the strength of it -- the
+  // screen checks for itself, and lib/agent/llm.js refuses on its own -- so a
+  // forged one buys a screen and no data.
+  const consentCookie = request.cookies.get(CONSENT_COOKIE)?.value;
+  if (
+    user &&
+    !isPublic &&
+    !consentOpenPath(pathname) &&
+    !consentCookieSatisfies(consentCookie, AGREEMENT_VERSION)
+  ) {
+    const { data: consent } = await supabase
+      .from("beta_consents")
+      .select(
+        "agreement_version, privacy_version, age_confirmed, data_acknowledged, withdrawn_at",
+      )
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (consentIsCurrent(consent)) {
+      response.cookies.set(CONSENT_COOKIE, AGREEMENT_VERSION, {
+        maxAge: CONSENT_COOKIE_MAX_AGE,
+        sameSite: "lax",
+        path: "/",
+      });
+    } else {
+      // Whether this account is even in the beta is left to the screen, which
+      // answers it once and sends a general-release account out through
+      // /api/beta/not-in-beta with a cookie saying so. Deciding it here would
+      // mean the service-role lookup isTesterAccount does running on every gated
+      // navigation of every session.
+      const url = request.nextUrl.clone();
+      url.pathname = CONSENT_PATH;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   if (user && pathname === "/login") {
