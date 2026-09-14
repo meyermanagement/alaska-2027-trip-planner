@@ -166,14 +166,14 @@ export default function TripBuilderStart() {
 
       {/* The same device as the About You screen, for the same reason: a box asking
           for a few sentences gets three words unless somebody shows you what a few
-          sentences looks like. Pressing one starts the conversation with it, which
-          is also the fastest way to see what the thing does. */}
+          sentences looks like. Pressing one puts it in the box, where it can be
+          changed into the trip somebody actually means before it is sent. */}
       <div className="mt-9 border-t border-[var(--line)] pt-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
           Some examples
         </p>
         <p className="mt-1 text-xs text-ink-soft">
-          None of these is a full answer. Press one to see how it goes.
+          None of these is a full answer. Press one and change it into yours.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {TRIP_IDEA_EXAMPLES.map((example) => (
@@ -189,13 +189,6 @@ export default function TripBuilderStart() {
                   type="button"
                   className="btn btn-ghost px-2.5 py-1 text-xs"
                   onClick={() => setIdea(example)}
-                >
-                  Use this
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost px-2.5 py-1 text-xs"
-                  onClick={() => start(example)}
                 >
                   Start with it
                 </button>
