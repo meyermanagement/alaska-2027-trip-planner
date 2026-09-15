@@ -7870,9 +7870,17 @@ html[data-skin="sodium"] .menu-arc {
    lines competes with the screens inside it; the count answers the same
    question in one character, and a page can still be the only round, lit,
    partial-width thing in the shape. */
+/* The bands are made of the same frosted material as every other row in the
+   arc, only a shade deeper. They used to be four percent ink over nothing with
+   the blur switched off, so on a phone the page showed straight through them and
+   the category names sat on the trip photos behind the menu. Mixing into
+   --arc-face keeps them a step down from a plain pill, which is what separates a
+   group from a door, without making them see-through. In the desktop rail
+   --arc-face is nulled to transparent, so the same expression still lands there
+   as the faint band it was. */
 .arc-pill.group {
-  --arc-band-face: color-mix(in srgb, var(--color-ink) 4%, transparent);
-  --arc-band-edge: color-mix(in srgb, var(--color-ink) 11%, transparent);
+  --arc-band-face: color-mix(in srgb, var(--color-ink) 6%, var(--arc-face));
+  --arc-band-edge: color-mix(in srgb, var(--color-ink) 11%, var(--arc-edge));
   width: 100%;
   min-height: 48px;
   gap: 0.5rem;
@@ -7881,23 +7889,29 @@ html[data-skin="sodium"] .menu-arc {
   background: var(--arc-band-face);
   border-color: var(--arc-band-edge);
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 html[data-skin="aurora"] .arc-pill.group,
 html[data-skin="sodium"] .arc-pill.group {
-  --arc-band-face: rgba(255, 255, 255, 0.055);
-  --arc-band-edge: rgba(255, 255, 255, 0.14);
+  --arc-band-face: color-mix(
+    in srgb,
+    rgba(255, 255, 255, 0.7) 8%,
+    var(--arc-face)
+  );
+  --arc-band-edge: rgba(255, 255, 255, 0.18);
 }
 
 .arc-pill.group.open {
-  --arc-band-face: color-mix(in srgb, var(--color-ink) 7%, transparent);
+  --arc-band-face: color-mix(in srgb, var(--color-ink) 11%, var(--arc-face));
 }
 
 html[data-skin="aurora"] .arc-pill.group.open,
 html[data-skin="sodium"] .arc-pill.group.open {
-  --arc-band-face: rgba(255, 255, 255, 0.09);
+  --arc-band-face: color-mix(
+    in srgb,
+    rgba(255, 255, 255, 0.7) 14%,
+    var(--arc-face)
+  );
 }
 
 .arc-pill.group .arc-disc {
@@ -8020,8 +8034,21 @@ html[data-skin="sodium"] .arc-pill.group.open {
    weight as Travel Journal made it read as another destination of equal
    importance, which it is not. */
 .arc-pill.group.slim {
-  --arc-band-face: transparent;
+  /* Quieter than the three travel groups, but still made of something. A fully
+     transparent face let the page through, so on a phone the least-visited row
+     was also the only one whose name sat on a trip photo. It is now the same
+     frost as the others at a lower step. */
+  --arc-band-face: color-mix(in srgb, var(--color-ink) 2%, var(--arc-face));
   min-height: 46px;
+}
+
+html[data-skin="aurora"] .arc-pill.group.slim,
+html[data-skin="sodium"] .arc-pill.group.slim {
+  --arc-band-face: color-mix(
+    in srgb,
+    rgba(255, 255, 255, 0.7) 3%,
+    var(--arc-face)
+  );
 }
 
 .arc-pill.group.slim .arc-disc svg {
