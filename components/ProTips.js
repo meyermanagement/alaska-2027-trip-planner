@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { compareTips, lookedToday, tipWhen } from "@/lib/tips/tip";
 import { lookOpening, lookSummary, runLook } from "@/lib/tips/run";
 import { formatFullDay } from "@/lib/format";
+import { offerDate, offerHost } from "@/lib/rewards-offers";
 import { Spinner } from "./LinkPending";
 import { BinocularsIcon } from "./Icons";
 import { mayWrite } from "@/lib/travelers/allowed";
@@ -28,6 +29,11 @@ import { SECONDARY } from "@/lib/travelers/access";
  */
 export default function ProTips({
   tips: initial = [],
+  // The terms behind any of these tips that came from a welcome offer, keyed by
+  // the tip they produced. Two things need them: the line saying where the offer
+  // was read and when it ends, and the button that turns it down on those terms
+  // rather than merely clearing the sentence.
+  offers = [],
   today,
   tripId,
   scope = "trip",
@@ -146,6 +152,12 @@ export default function ProTips({
         )
         .sort(compareTips),
     [tips, gone, relatedDate],
+  );
+
+  const offerByTip = useMemo(
+    () =>
+      new Map((offers || []).filter((o) => o.tip_id).map((o) => [o.tip_id, o])),
+    [offers],
   );
 
   // Cleared from the band at the top of the screen. The write is already done up
@@ -448,6 +460,7 @@ export default function ProTips({
               key={tip.id}
               tip={tip}
               today={today}
+              offer={offerByTip.get(tip.id) || null}
               onResolve={readOnly ? null : resolve}
               onTask={readOnly || !tip.trip_id ? null : makeTask}
             />
@@ -487,8 +500,9 @@ const TONES = {
 //
 // The body is in the tree either way and hidden with a class rather than
 // unmounted, so printing a trip prints every tip in full.
-function TipCard({ tip, today, onResolve, onTask }) {
+function TipCard({ tip, today, offer, onResolve, onTask }) {
   const [open, setOpen] = useState(false);
+  const [refusing, setRefusing] = useState(false);
   const when = tipWhen(tip, today);
   const sources = Array.isArray(tip.sources) ? tip.sources.slice(0, 3) : [];
 
@@ -531,15 +545,13 @@ function TipCard({ tip, today, onResolve, onTask }) {
       </button>
 
       <div className={open ? "px-4 pb-4" : "hidden px-4 pb-4 print:block"}>
-        <p className="text-base leading-relaxed text-ink-soft">
-          {tip.body}
-        </p>
+        <p className="text-base leading-relaxed text-ink-soft">{tip.body}</p>
         {tip.because ? (
           <p className="mt-2 border-l-2 border-teal/30 pl-3 text-sm leading-relaxed text-ink-faint">
             Why you: {tip.because}
           </p>
         ) : null}
-        {sources.length ? (
+        {sources.length && !offer ? (
           <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
             {sources.map((source) => (
               <a
@@ -552,6 +564,31 @@ function TipCard({ tip, today, onResolve, onTask }) {
                 {source.title}
               </a>
             ))}
+          </p>
+        ) : null}
+        {offer ? (
+          // Where the terms came from and when they stop being true. An offer
+          // read off a page in September is a claim about September, and saying
+          // the date out loud is the difference between advice and a rumour.
+          <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+            Read from{" "}
+            {offer.source_url ? (
+              <a
+                href={offer.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+              >
+                {offerHost(offer.source_url)}
+              </a>
+            ) : (
+              "the issuer's page"
+            )}{" "}
+            on {offerDate(offer.verified_on)}
+            {offer.offer_ends_on
+              ? `, and the offer ends ${offerDate(offer.offer_ends_on)}`
+              : ""}
+            . Check the issuer&rsquo;s own application page before you apply.
           </p>
         ) : null}
         {onResolve || onTask ? (
@@ -572,6 +609,34 @@ function TipCard({ tip, today, onResolve, onTask }) {
                 className="btn btn-ghost px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em]"
               >
                 Clear
+              </button>
+            ) : null}
+            {offer && onResolve ? (
+              // Not the same button as Clear. Clear says "I have read this";
+              // this says "not on these terms", and the app remembers the terms
+              // so the same card does not come round again unless the bonus goes
+              // up, the spending goes down or the fee does.
+              <button
+                type="button"
+                disabled={refusing}
+                onClick={async () => {
+                  setRefusing(true);
+                  try {
+                    await fetch(`/api/offers/${offer.id}`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: "declined" }),
+                    });
+                  } catch {
+                    // The tip still clears. A refusal the app failed to file is
+                    // worth less than leaving the reader staring at a card they
+                    // have already said no to.
+                  }
+                  onResolve(tip, "cleared");
+                }}
+                className="btn btn-ghost px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-60"
+              >
+                {refusing ? "Noting it…" : "Not this card"}
               </button>
             ) : null}
           </div>

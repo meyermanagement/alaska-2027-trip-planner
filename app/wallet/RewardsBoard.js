@@ -71,6 +71,9 @@ const BLANK = {
   member_number: "",
   status_tier: "",
   annual_fee: "",
+  opened_on: "",
+  closed_on: "",
+  bonus_earned_on: "",
   earn_rules: [],
   credits: [],
   perks: "",
@@ -91,6 +94,9 @@ function toForm(row) {
     member_number: row.member_number || "",
     status_tier: row.status_tier || "",
     annual_fee: row.annual_fee ?? "",
+    opened_on: row.opened_on || "",
+    closed_on: row.closed_on || "",
+    bonus_earned_on: row.bonus_earned_on || "",
     earn_rules: normalizeRules(row.earn_rules),
     credits: normalizeCredits(row.credits),
     perks: row.perks || "",
@@ -114,6 +120,9 @@ function toRow(form) {
     member_number: form.member_number.trim() || null,
     status_tier: form.status_tier.trim() || null,
     annual_fee: number(form.annual_fee),
+    opened_on: form.opened_on || null,
+    closed_on: form.closed_on || null,
+    bonus_earned_on: form.bonus_earned_on || null,
     earn_rules: normalizeRules(form.earn_rules),
     credits: normalizeCredits(form.credits),
     perks: form.perks.trim() || null,
@@ -1290,6 +1299,49 @@ function ProgramForm({
                 placeholder="95"
               />
             </label>
+            {/* Three dates, and the only reason to ask for them is written under
+                them. Every issuer rule that would actually stop an application is
+                a rule about dates, so without these Aly can only recite the rule
+                at you; with them she can say whether you are near it. */}
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
+                Opened
+              </span>
+              <input
+                className="field"
+                type="date"
+                value={values.opened_on}
+                onChange={(e) => set({ opened_on: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
+                Welcome bonus earned
+              </span>
+              <input
+                className="field"
+                type="date"
+                value={values.bonus_earned_on}
+                onChange={(e) => set({ bonus_earned_on: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
+                Closed
+              </span>
+              <input
+                className="field"
+                type="date"
+                value={values.closed_on}
+                onChange={(e) => set({ closed_on: e.target.value })}
+              />
+            </label>
+            <p className="text-xs text-ink-soft sm:col-span-2">
+              These three dates are what let Aly tell you where you stand
+              against an issuer&rsquo;s limits instead of quoting them at you.
+              Nothing here touches your credit, and nothing is looked up on your
+              behalf.
+            </p>
           </>
         )}
       </div>

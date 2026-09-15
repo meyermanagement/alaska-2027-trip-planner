@@ -8,6 +8,7 @@ import AskAlyGeneral from "@/components/AskAlyGeneral";
 import ProTips from "@/components/ProTips";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
 import RewardsBoard from "./RewardsBoard";
+import DeclinedOffers from "./DeclinedOffers";
 
 export const metadata = { title: "Wallet · Alyeska" };
 
@@ -70,6 +71,21 @@ export default async function RewardsPage() {
     .in("scope", WALLET_SCOPES)
     .eq("status", "active");
 
+  // The terms behind any offer tip, and the refusals. Both come from one read:
+  // the open rows go to the tips so each one can say where it was read and when
+  // it ends, and the turned-down rows get their own quiet list further down with
+  // a way to put them back on the table.
+  const { data: offerRows } = await supabase
+    .from("card_offers")
+    .select("*")
+    .eq("family_id", familyId)
+    .in("status", ["open", "declined"])
+    .order("verified_on", { ascending: false });
+  const openOffers = (offerRows || []).filter((row) => row.status === "open");
+  const declinedOffers = (offerRows || []).filter(
+    (row) => row.status === "declined",
+  );
+
   // When a look last ran here. Two things read it: the card, to decide whether
   // opening the Wallet should run the look on its own rather than waiting to be
   // asked, and nothing else. The comparison against midnight happens in the
@@ -127,6 +143,7 @@ export default async function RewardsPage() {
             screen more often than the answers change. */}
         <ProTips
           tips={tips || []}
+          offers={openOffers}
           today={today}
           scope="wallet"
           canLook
@@ -148,6 +165,7 @@ export default async function RewardsPage() {
           programs={programs || []}
           unreadable={Boolean(programsError)}
         />
+        <DeclinedOffers offers={declinedOffers} />
         {/* Said once, at the bottom, rather than on every card. A welcome offer
             is a moving target and the only page that is authoritative about it is
             the issuer's own. */}

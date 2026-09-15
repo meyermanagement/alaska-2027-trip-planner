@@ -18,6 +18,7 @@ import { todayISO } from "@/lib/reminders";
 import { resolveAccess } from "@/lib/travelers/access";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
 import { walletTips } from "@/lib/tips/wallet";
+import { ledgerRow, staleOffers } from "@/lib/rewards-offers";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -103,6 +104,7 @@ export async function POST(request) {
     { data: trips },
     { data: preferences },
     { data: existing },
+    { data: ledger },
   ] = await Promise.all([
     supabase
       .from("rewards_programs")
@@ -128,7 +130,23 @@ export async function POST(request) {
       .select("fingerprint, title, about, scope, status")
       .eq("family_id", familyId)
       .in("scope", WALLET_SCOPES),
+    // Every offer ever put to them, and what they did about it. The refusals are
+    // the point: an offer they passed on in September should not arrive again in
+    // November wearing the same terms.
+    supabase.from("card_offers").select("*").eq("family_id", familyId),
   ]);
+
+  // Offers whose end date has gone by are no longer open, whatever the ledger
+  // says. Done before the model is asked so the brief does not present a dead
+  // offer as one still on the table.
+  const expired = staleOffers(ledger, today);
+  if (expired.length) {
+    await supabase
+      .from("card_offers")
+      .update({ status: "expired", decided_on: today })
+      .in("id", expired);
+  }
+  const liveLedger = (ledger || []).filter((row) => !expired.includes(row.id));
 
   // An empty Wallet stops only half the question. There is nothing to say about
   // programs they do not have, but "which card should we open first" is exactly
@@ -189,6 +207,7 @@ export async function POST(request) {
       trips: trips || [],
       items: items || [],
       preferences: preferences || [],
+      offers: liveLedger,
     });
   } catch (error) {
     return NextResponse.json(
@@ -211,7 +230,7 @@ export async function POST(request) {
     const { data: inserted, error } = await supabase
       .from("pro_tips")
       .insert(produced.tips)
-      .select("id");
+      .select("id, title");
     if (error) {
       return NextResponse.json(
         { error: "Found tips but could not save them.", step: scope },
@@ -219,6 +238,46 @@ export async function POST(request) {
       );
     }
     added = (inserted || []).length;
+
+    // File the terms beside the tip that carried them, so the advice has a page
+    // and a date behind it rather than a claim. An offer we have seen before is
+    // refreshed rather than filed twice -- and a decision already recorded
+    // against those terms is never written over, because the whole reason for
+    // keeping the row is to remember what they said.
+    const seen = new Map((ledger || []).map((row) => [row.terms_key, row]));
+    const fresh = [];
+    for (const row of inserted || []) {
+      const offer = produced.offers?.get(row.title);
+      if (!offer) continue;
+      const prior = seen.get(offer.terms_key);
+      if (!prior) {
+        fresh.push(ledgerRow({ offer, familyId, tipId: row.id, today }));
+        continue;
+      }
+      if (prior.status === "declined" || prior.status === "taken") continue;
+      const { error: touchError } = await supabase
+        .from("card_offers")
+        .update({
+          verified_on: today,
+          offer_ends_on: offer.offer_ends_on,
+          source_url: offer.source_url,
+          source_title: offer.source_title,
+          status: "open",
+          tip_id: row.id,
+        })
+        .eq("id", prior.id);
+      if (touchError)
+        console.error("[tips/wallet] offer touch", touchError.message);
+    }
+    if (fresh.length) {
+      const { error: ledgerError } = await supabase
+        .from("card_offers")
+        .insert(fresh);
+      // Not fatal. The tips are saved and readable; what is lost is the app's
+      // memory of having asked, which the next look can rebuild.
+      if (ledgerError)
+        console.error("[tips/wallet] ledger", ledgerError.message);
+    }
   }
 
   // One line per pass in the platform's log. The question the next time a look
