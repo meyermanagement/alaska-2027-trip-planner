@@ -621,6 +621,9 @@ function AiChoice({ choice, setChoice }) {
             <li key={s}>{s}</li>
           ))}
         </ul>
+        {/* The file exception, said plainly under the list it qualifies rather
+            than left as a clause somebody has to notice. */}
+        <p className="mt-3 text-sm text-ink-soft">{AI_DISCLOSURE.aside}</p>
         <ul className="mt-4 list-disc space-y-1 border-t border-[var(--line)] pl-5 pt-3 text-sm text-ink-soft">
           {AI_DISCLOSURE.terms.map((s) => (
             <li key={s}>{s}</li>

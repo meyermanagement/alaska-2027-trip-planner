@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { extractDocumentFields, READER_KINDS } from "@/lib/documents/extract";
-import { aiAllowed } from "@/lib/beta/consent";
+import { featureAllowed } from "@/lib/beta/consent";
 
 /**
  * Read one uploaded document with a vision model, and return the few fields
@@ -34,16 +34,21 @@ export async function POST(request) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  // The same permission the model layer enforces for Aly, asked here because
-  // this route does not go through her. It reaches Gemini on its own, with a
-  // photograph of a passport or a certificate naming everybody insured, which
-  // is precisely the personal data the consent screen is about. A door that
-  // asks and a door that does not are one door as far as a tester is concerned.
-  if (!(await aiAllowed(supabase, me.id))) {
+  // The document reader's own permission, not the blanket one.
+  //
+  // This used to ask aiAllowed, which is the permission for sending a typed
+  // question and the trip it is about. What this route sends is a photograph of a
+  // passport, or a certificate naming everybody insured -- the one place a file
+  // itself leaves our storage. The gate collects a separate answer for exactly
+  // that ("Read fields from documents", left off by default), and reading only
+  // the blanket answer meant a tester who declined the optional feature had their
+  // passport sent anyway. featureAllowed requires both, in order, so turning Aly
+  // off still stops this too.
+  if (!(await featureAllowed(supabase, me.id, "documents"))) {
     return NextResponse.json(
       {
         error:
-          "Reading a document sends it to an AI service. Turn on AI assistance in Settings to use the reader, or type the fields in by hand.",
+          "Reading a document sends the file itself to an AI service. Turn on \u201cRead fields from documents\u201d in Settings to use the reader, or type the fields in by hand.",
       },
       { status: 403 },
     );
@@ -119,6 +124,11 @@ export async function POST(request) {
 
   try {
     const fields = await extractDocumentFields({ bytes, mimeType, kind });
+    await noteRead(supabase, me.id, {
+      reader: kind,
+      from: path ? "vault" : "picked",
+      bytes: bytes.length,
+    });
     return NextResponse.json({ fields });
   } catch (err) {
     const status =
@@ -130,5 +140,46 @@ export async function POST(request) {
       { error: err?.message || "The reader could not read this document." },
       { status },
     );
+  }
+}
+
+/**
+ * One line in the record saying a file was sent, written after the send.
+ *
+ * The separate permission is only half of making the document path auditable. The
+ * other half is being able to answer "how many documents has this household sent
+ * to Google, and when" without asking Google -- for a subject access request, for
+ * a counsel review, or for a tester who wants to know.
+ *
+ * What is deliberately not in the row: the file, any field read out of it, the
+ * storage path, and the file name. A path is family/personal/traveler/name.jpg and
+ * a name is often "veda-passport.jpg", so both would put in the log the very thing
+ * the log exists to prove we are careful with. Which reader, where the bytes came
+ * from, and how many of them is enough to count and to spot abuse.
+ *
+ * Written through the caller's own session, so the same row-level policy that
+ * governs every other usage event governs this one, and never allowed to fail the
+ * request: a document that was read successfully must not report an error because
+ * the bookkeeping missed.
+ */
+async function noteRead(supabase, userId, meta) {
+  try {
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+    await supabase.from("usage_events").insert({
+      user_id: userId,
+      family_id: membership?.family_id || null,
+      kind: "document_read",
+      step: "document_read",
+      path: null,
+      ms: null,
+      meta,
+    });
+  } catch {
+    // Nothing to do and nobody to tell: the read already happened.
   }
 }

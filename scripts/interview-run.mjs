@@ -8,6 +8,13 @@
 import { createInterface } from "node:readline";
 import { createJiti } from "jiti";
 
+// The model door refuses a caller with no session and no named account, which is
+// what this script is: a laptop, a JSON dump, and no cookies. Declared here rather
+// than left to whoever runs it, because a harness that only works when you
+// remember an environment variable is a harness nobody runs. lib/agent/llm.js
+// ignores this anywhere VERCEL is set, so it cannot travel to a deployment.
+process.env.AI_HARNESS = "1";
+
 // Node's own fetch ignores HTTPS_PROXY, and the model key in this sandbox is
 // injected by that proxy rather than held here, so requests go out through curl.
 // Only this script does it: the app itself runs where the key is an env var.
