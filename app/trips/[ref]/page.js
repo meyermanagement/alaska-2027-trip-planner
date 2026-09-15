@@ -9,6 +9,9 @@ import TripView from "@/components/TripView";
 import { todayISO } from "@/lib/reminders";
 import { isDraftTrip } from "@/lib/format";
 import { parseTripRef, tripRef, needsCanonical } from "@/lib/trips/route";
+import TripFares from "@/components/TripFares";
+import { inboxAddressFor } from "@/lib/inbox/address";
+import { judged, readDealWorld } from "@/lib/deals/world";
 
 // Finding the trip this URL is talking about.
 //
@@ -120,6 +123,8 @@ export default async function TripPage({ params, searchParams }) {
     petLinks,
     basicHistory,
     dayPack,
+    deals,
+    household,
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -237,6 +242,21 @@ export default async function TripPage({ params, searchParams }) {
       .eq("trip_id", trip.id)
       .order("item_date", { ascending: true })
       .order("sort_order", { ascending: true }),
+    // Fares forwarded in from the family's deal newsletters. Read here, and not
+    // only on the bucket list, because a fare that matched this trip is acted on
+    // where the dates and the budget it was judged against live.
+    supabase
+      .from("flight_deals")
+      .select("*")
+      .eq("family_id", trip.family_id)
+      .order("created_at", { ascending: false }),
+    // The household's forwarding address, so a trip with flights still to buy
+    // can hand it over without a trip to /inbox first.
+    supabase
+      .from("families")
+      .select("inbox_local_part")
+      .eq("id", trip.family_id)
+      .maybeSingle(),
   ]);
 
   // A draft gets its own screen. The trip screen below is built to answer "what
@@ -249,6 +269,30 @@ export default async function TripPage({ params, searchParams }) {
   // sharing a sort_order come back in whichever order they were written, and the
   // draft view and the trip view must not disagree about which is first.
   const orderedItinerary = sortItinerary(itinerary.data || []);
+
+  // Only a household who has forwarded a fare pays for the eight reads behind a
+  // verdict, and the verdicts are worked out here on every load rather than
+  // stored: a fare that was under this trip's budget in September is not under it
+  // after the hotel goes on.
+  const dealWorld = deals.data?.length
+    ? await readDealWorld(supabase, trip.family_id)
+    : null;
+  const fares = dealWorld ? judged(deals.data, dealWorld) : [];
+  // A seat still to buy is the reason to set forwarding up, so the instructions
+  // appear while any flight on the trip is unconfirmed -- including the common
+  // case of a trip with no flight rows at all.
+  const flightRows = orderedItinerary.filter(
+    (item) => item.category === "flight",
+  );
+  const flightsToBuy = flightRows.every((item) => item.status !== "confirmed");
+  const faresPanel = (
+    <TripFares
+      trip={trip}
+      deals={fares}
+      address={inboxAddressFor(household.data?.inbox_local_part)}
+      unbooked={flightsToBuy}
+    />
+  );
 
   if (isDraftTrip(trip)) {
     return (
@@ -266,6 +310,7 @@ export default async function TripPage({ params, searchParams }) {
           basicHistory={basicHistory.data || []}
           readOnly={access?.can?.isSecondary === true}
           today={todayISO()}
+          fares={faresPanel}
         />
       </>
     );
@@ -298,6 +343,7 @@ export default async function TripPage({ params, searchParams }) {
         today={todayISO()}
         userId={user.id}
         userName={profile?.display_name || "Family member"}
+        fares={faresPanel}
       />
     </>
   );

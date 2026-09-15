@@ -9,6 +9,11 @@
 // the server on every load, so a card cannot go on claiming a fare is under budget
 // after the budget moved.
 //
+// Fares arrive by being forwarded. Nobody types one in: a household who reads
+// three fare newsletters is not going to copy a fare into a second app, and the
+// form that asked them to has been taken out. What is left here is the judging and
+// the deciding.
+//
 // Two things to do with a fare and the card says both plainly. Put it on a trip,
 // which is the whole point, or say it is not for us, which is worth recording: a
 // refusal is a fact about this family that should still be true next month, and an
@@ -34,67 +39,30 @@ function money(value) {
   return formatMoney(Number(value)) || "";
 }
 
-export default function Deals({ deals = [], trips = [] }) {
+/**
+ * @param deals every fare on file, each with its verdict already worked out.
+ * @param trips the live trips, for the "put it on" picker.
+ * @param tripId set when this panel is on one trip's screen: only the fares that
+ *   matched that trip are shown, and the heading says so. The bucket list passes
+ *   nothing and gets the lot.
+ */
+export default function Deals({ deals = [], trips = [], tripId = null }) {
   const router = useRouter();
-  const open = deals.filter((deal) => deal.status === "open");
-  const refused = deals.filter((deal) => deal.status === "dismissed");
-  const taken = deals.filter((deal) => deal.status === "taken");
+  const mine = tripId
+    ? deals.filter((deal) => deal.verdict?.trip?.id === tripId)
+    : deals;
+  const open = mine.filter((deal) => deal.status === "open");
+  const refused = mine.filter((deal) => deal.status === "dismissed");
+  const taken = mine.filter((deal) => deal.status === "taken");
   // Retired by the watcher for having passed its book-by date. Not open, and not
   // something the family turned down either: it simply ran out, and saying so is
   // better than a card quietly disappearing off the screen.
-  const ran = deals.filter((deal) => deal.status === "expired");
+  const ran = mine.filter((deal) => deal.status === "expired");
 
-  const [pasting, setPasting] = useState(false);
-  const [text, setText] = useState("");
-  const [where, setWhere] = useState("");
-  const [link, setLink] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [said, setSaid] = useState("");
   const [error, setError] = useState("");
   const [acting, setActing] = useState(null);
   const [reasoning, setReasoning] = useState(null);
   const [reason, setReason] = useState("");
-
-  const read = async () => {
-    setBusy(true);
-    setError("");
-    setSaid("");
-    try {
-      const res = await fetch("/api/deals/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          source_name: where,
-          source_url: link,
-        }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(body?.error || "That did not save.");
-        return;
-      }
-      if (!body?.saved) {
-        // The refusal is the useful answer here, so it is shown in the words the
-        // route used rather than flattened into "could not read that".
-        setSaid(body?.why ? `I did not save it: ${body.why}.` : "");
-        return;
-      }
-      setText("");
-      setLink("");
-      setPasting(false);
-      setSaid(
-        body.missing?.length
-          ? `Saved. It does not say ${body.missing.join(", or ")}, so I have left those out.`
-          : "",
-      );
-      router.refresh();
-    } catch {
-      setError("That did not save.");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const decide = async (deal, patch) => {
     setActing(deal.id);
@@ -119,75 +87,6 @@ export default function Deals({ deals = [], trips = [] }) {
     (trip) => trip.status !== "complete" && trip.status !== "cancelled",
   );
 
-  const pasteForm = (
-    <div className="card p-3">
-      <label className="section-label block" htmlFor="deal-text">
-        Paste the alert
-      </label>
-      <textarea
-        id="deal-text"
-        className="field mt-1 h-28 w-full"
-        value={text}
-        placeholder="STL to Lisbon, $412 round trip, travel 2027-05-28 to 2027-06-06, book by 2026-09-22"
-        onChange={(event) => setText(event.target.value)}
-      />
-      <div className="mt-2 flex flex-wrap gap-3">
-        <div>
-          <label className="section-label block" htmlFor="deal-where">
-            Where it came from
-          </label>
-          <input
-            id="deal-where"
-            className="field mt-1 w-56"
-            value={where}
-            placeholder="Thrifty Traveler"
-            maxLength={80}
-            onChange={(event) => setWhere(event.target.value)}
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <label className="section-label block" htmlFor="deal-link">
-            Link, if you have one
-          </label>
-          <input
-            id="deal-link"
-            className="field mt-1 w-full"
-            value={link}
-            placeholder="https://"
-            maxLength={500}
-            onChange={(event) => setLink(event.target.value)}
-          />
-        </div>
-      </div>
-      <p className="mt-2 text-sm text-ink-soft">
-        I read only what the alert says. A price, a date or an airline that is
-        not written down is left out rather than guessed at.
-      </p>
-      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={busy || text.trim().length < 12 || !where.trim()}
-          onClick={read}
-        >
-          {busy ? "Reading…" : "Read it"}
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={busy}
-          onClick={() => {
-            setPasting(false);
-            setError("");
-          }}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-
   const card = (deal) => {
     const v = deal.verdict || { facts: [] };
     return (
@@ -205,6 +104,18 @@ export default function Deals({ deals = [], trips = [] }) {
               style={{ whiteSpace: "normal" }}
             >
               {v.headline}
+            </span>
+          ) : null}
+          {v.flights?.verdict === "booked" ? (
+            // The one case where a fare is information rather than a decision:
+            // the flights on that trip are already bought, so this only matters
+            // if it beats what they paid. Said on the card rather than by
+            // throwing the fare away.
+            <span
+              className="chip max-w-full text-left text-ink-soft"
+              style={{ whiteSpace: "normal" }}
+            >
+              Flights already booked
             </span>
           ) : null}
         </div>
@@ -328,58 +239,28 @@ export default function Deals({ deals = [], trips = [] }) {
     );
   };
 
-  // Nothing pasted yet: one quiet link, and the form only when it is asked for.
-  // The sentence that used to follow the link explained what the verdict would be
-  // judged against, which the cards say for themselves once a fare is in. Finding
-  // the fares happens elsewhere now, so the empty state says as little as it can.
-  if (!open.length && !refused.length && !taken.length) {
-    return (
-      <section>
-        {pasting ? (
-          pasteForm
-        ) : (
-          <button
-            type="button"
-            className="text-sm text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-            onClick={() => setPasting(true)}
-          >
-            Paste a fare
-          </button>
-        )}
-        {said ? <p className="mt-2 text-sm text-ink">{said}</p> : null}
-      </section>
-    );
-  }
+  // Nothing on file, so there is nothing to say. The screen that holds this panel
+  // explains how fares get here; a panel that announced its own emptiness would
+  // be saying it twice.
+  if (!open.length && !refused.length && !taken.length && !ran.length)
+    return null;
 
   return (
     <section>
       {open.length ? (
         <>
           <h2 className="font-display text-lg font-semibold">
-            Fares you pasted in
+            {tripId ? "Fares for this trip" : "Fares that came in"}
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-            Judged against your airports, the ceilings on this list and the
-            trips you already have.
+            {tripId
+              ? "Read out of the alerts you forwarded, and measured against this trip's dates, party and budget."
+              : "Read out of the alerts you forwarded, and measured against your airports, the ceilings on this list and the trips you already have."}
           </p>
           <ul className="mt-3 space-y-3">{open.map(card)}</ul>
         </>
       ) : null}
-
-      <div className="mt-3">
-        {pasting ? (
-          pasteForm
-        ) : (
-          <button
-            type="button"
-            className="text-sm text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-            onClick={() => setPasting(true)}
-          >
-            Paste another fare
-          </button>
-        )}
-      </div>
-      {said ? <p className="mt-2 text-sm text-ink">{said}</p> : null}
+      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
 
       {taken.length ? (
         <div className="mt-6">

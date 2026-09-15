@@ -185,6 +185,11 @@ export default function TripView({
   // Worked out on the server and handed down, so "overdue" means the same thing
   // in the first frame the browser draws as it does after it wakes up.
   today,
+  // The forwarded fares that matched this trip, and the forwarding instructions
+  // while a seat is still to buy. Rendered on the server and handed down, so it
+  // arrives with the page rather than after it. It sits under Overview, which is
+  // the tab that answers what this trip is and how it is coming along.
+  fares = null,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -842,20 +847,23 @@ export default function TripView({
           />
         )}
         {tab === "overview" && (
-          <TripOverview
-            trip={info}
-            people={people}
-            pets={pets}
-            going={going}
-            onGoingChange={setGoing}
-            petLinks={petLinks}
-            onPetLinksChange={setPetLinks}
-            packing={packing}
-            stats={stats}
-            readOnly={readOnly}
-            past={past}
-            onPackingChanged={() => refetch("packing_items")}
-          />
+          <>
+            <TripOverview
+              trip={info}
+              people={people}
+              pets={pets}
+              going={going}
+              onGoingChange={setGoing}
+              petLinks={petLinks}
+              onPetLinksChange={setPetLinks}
+              packing={packing}
+              stats={stats}
+              readOnly={readOnly}
+              past={past}
+              onPackingChanged={() => refetch("packing_items")}
+            />
+            {fares}
+          </>
         )}
         {tab === "itinerary" && (
           <Itinerary

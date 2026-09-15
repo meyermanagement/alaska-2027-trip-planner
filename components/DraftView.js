@@ -51,6 +51,11 @@ export default function DraftView({
   basicHistory: initialBasicHistory = [],
   readOnly = false,
   today,
+  // The forwarded fares that matched this draft, and how to set forwarding up,
+  // rendered on the server and handed down. A draft is exactly the trip a fare
+  // alert can still change: nothing is booked, so a cheap week is worth knowing
+  // about before the dates harden.
+  fares = null,
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -574,6 +579,8 @@ export default function DraftView({
           </button>
         )}
       </section>
+
+      {fares}
 
       {asked && (
         <p className="sr-only" role="status">

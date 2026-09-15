@@ -6,8 +6,8 @@ import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
-import Deals from "./Deals";
-import ForwardFares from "./ForwardFares";
+import Deals from "@/components/Deals";
+import ForwardFares from "@/components/ForwardFares";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
@@ -79,7 +79,8 @@ export default async function SomedayPage() {
       .maybeSingle(),
   ]);
 
-  // Only households who have pasted a fare pay for the reading behind a verdict.
+  // Only households who have had a fare forwarded pay for the reading behind a
+  // verdict.
   // The verdicts themselves are worked out here, on every load, rather than
   // stored: a fare that was under budget in September is not under budget after
   // the hotel goes on, and a card that says otherwise is worse than no card.
