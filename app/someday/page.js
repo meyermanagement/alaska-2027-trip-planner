@@ -6,6 +6,8 @@ import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
+import Deals from "./Deals";
+import { judged, readDealWorld } from "@/lib/deals/world";
 
 export const metadata = { title: "Someday list · Alyeska" };
 
@@ -61,6 +63,18 @@ export default async function SomedayPage() {
         .order("start_date", { ascending: true }),
     ]);
 
+  // Only households who have pasted a fare pay for the reading behind a verdict.
+  // The verdicts themselves are worked out here, on every load, rather than
+  // stored: a fare that was under budget in September is not under budget after
+  // the hotel goes on, and a card that says otherwise is worse than no card.
+  const { data: deals } = await supabase
+    .from("flight_deals")
+    .select("*")
+    .eq("family_id", familyId)
+    .order("created_at", { ascending: false });
+  const world = deals?.length ? await readDealWorld(supabase, familyId) : null;
+  const fares = world ? judged(deals, world) : [];
+
   return (
     <>
       <TopBar />
@@ -74,12 +88,24 @@ export default async function SomedayPage() {
           between a wish and something Aly can tell you about when it happens.
         </p>
 
+        {fares.some((deal) => deal.status === "open") ? (
+          <div className="mb-8">
+            <Deals deals={fares} trips={trips || []} />
+          </div>
+        ) : null}
+
         <SomedayList
           familyId={familyId}
           places={places || []}
           travelers={people || []}
           trips={trips || []}
         />
+
+        {fares.some((deal) => deal.status === "open") ? null : (
+          <div className="mt-8">
+            <Deals deals={fares} trips={trips || []} />
+          </div>
+        )}
       </main>
       <AskAlyGeneral focus={SOMEDAY_FOCUS} />
     </>
