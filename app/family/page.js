@@ -6,6 +6,7 @@ import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
+import HomeAirports from "./HomeAirports";
 import FamilyScreen from "./FamilyScreen";
 import InterviewLauncher from "./InterviewLauncher";
 import InboxAddressChip from "@/components/InboxAddressChip";
@@ -49,6 +50,7 @@ export default async function PeoplePage() {
     { data: preferences },
     { data: facts },
     { data: slots },
+    { data: airports },
   ] = await Promise.all([
     supabase
       .from("travelers")
@@ -95,6 +97,16 @@ export default async function PeoplePage() {
     supabase
       .from("traveler_slots")
       .select("traveler_id, slot, status, asked_count, last_question, note"),
+    // The airports the household leaves from. Read here because they sit under
+    // the home address, and the two answers are one thought: where the car
+    // starts and where the plane does.
+    supabase
+      .from("home_airports")
+      .select("id, code, name, city, region, drive_minutes, is_primary")
+      .eq("family_id", familyId)
+      .order("is_primary", { ascending: false })
+      .order("drive_minutes", { ascending: true, nullsFirst: false })
+      .order("code", { ascending: true }),
   ]);
 
   // One standing per person, worked out on the server so the card does not have
@@ -168,6 +180,12 @@ export default async function PeoplePage() {
             lat={household?.home_lat ?? null}
             lon={household?.home_lon ?? null}
             precise={household?.home_precise === true}
+          />
+          <HomeAirports
+            familyId={familyId}
+            airports={airports || []}
+            homeLat={household?.home_lat ?? null}
+            homeLon={household?.home_lon ?? null}
           />
           {/* The forwarding address, on the screen an operator most often
               opens when they need to hand something out to a family member.

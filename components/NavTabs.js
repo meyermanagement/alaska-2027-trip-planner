@@ -106,6 +106,16 @@ const TRIP_ROWS = [
     Icon: PlusIcon,
   },
   {
+    // The wish list, in the group whose subtitle already promised it: "where
+    // you've been and where you want to go next". Ahead of the drafts because
+    // that is the order the ideas happen in -- a place you want to go becomes a
+    // draft, not the other way round.
+    href: "/someday",
+    label: "Someday List",
+    sub: "Places you want to go",
+    Icon: PinIcon,
+  },
+  {
     href: "/trips?view=drafts",
     view: "drafts",
     label: "Trip Drafts",
@@ -1735,6 +1745,18 @@ function PlusIcon({ className }) {
       <circle cx="10" cy="10" r="6.8" />
       <path d="M10 6.9v6.2" />
       <path d="M6.9 10h6.2" />
+    </svg>
+  );
+}
+
+// A map pin: a place the family has an eye on. Drawn as a teardrop with a hole
+// rather than a filled dot, so it holds its shape at twenty pixels beside the
+// suitcase and the clock without reading as a full stop.
+function PinIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M10 17.2s5.2-4.9 5.2-9a5.2 5.2 0 1 0-10.4 0c0 4.1 5.2 9 5.2 9Z" />
+      <circle cx="10" cy="8.2" r="2" />
     </svg>
   );
 }
