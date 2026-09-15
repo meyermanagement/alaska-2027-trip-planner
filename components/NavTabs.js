@@ -1234,7 +1234,14 @@ export default function NavTabs({
             auroraId="alyeska-aurora-rail"
             spinning={navFetching}
           />
-          <span className="nav-rail-word font-display text-lg font-semibold">
+          {/* Set to sit on the compass rather than beside it: at text-lg the word
+              was two thirds the height of the mark and read as a caption under a
+              logo that happened to be on the same line. One step up the scale
+              puts the cap height on the needle and the descender on the lower
+              ticks, so the two are one lockup. Still a scale step rather than a
+              pixel size, so it grows with the text-size setting like everything
+              else. leading-none keeps the brand row the height of the mark. */}
+          <span className="nav-rail-word font-display text-xl font-semibold leading-none">
             Alyeska
           </span>
         </Link>
