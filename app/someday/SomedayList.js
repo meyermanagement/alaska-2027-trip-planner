@@ -55,7 +55,7 @@ function formFrom(row) {
 }
 
 /**
- * The someday list, and the form that both adds to it and edits it.
+ * The bucket list, and the form that both adds to it and edits it.
  *
  * One form for both jobs on purpose: adding a place and correcting one are the
  * same seven questions, and two copies of seven fields is where the two copies

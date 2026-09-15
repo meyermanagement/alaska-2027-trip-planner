@@ -892,7 +892,7 @@ export async function POST(request) {
         tool === "save_someday_place" ||
         tool === "retire_someday_place"
       ) {
-        // The same reasoning as the airports: the someday list reaches the model
+        // The same reasoning as the airports: the bucket list reaches the model
         // as place names, so the name is the key. Case-insensitive, because
         // "kyoto" a month later is the same wish as "Kyoto".
         const { data: rows } = await supabase
@@ -913,7 +913,7 @@ export async function POST(request) {
           results.push({
             ok: false,
             summary: action.summary,
-            error: `${patch.place} is not on the someday list, so there was nothing to take off it.`,
+            error: `${patch.place} is not on the bucket list, so there was nothing to take off it.`,
           });
           continue;
         }

@@ -111,7 +111,7 @@ const TRIP_ROWS = [
     // that is the order the ideas happen in -- a place you want to go becomes a
     // draft, not the other way round.
     href: "/someday",
-    label: "Someday List",
+    label: "Bucket List",
     sub: "Places you want to go",
     Icon: PinIcon,
   },

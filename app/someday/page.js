@@ -9,7 +9,7 @@ import SomedayList from "./SomedayList";
 import Deals from "./Deals";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
-export const metadata = { title: "Someday list · Alyeska" };
+export const metadata = { title: "Bucket list · Alyeska" };
 
 /**
  * The places this household wants to go, and what would make each one worth it.
@@ -21,7 +21,7 @@ export const metadata = { title: "Someday list · Alyeska" };
  * could actually go, how many nights it is worth, and the most they would pay per
  * person are what turn a wish into something an app can watch for.
  *
- * It also lives one door from the trips it becomes. A someday place that gets
+ * It also lives one door from the trips it becomes. A bucket-list place that gets
  * booked is not deleted -- it is marked, and it keeps the trip it turned into, so
  * the list slowly becomes a record of the ideas that happened as well as the ones
  * still waiting.
@@ -80,7 +80,7 @@ export default async function SomedayPage() {
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
         <h1 className="mb-1 font-display text-3xl font-semibold">
-          Someday list
+          Bucket list
         </h1>
         <p className="mb-6 max-w-2xl text-sm text-ink-soft">
           Places you want to go, and what would make each one worth doing. The
