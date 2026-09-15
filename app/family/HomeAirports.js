@@ -234,8 +234,8 @@ export default function HomeAirports({
     <div className="mt-3 rounded-xl border border-[var(--line)] bg-white p-3">
       <p className="section-label">Airports the household flies from</p>
       <p className="mt-1 text-sm text-ink-soft">
-        Which airports a fare has to leave from to be worth anything, and how
-        long the drive to each one costs you. The drive is yours to say &mdash;
+        Which airports a fare has to leave from to be worth anything, and the
+        drive time each one costs you. The drive time is yours to say &mdash;
         this app knows where the runways are and nothing about the roads.
       </p>
 
@@ -260,15 +260,15 @@ export default function HomeAirports({
                 ) : null}
               </span>
               <label className="flex items-center gap-1.5 text-sm text-ink-soft">
-                <span className="sr-only">Drive to {row.code}</span>
+                <span className="sr-only">Drive time to {row.code}</span>
                 <input
-                  className="field w-24"
+                  className="field w-28"
                   value={
                     drafts[row.id] !== undefined
                       ? drafts[row.id]
                       : driveSaid(row.drive_minutes)
                   }
-                  placeholder="Drive"
+                  placeholder="Drive time"
                   maxLength={12}
                   onChange={(event) =>
                     setDrafts((was) => ({
@@ -369,8 +369,8 @@ export default function HomeAirports({
         </button>
         <p className="text-xs text-ink-faint">
           The miles are straight lines from your home address, not drives. Write
-          the drive in however you say it &mdash; 20 min, 2 hr, 4:30 &mdash; and
-          it is kept as minutes.
+          the drive time however you say it &mdash; 20 min, 2 hr 30 min, 4:30
+          &mdash; and it is read back in hours and minutes.
         </p>
       </div>
     </div>
