@@ -5517,7 +5517,7 @@ html[data-route="3"] .quick-tall .quick-heading {
     border-radius: 1rem;
     background: var(--color-white);
     /* The skin's own lifted-card shadow rather than one mixed from ink here: on
-       a dark skin ink is the light colour, and a shadow mixed from it is a
+       a dark skin ink is the light color, and a shadow mixed from it is a
        glow. */
     box-shadow: var(--shadow-card-lift);
     /* The arc's pill faces, edges and shadow are a property of the surface the
@@ -5642,6 +5642,19 @@ html[data-route="3"] .quick-tall .quick-heading {
   .nav-rail-ask-wide,
   .nav-rail .arc-band-out {
     display: none;
+  }
+
+  /* On the strip the trip card is a disc with its words clipped away, and a bar
+     down one edge of a disc is a stray tick rather than a mark. Here the trip's
+     color goes back to being the ring around it. */
+  .nav-rail .arc-hero {
+    border: 1.5px solid
+      color-mix(
+        in srgb,
+        var(--arc-hero-hue, var(--color-glacier)) 50%,
+        transparent
+      );
+    border-radius: 1.15rem;
   }
 
   .nav-rail .arc-label,
@@ -8114,7 +8127,7 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   gap: 0.7rem;
   margin-bottom: 0.4rem;
   padding: 0.6rem 0.8rem;
-  border-radius: 1.15rem;
+  border-radius: 0.85rem;
   /* The same frosted face the seven pills are cut from, and not a filled slab.
      Filled in the accent it was the same green as the pill for the screen you
      were already on, so the menu looked like it had two things selected; filled
@@ -8124,30 +8137,35 @@ html[data-skin="sodium"] .arc-pill.kid::before {
      and on the small type -- so it belongs to the shape and still says which
      trip it is. */
   color: var(--color-ink);
-  background: color-mix(
-    in srgb,
-    var(--arc-hero-hue, var(--color-glacier)) 11%,
-    var(--arc-face)
-  );
+  /* Near-neutral rather than washed in the trip's hue. The wash plus a hue edge
+     plus a hue bloom said the same thing three times, and on the desktop panel
+     the bloom said it onto the paper around the card. The trip's color is spent
+     once now, on the bar down the left edge below, and the face is the same
+     material as everything else at four percent ink. */
+  background: color-mix(in srgb, var(--color-ink) 4%, var(--arc-face));
   /* A brighter edge and a deeper lift than a pill gets, both carrying the
      trip's hue, because this card has to be the first thing the eye lands on
      and the frosted face alone left it flush with the page. The far shadow is
      tinted rather than grey, so the plate throws its own color onto whatever is
      underneath it and reads as standing off the screen. */
-  border: 1.5px solid
+  /* A hairline on three sides and the trip's color as a bar on the fourth. The
+     bar is a mark: it names the trip without tinting the card, and it reads at
+     the same strength on a pale panel and on a near-black one, which a tinted
+     cloud does not -- on a dark ground a hue-tinted shadow brightens the floor
+     and looks like a light leak. */
+  border: 1px solid color-mix(in srgb, var(--color-ink) 10%, var(--arc-edge));
+  border-left: 3px solid
     color-mix(
       in srgb,
-      var(--arc-hero-hue, var(--color-glacier)) 58%,
-      var(--arc-edge)
+      var(--arc-hero-hue, var(--color-glacier)) 85%,
+      transparent
     );
+  /* The two neutral lifts are kept and the tinted 34-point bloom between them
+     is gone. In the arc the card floats over a blurred page and still needs
+     something to stand off it; on the panel these two are small enough to stay
+     under the card. */
   box-shadow:
     0 2px 5px rgba(16, 38, 43, 0.18),
-    0 18px 34px -12px
-      color-mix(
-        in srgb,
-        var(--arc-hero-hue, var(--color-glacier)) 62%,
-        transparent
-      ),
     0 10px 26px -14px rgba(16, 38, 43, 0.5);
   backdrop-filter: blur(20px) saturate(1.3);
   -webkit-backdrop-filter: blur(20px) saturate(1.3);
