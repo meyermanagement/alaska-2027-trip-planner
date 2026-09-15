@@ -204,6 +204,13 @@ export default function ChatPanel({
   focus,
   seed,
   autoSendSeed = false,
+  // Told the moment the opening message has been used, so whoever handed it over
+  // can throw it away. Without this the opening survives in the drawer's state
+  // until the drawer closes, and anything that mounts a second panel while it is
+  // still there -- backing out to the list and picking a conversation, or a
+  // window crossing the width where Aly docks -- asks the old question again in
+  // whatever conversation is now on screen.
+  onSeedUsed,
   // The conversation being read. Null means a new one, which has no id until the
   // first reply comes back and tells us what it was filed as.
   conversationId = null,
@@ -420,6 +427,7 @@ export default function ChatPanel({
       setInput(seed);
       inputRef.current?.focus();
     }
+    onSeedUsed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed, autoSendSeed, loadingHistory]);
 

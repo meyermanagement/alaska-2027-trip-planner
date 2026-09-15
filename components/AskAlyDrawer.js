@@ -19,9 +19,24 @@ export default function AskAlyDrawer({
 }) {
   const [open, setOpen] = useState(false);
   // Set when something on the page opens Aly with an opening message already
-  // written — the trip builder screen does this. Cleared on close,
-  // so the next plain "Ask Aly" starts from an empty box.
+  // written — the trip builder screen does this. The text is dropped as soon as
+  // the panel has used it, and the whole thing on close, so the next plain
+  // "Ask Aly" starts from an empty box.
+  //
+  // Dropping it on use matters more than it sounds. The opening used to sit here
+  // until the drawer closed, while the panel's own guard against sending it twice
+  // lived in the panel -- which is unmounted and rebuilt every time you back out
+  // to the list of conversations and open one of them. So the question that
+  // opened Aly was asked again, in somebody else's conversation, without anybody
+  // typing anything.
   const [seed, setSeed] = useState(null);
+  // The opening has been said. Only the text goes: the focus it arrived with says
+  // what this opening is for, and the rest of the conversation is still about
+  // that.
+  const forgetSeedText = useCallback(
+    () => setSeed((s) => (s?.text ? { ...s, text: null, autoSend: false } : s)),
+    [],
+  );
   // Which conversation is on screen. `null` means the list of them, which is
   // what opening Aly normally shows; `{ id: null }` is a conversation that has
   // been started but not yet said anything, so it has no id until the first
@@ -286,10 +301,14 @@ export default function AskAlyDrawer({
           trip={trip}
           onApplied={noteApplied}
           onClose={close}
-          onBack={() => setCurrent(null)}
+          onBack={() => {
+            forgetSeedText();
+            setCurrent(null);
+          }}
           focus={seed?.focus || focus}
           seed={seed?.text}
           autoSendSeed={seed?.autoSend}
+          onSeedUsed={forgetSeedText}
           conversationId={current.id}
           conversationTitle={current.title}
           conversationTripName={current.tripName}
@@ -306,16 +325,18 @@ export default function AskAlyDrawer({
       ) : (
         <ConversationList
           onClose={close}
-          onNew={() =>
+          onNew={() => {
+            forgetSeedText();
             setCurrent({
               id: null,
               title: null,
               tripId: trip?.id || null,
               tripRef: tripRef(trip) || null,
               tripName: trip?.name,
-            })
-          }
-          onPick={(conversation) =>
+            });
+          }}
+          onPick={(conversation) => {
+            forgetSeedText();
             setCurrent({
               id: conversation.id,
               title: conversation.title,
@@ -325,8 +346,8 @@ export default function AskAlyDrawer({
               tripId: conversation.tripId || null,
               tripRef: conversation.tripRef || null,
               tripName: conversation.tripName,
-            })
-          }
+            });
+          }}
         />
       )}
     </>
