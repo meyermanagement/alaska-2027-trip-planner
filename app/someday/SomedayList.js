@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Spinner } from "@/components/LinkPending";
 import LocationField from "@/components/LocationField";
 import { formatMoney } from "@/lib/rewards";
 import { MONTHS, monthsSaid } from "@/lib/someday/months";
@@ -73,8 +74,31 @@ export default function SomedayList({
   // "new" while adding, a row id while editing one, empty while neither.
   const [editing, setEditing] = useState("");
   const [form, setForm] = useState({ ...BLANK });
-  const [busy, setBusy] = useState(false);
+  // "form" while the form is writing, else the id of the row being changed.
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+
+  // A write is not finished when the database answers; it is finished when the
+  // page has been re-read and the row on screen is the row that was saved. The
+  // refresh runs inside a transition so that wait is something we can show.
+  const [refreshing, startRefresh] = useTransition();
+  const awaiting = useRef(false);
+  const afterward = useRef(null);
+
+  function settle(after) {
+    awaiting.current = true;
+    afterward.current = after || null;
+    startRefresh(() => router.refresh());
+  }
+
+  useEffect(() => {
+    if (refreshing || !awaiting.current) return;
+    awaiting.current = false;
+    setBusy("");
+    const after = afterward.current;
+    afterward.current = null;
+    if (after) after();
+  }, [refreshing]);
 
   const open = places.filter((row) => row.status === "open");
   const settled = places.filter((row) => row.status !== "open");
@@ -141,12 +165,13 @@ export default function SomedayList({
   }
 
   async function save() {
+    if (busy) return;
     const said = form.place.trim().replace(/\s+/g, " ");
     if (!said) {
       setError("Say where, and the rest is optional.");
       return;
     }
-    setBusy(true);
+    setBusy("form");
     setError("");
 
     const nights = Number(form.nights);
@@ -176,43 +201,45 @@ export default function SomedayList({
             .insert({ ...row, family_id: familyId })
         : await supabase.from("someday_places").update(row).eq("id", editing);
 
-    setBusy(false);
     if (dbError) {
+      setBusy("");
       setError(dbError.message);
       return;
     }
-    stop();
-    router.refresh();
+    // The form stays open, spinning, until the list behind it has caught up.
+    settle(stop);
   }
 
   async function change(row, patch) {
-    setBusy(true);
+    if (busy) return;
+    setBusy(row.id);
     setError("");
     const { error: dbError } = await supabase
       .from("someday_places")
       .update(patch)
       .eq("id", row.id);
-    setBusy(false);
     if (dbError) {
+      setBusy("");
       setError(dbError.message);
       return;
     }
-    router.refresh();
+    settle();
   }
 
   async function drop(row) {
-    setBusy(true);
+    if (busy) return;
+    setBusy(row.id);
     setError("");
     const { error: dbError } = await supabase
       .from("someday_places")
       .delete()
       .eq("id", row.id);
-    setBusy(false);
     if (dbError) {
+      setBusy("");
       setError(dbError.message);
       return;
     }
-    router.refresh();
+    settle();
   }
 
   const theForm = (
@@ -363,16 +390,28 @@ export default function SomedayList({
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
-          className="btn btn-primary"
-          disabled={busy}
+          className="btn btn-primary inline-flex items-center gap-2"
+          // Pressed, not dimmed: disabled fades the ring turning inside the
+          // button, which is the part that has to stay legible. A second press
+          // is refused in save instead.
+          aria-disabled={busy === "form"}
           onClick={save}
         >
-          {busy ? "Saving…" : editing === "new" ? "Add it" : "Save"}
+          {busy === "form" ? (
+            <>
+              <Spinner className="h-4 w-4" />
+              Saving&hellip;
+            </>
+          ) : editing === "new" ? (
+            "Add it"
+          ) : (
+            "Save"
+          )}
         </button>
         <button
           type="button"
           className="btn btn-ghost"
-          disabled={busy}
+          disabled={Boolean(busy)}
           onClick={stop}
         >
           Cancel
@@ -416,7 +455,7 @@ export default function SomedayList({
                     <button
                       type="button"
                       className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
-                      disabled={busy}
+                      disabled={Boolean(busy)}
                       onClick={() => change(row, { watch: !row.watch })}
                     >
                       {row.watch ? "Stop watching" : "Watch it"}
@@ -429,7 +468,7 @@ export default function SomedayList({
                         <select
                           className="field"
                           value=""
-                          disabled={busy}
+                          disabled={Boolean(busy)}
                           onChange={(event) => {
                             const tripId = event.target.value;
                             if (!tripId) return;
@@ -452,13 +491,19 @@ export default function SomedayList({
                     <button
                       type="button"
                       className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
-                      disabled={busy}
+                      disabled={Boolean(busy)}
                       onClick={() =>
                         change(row, { status: "retired", watch: false })
                       }
                     >
                       Not any more
                     </button>
+                    {busy === row.id ? (
+                      <span className="inline-flex items-center gap-1.5 text-ink-soft">
+                        <Spinner className="h-4 w-4 text-teal" />
+                        Saving&hellip;
+                      </span>
+                    ) : null}
                   </div>
                 </>
               )}
@@ -512,7 +557,7 @@ export default function SomedayList({
                   <button
                     type="button"
                     className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                    disabled={busy}
+                    disabled={Boolean(busy)}
                     onClick={() =>
                       change(row, {
                         status: "open",
@@ -526,11 +571,17 @@ export default function SomedayList({
                   <button
                     type="button"
                     className="text-ink-faint underline decoration-[var(--line)] underline-offset-2 hover:text-rose"
-                    disabled={busy}
+                    disabled={Boolean(busy)}
                     onClick={() => drop(row)}
                   >
                     Remove
                   </button>
+                  {busy === row.id ? (
+                    <span className="inline-flex items-center gap-1.5 text-ink-soft">
+                      <Spinner className="h-4 w-4 text-teal" />
+                      Saving&hellip;
+                    </span>
+                  ) : null}
                 </li>
               );
             })}
