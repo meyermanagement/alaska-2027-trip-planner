@@ -45,10 +45,10 @@ export async function GET() {
   const { data: rows, error } = await supabase
     .from("inbox_messages")
     .select(
-      "id, subject, from_email, from_name, received_at, status, filed_at, auto_filed, classification, trips!inbox_messages_filed_trip_id_fkey (id, name, slug, public_id)",
+      "id, subject, from_email, from_name, received_at, status, filed_at, auto_filed, classification, parse_error, trips!inbox_messages_filed_trip_id_fkey (id, name, slug, public_id)",
     )
     .eq("family_id", familyId)
-    .in("status", ["filed", "deleted"])
+    .in("status", ["filed", "deleted", "noted"])
     .order("received_at", { ascending: false })
     .limit(60);
 
@@ -79,10 +79,29 @@ export async function GET() {
     }
   }
 
+  // Fares taken out of a noted message, so the drawer can say the number rather
+  // than "it was read". A newsletter that yielded nothing carries its reason in
+  // parse_error instead, which is why that column is selected above.
+  const fares = new Map();
+  const noted = (rows || []).filter((row) => row.status === "noted");
+  if (noted.length) {
+    const { data: saved } = await supabase
+      .from("flight_deals")
+      .select("message_id")
+      .in(
+        "message_id",
+        noted.map((row) => row.id),
+      );
+    for (const row of saved || []) {
+      fares.set(row.message_id, (fares.get(row.message_id) || 0) + 1);
+    }
+  }
+
   return NextResponse.json({
     messages: (rows || []).map((row) => ({
       ...row,
       itinerary_rows: removable.get(row.id) || 0,
+      fares: fares.get(row.id) || 0,
     })),
   });
 }

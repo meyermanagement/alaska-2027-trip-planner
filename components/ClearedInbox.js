@@ -96,7 +96,8 @@ export default function ClearedInbox() {
         {rows && !rows.length ? (
           <p className="text-sm leading-relaxed text-ink-soft">
             Nothing has left the inbox yet. Everything you file or throw out
-            ends up here, and can be put back.
+            ends up here, along with any fare alerts Aly read, and most of it
+            can be put back.
           </p>
         ) : null}
         {rows && rows.length ? (
@@ -104,6 +105,11 @@ export default function ClearedInbox() {
             {rows.map((message) => {
               const trip = message.trips;
               const wasFiled = message.status === "filed";
+              // A fare alert, read for the fares in it. Neither filed nor thrown
+              // out, so it gets its own sentence and no way back: there is
+              // nothing on it to decide, and the fares it produced are turned
+              // down on the bucket list instead.
+              const wasNoted = message.status === "noted";
               const asking = askingId === message.id;
               const working = workingId === message.id;
               return (
@@ -142,12 +148,20 @@ export default function ClearedInbox() {
                           ? `, and it added ${rowCount(message.itinerary_rows)}.`
                           : "."}
                       </>
+                    ) : wasNoted ? (
+                      message.fares > 0 ? (
+                        `Read for fares, and ${fareCount(message.fares)} of them matched what you are looking for.`
+                      ) : (
+                        `Read for fares, and none were kept${
+                          message.parse_error ? ` — ${message.parse_error}` : ""
+                        }.`
+                      )
                     ) : (
                       "Thrown out. Anything attached to it was not kept."
                     )}
                   </p>
 
-                  {asking ? (
+                  {wasNoted ? null : asking ? (
                     <div className="mt-3 rounded-lg border border-[var(--line-strong)] bg-sand p-3">
                       <p className="text-sm leading-relaxed text-ink-soft">
                         {message.itinerary_rows > 0
@@ -205,6 +219,10 @@ export default function ClearedInbox() {
 // "one itinerary row" reads worse than "1 itinerary row" in a sentence that is
 // about a number, and "rows" with a 1 in front of it is the tell of a screen
 // nobody read aloud.
+function fareCount(n) {
+  return n === 1 ? "one fare" : `${n} fares`;
+}
+
 function rowCount(n) {
   return n === 1 ? "one itinerary row" : `${n} itinerary rows`;
 }

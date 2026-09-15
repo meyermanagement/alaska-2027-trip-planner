@@ -7,6 +7,8 @@ import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
 import Deals from "./Deals";
+import ForwardFares from "./ForwardFares";
+import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
 export const metadata = { title: "Bucket list · Alyeska" };
@@ -46,25 +48,36 @@ export default async function SomedayPage() {
   if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
 
-  const [{ data: places }, { data: people }, { data: trips }] =
-    await Promise.all([
-      supabase
-        .from("someday_places")
-        .select("*")
-        .eq("family_id", familyId)
-        .order("status", { ascending: true })
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("travelers")
-        .select("id, name, sort_order")
-        .eq("is_person", true)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("trips")
-        .select("id, name, slug")
-        .eq("family_id", familyId)
-        .order("start_date", { ascending: true }),
-    ]);
+  const [
+    { data: places },
+    { data: people },
+    { data: trips },
+    { data: household },
+  ] = await Promise.all([
+    supabase
+      .from("someday_places")
+      .select("*")
+      .eq("family_id", familyId)
+      .order("status", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("travelers")
+      .select("id, name, sort_order")
+      .eq("is_person", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("trips")
+      .select("id, name, slug")
+      .eq("family_id", familyId)
+      .order("start_date", { ascending: true }),
+    // The household's own forwarding address, so the drawer at the foot of this
+    // screen can hand it over without a trip to /inbox first.
+    supabase
+      .from("families")
+      .select("inbox_local_part")
+      .eq("id", familyId)
+      .maybeSingle(),
+  ]);
 
   // Only households who have pasted a fare pay for the reading behind a verdict.
   // The verdicts themselves are worked out here, on every load, rather than
@@ -109,6 +122,8 @@ export default async function SomedayPage() {
             <Deals deals={fares} trips={trips || []} />
           </div>
         )}
+
+        <ForwardFares address={inboxAddressFor(household?.inbox_local_part)} />
       </main>
       <AskAlyGeneral focus={SOMEDAY_FOCUS} />
     </>

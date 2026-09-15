@@ -75,6 +75,20 @@ export async function POST(_request, { params }) {
       parsed_reset: 0,
     });
   }
+  // A noted message is a fare alert that was read for the fares in it. There is
+  // nothing to put back: no itinerary rows were staged off it and no trip was
+  // touched, so reopening it would only move a newsletter back onto the inbox
+  // screen for somebody to throw out again. The fares it produced live on the
+  // bucket list and are turned down there.
+  if (message.status === "noted") {
+    return NextResponse.json(
+      {
+        error:
+          "That was a fare alert, read for the fares in it. Anything it found is on your bucket list.",
+      },
+      { status: 400 },
+    );
+  }
   if (message.status !== "filed" && message.status !== "deleted") {
     return NextResponse.json(
       { error: "This message is still being read." },
