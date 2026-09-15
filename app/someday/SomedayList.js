@@ -261,16 +261,27 @@ export default function SomedayList({
         />
       </div>
 
+      {/*
+       * What they want out of the place, not a label for it.
+       *
+       * "Why this one" was answered with a category -- "the food", "hiking" --
+       * which is the least useful thing that could be written there. Asked what
+       * they want to do, people write the thing they are actually picturing, and
+       * that is what Aly can plan a day around and what makes the row
+       * recognizable when a fare turns up two years later. Two lines rather than
+       * one box, because the shorter box asked for a label by its shape.
+       */}
       <div className="mt-3 w-full sm:w-[30rem]">
         <label className="section-label block" htmlFor="someday-why">
-          Why this one
+          What you want to do there
         </label>
-        <input
+        <textarea
           id="someday-why"
-          className="field w-full"
+          className="field min-h-[5.25rem] w-full resize-y"
+          rows={3}
           value={form.why}
-          maxLength={200}
-          placeholder="The kids have been asking since the Olympics"
+          maxLength={300}
+          placeholder="Walk the temple district in cherry blossom season, and the kids want a night on the bullet train"
           onChange={(event) => set("why", event.target.value)}
         />
       </div>
