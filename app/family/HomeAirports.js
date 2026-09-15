@@ -66,6 +66,12 @@ export default function HomeAirports({
 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState("");
+  // What the busy row or pill is actually doing, said in words. A ring on its
+  // own tells you something is happening somewhere; removing an airport and
+  // saving its drive time are worth telling apart while you wait. The row names
+  // the airport already, so the wording does not repeat the code -- with it in,
+  // the longest phrase ran off the end of a full row.
+  const [doing, setDoing] = useState("");
   const [error, setError] = useState("");
   // The nearest few, fetched once when the card is opened. Server-held, because
   // the reference list is ninety kilobytes and this asks it two questions.
@@ -84,16 +90,35 @@ export default function HomeAirports({
   // transition, and the row stays busy until the transition settles.
   const [refreshing, startRefresh] = useTransition();
   const awaitingRefresh = useRef(false);
+  const afterward = useRef(null);
 
   useEffect(() => {
     if (refreshing || !awaitingRefresh.current) return;
     awaitingRefresh.current = false;
     setBusy("");
+    setDoing("");
+    const after = afterward.current;
+    afterward.current = null;
+    if (after) after();
   }, [refreshing]);
 
-  function settle() {
+  /**
+   * Hold the busy mark until the page has been re-read, then tidy up.
+   *
+   * The tidying has to wait too. Clearing the search box the moment the insert
+   * returned took the pressed pill off the screen with it, which is exactly the
+   * second the ring inside it was there to cover: the card looked idle and
+   * unchanged until the new row appeared out of nowhere.
+   */
+  function settle(after) {
     awaitingRefresh.current = true;
+    afterward.current = after || null;
     startRefresh(() => router.refresh());
+  }
+
+  function stopBusy() {
+    setBusy("");
+    setDoing("");
   }
 
   const held = new Set(airports.map((row) => row.code));
@@ -143,6 +168,7 @@ export default function HomeAirports({
   async function add(airport) {
     if (busy || held.has(airport.code)) return;
     setBusy(airport.code);
+    setDoing(`Adding ${airport.code}`);
     setError("");
     const { error: dbError } = await supabase.from("home_airports").insert({
       family_id: familyId,
@@ -156,24 +182,27 @@ export default function HomeAirports({
       is_primary: airports.length === 0,
     });
     if (dbError) {
-      setBusy("");
+      stopBusy();
       setError(dbError.message);
       return;
     }
-    setQuery("");
-    setFound([]);
-    settle();
+    settle(() => {
+      setQuery("");
+      setFound([]);
+    });
   }
 
   async function drop(row) {
+    if (busy) return;
     setBusy(row.id);
+    setDoing("Removing");
     setError("");
     const { error: dbError } = await supabase
       .from("home_airports")
       .delete()
       .eq("id", row.id);
     if (dbError) {
-      setBusy("");
+      stopBusy();
       setError(dbError.message);
       return;
     }
@@ -188,7 +217,9 @@ export default function HomeAirports({
    * can take it. Doing it the other way round fails on the index every time.
    */
   async function makePrimary(row) {
+    if (busy) return;
     setBusy(row.id);
+    setDoing("Making it the home base");
     setError("");
     const others = airports.filter((a) => a.is_primary && a.id !== row.id);
     for (const other of others) {
@@ -207,7 +238,7 @@ export default function HomeAirports({
       .update({ is_primary: true })
       .eq("id", row.id);
     if (dbError) {
-      setBusy("");
+      stopBusy();
       setError(dbError.message);
       return;
     }
@@ -220,13 +251,14 @@ export default function HomeAirports({
     const minutes = driveFromParts(draft.hours, draft.mins);
     if (minutes === row.drive_minutes) return;
     setBusy(row.id);
+    setDoing("Saving the drive");
     setError("");
     const { error: dbError } = await supabase
       .from("home_airports")
       .update({ drive_minutes: minutes })
       .eq("id", row.id);
     if (dbError) {
-      setBusy("");
+      stopBusy();
       setError(dbError.message);
       return;
     }
@@ -331,33 +363,36 @@ export default function HomeAirports({
                     <span>{box.unit}</span>
                   </label>
                 ))}
-                {busy === row.id ? (
-                  <>
-                    <Spinner className="h-4 w-4 text-teal" />
-                    <span className="sr-only">Saving {row.code}</span>
-                  </>
-                ) : null}
               </span>
-              {row.is_primary ? (
-                <span className="chip text-teal">Home base</span>
+              {busy === row.id ? (
+                <span className="flex shrink-0 items-center gap-1.5 text-sm text-ink-soft">
+                  <Spinner className="h-4 w-4 text-teal" />
+                  {doing}&hellip;
+                </span>
               ) : (
-                <button
-                  type="button"
-                  className="text-sm text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:no-underline disabled:opacity-60"
-                  disabled={busy === row.id}
-                  onClick={() => makePrimary(row)}
-                >
-                  Make it the home base
-                </button>
+                <>
+                  {row.is_primary ? (
+                    <span className="chip text-teal">Home base</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-sm text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:no-underline disabled:opacity-60"
+                      disabled={Boolean(busy)}
+                      onClick={() => makePrimary(row)}
+                    >
+                      Make it the home base
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="text-sm text-ink-faint underline decoration-[var(--line)] underline-offset-2 hover:text-rose disabled:no-underline disabled:opacity-60"
+                    disabled={Boolean(busy)}
+                    onClick={() => drop(row)}
+                  >
+                    Remove
+                  </button>
+                </>
               )}
-              <button
-                type="button"
-                className="text-sm text-ink-faint underline decoration-[var(--line)] underline-offset-2 hover:text-rose disabled:no-underline disabled:opacity-60"
-                disabled={busy === row.id}
-                onClick={() => drop(row)}
-              >
-                Remove
-              </button>
             </li>
           ))}
         </ul>
