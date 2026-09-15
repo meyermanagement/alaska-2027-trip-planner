@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { landingPath } from "@/lib/auth/landing";
+import { markArrival } from "@/lib/auth/arrive";
 
 /**
  * The first hop after signing in with an email and a password.
@@ -26,9 +27,12 @@ export async function GET(request) {
 
   if (!user) return NextResponse.redirect(`${origin}/login`);
 
-  // Somebody who asked for a particular page knows where they are going.
-  if (next !== "/trips") return NextResponse.redirect(`${origin}${next}`);
+  // Somebody who asked for a particular page knows where they are going. They
+  // have still just signed in, so the page they land on is an arrival either
+  // way and gets the full opening.
+  if (next !== "/trips")
+    return markArrival(NextResponse.redirect(`${origin}${next}`));
 
   const landing = await landingPath(supabase, user.id);
-  return NextResponse.redirect(`${origin}${landing || next}`);
+  return markArrival(NextResponse.redirect(`${origin}${landing || next}`));
 }

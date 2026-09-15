@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { landingPath } from "@/lib/auth/landing";
+import { markArrival } from "@/lib/auth/arrive";
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
@@ -70,9 +71,12 @@ export async function GET(request) {
   } = await supabase.auth.getUser();
   if (signedIn && next === "/trips") {
     const landing = await landingPath(supabase, signedIn.id);
-    if (landing) return NextResponse.redirect(`${origin}${landing}`);
+    if (landing)
+      return markArrival(NextResponse.redirect(`${origin}${landing}`));
   }
 
   const safeNext = next.startsWith("/") ? next : "/trips";
-  return NextResponse.redirect(`${origin}${safeNext}`);
+  // Signed in, and on the way to the app: the page this lands on is owed the
+  // full opening, and this is the only place that knows a sign-in just happened.
+  return markArrival(NextResponse.redirect(`${origin}${safeNext}`));
 }

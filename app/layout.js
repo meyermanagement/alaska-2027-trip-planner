@@ -7,8 +7,8 @@ import FeedbackSheet from "@/components/FeedbackSheet";
 import FaultWatch from "@/components/FaultWatch";
 import ReportButton from "@/components/ReportButton";
 import {
+  ARRIVE_COOKIE,
   BAND_COOKIE,
-  BOOT_COOKIE,
   DEFAULT_SKIN,
   SKINS,
   SKIN_COOKIE,
@@ -105,15 +105,19 @@ var band=/(?:^|; )${BAND_COOKIE}=1/.test(document.cookie);
 var bar=band?bars[id][2]:bars[id][0];
 var d=document.documentElement;
 d.dataset.skin=id;
-// Which opening this load gets. The full one -- compass, wordmark, tagline --
-// is an arrival, and it was playing on every document load, which on a day of
-// testing is several times an hour. So it runs once per browser session and
-// every load after it gets the short one: a compass crossing a map, held only
-// as long as the page needs. Decided here because the veil is in the first
-// frame of HTML and cannot wait for hydration to learn which one it is.
-var opened=/(?:^|; )${BOOT_COOKIE}=1/.test(document.cookie);
-d.dataset.boot=opened?"quick":"full";
-if(!opened)document.cookie="${BOOT_COOKIE}=1;path=/;samesite=lax";
+// Which opening this load gets. The full one -- the compass swinging on to
+// north, the wordmark, the tagline -- is an arrival, and an arrival is signing
+// in. It used to be given to the first document load in a browser session
+// instead, which is a different thing: a refresh could earn it, a new tab could
+// earn it, and signing in on a browser that had already opened the app missed it
+// entirely. So the sign-in doors set a cookie on their redirect and this spends
+// it -- full opening, cookie gone in the same breath, and every load after it
+// gets the short one: a compass crossing a map, held only as long as the page
+// needs. Decided here because the veil is in the first frame of HTML and cannot
+// wait for hydration to learn which one it is.
+var arrived=/(?:^|; )${ARRIVE_COOKIE}=1/.test(document.cookie);
+d.dataset.boot=arrived?"full":"quick";
+if(arrived)document.cookie="${ARRIVE_COOKIE}=;path=/;max-age=0;samesite=lax";
 // And which crossing the short one flies. There are ${ROUTE_COUNT} of them, drawn from
 // the same rules, and one is drawn at random per document load: the endless
 // route means a single crossing could run all day, but somebody who opens the

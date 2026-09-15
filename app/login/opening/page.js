@@ -10,6 +10,11 @@ import "./opening.css";
 // document, so this page simply writes it. Nothing here is a copy of the
 // opening: it is the same components against the same rules, held up instead of
 // lifted after a second.
+//
+// The two are named here by when they happen rather than by how long they take.
+// They were Short and Long, which is what they look like side by side and not
+// what anybody wants to know: one of them is every load of the app, and the other
+// is the moment somebody signs in.
 const BOOT_ATTR = "boot";
 
 // The crossings the short opening chooses between, by the names they are known by
@@ -102,9 +107,10 @@ export default function OpeningWatch() {
       {!bare && (
         <div className="opening-desk">
           <p className="opening-lede">
-            The openings, held up so they can be watched. The short one is what
-            every load after the first in a browser session gets; the long one
-            runs once per session.
+            The openings, held up so they can be watched. The crossing is what
+            every load of the app gets, however it was reached; the arrival,
+            with the compass swinging on to north, plays once, on the load that
+            follows somebody signing in.
           </p>
           <div className="opening-row">
             <button
@@ -112,14 +118,14 @@ export default function OpeningWatch() {
               className={kind === "quick" ? "on" : ""}
               onClick={() => replay("quick")}
             >
-              Short opening
+              Every load
             </button>
             <button
               type="button"
               className={kind === "full" ? "on" : ""}
               onClick={() => replay("full")}
             >
-              Long opening
+              After signing in
             </button>
             <button type="button" onClick={() => replay(kind)}>
               Play again
@@ -167,7 +173,8 @@ export default function OpeningWatch() {
             appearing to start over. The turn and the zoom are on a separate
             eleven second period, which is worth waiting out at least once. A
             real load draws one of the three crossings at random; here you can
-            ask for the one you want to look at.
+            ask for the one you want to look at. The crossings belong to the
+            everyday opening only, since the arrival has no map behind it.
           </p>
         </div>
       )}

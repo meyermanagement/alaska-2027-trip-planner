@@ -620,7 +620,20 @@ export default function BootVeil() {
     // reads -- lives in the stylesheet, and would otherwise change its mind
     // under a veil already in the air.
     const guard = new MutationObserver(() => {
-      if (done && !root.dataset.booted) root.dataset.booted = "1";
+      // Once the opening has lifted this has one job left, the flag, and it must
+      // stop doing the other one. A veil that has lifted still has its effect
+      // running -- the component returns null rather than unmounting, so nothing
+      // tears this observer down -- and it was still forcing this load\'s choice
+      // back onto the document for the rest of the page\'s life. Which is how the
+      // watch page at /login/opening lost its long opening: asking for the
+      // arrival wrote "full" onto the document, this wrote "quick" back a moment
+      // later, and the crossing carried on playing under a button that said
+      // otherwise. Nothing after the lift can raise an opening over the app, so
+      // there is nothing left here to defend.
+      if (done) {
+        if (!root.dataset.booted) root.dataset.booted = "1";
+        return;
+      }
       if (root.dataset.boot !== boot) root.dataset.boot = boot;
       if (root.dataset.route !== route) root.dataset.route = route;
       // And the veil's own copy, which is the one the stylesheet prefers: a
