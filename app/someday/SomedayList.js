@@ -28,6 +28,59 @@ function placeSaid(row, travelers) {
   return bits.join(" \u00b7 ");
 }
 
+/**
+ * The ranks a place can be given, 1 first.
+ *
+ * Five rather than three because the household asked for a number: a list long
+ * enough to need ranking usually has more than three real levels in it, and
+ * "2" and "3" are an argument the family can have with each other rather than
+ * with the app's vocabulary.
+ */
+const RANKS = [1, 2, 3, 4, 5];
+
+/** Which sort the list is in. Priority is the one you get without asking. */
+const SORTS = [
+  { id: "priority", label: "Priority" },
+  { id: "newest", label: "Newest" },
+  { id: "months", label: "Soonest month" },
+];
+
+/**
+ * How far off the next month this place is good in, counted from this one.
+ *
+ * A place with no months ticked is good any month, which sounds like zero and
+ * has to sort like infinity: "soonest month" is a question about places with an
+ * answer, and a row that never named one has not answered it. Wraps the year, so
+ * in November a January place is two months out and not minus ten.
+ */
+function monthsAway(row, now) {
+  const months = (row.months || []).filter((m) => m >= 1 && m <= 12);
+  if (!months.length) return 99;
+  const here = now.getMonth() + 1;
+  return Math.min(...months.map((m) => (m - here + 12) % 12));
+}
+
+/**
+ * The list in the order somebody asked for.
+ *
+ * Every sort ends on the same tiebreak -- the order the places were added --
+ * so two rows the sort cannot separate never swap places between renders.
+ */
+function sorted(rows, how, now) {
+  const list = [...rows];
+  const added = (row) => new Date(row.created_at || 0).getTime();
+  if (how === "newest") return list.sort((a, b) => added(b) - added(a));
+  if (how === "months") {
+    return list.sort(
+      (a, b) => monthsAway(a, now) - monthsAway(b, now) || added(a) - added(b),
+    );
+  }
+  // Unranked is not a six. It is an absence, and it sits after everything
+  // somebody has actually thought about.
+  const rank = (row) => (RANKS.includes(row.priority) ? row.priority : 9);
+  return list.sort((a, b) => rank(a) - rank(b) || added(a) - added(b));
+}
+
 /** "September 2026", for dating a season claim that will age. */
 function saidWhen(value) {
   const at = value ? new Date(value) : null;
@@ -80,6 +133,9 @@ const BLANK = {
   lon: null,
   why: "",
   months: [],
+  // Null rather than 3. A place nobody has ranked should stay unranked, not be
+  // handed a middling number the family never chose.
+  priority: null,
   traveler_ids: [],
   // Carried through the form so an accepted window survives the save, and
   // cleared the moment somebody ticks a month themselves.
@@ -96,6 +152,7 @@ function formFrom(row) {
     lon: row.lon ?? null,
     why: row.why || "",
     months: [...(row.months || [])],
+    priority: RANKS.includes(row.priority) ? row.priority : null,
     traveler_ids: [...(row.traveler_ids || [])],
     months_reason: row.months_reason || null,
     months_sources: Array.isArray(row.months_sources) ? row.months_sources : [],
@@ -148,8 +205,22 @@ export default function SomedayList({
     if (after) after();
   }, [refreshing]);
 
-  const open = places.filter((row) => row.status === "open");
+  // Which order the open list is in. Not remembered between visits on purpose:
+  // priority is the answer to "what should we do next", and that is the question
+  // somebody has when they open this page, whatever they were sorting by last
+  // time they were looking for one particular place.
+  const [how, setHow] = useState("priority");
+
   const settled = places.filter((row) => row.status !== "open");
+  const open = useMemo(
+    () =>
+      sorted(
+        places.filter((row) => row.status === "open"),
+        how,
+        new Date(),
+      ),
+    [places, how],
+  );
 
   function start(row) {
     setError("");
@@ -255,6 +326,7 @@ export default function SomedayList({
       lon: point.lon,
       why: form.why.trim() || null,
       months: form.months,
+      priority: form.priority,
       traveler_ids: form.traveler_ids,
       months_reason: form.months_reason,
       months_sources: form.months_sources,
@@ -408,6 +480,40 @@ export default function SomedayList({
         </div>
       </div>
 
+      {/*
+       * The rank, asked as chips for the same reason the months are: five taps
+       * side by side let somebody see the whole scale while they choose, where a
+       * dropdown asks them to remember it. Pressing the chip that is already on
+       * clears it, which is the only way back to unranked once a number is set.
+       */}
+      <div className="mt-3">
+        <p className="section-label">How much you want it</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          1 comes first. Leave it blank if you have not decided.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {RANKS.map((rank) => {
+            const on = form.priority === rank;
+            return (
+              <button
+                key={rank}
+                type="button"
+                aria-pressed={on}
+                aria-label={`Priority ${rank}`}
+                className={
+                  on
+                    ? "w-10 rounded-full border border-teal bg-teal py-1 text-sm font-medium text-white"
+                    : "w-10 rounded-full border border-[var(--line)] py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
+                }
+                onClick={() => set("priority", on ? null : rank)}
+              >
+                {rank}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {travelers.length ? (
         <div className="mt-3">
           <p className="section-label">Who it is for</p>
@@ -474,6 +580,33 @@ export default function SomedayList({
 
   return (
     <div>
+      {/*
+       * Only once there is enough list to order. Two places do not need a sort
+       * control, and a row of buttons above two cards is a question nobody asked.
+       */}
+      {open.length > 2 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {SORTS.map((sort) => {
+            const on = how === sort.id;
+            return (
+              <button
+                key={sort.id}
+                type="button"
+                aria-pressed={on}
+                className={
+                  on
+                    ? "rounded-full border border-teal bg-teal px-2.5 py-1 text-sm font-medium text-white"
+                    : "rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
+                }
+                onClick={() => setHow(sort.id)}
+              >
+                {sort.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       {open.length ? (
         <ul className="space-y-3">
           {open.map((row) => (
@@ -498,6 +631,35 @@ export default function SomedayList({
                       why they want to go somewhere. */}
                   <MonthsWhy row={row} />
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    {/*
+                     * On the card as well as in the form, because ranking is
+                     * something people do to a list rather than to one place:
+                     * you see three rows next to each other and want to move the
+                     * middle one up without opening it.
+                     */}
+                    <label className="flex items-center gap-1.5 text-ink-soft">
+                      <span className="sr-only">
+                        How much you want {row.place}
+                      </span>
+                      <select
+                        className="field"
+                        value={RANKS.includes(row.priority) ? row.priority : ""}
+                        disabled={Boolean(busy)}
+                        onChange={(event) => {
+                          const next = event.target.value;
+                          change(row, {
+                            priority: next ? Number(next) : null,
+                          });
+                        }}
+                      >
+                        <option value="">No priority</option>
+                        {RANKS.map((rank) => (
+                          <option key={rank} value={rank}>
+                            Priority {rank}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <button
                       type="button"
                       className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
