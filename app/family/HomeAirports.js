@@ -467,7 +467,7 @@ export default function HomeAirports({
 
       {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3">
         <button
           type="button"
           className="btn btn-primary"
@@ -475,11 +475,6 @@ export default function HomeAirports({
         >
           Done
         </button>
-        <p className="text-xs text-ink-faint">
-          The miles are straight lines from your home address, not drives. Fill
-          in whichever box applies &mdash; a twenty-five minute run needs only
-          the minutes.
-        </p>
       </div>
     </div>
   );
