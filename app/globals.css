@@ -179,12 +179,14 @@
      rather than an actual dark surface. */
   --disc-face-open: rgba(203, 219, 222, 0.95);
 
-  /* The veil under an open menu. Was ink at three tenths with a 3px blur,
-     which on a light skin took the page down about as far as a cloud does.
-     Deeper and blurrier, so the pills in front of it are plainly in front of
-     it, while the page is still recognisably there underneath. */
-  --arc-scrim: rgba(16, 38, 43, 0.46);
-  --arc-scrim-blur: 5px;
+  /* The veil under an open menu. Was ink at 0.46 with a 5px blur, which left
+     the page bright enough that the menu's own category bands read their names
+     off the trip photos behind them. The bands were never too pale; the ground
+     was never taken down. Deeper and blurrier, so everything on the sheet
+     gains weight without changing color, while the page is still recognizably
+     there underneath. Each dark skin sets its own value below. */
+  --arc-scrim: rgba(16, 38, 43, 0.66);
+  --arc-scrim-blur: 9px;
 }
 
 /* One step up for a window big enough to be a desktop or a tablet held in
@@ -7129,7 +7131,7 @@ html[data-skin="aurora"] {
      the panel it caps is a lifted slate and the page behind it is near-black.
      Same rule as the light skins: the cap must not match the pill it sits in. */
   --disc-face-open: rgba(58, 78, 98, 0.96);
-  --arc-scrim: rgba(4, 7, 11, 0.6);
+  --arc-scrim: rgba(4, 7, 11, 0.8);
 
   /* The plate. A photograph is already dark here, so it needs less taking
      down and the map underneath can come up to full strength. */
@@ -7528,7 +7530,7 @@ html[data-skin="sodium"] {
     0 8px 18px rgba(0, 0, 0, 0.72), 0 18px 40px rgba(0, 0, 0, 0.62);
 
   --disc-face-open: rgba(84, 64, 48, 0.96);
-  --arc-scrim: rgba(12, 9, 7, 0.62);
+  --arc-scrim: rgba(12, 9, 7, 0.8);
 
   --on-photo: #f7f0e7;
   --photo-filter: sepia(0.28) saturate(0.85) contrast(1.1) brightness(0.68);
