@@ -18,8 +18,11 @@ export const metadata = { title: "Bucket list · Alyeska" };
  * it, which is why the list here is not a list of place names. A place name alone
  * cannot be acted on: knowing that a family likes the idea of Japan tells you
  * nothing about whether the fare in front of you is good news. The months they
- * could actually go, how many nights it is worth, and the most they would pay per
- * person are what turn a wish into something an app can watch for.
+ * could actually go and who it is for are what turn a wish into something a fare
+ * can be judged against. The nights and the airfare ceiling are still columns and
+ * Aly still fills them from what people say, but the form stopped asking: nothing
+ * checks fares on a schedule yet, so the screen was collecting numbers that
+ * changed nothing.
  *
  * It also lives one door from the trips it becomes. A bucket-list place that gets
  * booked is not deleted -- it is marked, and it keeps the trip it turned into, so

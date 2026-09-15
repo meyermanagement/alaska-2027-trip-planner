@@ -5,16 +5,18 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Spinner } from "@/components/LinkPending";
 import LocationField from "@/components/LocationField";
-import { formatMoney } from "@/lib/rewards";
 import { MONTHS, monthsSaid } from "@/lib/someday/months";
 
-/** The whole answer as one line, for the row that is not being edited. */
+/**
+ * The whole answer as one line, for the row that is not being edited.
+ *
+ * The nights and the airfare ceiling are deliberately absent. Both are still
+ * stored, and Aly still writes them when somebody says a length or a price out
+ * loud, but nothing checks fares on a schedule yet, so showing them here asked
+ * the family to maintain numbers that changed nothing.
+ */
 function placeSaid(row, travelers) {
   const bits = [monthsSaid(row.months)];
-  if (row.nights)
-    bits.push(`${row.nights} night${row.nights === 1 ? "" : "s"}`);
-  if (row.fare_ceiling !== null && row.fare_ceiling !== undefined)
-    bits.push(`up to ${formatMoney(row.fare_ceiling)} each in airfare`);
   const ids = row.traveler_ids || [];
   if (ids.length) {
     const names = travelers
@@ -31,10 +33,7 @@ const BLANK = {
   lon: null,
   why: "",
   months: [],
-  nights: "",
-  fare_ceiling: "",
   traveler_ids: [],
-  watch: true,
 };
 
 function formFrom(row) {
@@ -45,13 +44,7 @@ function formFrom(row) {
     lon: row.lon ?? null,
     why: row.why || "",
     months: [...(row.months || [])],
-    nights: row.nights ? String(row.nights) : "",
-    fare_ceiling:
-      row.fare_ceiling === null || row.fare_ceiling === undefined
-        ? ""
-        : String(row.fare_ceiling),
     traveler_ids: [...(row.traveler_ids || [])],
-    watch: row.watch !== false,
   };
 }
 
@@ -59,8 +52,8 @@ function formFrom(row) {
  * The bucket list, and the form that both adds to it and edits it.
  *
  * One form for both jobs on purpose: adding a place and correcting one are the
- * same seven questions, and two copies of seven fields is where the two copies
- * start disagreeing about what a blank fare ceiling means.
+ * same four questions, and two copies of four fields is where the two copies
+ * start disagreeing about what a blank answer means.
  */
 export default function SomedayList({
   familyId,
@@ -174,31 +167,26 @@ export default function SomedayList({
     setBusy("form");
     setError("");
 
-    const nights = Number(form.nights);
-    const ceiling = Number(form.fare_ceiling);
     const point = await pointFor(said);
 
+    // Only the four fields the form asks about. The nights, the airfare ceiling
+    // and the watch flag are left out of the patch on purpose: they are still
+    // columns, and Aly still fills them, so an edit here must not quietly
+    // overwrite what she wrote with the blank this form no longer collects.
     const row = {
       place: said,
       lat: point.lat,
       lon: point.lon,
       why: form.why.trim() || null,
       months: form.months,
-      nights:
-        Number.isFinite(nights) && nights >= 1 ? Math.round(nights) : null,
-      fare_ceiling:
-        form.fare_ceiling !== "" && Number.isFinite(ceiling) && ceiling >= 0
-          ? ceiling
-          : null,
       traveler_ids: form.traveler_ids,
-      watch: form.watch,
     };
 
     const { error: dbError } =
       editing === "new"
         ? await supabase
             .from("someday_places")
-            .insert({ ...row, family_id: familyId })
+            .insert({ ...row, family_id: familyId, watch: true })
         : await supabase.from("someday_places").update(row).eq("id", editing);
 
     if (dbError) {
@@ -315,37 +303,6 @@ export default function SomedayList({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-4">
-        <div>
-          <label className="section-label block" htmlFor="someday-nights">
-            Nights
-          </label>
-          <input
-            id="someday-nights"
-            className="field w-24"
-            inputMode="numeric"
-            value={form.nights}
-            maxLength={3}
-            placeholder="7"
-            onChange={(event) => set("nights", event.target.value)}
-          />
-        </div>
-        <div>
-          <label className="section-label block" htmlFor="someday-ceiling">
-            Airfare worth paying, each
-          </label>
-          <input
-            id="someday-ceiling"
-            className="field w-32"
-            inputMode="decimal"
-            value={form.fare_ceiling}
-            maxLength={7}
-            placeholder="900"
-            onChange={(event) => set("fare_ceiling", event.target.value)}
-          />
-        </div>
-      </div>
-
       {travelers.length ? (
         <div className="mt-3">
           <p className="section-label">Who it is for</p>
@@ -374,16 +331,6 @@ export default function SomedayList({
           </div>
         </div>
       ) : null}
-
-      <label className="mt-3 flex items-center gap-2 text-sm text-ink">
-        <input
-          type="checkbox"
-          className="h-4 w-4"
-          checked={form.watch}
-          onChange={(event) => set("watch", event.target.checked)}
-        />
-        Tell me when something matches this
-      </label>
 
       {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
 
@@ -434,9 +381,6 @@ export default function SomedayList({
                     <h2 className="font-display text-lg font-semibold">
                       {row.place}
                     </h2>
-                    {row.watch ? (
-                      <span className="chip text-teal">Watching</span>
-                    ) : null}
                   </div>
                   <p className="mt-0.5 text-sm text-ink-soft">
                     {placeSaid(row, travelers)}
@@ -451,14 +395,6 @@ export default function SomedayList({
                       onClick={() => start(row)}
                     >
                       Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
-                      disabled={Boolean(busy)}
-                      onClick={() => change(row, { watch: !row.watch })}
-                    >
-                      {row.watch ? "Stop watching" : "Watch it"}
                     </button>
                     {trips.length ? (
                       <label className="flex items-center gap-1.5 text-ink-soft">
@@ -516,9 +452,9 @@ export default function SomedayList({
             Nothing on the list yet
           </h2>
           <p className="mt-1 max-w-xl text-sm text-ink-soft">
-            One place, the months you could go and the airfare you would pay is
-            enough for Aly to know a good fare from a cheap one when she sees
-            it. Without a list she is guessing at what you want.
+            A place and the months you could go is enough for Aly to know a fare
+            worth mentioning from one that is merely cheap. Without a list she
+            is guessing at what you want.
           </p>
         </div>
       ) : null}
