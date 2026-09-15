@@ -12,6 +12,7 @@ import { isPastTrip } from "@/lib/format";
 import { todayISO } from "@/lib/reminders";
 import { assigneeOptions } from "@/lib/tasks/assignees";
 import MorningRun from "@/components/MorningRun";
+import PushAlerts from "@/components/PushAlerts";
 import { remindersDueToday } from "@/lib/tasks/dueToday";
 
 export const metadata = { title: "Reminders · Alyeska" };
@@ -112,6 +113,7 @@ export default async function RemindersPage() {
           userId={user.id}
           assigneesByTrip={assigneesByTrip}
         />
+        <PushAlerts />
       </main>
       <AskAlyGeneral />
     </>

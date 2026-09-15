@@ -109,3 +109,78 @@ self.addEventListener("fetch", (event) => {
     })(),
   );
 });
+
+/**
+ * The second job: notifications.
+ *
+ * A push arrives whether or not the app is open, and this is the only code that
+ * runs when it does. What it must not do is bury the message -- a notification
+ * whose title is "Alyeska" and whose body is "You have an update" is worse than
+ * silence, because the reason to allow a tap on the shoulder at all is that the
+ * lock screen says the whole thing: which fare, and by when.
+ *
+ * The payload is JSON from lib/watch/run.js. It is read defensively anyway: a
+ * malformed push should still surface something a person can tap, not throw
+ * inside the worker where nobody will ever see the error.
+ */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+
+  const title = data.title || "Alyeska";
+  const options = {
+    body: data.body || "",
+    // Same tag for the same subject, so the last-call warning replaces the
+    // earlier one on the lock screen instead of stacking underneath it.
+    tag: data.tag || "alyeska",
+    renotify: Boolean(data.urgent),
+    icon: "/alyeska-icon.png",
+    badge: "/alyeska-icon.png",
+    data: { url: data.url || "/" },
+    // Deadlines are the one thing worth staying on the screen until it is read.
+    requireInteraction: Boolean(data.urgent),
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+/**
+ * Tapping it opens the screen the warning is about, in a window that is already
+ * open when there is one. Opening a second copy of the app beside the one the
+ * family is already looking at is the small rudeness that makes people turn
+ * notifications off.
+ */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = event.notification?.data?.url || "/";
+
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of windows) {
+        // Any window of ours will do; it is navigated to the right screen rather
+        // than left wherever it was.
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) {
+            try {
+              await client.navigate(target);
+            } catch {
+              // Cross-origin or a client that refuses to navigate. Focusing it is
+              // still better than a second window.
+            }
+          }
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});

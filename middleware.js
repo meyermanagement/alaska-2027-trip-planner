@@ -275,12 +275,17 @@ export async function middleware(request) {
 }
 
 export const config = {
+  // sw.js and manifest.webmanifest are named for the same reason as data/ below.
+  // A browser fetching either of them unauthenticated was answered with the login
+  // page, so the service worker never registered and the site could never be
+  // installed to a Home Screen -- which on an iPhone is the difference between
+  // notifications working and Safari never offering them at all.
   // data/ holds the bundled Natural Earth coastlines the trip backdrops draw
   // from. It is a file in public/, so it is already public in every sense, but
   // without naming it here the middleware answered the browser's fetch for it
   // with the login page -- and a redirect to HTML parsed as JSON is how every
   // card on every screen quietly lost its map.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|data/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|data/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

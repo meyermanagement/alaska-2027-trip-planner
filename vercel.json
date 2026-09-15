@@ -4,6 +4,10 @@
     {
       "path": "/api/tasks/remind",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/tasks/watch",
+      "schedule": "0 22 * * *"
     }
   ]
 }

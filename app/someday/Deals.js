@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/rewards";
+import { formatDay } from "@/lib/format";
 
 function fareLine(deal) {
   const bits = [`${money(deal.price)} each`];
@@ -38,6 +39,10 @@ export default function Deals({ deals = [], trips = [] }) {
   const open = deals.filter((deal) => deal.status === "open");
   const refused = deals.filter((deal) => deal.status === "dismissed");
   const taken = deals.filter((deal) => deal.status === "taken");
+  // Retired by the watcher for having passed its book-by date. Not open, and not
+  // something the family turned down either: it simply ran out, and saying so is
+  // better than a card quietly disappearing off the screen.
+  const ran = deals.filter((deal) => deal.status === "expired");
 
   const [pasting, setPasting] = useState(false);
   const [text, setText] = useState("");
@@ -386,6 +391,23 @@ export default function Deals({ deals = [], trips = [] }) {
               <li key={deal.id}>
                 {deal.origin} to {deal.destination}, {money(deal.price)} each
                 {deal.verdict?.trip ? ` on ${deal.verdict.trip.name}` : ""}.
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {ran.length ? (
+        <div className="mt-6">
+          <h3 className="section-label">Fares that ran out</h3>
+          <ul className="mt-2 space-y-1 text-sm text-ink-soft">
+            {ran.map((deal) => (
+              <li key={deal.id}>
+                {deal.origin} to {deal.destination}, {money(deal.price)} each
+                {deal.book_by
+                  ? ` — the book-by date was ${formatDay(deal.book_by) || deal.book_by}`
+                  : ""}
+                .
               </li>
             ))}
           </ul>
