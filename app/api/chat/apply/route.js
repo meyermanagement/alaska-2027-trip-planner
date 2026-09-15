@@ -427,6 +427,9 @@ export async function POST(request) {
     }
 
     const { tool, table, id, patch = {} } = action;
+    // One stamp for the whole action, shared by the branches that keep their own
+    // audit columns rather than leaving them to a trigger.
+    const nowIso = new Date().toISOString();
     let dbError = null;
     // Copying is worth counting out loud: "start a Disney list from this trip"
     // is a fair thing to ask and a terrible thing to guess at.
@@ -755,7 +758,7 @@ export async function POST(request) {
             ? finder.eq("traveler_id", slotTraveler)
             : finder.is("traveler_id", null)
         ).maybeSingle();
-        const nowIso = new Date().toISOString();
+
         // A question can only be retired by the person it was put to. Skipping one
         // nobody was asked writes down an answer that was never given: in the run
         // that found this, one "both, honestly" about a beach was filed as a
@@ -831,6 +834,104 @@ export async function POST(request) {
           // against a list that now includes them.
           travelerNames.push(inserted.name);
           travelerIds.set(inserted.name, inserted.id);
+        }
+      } else if (tool === "save_home_airport") {
+        // Matched on the code rather than on an id, because the airports are
+        // shown to the model as codes and nothing else: there is no id in the
+        // context for it to send back. Saying STL twice has to change the one row
+        // rather than leave two, which is also why this cannot go through the
+        // generic insert below.
+        const { data: existing } = await supabase
+          .from("home_airports")
+          .select("id, is_primary")
+          .eq("family_id", familyId)
+          .eq("code", patch.code)
+          .maybeSingle();
+
+        // The one primary is enforced by a partial unique index, so an unset has
+        // to happen before the set rather than in the same statement. Skipped
+        // when this row already holds it, which would otherwise clear the flag
+        // and put it straight back.
+        if (patch.is_primary === true) {
+          const clear = supabase
+            .from("home_airports")
+            .update({
+              is_primary: false,
+              updated_at: nowIso,
+              updated_by: user.id,
+            })
+            .eq("family_id", familyId)
+            .eq("is_primary", true);
+          if (existing?.id) clear.neq("id", existing.id);
+          await clear;
+        }
+
+        if (existing?.id) {
+          const { error: e } = await supabase
+            .from("home_airports")
+            .update({ ...patch, updated_at: nowIso, updated_by: user.id })
+            .eq("id", existing.id);
+          dbError = e;
+        } else {
+          const { error: e } = await supabase.from("home_airports").insert({
+            ...patch,
+            family_id: familyId,
+            created_by: user.id,
+            updated_by: user.id,
+          });
+          dbError = e;
+        }
+      } else if (tool === "remove_home_airport") {
+        const { error: e } = await supabase
+          .from("home_airports")
+          .delete()
+          .eq("family_id", familyId)
+          .eq("code", patch.code);
+        dbError = e;
+      } else if (
+        tool === "save_someday_place" ||
+        tool === "retire_someday_place"
+      ) {
+        // The same reasoning as the airports: the someday list reaches the model
+        // as place names, so the name is the key. Case-insensitive, because
+        // "kyoto" a month later is the same wish as "Kyoto".
+        const { data: rows } = await supabase
+          .from("someday_places")
+          .select("id, place")
+          .eq("family_id", familyId);
+        const wanted = String(patch.place || "")
+          .trim()
+          .toLowerCase();
+        const found = (rows || []).find(
+          (row) =>
+            String(row.place || "")
+              .trim()
+              .toLowerCase() === wanted,
+        );
+
+        if (tool === "retire_someday_place" && !found) {
+          results.push({
+            ok: false,
+            summary: action.summary,
+            error: `${patch.place} is not on the someday list, so there was nothing to take off it.`,
+          });
+          continue;
+        }
+
+        if (found?.id) {
+          const { error: e } = await supabase
+            .from("someday_places")
+            .update({ ...patch, updated_at: nowIso, updated_by: user.id })
+            .eq("id", found.id);
+          dbError = e;
+        } else {
+          const { error: e } = await supabase.from("someday_places").insert({
+            ...patch,
+            family_id: familyId,
+            created_by: user.id,
+            updated_by: user.id,
+          });
+          dbError = e;
         }
       } else if (FAMILY_TABLES.has(table)) {
         // Family-wide rows: keyed by id only, with RLS keeping them in family.

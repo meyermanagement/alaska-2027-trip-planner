@@ -4,6 +4,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
+import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
 
 export const metadata = { title: "Someday list · Alyeska" };
@@ -80,7 +81,7 @@ export default async function SomedayPage() {
           trips={trips || []}
         />
       </main>
-      <AskAlyGeneral />
+      <AskAlyGeneral focus={SOMEDAY_FOCUS} />
     </>
   );
 }

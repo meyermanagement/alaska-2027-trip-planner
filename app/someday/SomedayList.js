@@ -5,64 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import LocationField from "@/components/LocationField";
 import { formatMoney } from "@/lib/rewards";
-
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-/**
- * The months, said the way a family would say them.
- *
- * An empty list means any month, which is a real answer and not a missing one:
- * plenty of places are worth going whenever the fare is right, and forcing a
- * choice there would put twelve ticks on most rows for no information.
- * Runs of three or more collapse -- "Jun-Aug" rather than "Jun, Jul, Aug" -- and
- * December through February wraps, because a family who can only go in winter
- * should not read their own answer as "Jan, Feb, Dec".
- */
-function monthsSaid(months = []) {
-  const set = [...new Set((months || []).map(Number))]
-    .filter((n) => n >= 1 && n <= 12)
-    .sort((a, b) => a - b);
-  if (!set.length || set.length === 12) return "any month";
-
-  // Rotate so a wrapping winter run starts at its own beginning.
-  let start = 0;
-  for (let i = 0; i < set.length; i += 1) {
-    const before = set[(i - 1 + set.length) % set.length];
-    const gap = (set[i] - before + 12) % 12;
-    if (gap !== 1) {
-      start = i;
-      break;
-    }
-  }
-  const order = [...set.slice(start), ...set.slice(0, start)];
-
-  const runs = [];
-  for (const month of order) {
-    const run = runs[runs.length - 1];
-    if (run && (month - run[run.length - 1] + 12) % 12 === 1) run.push(month);
-    else runs.push([month]);
-  }
-  return runs
-    .map((run) =>
-      run.length >= 3
-        ? `${MONTHS[run[0] - 1]}\u2013${MONTHS[run[run.length - 1] - 1]}`
-        : run.map((m) => MONTHS[m - 1]).join(", "),
-    )
-    .join(", ");
-}
+import { MONTHS, monthsSaid } from "@/lib/someday/months";
 
 /** The whole answer as one line, for the row that is not being edited. */
 function placeSaid(row, travelers) {
