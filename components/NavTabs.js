@@ -113,7 +113,7 @@ const TRIP_ROWS = [
     href: "/someday",
     label: "Bucket List",
     sub: "Places you want to go",
-    Icon: PinIcon,
+    Icon: BucketIcon,
   },
   {
     href: "/trips?view=drafts",
@@ -138,7 +138,7 @@ const TRIP_ROWS = [
     view: "past",
     label: "Trip Log",
     sub: "Trips already taken",
-    Icon: ClockIcon,
+    Icon: CameraIcon,
   },
 ];
 
@@ -1749,24 +1749,31 @@ function PlusIcon({ className }) {
   );
 }
 
-// A map pin: a place the family has an eye on. Drawn as a teardrop with a hole
-// rather than a filled dot, so it holds its shape at twenty pixels beside the
-// suitcase and the clock without reading as a full stop.
-function PinIcon({ className }) {
+// A bucket, because that is the word on the row. This was a map pin, which said
+// nothing more than "a place" -- and every other screen in this menu is also
+// about places, so the pin never told anybody that this row was the wish list.
+// The literal reading is the only one in the set that cannot be mistaken for
+// something else in the same column, and the tapered body and the handle both
+// survive the sixteen pixels the collapsed strip draws it at.
+function BucketIcon({ className }) {
   return (
     <svg {...iconProps(className)}>
-      <path d="M10 17.2s5.2-4.9 5.2-9a5.2 5.2 0 1 0-10.4 0c0 4.1 5.2 9 5.2 9Z" />
-      <circle cx="10" cy="8.2" r="2" />
+      <path d="M5.1 6.9h9.8l-1 8.2a1.6 1.6 0 0 1-1.6 1.4H7.7a1.6 1.6 0 0 1-1.6-1.4Z" />
+      <path d="M7.2 6.9a2.8 2.8 0 0 1 5.6 0" />
     </svg>
   );
 }
 
-// A clock with its hands set back: trips already taken.
-function ClockIcon({ className }) {
+// A camera: the trips you can look back at. This was a clock, which was true --
+// these are the old ones -- but a clock is what every app draws for recent items,
+// and it sat one row under a suitcase and two under an open book, both of which
+// said far more about what they were. A book with a bookmark would have said
+// "log" more plainly and collided with the journal book at the top of the group.
+function CameraIcon({ className }) {
   return (
     <svg {...iconProps(className)}>
-      <circle cx="10" cy="10" r="6.8" />
-      <path d="M10 6.2V10l2.8 1.7" />
+      <path d="M3.6 6.9h2.8l1.2-1.8h4.8l1.2 1.8h2.8c.6 0 1.1.5 1.1 1.1v6.4c0 .6-.5 1.1-1.1 1.1H3.6c-.6 0-1.1-.5-1.1-1.1V8c0-.6.5-1.1 1.1-1.1Z" />
+      <path d="M10 13.9a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6Z" />
     </svg>
   );
 }
