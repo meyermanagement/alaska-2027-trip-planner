@@ -251,13 +251,15 @@ export default function PushAlerts() {
   }, []);
 
   return (
-    <section className="card mt-8 p-5">
+    <section className="card mb-5 mt-4 p-5">
       <h2 className="font-display text-xl font-semibold">Deadline alerts</h2>
+      {/* This panel is now the second thing on the screen rather than the last,
+          so the copy is two lines instead of five: what it is for, and the
+          promise that it is twice per deadline and never more. */}
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-        Most things can wait for the morning email. A fare that has to be bought
-        today cannot, and neither can a card offer closing this week. Turn this
-        on and those two arrive as a notification instead, once when the date
-        comes into view and once on the last day.
+        A fare closing today or a card offer ending this week cannot wait for
+        the morning email, so those two arrive as a notification instead: once
+        when the date comes into view, and once on the last day.
       </p>
 
       {state === "loading" ? (
@@ -322,9 +324,8 @@ export default function PushAlerts() {
 
       <div className="mt-4 border-t border-[var(--line)] pt-4">
         <p className="max-w-2xl text-sm text-ink-soft">
-          The watch also runs on its own every evening. Nothing is ever sent
-          twice: each deadline gets one warning when it comes into view and one
-          on its last day, whatever else happens in between.
+          The watch runs on its own every evening, whether or not this browser
+          is open.
         </p>
         <button
           type="button"

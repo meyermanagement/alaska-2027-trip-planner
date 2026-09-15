@@ -104,7 +104,14 @@ export default async function RemindersPage() {
         <div className="mb-5">
           <h1 className="font-display text-3xl font-semibold">Reminders</h1>
         </div>
+        {/* The two panels about how the app reaches you sit together, above the
+            list: the morning email's own line, then the notifications that carry
+            the things which cannot wait for it. Deadline alerts used to be last
+            on the screen, under every task and under the cleared tips, which on
+            a real family list meant nobody scrolled far enough to find out the
+            feature existed. */}
         <MorningRun runs={runs || []} today={today} dueCount={dueCount} />
+        <PushAlerts />
         {/* <CalendarLink /> */}
         <Reminders
           readOnly={Boolean(access?.can.isSecondary)}
@@ -113,7 +120,6 @@ export default async function RemindersPage() {
           userId={user.id}
           assigneesByTrip={assigneesByTrip}
         />
-        <PushAlerts />
       </main>
       <AskAlyGeneral />
     </>
