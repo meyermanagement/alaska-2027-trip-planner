@@ -5566,6 +5566,46 @@ html[data-route="3"] .quick-tall .quick-heading {
   .nav-rail-ask {
     display: flex;
   }
+
+  /* The name of the row under the pointer, beside the strip. On this width the
+     words in the rail are clipped, so a mouse has nothing but an icon to go on
+     and the fifth disc down is a guess. It is fixed rather than absolute: the
+     column of rows scrolls, and anything positioned inside a scroller is
+     clipped by it, so an absolute chip would be cut off at the 72-pixel edge.
+     Its top is set by the row it belongs to. */
+  .nav-rail-tip {
+    position: fixed;
+    left: calc(var(--nav-rail-w) + 0.45rem);
+    z-index: 60;
+    transform: translateY(-50%);
+    max-width: 15rem;
+    width: max-content;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--line);
+    border-radius: 0.65rem;
+    background: var(--color-white);
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+    pointer-events: none;
+  }
+}
+
+/* Above 1500 the rail says the words itself, so the tip would be a second copy
+   of a label already on screen. It is only ever drawn on the strip. */
+.nav-rail-tip {
+  display: none;
+}
+
+@media (min-width: 1100px) and (max-width: 1499.98px) {
+  .nav-rail-tip {
+    display: block;
+  }
 }
 
 /* Screens that have no rail must not be pushed over as if they had one.

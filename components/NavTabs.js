@@ -398,6 +398,15 @@ export default function NavTabs({
   // state itself so the filter can update the rows without the arc having to
   // re-open every keystroke.
   const [query, setQuery] = useState("");
+  // What the strip is pointing at. Between 1100 and 1500 the rail is 72 pixels
+  // of icons and the words are clipped, which is fine for a screen reader and
+  // useless for a mouse: an unlabelled disc is a guess. So the name of the row
+  // under the pointer is drawn beside the strip. It is one label for the whole
+  // rail rather than one per row, read off whichever row the pointer entered,
+  // because the tip has to be a fixed element to escape the scrolling column's
+  // clip and there is no reason to have seven of those. Above 1500 the words are
+  // already there and CSS hides this.
+  const [railTip, setRailTip] = useState(null);
   const queryInputRef = useRef(null);
 
   // What the model returned for the last query it settled on -- either a set
@@ -660,7 +669,7 @@ export default function NavTabs({
           <span className="arc-hero-when block text-2xs font-bold uppercase tracking-[0.12em]">
             {where ? "Happening now" : "Next trip"}
           </span>
-          <span className="block truncate font-display text-base font-semibold leading-tight">
+          <span className="arc-hero-name block truncate font-display text-base font-semibold leading-tight">
             {trip.name}
           </span>
           <span className="arc-sub block truncate text-xs leading-tight">
@@ -1169,7 +1178,53 @@ export default function NavTabs({
         aria-label="Main menu"
         className="nav-rail no-print"
         data-navrail="1"
+        /* Delegated rather than bound per row: pointerover and focusin both
+           bubble, so one pair of handlers covers every door on the rail --
+           links, the group bands, the trip at the top -- and keeps working when
+           the rows change under it. The name is read out of the row's own
+           clipped label, so there is no second copy of the menu's wording to
+           keep in step. */
+        onPointerOver={(e) => {
+          const row = e.target.closest?.(".arc-pill, .arc-hero");
+          if (!row) return;
+          const said = row.querySelector(".arc-label, .arc-hero-name");
+          const text =
+            (said ? said.textContent : row.getAttribute("aria-label")) || "";
+          if (!text.trim()) return;
+          const box = row.getBoundingClientRect();
+          setRailTip({ text: text.trim(), y: box.top + box.height / 2 });
+        }}
+        onPointerOut={(e) => {
+          const to = e.relatedTarget;
+          if (to && to.closest?.(".arc-pill, .arc-hero")) return;
+          setRailTip(null);
+        }}
+        onFocus={(e) => {
+          const row = e.target.closest?.(".arc-pill, .arc-hero");
+          if (!row) return setRailTip(null);
+          const said = row.querySelector(".arc-label, .arc-hero-name");
+          const text =
+            (said ? said.textContent : row.getAttribute("aria-label")) || "";
+          if (!text.trim()) return;
+          const box = row.getBoundingClientRect();
+          setRailTip({ text: text.trim(), y: box.top + box.height / 2 });
+        }}
+        onBlur={() => setRailTip(null)}
+        onPointerLeave={() => setRailTip(null)}
       >
+        {/* The name of the row being pointed at. Fixed, because the column it
+            hangs off scrolls and anything positioned inside a scroller is
+            clipped by it. Not a target: pointer-events are off so it can never
+            come between the pointer and the disc it is describing. */}
+        {railTip && (
+          <span
+            aria-hidden="true"
+            className="nav-rail-tip"
+            style={{ top: `${Math.round(railTip.y)}px` }}
+          >
+            {railTip.text}
+          </span>
+        )}
         <Link href="/" className="nav-rail-brand" aria-label="Alyeska, home">
           <AlyeskaMark
             className="h-9 w-9 shrink-0"
