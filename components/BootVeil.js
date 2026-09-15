@@ -525,6 +525,16 @@ const REMOVE_MS = 900;
 // every later mount in the same page returns nothing at all.
 let lifted = false;
 
+// Which opening this document settled on, and which crossing it is flying, kept
+// in the module for the same reason as the latch above: it cannot be reached by
+// anything happening to the document. The script under the veil markup writes
+// the same pair onto the window before the first paint, and that is the value
+// this prefers -- a mount that happens after the client has thrown the server's
+// HTML away is handed a veil element whose data-mode has been reset to the
+// server's "full", and reading the element then is how a load that asked for the
+// short opening ends up playing the arrival a second later.
+let pick = null;
+
 export default function BootVeil() {
   const [gone, setGone] = useState(lifted);
   const veil = useRef(null);
@@ -552,7 +562,16 @@ export default function BootVeil() {
     // by the time this mounts the attribute on <html> may already have been
     // rewritten by a re-render. The document is the fallback for the case where
     // no script ran, where "full" is the safer answer anyway.
-    const quick = (veil.current?.dataset.mode ?? root.dataset.boot) === "quick";
+    // In order of how hard each one is to disturb: what this document already
+    // decided, then what the script wrote on the window before the first paint,
+    // then the attribute on the veil, then the attribute on the document. The
+    // last two are React's to reset; the first two are not.
+    const pinned = typeof window === "undefined" ? null : window.__alyBoot;
+    const quick =
+      (pick?.mode ??
+        pinned?.mode ??
+        veil.current?.dataset.mode ??
+        root.dataset.boot) === "quick";
     const hold = quick ? QUICK_HOLD_MS : HOLD_MS;
 
     // The choice, written onto the veil itself.
@@ -576,7 +595,13 @@ export default function BootVeil() {
     // reason: the stylesheet picks the map, the camera keyframes and the needle's
     // headings off it, and a route swapped mid-flight moves the coast out from
     // under a compass already travelling it.
-    const route = veil.current?.dataset.route || root.dataset.route || "1";
+    const route =
+      pick?.route ||
+      pinned?.route ||
+      veil.current?.dataset.route ||
+      root.dataset.route ||
+      "1";
+    pick = { mode: boot, route };
     // The pin is rendered and then rewritten by the script, so there is always
     // something here; this only matters if that script did not run, in which case
     // it still says "full", which is what the document says too.
@@ -598,6 +623,13 @@ export default function BootVeil() {
       if (done && !root.dataset.booted) root.dataset.booted = "1";
       if (root.dataset.boot !== boot) root.dataset.boot = boot;
       if (root.dataset.route !== route) root.dataset.route = route;
+      // And the veil's own copy, which is the one the stylesheet prefers: a
+      // re-render of this element writes the server's "full" back onto it, and
+      // that alone is enough to raise the arrival over a crossing already in
+      // the air.
+      const v = veil.current;
+      if (v && v.dataset.mode !== boot) v.dataset.mode = boot;
+      if (v && v.dataset.route !== route) v.dataset.route = route;
     });
     // Watching from the moment it mounts rather than from the lift: the switch
     // this is here to prevent happens while the veil is up, not after it.
@@ -605,6 +637,12 @@ export default function BootVeil() {
       attributes: true,
       attributeFilter: ["data-booted", "data-boot", "data-route"],
     });
+    if (veil.current) {
+      guard.observe(veil.current, {
+        attributes: true,
+        attributeFilter: ["data-mode", "data-route"],
+      });
+    }
 
     const lift = () => {
       if (done) return;

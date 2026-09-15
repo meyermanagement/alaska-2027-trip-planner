@@ -160,10 +160,47 @@ if(!paint())document.addEventListener("DOMContentLoaded",paint);
 // before the first paint -- doing it when the component mounts was too late,
 // because hydration is exactly when the re-render that resets the attribute
 // happens.
+//
+// The same decision is also written on the window, which is the only place in
+// this document that no re-render can reach. Attributes on <html> belong to
+// React, and so does the veil element itself: anything that makes the client
+// throw away the server's HTML and render the tree again -- a hydration
+// mismatch, and on a desktop browser a page-modifying extension is enough to
+// cause one -- puts data-mode back to the "full" the server sent and remounts
+// the veil into it. The reported order comes from exactly that: the crossing for
+// a moment, then the arrival. A plain object on the window survives it, because
+// nothing renders the window.
+//
+// And then it holds it there, from outside React, for as long as the veil is up.
+// The component puts back anything taken from it too, but that guard is itself a
+// React effect: it is disconnected when the veil unmounts and reinstalled when
+// the replacement mounts, and the gap between those two is exactly the moment
+// the arrival gets on screen. This observer is plain script written before the
+// first paint, so there is no moment it is not watching. It stops the first time
+// it sees the veil has lifted, and gives up after twelve seconds regardless.
 const pinBoot = `(function(){try{
-var d=document.documentElement,v=document.getElementById("boot-veil");
-if(v){v.dataset.mode=d.dataset.boot==="quick"?"quick":"full";
-v.dataset.route=d.dataset.route||"1";}
+var d=document.documentElement;
+var mode=d.dataset.boot==="quick"?"quick":"full",route=d.dataset.route||"1";
+var pin={mode:mode,route:route};
+window.__alyBoot=pin;
+var mo=null;
+var fix=function(){
+if(d.dataset.booted){if(mo)mo.disconnect();return;}
+if(d.dataset.boot!==pin.mode)d.dataset.boot=pin.mode;
+if(d.dataset.route!==pin.route)d.dataset.route=pin.route;
+var v=document.getElementById("boot-veil");
+if(v){if(v.dataset.mode!==pin.mode)v.dataset.mode=pin.mode;
+if(v.dataset.route!==pin.route)v.dataset.route=pin.route;}};
+fix();
+if(typeof MutationObserver==="function"){
+mo=new MutationObserver(fix);
+mo.observe(d,{attributes:true,subtree:true,
+attributeFilter:["data-boot","data-booted","data-route","data-mode"]});
+// The veil is a direct child of the body, so a replacement element that React
+// has just built is caught here -- and it is built with the attributes the
+// server sent, which is the whole reason this exists.
+if(document.body)mo.observe(document.body,{childList:true});
+setTimeout(function(){if(mo)mo.disconnect();},12000);}
 }catch(e){}})()`;
 
 export default function RootLayout({ children }) {

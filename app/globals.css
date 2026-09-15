@@ -488,6 +488,31 @@ html[data-booted] #boot-veil[data-mode] {
   animation: none;
 }
 
+/* And the same choice once more, as the head script left it on the document,
+   written to match the block above with the same weight and later in the file so
+   it is the one that decides. That closes the last window in this mechanism: the
+   veil element is streamed with the attributes the server sent, the arrival's
+   markup is inside it, and the script that pins the real choice onto the element
+   is under all of it -- so on a slow stream the arrival can be parsed, and
+   painted, before the pin runs. The document knew which opening this load was
+   getting before any of that markup existed. Both are the same decision, and the
+   observer the head installs puts either back if a re-render rewrites it. */
+html[data-boot="quick"] #boot-veil .boot-quick {
+  display: block;
+}
+
+html[data-boot="quick"] #boot-veil .boot-mark {
+  display: none;
+}
+
+html[data-boot="full"] #boot-veil .boot-quick {
+  display: none;
+}
+
+html[data-boot="full"] #boot-veil .boot-mark {
+  display: flex;
+}
+
 .boot-quick {
   /* The whole veil, not a card in the middle of it. */
   position: absolute;
