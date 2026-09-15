@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Spinner } from "@/components/LinkPending";
 import LocationField from "@/components/LocationField";
+import WhenToGo from "@/components/WhenToGo";
 import { MONTHS, monthsSaid } from "@/lib/someday/months";
 
 /**
@@ -27,6 +28,52 @@ function placeSaid(row, travelers) {
   return bits.join(" \u00b7 ");
 }
 
+/** "September 2026", for dating a season claim that will age. */
+function saidWhen(value) {
+  const at = value ? new Date(value) : null;
+  if (!at || Number.isNaN(at.getTime())) return "";
+  return at.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+/**
+ * Why these months, when Aly is the one who said it.
+ *
+ * Only ever shown for a window somebody accepted. A row ticked by hand has no
+ * line here, and that silence is honest: it means the family decided, not that
+ * the app has forgotten why. The date is on it because a season answer read off
+ * the web in September is a claim about September, and a family looking at this
+ * eighteen months later should be able to see how old it is before they trust it.
+ */
+function MonthsWhy({ row }) {
+  if (!row.months_reason) return null;
+  const sources = Array.isArray(row.months_sources)
+    ? row.months_sources.filter((one) => one?.url).slice(0, 3)
+    : [];
+  const when = saidWhen(row.months_said_at);
+
+  return (
+    <div className="mt-1.5 border-l-2 border-teal/30 pl-3">
+      <p className="text-sm leading-relaxed text-ink-soft">
+        {row.months_reason}
+      </p>
+      <p className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
+        {when ? <span>Aly, {when}</span> : <span>Aly</span>}
+        {sources.map((source) => (
+          <a
+            key={source.url}
+            href={source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+          >
+            {source.title || "Source"}
+          </a>
+        ))}
+      </p>
+    </div>
+  );
+}
+
 const BLANK = {
   place: "",
   lat: null,
@@ -34,6 +81,11 @@ const BLANK = {
   why: "",
   months: [],
   traveler_ids: [],
+  // Carried through the form so an accepted window survives the save, and
+  // cleared the moment somebody ticks a month themselves.
+  months_reason: null,
+  months_sources: [],
+  months_said_at: null,
 };
 
 function formFrom(row) {
@@ -45,6 +97,9 @@ function formFrom(row) {
     why: row.why || "",
     months: [...(row.months || [])],
     traveler_ids: [...(row.traveler_ids || [])],
+    months_reason: row.months_reason || null,
+    months_sources: Array.isArray(row.months_sources) ? row.months_sources : [],
+    months_said_at: row.months_said_at || null,
   };
 }
 
@@ -112,12 +167,33 @@ export default function SomedayList({
     setForm((was) => ({ ...was, [key]: value }));
   }
 
+  /**
+   * A month ticked by hand, which retires whatever reason was on the row.
+   *
+   * Aly's sentence names the months it was about, so the moment a person adds or
+   * drops one it stops describing what is on screen. Keeping it would leave a
+   * confident explanation attached to a set of months nobody explained.
+   */
   function toggleMonth(month) {
     setForm((was) => ({
       ...was,
       months: was.months.includes(month)
         ? was.months.filter((m) => m !== month)
         : [...was.months, month].sort((a, b) => a - b),
+      months_reason: null,
+      months_sources: [],
+      months_said_at: null,
+    }));
+  }
+
+  /** A window accepted inside the form. Fills the boxes; the save keeps the words. */
+  function useWindow({ months, reason, sources }) {
+    setForm((was) => ({
+      ...was,
+      months: [...months].sort((a, b) => a - b),
+      months_reason: reason || null,
+      months_sources: sources || [],
+      months_said_at: new Date().toISOString(),
     }));
   }
 
@@ -180,6 +256,9 @@ export default function SomedayList({
       why: form.why.trim() || null,
       months: form.months,
       traveler_ids: form.traveler_ids,
+      months_reason: form.months_reason,
+      months_sources: form.months_sources,
+      months_said_at: form.months_said_at,
     };
 
     const { error: dbError } =
@@ -312,6 +391,21 @@ export default function SomedayList({
             );
           })}
         </div>
+        {/*
+         * The help beside the question rather than a screen away from it. The
+         * moment somebody most needs this is the moment they are looking at
+         * twelve empty boxes for a place they have just named, so it asks with
+         * what is typed in the form and not with a saved row.
+         */}
+        <div className="mt-2 text-sm">
+          <WhenToGo
+            place={form.place}
+            why={form.why}
+            months={form.months}
+            label="Not sure? Ask Aly when to go"
+            onUse={useWindow}
+          />
+        </div>
       </div>
 
       {travelers.length ? (
@@ -399,6 +493,10 @@ export default function SomedayList({
                   {row.why ? (
                     <p className="mt-1 text-sm text-ink">{row.why}</p>
                   ) : null}
+                  {/* Their words first, then hers. A machine's sentence above
+                      the family's own reads as the app having the last word on
+                      why they want to go somewhere. */}
+                  <MonthsWhy row={row} />
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                     <button
                       type="button"
@@ -451,6 +549,28 @@ export default function SomedayList({
                         Saving&hellip;
                       </span>
                     ) : null}
+                  </div>
+                  {/*
+                   * On its own line rather than in the row above, because what
+                   * it opens is a panel of windows and a panel unfolding out of
+                   * a row of links reads as the links having broken.
+                   */}
+                  <div className="mt-2 text-sm">
+                    <WhenToGo
+                      placeId={row.id}
+                      place={row.place}
+                      why={row.why || ""}
+                      months={row.months || []}
+                      disabled={Boolean(busy)}
+                      onUse={({ months, reason, sources }) =>
+                        change(row, {
+                          months: [...months].sort((a, b) => a - b),
+                          months_reason: reason || null,
+                          months_sources: sources || [],
+                          months_said_at: new Date().toISOString(),
+                        })
+                      }
+                    />
                   </div>
                 </>
               )}
