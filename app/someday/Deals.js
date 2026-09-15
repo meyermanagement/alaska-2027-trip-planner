@@ -329,6 +329,9 @@ export default function Deals({ deals = [], trips = [] }) {
   };
 
   // Nothing pasted yet: one quiet line, and the form only when it is asked for.
+  // The line no longer opens by asking whether you have seen a fare worth
+  // checking. Finding the fares is going to happen somewhere else, and a screen
+  // that opens by asking the family to go looking is describing the old plan.
   if (!open.length && !refused.length && !taken.length) {
     return (
       <section>
@@ -336,13 +339,12 @@ export default function Deals({ deals = [], trips = [] }) {
           pasteForm
         ) : (
           <p className="text-sm text-ink-soft">
-            Seen a fare worth checking?{" "}
             <button
               type="button"
               className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
               onClick={() => setPasting(true)}
             >
-              Paste it here
+              Paste a fare
             </button>{" "}
             and I will say what it means for these places, your airports and the
             trips you already have.
