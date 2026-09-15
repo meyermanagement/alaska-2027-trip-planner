@@ -6138,6 +6138,19 @@ select {
     box-shadow 0.15s ease;
 }
 
+/* A field that holds a small number rather than a sentence, sized to its digits
+   instead of to the column. Two of these sit side by side with hr and min
+   printed after them to collect a drive time, and a box the width of the row
+   would say that a four-digit answer was expected. The width has to be declared
+   here rather than as a utility on the element, since the width: 100% above wins
+   on order against a class of the same specificity. */
+.field-digits {
+  width: 3.75rem;
+  flex: none;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Date fields, and the one engine that does not size them like every other
    input. Chromium honors the width: 100% above at every width the app is used
    at -- measured at 320, 360, 390, 430 and 768 across all eight wrappers in the

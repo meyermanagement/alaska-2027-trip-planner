@@ -1,13 +1,35 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import {
-  airportsSaid,
-  driveMinutesFrom,
-  driveSaid,
-} from "@/lib/airports/drive";
+import { Spinner } from "@/components/LinkPending";
+import { airportsSaid, driveFromParts, driveParts } from "@/lib/airports/drive";
+
+/**
+ * The two boxes a drive time is collected in, in the order they are read.
+ *
+ * A pair of numbered boxes with their units printed beside them says what may be
+ * typed without a sentence explaining it, which one box asking for free text
+ * never did: people faced with it wrote 2.5, 2h15 and "about two hours" because
+ * nothing on screen told them which was wanted.
+ */
+const DRIVE_BOXES = [
+  { part: "hours", unit: "hr", spoken: "Hours", digits: 2 },
+  { part: "mins", unit: "min", spoken: "Minutes", digits: 2 },
+];
+
+/** Digits only, so a box cannot hold something the pair cannot add up. */
+function onlyDigits(text) {
+  return String(text ?? "").replace(/\D+/g, "");
+}
+
+/** What a box shows: what is being typed if anything, else what is stored. */
+function driveBoxValue(drafts, row, part) {
+  const draft = drafts[row.id];
+  if (draft && draft[part] !== undefined) return draft[part];
+  return driveParts(row.drive_minutes)[part];
+}
 
 /**
  * The airports this household leaves from.
@@ -50,10 +72,29 @@ export default function HomeAirports({
   const [nearby, setNearby] = useState([]);
   const [query, setQuery] = useState("");
   const [found, setFound] = useState([]);
-  // What each row's drive box currently says, keyed by row id, so typing in one
-  // does not re-render the others and a blur can tell whether anything changed.
+  // What each row's two drive boxes currently say, keyed by row id as
+  // { hours, mins } strings, so typing in one row does not re-render the others
+  // and a blur can tell whether anything actually changed.
   const [drafts, setDrafts] = useState({});
   const timer = useRef(null);
+  // Every write here ends in a server re-render, and the row is not actually
+  // finished until that lands: clearing the spinner when the insert returns
+  // leaves a card showing the old list with nothing turning on it, which is the
+  // moment people press the button a second time. So the refresh runs inside a
+  // transition, and the row stays busy until the transition settles.
+  const [refreshing, startRefresh] = useTransition();
+  const awaitingRefresh = useRef(false);
+
+  useEffect(() => {
+    if (refreshing || !awaitingRefresh.current) return;
+    awaitingRefresh.current = false;
+    setBusy("");
+  }, [refreshing]);
+
+  function settle() {
+    awaitingRefresh.current = true;
+    startRefresh(() => router.refresh());
+  }
 
   const held = new Set(airports.map((row) => row.code));
 
@@ -100,7 +141,7 @@ export default function HomeAirports({
   }, [query, homeLat, homeLon]);
 
   async function add(airport) {
-    if (held.has(airport.code)) return;
+    if (busy || held.has(airport.code)) return;
     setBusy(airport.code);
     setError("");
     const { error: dbError } = await supabase.from("home_airports").insert({
@@ -114,14 +155,14 @@ export default function HomeAirports({
       // The first one added is the one they mean, until they say otherwise.
       is_primary: airports.length === 0,
     });
-    setBusy("");
     if (dbError) {
+      setBusy("");
       setError(dbError.message);
       return;
     }
     setQuery("");
     setFound([]);
-    router.refresh();
+    settle();
   }
 
   async function drop(row) {
@@ -131,12 +172,12 @@ export default function HomeAirports({
       .from("home_airports")
       .delete()
       .eq("id", row.id);
-    setBusy("");
     if (dbError) {
+      setBusy("");
       setError(dbError.message);
       return;
     }
-    router.refresh();
+    settle();
   }
 
   /**
@@ -165,18 +206,18 @@ export default function HomeAirports({
       .from("home_airports")
       .update({ is_primary: true })
       .eq("id", row.id);
-    setBusy("");
     if (dbError) {
+      setBusy("");
       setError(dbError.message);
       return;
     }
-    router.refresh();
+    settle();
   }
 
   async function saveDrive(row) {
-    const said = drafts[row.id];
-    if (said === undefined) return;
-    const minutes = driveMinutesFrom(said);
+    const draft = drafts[row.id];
+    if (draft === undefined) return;
+    const minutes = driveFromParts(draft.hours, draft.mins);
     if (minutes === row.drive_minutes) return;
     setBusy(row.id);
     setError("");
@@ -184,8 +225,8 @@ export default function HomeAirports({
       .from("home_airports")
       .update({ drive_minutes: minutes })
       .eq("id", row.id);
-    setBusy("");
     if (dbError) {
+      setBusy("");
       setError(dbError.message);
       return;
     }
@@ -194,7 +235,7 @@ export default function HomeAirports({
       delete next[row.id];
       return next;
     });
-    router.refresh();
+    settle();
   }
 
   const said = airportsSaid(airports);
@@ -235,8 +276,7 @@ export default function HomeAirports({
       <p className="section-label">Airports the household flies from</p>
       <p className="mt-1 text-sm text-ink-soft">
         Which airports a fare has to leave from to be worth anything, and the
-        drive time each one costs you. The drive time is yours to say &mdash;
-        this app knows where the runways are and nothing about the roads.
+        drive time each one costs you.
       </p>
 
       {airports.length ? (
@@ -259,32 +299,45 @@ export default function HomeAirports({
                   </>
                 ) : null}
               </span>
-              <label className="flex items-center gap-1.5 text-sm text-ink-soft">
-                <span className="sr-only">Drive time to {row.code}</span>
-                <input
-                  className="field w-28"
-                  value={
-                    drafts[row.id] !== undefined
-                      ? drafts[row.id]
-                      : driveSaid(row.drive_minutes)
-                  }
-                  placeholder="Drive time"
-                  maxLength={12}
-                  onChange={(event) =>
-                    setDrafts((was) => ({
-                      ...was,
-                      [row.id]: event.target.value,
-                    }))
-                  }
-                  onBlur={() => saveDrive(row)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      saveDrive(row);
-                    }
-                  }}
-                />
-              </label>
+              <span className="flex shrink-0 items-center gap-2 text-sm text-ink-soft">
+                <span className="text-ink-faint">Drive time</span>
+                {DRIVE_BOXES.map((box) => (
+                  <label key={box.part} className="flex items-center gap-1">
+                    <span className="sr-only">
+                      {box.spoken} driving to {row.code}
+                    </span>
+                    <input
+                      className="field field-digits"
+                      inputMode="numeric"
+                      value={driveBoxValue(drafts, row, box.part)}
+                      maxLength={box.digits}
+                      onChange={(event) =>
+                        setDrafts((was) => ({
+                          ...was,
+                          [row.id]: {
+                            ...(was[row.id] ?? driveParts(row.drive_minutes)),
+                            [box.part]: onlyDigits(event.target.value),
+                          },
+                        }))
+                      }
+                      onBlur={() => saveDrive(row)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          saveDrive(row);
+                        }
+                      }}
+                    />
+                    <span>{box.unit}</span>
+                  </label>
+                ))}
+                {busy === row.id ? (
+                  <>
+                    <Spinner className="h-4 w-4 text-teal" />
+                    <span className="sr-only">Saving {row.code}</span>
+                  </>
+                ) : null}
+              </span>
               {row.is_primary ? (
                 <span className="chip text-teal">Home base</span>
               ) : (
@@ -328,20 +381,40 @@ export default function HomeAirports({
               <li key={airport.code}>
                 <button
                   type="button"
-                  className="btn btn-ghost whitespace-nowrap text-sm"
-                  disabled={busy === airport.code}
+                  className={`btn btn-ghost inline-flex items-center gap-1.5 whitespace-nowrap text-sm ${
+                    busy === airport.code ? "border-teal/40 text-teal" : ""
+                  }`}
+                  // Pressed, not dimmed: the disabled attribute fades the whole
+                  // pill including the ring turning inside it, which is the one
+                  // part that has to stay legible. The press is refused in add
+                  // instead.
+                  aria-disabled={busy === airport.code}
                   onClick={() => add(airport)}
                 >
-                  <span className="font-mono font-semibold">
-                    {airport.code}
-                  </span>{" "}
-                  {airport.city || airport.name}
-                  {Number.isFinite(airport.miles) ? (
-                    <span className="text-ink-faint">
-                      {" "}
-                      &middot; {airport.miles} mi
-                    </span>
-                  ) : null}
+                  {busy === airport.code ? (
+                    <>
+                      <Spinner className="h-4 w-4 text-teal" />
+                      <span>
+                        Adding{" "}
+                        <span className="font-mono font-semibold">
+                          {airport.code}
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-mono font-semibold">
+                        {airport.code}
+                      </span>{" "}
+                      {airport.city || airport.name}
+                      {Number.isFinite(airport.miles) ? (
+                        <span className="text-ink-faint">
+                          {" "}
+                          &middot; {airport.miles} mi
+                        </span>
+                      ) : null}
+                    </>
+                  )}
                 </button>
               </li>
             ))}
@@ -368,9 +441,9 @@ export default function HomeAirports({
           Done
         </button>
         <p className="text-xs text-ink-faint">
-          The miles are straight lines from your home address, not drives. Write
-          the drive time however you say it &mdash; 20 min, 2 hr 30 min, 4:30
-          &mdash; and it is read back in hours and minutes.
+          The miles are straight lines from your home address, not drives. Fill
+          in whichever box applies &mdash; a twenty-five minute run needs only
+          the minutes.
         </p>
       </div>
     </div>
