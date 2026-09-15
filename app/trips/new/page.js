@@ -4,6 +4,8 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
+import { tripPath } from "@/lib/trips/route";
+import { whenText } from "@/lib/trips/basics";
 import TripBuilderStart from "./TripBuilderStart";
 
 export const metadata = { title: "Trip builder · Alyeska" };
@@ -36,11 +38,37 @@ export default async function NewTripPage() {
 
   if (access?.can?.isSecondary) redirect("/trips");
 
+  // The drafts this household already has, named on this screen above the box.
+  //
+  // This is the guard against the same trip being started twice. Somebody who
+  // opens the builder to carry on with Portugal has no way of telling from an
+  // empty box that Portugal is already in here -- so the drafts are listed
+  // first, each one a link into the trip it belongs to, and only under them is
+  // there a box for something new. Ordered by when they were last touched, so
+  // the one being worked on is at the top.
+  const { data: draftRows } = await supabase
+    .from("trips")
+    .select(
+      "id, name, slug, public_id, cover_emoji, destination, date_note, start_date, end_date, updated_at",
+    )
+    .eq("family_id", access?.familyId || "")
+    .eq("status", "draft")
+    .order("updated_at", { ascending: false });
+
+  const drafts = (draftRows || []).map((trip) => ({
+    key: trip.id,
+    name: trip.name,
+    emoji: trip.cover_emoji,
+    href: tripPath(trip),
+    when: whenText(trip),
+    destination: trip.destination,
+  }));
+
   return (
     <>
       <TopBar />
       <main className="screen px-5 pb-24 pt-7">
-        <TripBuilderStart />
+        <TripBuilderStart drafts={drafts} />
       </main>
       {/* The conversation opens here, on this screen, so the answer arrives where
           the question was asked. */}

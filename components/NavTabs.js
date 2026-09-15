@@ -90,13 +90,31 @@ import { SETUP_HREF } from "@/lib/setup/items";
 // is deliberate: a draft, a booked trip and a finished one are the same object at
 // three ages, and the board already sorted them into three tabs. The address
 // carries the group -- /trips?view=drafts -- so a row can point straight at one.
+//
+// The first row makes a trip; the second shows the ones already being made. They
+// used to be one row called Trip Builder, which pointed at the drafts group --
+// so the label promised a tool, the subtitle described a list, and the
+// destination was a list with the tool's button on it. Somebody looking for the
+// builder had to recognize a board first. Now the verb and the noun are separate
+// doors, the drafts door says how many there are before it is opened, and the
+// builder screen itself names the drafts so nobody starts the same trip twice.
 const TRIP_ROWS = [
+  {
+    href: "/trips/new",
+    label: "Start a new trip",
+    sub: "Tell Aly the idea",
+    Icon: PlusIcon,
+  },
   {
     href: "/trips?view=drafts",
     view: "drafts",
-    label: "Trip Builder",
-    sub: "Still being worked out",
+    label: "Trip Drafts",
+    sub: "Nothing in progress",
     Icon: PencilIcon,
+    // Carries the count of unfinished drafts, the way Reminders carries the
+    // count of late tasks: a draft you cannot see from the menu is a draft you
+    // start again.
+    draftCount: true,
   },
   {
     href: "/trips?view=upcoming",
@@ -113,6 +131,17 @@ const TRIP_ROWS = [
     Icon: ClockIcon,
   },
 ];
+
+// What the drafts row says under its name. The number belongs in the subtitle as
+// well as in the numeral at the end of the row, because the numeral is hidden on
+// the collapsed icon strip and the count is the whole point of the row.
+function draftsSub(n) {
+  // Short on purpose: the labeled rail is 20.5rem wide and truncates a subtitle
+  // longer than about twenty characters, and a count that reads "2 trips still
+  // being worked ..." has lost the only word that mattered.
+  if (n > 0) return `${n} being worked out`;
+  return "Nothing in progress";
+}
 
 const GROUPS_BASE = [
   {
@@ -350,6 +379,8 @@ function onScreen(href, pathname, exact = false) {
 
 export default function NavTabs({
   attention = 0,
+  // How many trips are sitting in Drafts, read in TopBar with everything else.
+  drafts = 0,
   level = null,
   askHref,
   showAsk = true,
@@ -789,6 +820,11 @@ export default function NavTabs({
             key: kid.href,
             groupKey: g.key,
             ...kid,
+            sub: kid.draftCount ? draftsSub(drafts) : kid.sub,
+            // The quiet numeral on the right of the row, in the same style the
+            // group bands use for how many screens are behind them. Not the rose
+            // dot: a draft is not late, it is simply unfinished.
+            tally: kid.draftCount && drafts > 0 ? drafts : 0,
             active:
               onScreen(kid.href, pathname, Boolean(kid.view)) &&
               (!kid.view || (view || "upcoming") === kid.view),
@@ -799,7 +835,7 @@ export default function NavTabs({
             kind: "link",
             parent: `group:${g.key}`,
             label: kid.label || "",
-            sub: kid.sub || "",
+            sub: (kid.draftCount ? draftsSub(drafts) : kid.sub) || "",
             here: currentPathKey === kid.href,
           },
         );
@@ -1132,6 +1168,11 @@ export default function NavTabs({
                 {row.sub}
               </span>
             </span>
+            {row.tally > 0 && (
+              <span className="arc-count tabular ml-auto pl-2">
+                {row.tally}
+              </span>
+            )}
           </Link>
         );
       })}
@@ -1682,6 +1723,18 @@ function PencilIcon({ className }) {
     <svg {...iconProps(className)}>
       <path d="M13.4 3.9l2.7 2.7-8.2 8.2-3.4.7.7-3.4 8.2-8.2Z" />
       <path d="M11.7 5.6l2.7 2.7" />
+    </svg>
+  );
+}
+
+// A plus in a ring: the one row in this menu that makes something rather than
+// showing something that already exists.
+function PlusIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <circle cx="10" cy="10" r="6.8" />
+      <path d="M10 6.9v6.2" />
+      <path d="M6.9 10h6.2" />
     </svg>
   );
 }

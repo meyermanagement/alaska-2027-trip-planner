@@ -20,8 +20,12 @@ import Link from "next/link";
 export default function NewTripButton() {
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Called what the menu row that leads to the same screen is called. It
+          said "Trip builder", which named the room rather than the errand and
+          was also the name of the menu row pointing at the drafts list -- one
+          name on two controls that did different things. */}
       <Link className="btn btn-primary" href="/trips/new">
-        Trip builder
+        Start a new trip
       </Link>
       {/* The other direction: a trip that has already happened. It sits here
           rather than at the bottom of Past trips because that list is empty for
