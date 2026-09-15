@@ -5480,21 +5480,46 @@ html[data-route="3"] .quick-tall .quick-heading {
 
 @media (min-width: 1100px) {
   :root {
-    --nav-rail-w: 4.5rem;
+    /* The footprint the menu takes out of the window, and the air between the
+       panel and the window's edges. The panel itself is the difference: the
+       page is padded by the whole footprint, so the gap is real space beside
+       the menu rather than a margin the content can slide under. */
+    --nav-rail-gap: 0.45rem;
+    /* 5.9rem less two 0.45rem gaps is a 79-point panel: the icon strip's 53
+       points of content plus the room the 56-point Ask Aly disc always needed
+       and never had. It used to overhang a rail whose background ran to the
+       window edge, so the overhang was invisible; a panel with an edge shows
+       it. */
+    --nav-rail-w: 5.9rem;
   }
 
   .nav-rail {
     position: fixed;
-    inset-block: 0;
-    left: 0;
+    inset-block: var(--nav-rail-gap);
+    left: var(--nav-rail-gap);
     z-index: 30;
     display: flex;
-    width: var(--nav-rail-w);
+    width: calc(var(--nav-rail-w) - 2 * var(--nav-rail-gap));
     flex-direction: column;
     gap: 0.4rem;
     padding: 1rem 0.6rem calc(1rem + env(safe-area-inset-bottom));
-    border-right: 1px solid var(--line);
-    background: color-mix(in srgb, var(--color-ink) 3.5%, transparent);
+    /* A panel, not a wall.
+       The rail used to be a column of pale translucent rows drawn on 3.5% ink
+       over the page's own gradient, with a hairline for an edge -- which is to
+       say it was the page, with a menu faintly printed on it. On a wide window
+       that reads as clutter rather than as furniture: nothing in the column is
+       quiet, so nothing in it leads.
+       So it is one object now. It stands clear of all four window edges, takes
+       the app's own paper, carries a real edge and a shadow, and the group rows
+       inside it go flat -- the panel does the separating, and the only painted
+       things left in the column are the trip you are going on and Ask Aly. */
+    border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+    border-radius: 1rem;
+    background: var(--color-white);
+    /* The skin's own lifted-card shadow rather than one mixed from ink here: on
+       a dark skin ink is the light colour, and a shadow mixed from it is a
+       glow. */
+    box-shadow: var(--shadow-card-lift);
     /* The arc's pill faces, edges and shadow are a property of the surface the
        arc is -- a handful of objects thrown over a dimmed page, which need
        something behind them to be read against. The rail is furniture on the
@@ -5520,6 +5545,26 @@ html[data-route="3"] .quick-tall .quick-heading {
 
   .nav-rail .arc-hero {
     position: relative;
+  }
+
+  /* Flat on the panel. In the arc a group row needs a face to be read against a
+     dimmed page; here the panel is the surface, and five stacked faces inside
+     it are the busyness they were meant to cure. */
+  .nav-rail .arc-pill.group {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  /* Set as a name rather than a heading. In the arc these labels head the
+     sheet's own rows, so small caps are right; in the rail the group row is
+     itself the destination, and a column of letter-spaced capitals reads as a
+     wall of labels instead of a list of places. */
+  .nav-rail .arc-pill.group .arc-label {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-ink);
   }
 
   .nav-rail-brand {
@@ -5649,7 +5694,7 @@ html[data-route="3"] .quick-tall .quick-heading {
      Its top is set by the row it belongs to. */
   .nav-rail-tip {
     position: fixed;
-    left: calc(var(--nav-rail-w) + 0.45rem);
+    left: calc(var(--nav-rail-w) - var(--nav-rail-gap) + 0.45rem);
     z-index: 60;
     transform: translateY(-50%);
     max-width: 15rem;
@@ -5703,7 +5748,8 @@ html[data-route="3"] .quick-tall .quick-heading {
 
 @media (min-width: 1500px) {
   :root {
-    --nav-rail-w: 20.5rem;
+    --nav-rail-gap: 0.75rem;
+    --nav-rail-w: 22rem;
   }
 
   .nav-rail-ask-narrow {
@@ -5736,9 +5782,9 @@ html[data-route="3"] .quick-tall .quick-heading {
   .nav-rail .arc-pill.group .arc-label {
     /* Clear of the attention badge, which is pinned to the corner of the disc
        and overhangs it. In the arc the same badge has the pill's own padding to
-       overhang into; here the label starts sooner. */
+       overhang into; here the label starts sooner. No letter-spacing to restore:
+       these are names now, set at the narrower breakpoint above. */
     margin-left: 0.35rem;
-    letter-spacing: 0.06em;
   }
 }
 
