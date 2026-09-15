@@ -14,6 +14,7 @@ import {
   PRIVACY_VERSION,
   SUPPORT_EMAIL,
 } from "@/lib/beta/agreement";
+import BetaDeclineExit from "@/components/BetaDeclineExit";
 
 /**
  * The six screens between signing in and being let in, and the receipt that
@@ -34,7 +35,10 @@ import {
  *   - Saying no is a real answer. Declining AI processing carries on into the app
  *     with Aly turned off rather than stopping here, and every optional feature
  *     says out loud what happens if it is left off. A screen where refusing is a
- *     dead end is a screen that taught the tester to press the other button.
+ *     dead end is a screen that taught the tester to press the other button. That
+ *     now holds for the agreement itself too: under the primary is a way to sign
+ *     out, or to delete the account outright, without first agreeing to the terms
+ *     being declined.
  *
  * The agreement screen will not let the age box be ticked until the text has
  * actually been scrolled to the end. It is a small friction and it is the point:
@@ -344,6 +348,20 @@ export default function BetaConsentFlow({ gap, email, existing, practice }) {
       {!canContinue && BLOCKED_BECAUSE[step] && (
         <p className="mt-3 text-xs text-ink-soft">{BLOCKED_BECAUSE[step]}</p>
       )}
+
+      {/* The answer to the one question these screens never had an answer for.
+
+          Declining a question here is a real answer -- turn Aly off and you carry
+          on -- but declining the agreement itself had nowhere to go. Chromeless
+          screen, dead Continue, no menu: the only way to say no was to close the
+          tab, which leaves the account and the household the sign-in created
+          sitting there holding data nobody agreed to store. A gate whose only
+          exit is the button you did not want to press is not asking.
+
+          Quiet and last, under the primary rather than beside it. It is a way out
+          for somebody who has decided, not a second option competing with
+          Continue for somebody who has not. */}
+      <BetaDeclineExit practice={practice} />
     </div>
   );
 }

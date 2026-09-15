@@ -384,6 +384,11 @@ export async function GET() {
     householdName: family?.name || "",
     others: others.length,
     role: membership.role,
-    lastOwner: membership.role === "owner" && ownersLeft === 0,
+    // Only a refusal where somebody is left behind. POST refuses the last owner
+    // of a *shared* household; an owner who is alone in one is simply deleting
+    // it, and reporting them as a last owner would put a screen in front of them
+    // asking them to hand over a household nobody else is in.
+    lastOwner:
+      membership.role === "owner" && ownersLeft === 0 && others.length > 0,
   });
 }
