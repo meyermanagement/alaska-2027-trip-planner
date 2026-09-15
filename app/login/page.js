@@ -27,8 +27,17 @@ export default function LoginPage() {
             bezelColor="var(--aurora-mid)"
           />
         </span>
-        <h1 className="font-display mt-3 text-3xl font-semibold tracking-[0.03em] text-ink">
+        {/* The wordmark, not a page heading: the same letterspaced capitals over
+            the same hairline that the loading screens and the menu carry, so the
+            screen somebody signs in on wears the mark rather than announcing the
+            name. Set larger than anywhere else in the app because on this screen
+            there is nothing else above the form to look at. */}
+        <h1
+          className="aly-word font-display mt-3"
+          style={{ fontSize: "var(--fs-xl)" }}
+        >
           Alyeska
+          <span className="aly-word-rule mid" />
         </h1>
         {/* The house line, the same three words the emails carry under the same
             lockup, so the screen somebody signs in on and the message that

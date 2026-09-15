@@ -1234,15 +1234,24 @@ export default function NavTabs({
             auroraId="alyeska-aurora-rail"
             spinning={navFetching}
           />
-          {/* Set to sit on the compass rather than beside it: at text-lg the word
-              was two thirds the height of the mark and read as a caption under a
-              logo that happened to be on the same line. One step up the scale
-              puts the cap height on the needle and the descender on the lower
-              ticks, so the two are one lockup. Still a scale step rather than a
-              pixel size, so it grows with the text-size setting like everything
-              else. leading-none keeps the brand row the height of the mark. */}
-          <span className="nav-rail-word font-display text-xl font-semibold leading-none">
+          {/* The same lockup the loading screens carry: letterspaced capitals
+              over a hairline, in the wordmark's soft ink. It was the display face
+              in mixed case at text-xl, which was the app's name set as a heading
+              -- correct as typography and wrong as a lockup, because the menu was
+              then the one surface with a wordmark of its own.
+
+              One step up from the size the crossing uses, because there the name
+              has an empty map around it and here it stands beside a 36-point dial
+              with a search field under it. The rule is the width the crossing
+              sets, not the width of the word, so it is the same object in both
+              places rather than a measurement of whatever it happens to sit
+              over. */}
+          <span
+            className="nav-rail-word aly-word font-display"
+            style={{ fontSize: "var(--fs-base)" }}
+          >
             Alyeska
+            <span className="aly-word-rule" />
           </span>
         </Link>
         {/* The same field as the one in the pill beside the compass, and the

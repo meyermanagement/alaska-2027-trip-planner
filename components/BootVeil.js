@@ -447,9 +447,9 @@ function QuickVeil() {
           route stays the thing you look at. The full opening already introduces
           the app with a lockup in the middle of the screen; this one is a map,
           and a map carries its title in a corner. */}
-      <p className="quick-title font-display">
+      <p className="quick-title aly-word font-display">
         Alyeska
-        <span className="quick-rule" />
+        <span className="aly-word-rule" />
       </p>
       {/* The map, and the camera looking at it. The world turns and breathes;
           inside it the camera slides the ground and the route together by
@@ -656,7 +656,7 @@ export default function BootVeil() {
 
     // Two frames after mount is the earliest the browser has actually painted
     // what hydration produced, and the fonts matter because lifting onto text
-    // that is about to reflow into Fraunces undoes the point of the hold.
+    // that is about to reflow into the real face undoes the point of the hold.
     const ready = Promise.all([
       new Promise((go) =>
         requestAnimationFrame(() => requestAnimationFrame(go)),
@@ -756,7 +756,15 @@ export function BootStage() {
               and a mark that freezes stops reading as an instrument. */}
           <Needle swing aurora />
         </svg>
-        <span className="boot-word font-display">Alyeska</span>
+        {/* The same lockup the crossing carries, and the menu, and the top of
+            every email: capitals over a hairline. Centred here rather than set
+            in a corner, because on this screen the name is the thing on the
+            screen. The rule is centred with it so the axis through the
+            compass, the name and the tagline stays a single line. */}
+        <span className="boot-word aly-word font-display">
+          Alyeska
+          <span className="aly-word-rule mid" />
+        </span>
         {/* The tagline turns on CSS keyframes rather than a React interval, for
             the same reason the veil is markup in the layout: this has to be
             animating in the first frame of HTML, before any JavaScript has run.

@@ -34,7 +34,13 @@
   --radius-xl: 0.875rem;
   --radius-2xl: 1.125rem;
   --radius-3xl: 1.375rem;
-  --font-display: var(--font-display-face), "Iowan Old Style", Georgia, serif;
+  /* The display role now resolves to the same face as the body. Names, headings
+     and menu labels are the sans, letterspaced and weighted rather than set in a
+     second family. The name kept as a variable rather than being deleted at all
+     hundred-odd call sites, so a heading is still marked as a heading -- and a
+     second face, should the app want one again, is one line rather than a
+     hundred. */
+  --font-display: var(--font-sans);
   --font-sans:
     var(--font-sans-face), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Helvetica, Arial, sans-serif;
@@ -578,6 +584,42 @@ html[data-boot="full"] #boot-veil .boot-mark {
   will-change: transform;
 }
 
+/* The name, set the way the crossing's title is set: letterspaced capitals over
+   a hairline, quiet enough to be furniture rather than a logo. It began on the
+   short opening and is now the app's only wordmark -- the menu, the sign-in
+   screen, the full opening and the email headers all wear it, so somebody who
+   arrived through a message and waited through a load meets the same three
+   things in the same order every time.
+
+   Size is left to each place, because the name has to answer to whatever it
+   stands beside: a 4.5rem compass in the middle of a screen, a 36-point dial in
+   a menu, or 54 pixels of PNG in an inbox. Everything that makes it the wordmark
+   rather than a heading -- the case, the tracking, the weight, the ink and the
+   rule under it -- lives here once. */
+.aly-word {
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  opacity: 0.85;
+  line-height: 1;
+}
+
+/* Set in the ink of the word above it rather than in the line color, so it
+   belongs to the name and not to the panel the name happens to be on. */
+.aly-word-rule {
+  display: block;
+  width: 2.4rem;
+  height: 1px;
+  margin-top: 0.4rem;
+  background: currentColor;
+  opacity: 0.4;
+}
+
+.aly-word-rule.mid {
+  margin-inline: auto;
+}
+
 .quick-title {
   position: absolute;
   /* Clear of a notch and a status bar, on the two edges a phone actually
@@ -586,20 +628,6 @@ html[data-boot="full"] #boot-veil .boot-mark {
   left: max(1.15rem, env(safe-area-inset-left));
   margin: 0;
   font-size: var(--fs-sm);
-  font-weight: 600;
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: var(--color-ink-soft);
-  opacity: 0.85;
-}
-
-.quick-rule {
-  display: block;
-  width: 2.4rem;
-  height: 1px;
-  margin-top: 0.4rem;
-  background: currentColor;
-  opacity: 0.4;
 }
 
 .quick-field {
@@ -4540,13 +4568,16 @@ html[data-route="3"] .quick-tall .quick-heading {
 
 .boot-word {
   /* Fades up rather than appearing with the mark, which also spares anybody the
-     half-second of Georgia standing in for Fraunces on a cold cache. */
+     half-second of a fallback standing in for Geist on a cold cache. Its own
+     keyframe rather than the shared one, because it has to land on the wordmark's
+     own opacity and not on 1: the shared fade is used by the tagline and by
+     several things that do finish opaque. Case, tracking, ink and the rule come
+     from .aly-word; only the size, the block box the rule needs and the arrival
+     belong to this screen. */
+  display: block;
   opacity: 0;
-  animation: boot-word 0.45s ease 0.34s forwards;
+  animation: aly-word-in 0.45s ease 0.34s forwards;
   font-size: var(--fs-lg);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--color-ink);
 }
 
 :root {
@@ -5042,6 +5073,12 @@ html[data-route="3"] .quick-tall .quick-heading {
   }
 }
 
+@keyframes aly-word-in {
+  to {
+    opacity: 0.85;
+  }
+}
+
 @keyframes boot-ghost-out {
   to {
     opacity: 0;
@@ -5134,9 +5171,15 @@ html[data-route="3"] .quick-tall .quick-heading {
     animation: none;
   }
 
-  .boot-word,
   .boot-tag {
     opacity: 1;
+    animation: none;
+  }
+
+  /* The name lands on the wordmark's own opacity here too, so motion-off and
+     motion-on end on the same screen rather than one of them a shade darker. */
+  .boot-word {
+    opacity: 0.85;
     animation: none;
   }
 
@@ -5485,6 +5528,12 @@ html[data-route="3"] .quick-tall .quick-heading {
     gap: 0.55rem;
     padding: 0.15rem 0.3rem 0.5rem;
     color: var(--color-ink);
+  }
+
+  /* A block box so the hairline can sit under the word rather than beside it,
+     and the whole thing is still one flex item next to the mark. */
+  .nav-rail-word {
+    display: block;
   }
 
   .nav-rail-find {
@@ -6947,9 +6996,8 @@ input[type="month"]::-webkit-date-and-time-value {
  *   The typefaces do not change. The gallery paired these with
  *   Cabinet Grotesk and Satoshi; loading two more families up front
  *   to have them ready for a skin nobody may pick costs every person
- *   on a phone bytes on every page. Fraunces and Geist carry all
- *   three skins, and a per-skin pair can be earned later by loading
- *   it on demand.
+ *   on a phone bytes on every page. Geist carries all three skins, and
+ *   a per-skin face can be earned later by loading it on demand.
  * ================================================================== */
 
 /* ------------------------------------------------------------------
@@ -7368,9 +7416,9 @@ html[data-skin="frost"] #boot-stage {
    a town does, and copper hairlines.
 
    The gallery pairs a serif display with a plain grotesque here. Typefaces
-   are not per-skin in the app -- Fraunces and Geist carry all five -- and
-   Fraunces is already the serif, so the intent survives even though the
-   faces do not change.
+   are not per-skin in the app -- Geist carries all five, and the serif went
+   when the wordmark stopped being set in one -- so the skin keeps the
+   gallery's colors and not its faces.
  * ----------------------------------------------------------------------- */
 html[data-skin="sodium"] {
   /* Near-black water leaves the blend very little lightness to carry chroma on,

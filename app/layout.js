@@ -1,4 +1,4 @@
-import { Fraunces, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import BootVeil from "@/components/BootVeil";
 import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
@@ -15,14 +15,14 @@ import {
 } from "@/lib/skins";
 import { DEFAULT_TEXT_SIZE, TEXT_COOKIE, TEXT_SIZES } from "@/lib/textsize";
 
-// One editorial serif for names and headings, one quiet sans for everything
-// else. Loaded properly rather than falling back to whatever the device has.
-const displayFace = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-display-face",
-  display: "swap",
-});
-
+// One typeface, at several weights and sizes. It was two -- Fraunces for names
+// and headings over Geist for everything else -- and the editorial serif went
+// when the wordmark did: the name is now letterspaced capitals over a hairline,
+// which reads as a mark in the sans and as a book title in the serif, and once
+// the name was in the sans a serif heading under it belonged to a different
+// design. The display role survives as a variable, so a heading is still
+// declared as a heading and the app can be given a second face again in one
+// line.
 const sansFace = Geist({
   subsets: ["latin"],
   variable: "--font-sans-face",
@@ -211,7 +211,7 @@ export default function RootLayout({ children }) {
       data-boot="full"
       data-route="1"
       data-text={DEFAULT_TEXT_SIZE}
-      className={`${displayFace.variable} ${sansFace.variable}`}
+      className={sansFace.variable}
       /* The script below rewrites both of these attributes before React ever
          runs, which is the whole point of it -- and React, finding the document
          it is hydrating already changed, warned that it would not patch them up.
