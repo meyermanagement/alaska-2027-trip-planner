@@ -182,6 +182,43 @@ export async function POST(request) {
     );
   }
 
+  // The reports outlive the account, with the person taken out of them.
+  //
+  // This runs before anything is deleted, because the order decides what a
+  // failure costs. Scrub first and a failure means nothing was removed and the
+  // address is still on a row we can try again; delete first and a failure here
+  // leaves reports behind still naming somebody who asked to be forgotten. So a
+  // refusal to scrub refuses the whole deletion.
+  //
+  // What stays is the defect: the path, the build, the look, the stack, and what
+  // they wrote. What goes is everything that points at them -- the id, by the
+  // foreign key's own doing once the login is deleted, and here the address, the
+  // browser string, the screen size, the trail of screens they walked, and the
+  // screenshot keys, whose objects are removed from storage further down this
+  // same request.
+  const { error: scrubError } = await admin
+    .from("feedback")
+    .update({
+      email: null,
+      user_agent: null,
+      viewport: null,
+      trail: [],
+      shots: [],
+      trip_id: null,
+      anonymized_at: new Date().toISOString(),
+    })
+    .eq("user_id", me.id);
+  if (scrubError) {
+    await admin
+      .from("deletion_requests")
+      .update({ note: `feedback: ${scrubError.message}` })
+      .eq("id", receipt.id);
+    return bad(
+      "We could not finish anonymizing your reports. Nothing was removed. Please try again.",
+      500,
+    );
+  }
+
   // Revoke what is live before removing what is stored, so nothing new is made
   // or read in the seconds this takes. Calendar feeds are the important one:
   // their token is a URL somebody's calendar app polls, and it answers without a

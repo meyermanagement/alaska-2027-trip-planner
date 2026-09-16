@@ -260,7 +260,8 @@ export default function IssueLog({ issues = [], build = "" }) {
               <p className="mt-3 text-xs text-ink-soft">
                 {[
                   one.path ? `On ${one.path}` : null,
-                  one.email || null,
+                  one.email ||
+                    (one.anonymized ? "Reporter deleted their account" : null),
                   one.tripName ? `Trip: ${one.tripName}` : null,
                   one.skin ? `Look: ${one.skin}` : null,
                   one.viewport || null,
