@@ -105,12 +105,13 @@ export default async function SomedayPage() {
           Bucket list
         </h1>
         <p className="mb-6 max-w-2xl text-sm text-ink-soft">
-          Places you want to go, and the months you could actually go in. Fare
-          alert newsletters send cheap flights all week and almost none of them
-          are about you. Forward {FARE_NEWSLETTERS.slice(0, 2).join(", ")}, an
-          airline sale, any of it, to your household address, and Aly keeps only
-          the fares leaving from your airports for a place on this list in a
-          month that suits you, then says here whether the price is worth it.{" "}
+          Places you want to go, and the months you could actually go in. Most
+          cheap flight emails are about somewhere you are not going: a deal
+          newsletter you signed up to, like {FARE_NEWSLETTERS[0]}, an airline
+          sale, a price alert you set. Forward them to your household address
+          and Aly keeps only the fares leaving from your airports for a place on
+          this list in a month that suits you, then says here whether the price
+          is worth it.{" "}
           <ForwardFaresLink>Here is how to point them at her</ForwardFaresLink>.
         </p>
 

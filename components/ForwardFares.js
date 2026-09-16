@@ -31,16 +31,17 @@ export default function ForwardFares({ address, trip = null }) {
     >
       <summary className="cursor-pointer list-none text-sm font-semibold text-ink-soft transition hover:text-teal">
         {trip
-          ? "Getting fares for places you are not going? Have them checked against this trip"
-          : "Getting fares for places you are not going? Have Aly keep the ones that are about you"}
+          ? "Getting cheap flight emails? Have them checked against this trip"
+          : "Getting cheap flight emails? Have Aly keep the ones that are about you"}
       </summary>
 
       <div className="mt-3 max-w-2xl space-y-3 text-sm leading-relaxed text-ink-soft">
         <p>
-          Forward what {FARE_NEWSLETTERS.slice(0, 3).join(", ")} or any other
-          fare alert sends you, to your household address, and Aly reads every
-          fare in it. She keeps the ones that leave from an airport you fly from
-          and land somewhere you are actually going{" "}
+          Forward a deal newsletter like{" "}
+          {FARE_NEWSLETTERS.slice(0, 3).join(", ")}, an airline sale, or a price
+          alert you set, to your household address, and Aly reads every fare in
+          it. She keeps the ones that leave from an airport you fly from and
+          land somewhere you are actually going{" "}
           {trip
             ? `\u2014 ${trip.name} among them, while its flights are still to buy \u2014`
             : "\u2014 a place on your bucket list, or a trip you are already planning \u2014"}{" "}

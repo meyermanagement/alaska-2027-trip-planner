@@ -241,12 +241,12 @@ export default function InboxScreen({
        * the two jobs nobody would guess an inbox screen was offering.
        */}
       <p className="mt-2 text-sm text-ink-soft">
-        It takes more than bookings. Fare alert newsletters send cheap flights
-        all week and almost none of them are about you: forward{" "}
-        {FARE_NEWSLETTERS.slice(0, 2).join(", ")}, an airline sale, any of it,
-        and she keeps only the fares that fit a place on your bucket list or a
-        trip whose flights are still to buy, with the newsletter credited so you
-        can check the price yourself. Send a travel insurance policy and she
+        It takes more than bookings. Most cheap flight emails are about
+        somewhere you are not going: a deal newsletter you signed up to, like{" "}
+        {FARE_NEWSLETTERS[0]}, an airline sale, a price alert you set. Forward
+        them and she keeps only the fares that fit a place on your bucket list
+        or a trip whose flights are still to buy, with the sender credited so
+        you can check the price yourself. Send a travel insurance policy and she
         reads out what it covers, who is named on it and what it leaves open.
       </p>
 
