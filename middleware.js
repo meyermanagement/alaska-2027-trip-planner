@@ -24,10 +24,19 @@ import {
   consentOpenPath,
 } from "@/lib/beta/consent";
 
-// The privacy policy and the beta terms answer without a session, because the
+// The privacy policy, the beta terms and the security reporting page answer
+// without a session, because the
 // person most likely to open them is a store reviewer who does not have one, and
 // a redirect to a login page reads as a policy that cannot be read.
-const PUBLIC_PATHS = ["/login", "/auth", "/privacy", "/beta-terms"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth",
+  "/privacy",
+  "/beta-terms",
+  // A researcher with a security finding has no account with us. An address they
+  // cannot reach without signing in is an address that does not exist.
+  "/security",
+];
 
 // The nightly reminder run arrives with no session at all — a scheduler is not a
 // person — so it has to get past the redirect below. It is not open: the route

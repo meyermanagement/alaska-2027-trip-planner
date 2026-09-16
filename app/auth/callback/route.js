@@ -48,10 +48,12 @@ export async function GET(request) {
     // A code that turned out to be wrong is worth saying out loud rather than
     // dropping them on /join to guess at it. They are signed in either way, so
     // the message goes back to the login screen with their account made.
-    if (outcome === "invalid") {
+    if (outcome === "invalid" || outcome === "too_many") {
       return NextResponse.redirect(
         `${origin}/login?error=${encodeURIComponent(
-          "That code was not recognized, or it has already been used. Your account is made, so ask for a fresh code and sign in again.",
+          outcome === "too_many"
+            ? "That is several codes in a row that did not work, so we have paused code entry on this account for fifteen minutes. Your account is made — sign in again after that and enter the code."
+            : "That code was not recognized, or it has already been used. Your account is made, so ask for a fresh code and sign in again.",
         )}`,
       );
     }

@@ -32,12 +32,23 @@ export default function JoinForm() {
     setBusy(true);
     setError("");
     const supabase = createClient();
-    const { error } = await supabase.rpc("join_family_with_code", {
+    // redeem_code rather than join_family_with_code: same work, but it answers
+    // with a status instead of an error, which is the only way to tell somebody
+    // whose own code is fine that they have simply been asked to wait.
+    const { data, error } = await supabase.rpc("redeem_code", {
       p_code: code.trim(),
     });
     setBusy(false);
-    if (error) {
-      setError(error.message || "That code did not work.");
+    const status = data?.status || "";
+    if (
+      error ||
+      !["joined_family", "new_family", "already_member"].includes(status)
+    ) {
+      setError(
+        status === "too_many"
+          ? "That is several codes in a row that did not work. Wait fifteen minutes and try again, or ask whoever invited you to read the code back to you."
+          : error?.message || "That code did not work.",
+      );
       return;
     }
     router.replace("/trips");

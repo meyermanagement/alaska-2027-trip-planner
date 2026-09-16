@@ -187,7 +187,11 @@ export default async function PrivacyPage() {
           <Link href="/beta-terms" className="underline">
             Beta terms
           </Link>{" "}
-          carry the liability, feedback, and confidentiality sections.
+          carry the liability, feedback, and confidentiality sections.{" "}
+          <Link href="/security" className="underline">
+            Reporting a security problem
+          </Link>{" "}
+          is where to send a way past a permission, and what we do about it.
         </p>
       </main>
     </>
