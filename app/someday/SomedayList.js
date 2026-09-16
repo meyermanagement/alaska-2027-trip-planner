@@ -687,6 +687,14 @@ export default function SomedayList({
                     >
                       Edit
                     </button>
+                    {/*
+                     * Worded to match the two things on the other side of it.
+                     * The place is kept rather than deleted, it lands under a
+                     * heading that says off the list, and the way back is called
+                     * put it back. Remove is not available for this: it lives on
+                     * the settled rows and it deletes for good, so wearing that
+                     * word here would make a reversible thing look final.
+                     */}
                     <button
                       type="button"
                       className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
@@ -695,7 +703,7 @@ export default function SomedayList({
                         change(row, { status: "retired", watch: false })
                       }
                     >
-                      Not any more
+                      Take it off the list
                     </button>
                     {busy === row.id ? (
                       <span className="inline-flex items-center gap-1.5 text-ink-soft">

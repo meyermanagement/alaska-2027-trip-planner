@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/LinkPending";
 import { elapsedSaid } from "@/lib/agent/waiting";
+import { cleanMonths, monthsSaid } from "@/lib/someday/months";
 
 /**
  * Aly answering the one question the month boxes cannot ask.
@@ -17,6 +18,12 @@ import { elapsedSaid } from "@/lib/agent/waiting";
  * widening them by a month on its own would quietly change which fares reach the
  * family in a place nobody would look. What it does do is keep its own sentence
  * when the window is accepted, so the ticks stop being anonymous.
+ *
+ * For the same reason the press never silently overwrites. Where months are
+ * already ticked, whether by hand or by an earlier window, the card asks whether
+ * this window is being added to them or replacing them, and says which months
+ * would be at stake. Only an untouched row gets a single button, because there
+ * is nothing there to lose.
  *
  * Used twice with the same code: on a saved place, where accepting writes the
  * row, and inside the form, where accepting fills the boxes and the reason rides
@@ -106,10 +113,20 @@ export default function WhenToGo({
     }
   }
 
-  function use(window_) {
+  /**
+   * A window accepted, either on top of what is ticked or in place of it.
+   *
+   * Replacing silently was the bug: a family who had already ticked their own
+   * months, or accepted an earlier window, pressed one button and lost the lot
+   * with nothing saying so. Both readings of the press are real -- a second
+   * shoulder worth adding, and a correction to what was there -- so when there
+   * is something to lose, the choice is asked rather than assumed.
+   */
+  function use(window_, how) {
+    const asked = cleanMonths(window_.months);
     if (onUse) {
       onUse({
-        months: window_.months,
+        months: how === "add" ? cleanMonths([...already, ...asked]) : asked,
         reason: window_.reason || "",
         sources: answer?.sources || [],
       });
@@ -117,6 +134,7 @@ export default function WhenToGo({
     setAnswer(null);
   }
 
+  const already = cleanMonths(months);
   const windows = Array.isArray(answer?.windows) ? answer.windows : [];
   const sources = Array.isArray(answer?.sources) ? answer.sources : [];
 
@@ -172,13 +190,37 @@ export default function WhenToGo({
                   <p className="mt-1 text-sm leading-relaxed text-ink">
                     {window_.because}
                   </p>
-                  <button
-                    type="button"
-                    className="btn btn-ghost mt-2"
-                    onClick={() => use(window_)}
-                  >
-                    Tick these months
-                  </button>
+                  {already.length ? (
+                    <>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => use(window_, "add")}
+                        >
+                          Add to the months ticked
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => use(window_, "replace")}
+                        >
+                          Replace them with these
+                        </button>
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-ink-faint">
+                        Ticked now: {monthsSaid(already)}.
+                      </p>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-ghost mt-2"
+                      onClick={() => use(window_, "replace")}
+                    >
+                      Tick these months
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
