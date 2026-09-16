@@ -190,6 +190,17 @@ export async function PATCH(request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  // Turning reminders off silences the browsers as well as the sender. Both paths
+  // check the switch on the way out, so this is belt and braces -- but a device
+  // that keeps a live subscription after its owner said no is a thing waiting to
+  // go wrong, and the row costs nothing to retire.
+  if (patch.features && patch.features.notifications !== true) {
+    await supabase
+      .from("push_subscriptions")
+      .update({ enabled: false })
+      .eq("user_id", me.id);
+  }
+
   const after = await readConsent(supabase, me.id);
   return stamped(
     NextResponse.json({ ok: true, consent: after }),

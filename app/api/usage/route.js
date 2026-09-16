@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { stepForPath } from "@/lib/usage/steps";
+import { diagnosticsAllowed } from "@/lib/beta/consent";
 
 /**
  * Where the trail of screens and steps is written down.
@@ -45,6 +46,15 @@ export async function POST(request) {
   const supabase = await createClient();
   const user = await whoIs(supabase);
   if (!user) return new NextResponse(null, { status: 204 });
+
+  // "Can be turned off below and in Settings" was a sentence with nothing behind
+  // it: the switch was collected at the gate, shown in Settings, and never read.
+  // Somebody who turns diagnostics off now stops being measured, which is the only
+  // thing the switch was ever supposed to mean. Silent like every other refusal
+  // here, because the caller is a beacon with nowhere to put an error.
+  if (!(await diagnosticsAllowed(supabase, user.id))) {
+    return new NextResponse(null, { status: 204 });
+  }
 
   // Which household, so the desk can tell one tester's family apart from
   // another's without joining three tables at read time.
