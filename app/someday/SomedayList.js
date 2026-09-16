@@ -131,6 +131,78 @@ function MonthsWhy({ row }) {
   );
 }
 
+/**
+ * The pill that says a rank on a shut row.
+ *
+ * On the card because the rank is the one field worth reading while scanning:
+ * the whole point of folding a row away is to leave the two things that decide
+ * whether you open it, which are where and how much you want it. Unranked says
+ * so in words rather than going blank, because a missing pill reads as a bug.
+ */
+function RankPill({ row }) {
+  const rank = rankOf(row);
+  if (!rank) {
+    return (
+      <span className="rounded-full border border-[var(--line)] px-2 py-0.5 text-xs text-ink-faint">
+        No priority
+      </span>
+    );
+  }
+  const tone =
+    rank === 1
+      ? "border-teal/40 bg-teal/10 text-teal"
+      : rank === 2
+        ? "border-[var(--line)] text-ink-soft"
+        : "border-[var(--line)] text-ink-faint";
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 text-xs font-medium ${tone}`}
+    >
+      {RANKS.find((one) => one.value === rank).label}
+    </span>
+  );
+}
+
+/** The disclosure arrow, pointing down once the row is open. */
+function Caret({ open }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      className={`mt-1.5 h-4 w-4 shrink-0 text-ink-faint transition-transform ${
+        open ? "rotate-90" : ""
+      }`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 3l5 5-5 5" />
+    </svg>
+  );
+}
+
+/**
+ * The filters, in the order the ranks are in, with unranked last.
+ *
+ * Unranked is its own filter rather than folded into low, because not having
+ * decided is not the same as having decided the place is a low priority, and
+ * the list of places nobody has ranked yet is the one a person actually wants
+ * to pull up and work through.
+ */
+const FILTERS = [
+  ...RANKS.map((rank) => ({ id: String(rank.value), label: rank.label })),
+  { id: "none", label: "Unranked" },
+];
+
+/** Whether a row answers a filter. */
+function underFilter(row, only) {
+  if (!only) return true;
+  if (only === "none") return rankOf(row) === null;
+  return rankOf(row) === Number(only);
+}
+
 const BLANK = {
   place: "",
   lat: null,
@@ -215,20 +287,61 @@ export default function SomedayList({
   // time they were looking for one particular place.
   const [how, setHow] = useState("priority");
 
+  // Which rank the list is narrowed to, or empty for all of them. Not remembered
+  // between visits either, and for the same reason the sort is not: a filter
+  // left on from last week is a list with places missing from it and no obvious
+  // explanation, which is worse than one press.
+  const [only, setOnly] = useState("");
+
+  // Which rows are unfolded, by id. A set rather than one id because a family
+  // comparing two places wants both open at once, and because the alternative
+  // closes the row you were reading when you open another.
+  const [unfolded, setUnfolded] = useState(() => new Set());
+
+  function fold(id) {
+    setUnfolded((was) => {
+      const next = new Set(was);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const settled = places.filter((row) => row.status !== "open");
+  const live = useMemo(
+    () => places.filter((row) => row.status === "open"),
+    [places],
+  );
+
+  // Counted before the filter is applied, so the chips can say what pressing
+  // them would give you. A chip that leads to an empty screen is worse than one
+  // that admits in advance there is nothing behind it.
+  const counts = useMemo(() => {
+    const tally = { "": live.length };
+    for (const filter of FILTERS) {
+      tally[filter.id] = live.filter((row) =>
+        underFilter(row, filter.id),
+      ).length;
+    }
+    return tally;
+  }, [live]);
+
   const open = useMemo(
     () =>
       sorted(
-        places.filter((row) => row.status === "open"),
+        live.filter((row) => underFilter(row, only)),
         how,
       ),
-    [places, how],
+    [live, how, only],
   );
 
   function start(row) {
     setError("");
     setForm(formFrom(row));
     setEditing(row ? row.id : "new");
+    // A row being edited is open whatever it was before, since the form is what
+    // the fold would otherwise be hiding.
+    if (row) setUnfolded((was) => new Set(was).add(row.id));
   }
 
   function stop() {
@@ -586,7 +699,7 @@ export default function SomedayList({
        * Only once there is enough list to order. Two places do not need a sort
        * control, and a row of buttons above two cards is a question nobody asked.
        */}
-      {open.length > 2 ? (
+      {live.length > 2 ? (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
           {SORTS.map((sort) => {
             const on = how === sort.id;
@@ -606,6 +719,35 @@ export default function SomedayList({
               </button>
             );
           })}
+
+          <span aria-hidden="true" className="mx-1 h-5 w-px bg-[var(--line)]" />
+
+          {[{ id: "", label: "All" }, ...FILTERS].map((filter) => {
+            const on = only === filter.id;
+            const count = counts[filter.id] || 0;
+            // Nothing behind it, so nothing to press. Still drawn, because a
+            // chip that disappears when the last high-priority place is booked
+            // makes the row of filters move under your thumb.
+            const empty = count === 0;
+            return (
+              <button
+                key={filter.id || "all"}
+                type="button"
+                aria-pressed={on}
+                disabled={empty && !on}
+                className={
+                  on
+                    ? "rounded-full border border-teal bg-teal px-2.5 py-1 text-sm font-medium text-white"
+                    : empty
+                      ? "cursor-default rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-faint opacity-60"
+                      : "rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
+                }
+                onClick={() => setOnly(filter.id)}
+              >
+                {filter.label} {count}
+              </button>
+            );
+          })}
         </div>
       ) : null}
 
@@ -616,140 +758,187 @@ export default function SomedayList({
               {editing === row.id ? (
                 theForm
               ) : (
-                <>
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h2 className="font-display text-lg font-semibold">
-                      {row.place}
-                    </h2>
-                  </div>
-                  <p className="mt-0.5 text-sm text-ink-soft">
-                    {placeSaid(row, travelers)}
-                  </p>
-                  {row.why ? (
-                    <p className="mt-1 text-sm text-ink">{row.why}</p>
-                  ) : null}
-                  {/* Their words first, then hers. A machine's sentence above
+                <div className="flex items-start gap-2">
+                  <Caret open={unfolded.has(row.id)} />
+                  <div className="min-w-0 flex-1">
+                    {/*
+                     * The whole head is the target, not the caret alone. A 16px
+                     * arrow is a miss on a phone, and the name and the months are
+                     * what a thumb aims at anyway.
+                     */}
+                    <button
+                      type="button"
+                      aria-expanded={unfolded.has(row.id)}
+                      className="-m-1 block w-full p-1 text-left"
+                      onClick={() => fold(row.id)}
+                    >
+                      <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="font-display text-lg font-semibold text-ink">
+                          {row.place}
+                        </span>
+                        <RankPill row={row} />
+                      </span>
+                      <span className="mt-0.5 block text-sm text-ink-soft">
+                        {placeSaid(row, travelers)}
+                      </span>
+                    </button>
+
+                    {unfolded.has(row.id) ? (
+                      <>
+                        {row.why ? (
+                          <p className="mt-1 text-sm text-ink">{row.why}</p>
+                        ) : null}
+                        {/* Their words first, then hers. A machine's sentence above
                       the family's own reads as the app having the last word on
                       why they want to go somewhere. */}
-                  <MonthsWhy row={row} />
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                    {/*
-                     * On the card as well as in the form, because ranking is
-                     * something people do to a list rather than to one place:
-                     * you see three rows next to each other and want to move the
-                     * middle one up without opening it.
-                     */}
-                    <label className="flex items-center gap-1.5 text-ink-soft">
-                      <span className="sr-only">
-                        How much you want {row.place}
-                      </span>
-                      <select
-                        className="field"
-                        value={rankOf(row) ?? ""}
-                        disabled={Boolean(busy)}
-                        onChange={(event) => {
-                          const next = event.target.value;
-                          change(row, {
-                            priority: next ? Number(next) : null,
-                          });
-                        }}
-                      >
-                        <option value="">No priority</option>
-                        {RANKS.map((rank) => (
-                          <option key={rank.value} value={rank.value}>
-                            {rank.label} priority
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {/*
-                     * The way out of the list and into a real trip.
-                     *
-                     * It carries the row's id and nothing else: the builder reads
-                     * the place itself and writes the paragraph, so the link
-                     * cannot fall behind an edit made here a second earlier and
-                     * the sentence is not something anybody can rewrite in the
-                     * address bar. Pressing it changes no data: the place stays
-                     * open on this list, and building the trip is what settles
-                     * it, rather than a separate field saying so here.
-                     */}
-                    <Link
-                      href={`/trips/new?from=${row.id}`}
-                      className="inline-flex items-center gap-1.5 font-medium text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                    >
-                      Plan this trip
-                      <PendingSpark />
-                    </Link>
-                    <button
-                      type="button"
-                      className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                      onClick={() => start(row)}
-                    >
-                      Edit
-                    </button>
-                    {/*
-                     * Worded to match the two things on the other side of it.
-                     * The place is kept rather than deleted, it lands under a
-                     * heading that says off the list, and the way back is called
-                     * put it back. Remove is not available for this: it lives on
-                     * the settled rows and it deletes for good, so wearing that
-                     * word here would make a reversible thing look final.
-                     */}
-                    <button
-                      type="button"
-                      className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
-                      disabled={Boolean(busy)}
-                      onClick={() =>
-                        change(row, { status: "retired", watch: false })
-                      }
-                    >
-                      Take it off the list
-                    </button>
-                    {busy === row.id ? (
-                      <span className="inline-flex items-center gap-1.5 text-ink-soft">
-                        <Spinner className="h-4 w-4 text-teal" />
-                        Saving&hellip;
-                      </span>
+                        <MonthsWhy row={row} />
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                          {/*
+                           * On the card as well as in the form, because changing
+                           * a rank is not the same errand as correcting a place:
+                           * the form asks four questions and this asks one, and
+                           * one press should not put the name and the months
+                           * into boxes. Inside the fold rather than on the shut
+                           * head, because a select on a row you are scanning is
+                           * a control you can change by accident.
+                           */}
+                          <label className="flex items-center gap-1.5 text-ink-soft">
+                            <span className="sr-only">
+                              How much you want {row.place}
+                            </span>
+                            <select
+                              className="field"
+                              value={rankOf(row) ?? ""}
+                              disabled={Boolean(busy)}
+                              onChange={(event) => {
+                                const next = event.target.value;
+                                change(row, {
+                                  priority: next ? Number(next) : null,
+                                });
+                              }}
+                            >
+                              <option value="">No priority</option>
+                              {RANKS.map((rank) => (
+                                <option key={rank.value} value={rank.value}>
+                                  {rank.label} priority
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          {/*
+                           * The way out of the list and into a real trip.
+                           *
+                           * It carries the row's id and nothing else: the builder reads
+                           * the place itself and writes the paragraph, so the link
+                           * cannot fall behind an edit made here a second earlier and
+                           * the sentence is not something anybody can rewrite in the
+                           * address bar. Pressing it changes no data: the place stays
+                           * open on this list, and building the trip is what settles
+                           * it, rather than a separate field saying so here.
+                           */}
+                          <Link
+                            href={`/trips/new?from=${row.id}`}
+                            className="inline-flex items-center gap-1.5 font-medium text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                          >
+                            Plan this trip
+                            <PendingSpark />
+                          </Link>
+                          <button
+                            type="button"
+                            className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                            onClick={() => start(row)}
+                          >
+                            Edit
+                          </button>
+                          {/*
+                           * Worded to match the two things on the other side of it.
+                           * The place is kept rather than deleted, it lands under a
+                           * heading that says off the list, and the way back is called
+                           * put it back. Remove is not available for this: it lives on
+                           * the settled rows and it deletes for good, so wearing that
+                           * word here would make a reversible thing look final.
+                           */}
+                          <button
+                            type="button"
+                            className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
+                            disabled={Boolean(busy)}
+                            onClick={() =>
+                              change(row, { status: "retired", watch: false })
+                            }
+                          >
+                            Take it off the list
+                          </button>
+                          {busy === row.id ? (
+                            <span className="inline-flex items-center gap-1.5 text-ink-soft">
+                              <Spinner className="h-4 w-4 text-teal" />
+                              Saving&hellip;
+                            </span>
+                          ) : null}
+                        </div>
+                        {/*
+                         * On its own line rather than in the row above, because what
+                         * it opens is a panel of windows and a panel unfolding out of
+                         * a row of links reads as the links having broken.
+                         */}
+                        <div className="mt-2 text-sm">
+                          <WhenToGo
+                            placeId={row.id}
+                            place={row.place}
+                            why={row.why || ""}
+                            months={row.months || []}
+                            disabled={Boolean(busy)}
+                            onUse={({ months, reason, sources }) =>
+                              change(row, {
+                                months: [...months].sort((a, b) => a - b),
+                                months_reason: reason || null,
+                                months_sources: sources || [],
+                                months_said_at: new Date().toISOString(),
+                              })
+                            }
+                          />
+                        </div>
+                        {/*
+                         * A second line under it rather than a second link beside it.
+                         * The two questions are asked at different moments -- the
+                         * months when somebody is looking at empty ticks, this one
+                         * when they are deciding whether the place is realistic at
+                         * all -- and both open panels, so a shared row would put two
+                         * things that unfold next to each other.
+                         */}
+                        <div className="mt-2 text-sm">
+                          <PlaceExpect row={row} />
+                        </div>
+                      </>
                     ) : null}
                   </div>
-                  {/*
-                   * On its own line rather than in the row above, because what
-                   * it opens is a panel of windows and a panel unfolding out of
-                   * a row of links reads as the links having broken.
-                   */}
-                  <div className="mt-2 text-sm">
-                    <WhenToGo
-                      placeId={row.id}
-                      place={row.place}
-                      why={row.why || ""}
-                      months={row.months || []}
-                      disabled={Boolean(busy)}
-                      onUse={({ months, reason, sources }) =>
-                        change(row, {
-                          months: [...months].sort((a, b) => a - b),
-                          months_reason: reason || null,
-                          months_sources: sources || [],
-                          months_said_at: new Date().toISOString(),
-                        })
-                      }
-                    />
-                  </div>
-                  {/*
-                   * A second line under it rather than a second link beside it.
-                   * The two questions are asked at different moments -- the
-                   * months when somebody is looking at empty ticks, this one
-                   * when they are deciding whether the place is realistic at
-                   * all -- and both open panels, so a shared row would put two
-                   * things that unfold next to each other.
-                   */}
-                  <div className="mt-2 text-sm">
-                    <PlaceExpect row={row} />
-                  </div>
-                </>
+                </div>
               )}
             </li>
           ))}
         </ul>
+      ) : live.length ? (
+        /*
+         * Only reachable by retiring the last place under a filter that is still
+         * on, since a chip with nothing behind it cannot be pressed. It says
+         * which filter rather than going blank, because an empty list under a
+         * filter looks exactly like an empty list.
+         */
+        <div className="card p-4">
+          <p className="text-sm text-ink-soft">
+            Nothing on the list is{" "}
+            {only === "none"
+              ? "unranked"
+              : `${(FILTERS.find((one) => one.id === only)?.label || "").toLowerCase()} priority`}
+            .{" "}
+            <button
+              type="button"
+              className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+              onClick={() => setOnly("")}
+            >
+              Show all {counts[""]}
+            </button>
+          </p>
+        </div>
       ) : editing !== "new" ? (
         <div className="card p-4">
           <h2 className="font-display text-lg font-semibold">
