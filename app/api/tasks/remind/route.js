@@ -13,6 +13,11 @@ export const maxDuration = 60;
 /**
  * The morning run, called by Vercel's scheduler and nobody else.
  *
+ * It covers today and tomorrow: a booking window that opens first thing is one
+ * you can already have missed by the time a 7am email about it arrives, so a
+ * dated task is said the morning before as well as the morning of, on the phone
+ * as well as in the inbox.
+ *
  * Vercel attaches `Authorization: Bearer $CRON_SECRET` to a scheduled request
  * when that variable is set, and that is the only thing this trusts. Without the
  * secret configured the endpoint refuses to do anything at all, because an
@@ -149,7 +154,7 @@ export async function POST(request) {
     return NextResponse.json({
       ok: true,
       nothing: true,
-      message: `Nothing of yours is due today, so there was nothing to send. Put a due date of today on a task and try again.`,
+      message: `Nothing of yours is due today or tomorrow, so there was nothing to send. Put a due date of today on a task and try again.`,
     });
   }
   if (outcome.failed.length) {

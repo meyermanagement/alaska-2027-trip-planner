@@ -433,7 +433,7 @@ export default function People({
         text: res.ok
           ? data?.nothing
             ? data.message
-            : `Sent to ${data.to} — ${data.count} ${data.count === 1 ? "task" : "tasks"} due today.`
+            : `Sent to ${data.to} — ${data.count} ${data.count === 1 ? "task" : "tasks"} due today or tomorrow.`
           : data?.error || "The email could not be sent.",
       });
     } catch {
