@@ -8,6 +8,7 @@ import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { parseInboxMessage } from "@/lib/inbox/parser";
+import { householdAiAllowed } from "@/lib/beta/consent";
 import InboxScreen from "./InboxScreen";
 import { isPastTrip } from "@/lib/format";
 
@@ -70,6 +71,20 @@ export default async function InboxPage() {
       });
     }
   }
+
+  // Whether Aly is allowed to read this household's mail at all, asked with the
+  // same helper the parser uses so the screen and the background job can never
+  // disagree. Read with the admin client where there is one, because one
+  // member's consent row is not readable through another member's session.
+  const mailConsent = await householdAiAllowed(admin || supabase, {
+    familyId,
+    feature: "mail",
+  });
+  const parsingPaused = mailConsent.allowed
+    ? null
+    : mailConsent.reason === "ai-off"
+      ? "ai-off"
+      : "feature-off";
 
   // The undo window on an auto-filed message is 24 hours; anything older
   // than that stops being offered as undoable and drops off this list on
@@ -198,6 +213,7 @@ export default async function InboxPage() {
       <main className="screen px-4 pb-24 pt-3">
         <InboxScreen
           address={inboxAddressFor(household?.inbox_local_part)}
+          parsingPaused={parsingPaused}
           messages={pending || []}
           attachments={attachments}
           parsedItems={parsedItems}

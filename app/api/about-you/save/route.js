@@ -51,7 +51,10 @@ export async function POST(request) {
   // are best-effort and never block a person from writing about themselves.
   let priors = {};
   try {
-    priors = await extractAboutMePriors(paragraph);
+    priors = await extractAboutMePriors(paragraph, {
+      supabase,
+      userId: me.id,
+    });
   } catch (err) {
     console.warn("about-you save: extraction threw", err?.message || err);
     priors = {};

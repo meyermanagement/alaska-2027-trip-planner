@@ -123,7 +123,13 @@ export async function POST(request) {
   }
 
   try {
-    const fields = await extractDocumentFields({ bytes, mimeType, kind });
+    const fields = await extractDocumentFields({
+      bytes,
+      mimeType,
+      kind,
+      supabase,
+      userId: me.id,
+    });
     await noteRead(supabase, me.id, {
       reader: kind,
       from: path ? "vault" : "picked",

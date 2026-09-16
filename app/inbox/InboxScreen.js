@@ -34,6 +34,7 @@ import ClearedInbox from "@/components/ClearedInbox";
  */
 export default function InboxScreen({
   address,
+  parsingPaused = null,
   messages,
   attachments,
   parsedItems,
@@ -235,6 +236,28 @@ export default function InboxScreen({
         rental car -- any one of them, from any address.
       </p>
       {/*
+       * Said here because the sentence above promises something that is switched
+       * off. Turning Aly off stops the reading, which is the point of the switch;
+       * a mailbox that quietly kept sending mail to a model after somebody said
+       * no is the defect this replaced. The address keeps working either way, so
+       * the notice says what still happens rather than only what does not.
+       */}
+      {parsingPaused ? (
+        <div className="mt-3 rounded-xl border border-[var(--line-strong)] bg-sand-soft px-4 py-3 text-sm text-ink">
+          <span className="font-medium">
+            Aly is not reading forwarded mail.
+          </span>{" "}
+          {parsingPaused === "ai-off"
+            ? "AI assistance is off, so nothing here is sent to an AI service."
+            : "Reading forwarded confirmations is off, so nothing here is sent to an AI service."}{" "}
+          Mail still arrives at this address and you can file it onto a trip
+          yourself.{" "}
+          <Link href="/settings" className="font-medium text-teal underline">
+            Settings
+          </Link>
+        </div>
+      ) : null}
+      {/*
        * The other two things this address does, said here rather than left to be
        * discovered. A family who thinks the mailbox only takes confirmations
        * forwards confirmations, and the fare reading and the policy reading are
@@ -418,6 +441,7 @@ export default function InboxScreen({
                     )}
                     <ParsedSummary
                       status={m.parse_status}
+                      note={m.parse_error}
                       items={parsedByMessage.get(m.id) || []}
                     />
                   </div>
@@ -817,9 +841,20 @@ function TrustPicker({ travelers, fromEmail, busy, onCancel, onConfirm }) {
 // filed trip, not on the inbox card. Here we only need to signal "there are
 // three flights waiting for you" so filing feels like confirming and not
 // reading.
-function ParsedSummary({ status, items }) {
+function ParsedSummary({ status, note, items }) {
   if (status === "pending" || status === "running") {
     return <div className="mt-2 text-xs text-ink-faint">Reading this one…</div>;
+  }
+  // A message nobody was allowed to read, which is not the same as one Aly
+  // tried and failed on. The reason comes from the parser so the card says
+  // which switch is off rather than making the family guess.
+  if (status === "refused") {
+    return (
+      <div className="mt-2 text-xs text-ink-soft">
+        {note || "This was not read. AI assistance is off for your household."}{" "}
+        You can still file it onto a trip yourself.
+      </div>
+    );
   }
   if (status === "failed") {
     return (

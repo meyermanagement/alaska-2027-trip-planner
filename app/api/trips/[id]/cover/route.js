@@ -94,11 +94,22 @@ export async function POST(request, { params }) {
     }
   }
 
-  const result = await generateTripCover(id, { extra });
+  const result = await generateTripCover(id, {
+    extra,
+    supabase,
+    userId: user.id,
+  });
   if (!result.ok) {
+    // A refusal is not a failure of the drawing service, and the status code
+    // should not say it is: the family turned something off and the answer is
+    // the switch, not a retry.
     return NextResponse.json(
-      { status: "failed", error: result.error },
-      { status: 502 },
+      {
+        status: "failed",
+        refused: Boolean(result.refused),
+        error: result.error,
+      },
+      { status: result.refused ? 403 : 502 },
     );
   }
   return NextResponse.json({ status: "ready", url: result.url });
