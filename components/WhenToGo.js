@@ -25,6 +25,14 @@ import { cleanMonths, monthsSaid } from "@/lib/someday/months";
  * would be at stake. Only an untouched row gets a single button, because there
  * is nothing there to lose.
  *
+ * The panel also outlives the press. Two windows is Aly saying a place has two
+ * seasons -- a shoulder in spring and another in autumn -- and a family who
+ * wants both should not have to ask the question a second time to get back to
+ * the one they did not press first. So the window that was taken says so and
+ * stays where it is, the others keep their buttons, and each further Add builds
+ * on what the last press put there rather than on the prop, which on a saved
+ * place only catches up after the write and the refresh.
+ *
  * Used twice with the same code: on a saved place, where accepting writes the
  * row, and inside the form, where accepting fills the boxes and the reason rides
  * along to the save. The only difference is what the parent does with the answer.
@@ -37,6 +45,11 @@ const LINES = [
   [26, "Still going. Grounded answers can take most of a minute"],
   [55, "This is longer than usual. It may come back as an error"],
 ];
+
+/** One window, named by its months, which is what makes it that window. */
+function keyOf(window_) {
+  return cleanMonths(window_.months).join(",");
+}
 
 function waitLine(seconds) {
   let said = LINES[0][1];
@@ -57,6 +70,20 @@ export default function WhenToGo({
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
   const [answer, setAnswer] = useState(null);
+  // Which windows out of this answer have been taken, keyed the same way the
+  // list is. Kept so the panel can stay open after a press: two windows is Aly
+  // saying a place has two seasons, and closing the card on the first press
+  // threw the second one away and made a second look the only way back to it.
+  const [taken, setTaken] = useState(() => new Set());
+  // The months this panel has put on the row, which is what a second Add has to
+  // build on. The prop cannot be trusted between presses: on a saved place it
+  // only catches up after the write and the refresh, so composing against it
+  // would drop the first window when somebody presses twice quickly.
+  const [mine, setMine] = useState(null);
+  // What this panel has already said about those months. A second Add used to
+  // overwrite the first window's sentence, leaving a row whose months came from
+  // two seasons and whose explanation named one of them.
+  const [said, setSaid] = useState("");
   const alive = useRef(true);
 
   // Set on the way in as well as cleared on the way out. A one-shot cleanup is
@@ -91,6 +118,9 @@ export default function WhenToGo({
     setBusy(true);
     setError("");
     setAnswer(null);
+    setTaken(new Set());
+    setMine(null);
+    setSaid("");
     try {
       const res = await fetch("/api/someday/season", {
         method: "POST",
@@ -124,17 +154,31 @@ export default function WhenToGo({
    */
   function use(window_, how) {
     const asked = cleanMonths(window_.months);
+    const next = how === "add" ? cleanMonths([...already, ...asked]) : asked;
+    const mySentence = (window_.reason || "").trim();
+    const reason =
+      how === "add" && said
+        ? [said, mySentence].filter(Boolean).join(" ")
+        : mySentence;
     if (onUse) {
       onUse({
-        months: how === "add" ? cleanMonths([...already, ...asked]) : asked,
-        reason: window_.reason || "",
+        months: next,
+        reason,
         sources: answer?.sources || [],
       });
     }
-    setAnswer(null);
+    setMine(next);
+    setSaid(reason);
+    setTaken((was) =>
+      how === "add"
+        ? new Set(was).add(keyOf(window_))
+        : // A replace threw away whatever the other window had put there, so it
+          // is the only thing on the row now and the only thing to say so.
+          new Set([keyOf(window_)]),
+    );
   }
 
-  const already = cleanMonths(months);
+  const already = mine || cleanMonths(months);
   const windows = Array.isArray(answer?.windows) ? answer.windows : [];
   const sources = Array.isArray(answer?.sources) ? answer.sources : [];
 
@@ -182,7 +226,7 @@ export default function WhenToGo({
             <ul className="space-y-2">
               {windows.map((window_) => (
                 <li
-                  key={window_.months.join(",")}
+                  key={keyOf(window_)}
                   className="rounded-lg border border-[var(--line)] bg-white p-3"
                 >
                   <p className="font-medium text-ink">{window_.label}</p>
@@ -190,7 +234,16 @@ export default function WhenToGo({
                   <p className="mt-1 text-sm leading-relaxed text-ink">
                     {window_.because}
                   </p>
-                  {already.length ? (
+                  {taken.has(keyOf(window_)) ? (
+                    // Kept on screen rather than removed, because a window that
+                    // vanishes when you press it reads as the press having
+                    // failed, and because the other windows are easier to judge
+                    // beside the one already on the row.
+                    <p className="mt-2 text-sm font-medium text-teal">
+                      Ticked. {monthsSaid(cleanMonths(window_.months))} is on
+                      this place now.
+                    </p>
+                  ) : already.length ? (
                     <>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
@@ -230,6 +283,25 @@ export default function WhenToGo({
               the months yourself is better than a guess from me.
             </p>
           )}
+
+          {taken.size ? (
+            // The press used to shut the panel, so there was never anything to
+            // shut. Now that it stays, there has to be a way out that is not
+            // asking the question again.
+            <p className="mt-3">
+              <button
+                type="button"
+                className="text-sm text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                onClick={() => {
+                  setAnswer(null);
+                  setTaken(new Set());
+                  setMine(null);
+                }}
+              >
+                Done with these
+              </button>
+            </p>
+          ) : null}
 
           {sources.length ? (
             <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
