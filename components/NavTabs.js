@@ -18,7 +18,7 @@ import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
 import { PendingSwap } from "./LinkPending";
 import { SECONDARY } from "@/lib/travelers/access";
-import useBetaTester from "./useBetaTester";
+import useBetaTester, { useAdminUser } from "./useBetaTester";
 import useSoftKeyboard from "./useSoftKeyboard";
 import { SETUP_HREF } from "@/lib/setup/items";
 
@@ -307,6 +307,17 @@ const SURVEY_ROW = {
   Icon: SurveyIcon,
 };
 
+// The workshop screens, for the handful of accounts on the admin allowlist. One
+// row rather than six: the index at the other end is the thing that knows what
+// the six are, and a menu that grew a section every time a diagnostic screen was
+// written would stop being a menu about travel.
+const ADMIN_ROW = {
+  href: "/admin",
+  label: "Admin",
+  sub: "Beta desk, issue log, model check",
+  Icon: ToolsIcon,
+};
+
 // GROUPS_BASE is the three travel groups. GROUPS is what the menu actually
 // draws: those three plus the More group (Settings, Our Pledge, Contact Us)
 // pinned to the bottom of the column. Kept as a computed constant rather
@@ -318,14 +329,23 @@ const GROUPS = [...GROUPS_BASE, MORE_GROUP];
 // shared constant is a row every account gets the moment somebody forgets which
 // array they were holding. The page at the other end checks the same thing
 // again, because a row that is not drawn is not a door that is locked.
-const GROUPS_WITH_SURVEY = GROUPS.map((g) =>
-  g.key === MORE_GROUP.key
-    ? {
-        ...g,
-        kids: [...g.kids.slice(0, -1), SURVEY_ROW, g.kids[g.kids.length - 1]],
-      }
-    : g,
-);
+function withExtras(extra) {
+  return GROUPS.map((g) =>
+    g.key === MORE_GROUP.key
+      ? {
+          ...g,
+          kids: [...g.kids.slice(0, -1), ...extra, g.kids[g.kids.length - 1]],
+        }
+      : g,
+  );
+}
+
+const GROUPS_WITH_SURVEY = withExtras([SURVEY_ROW]);
+const GROUPS_WITH_ADMIN = withExtras([ADMIN_ROW]);
+// Both extra doors, and the menu the pathname is looked up against below: the
+// group holding the screen you are on has to be findable whichever menu you are
+// being shown, and this is the only one that contains every row.
+const GROUPS_EVERY = withExtras([SURVEY_ROW, ADMIN_ROW]);
 
 // A secondary traveler -- a minor, or a friend along for one trip -- gets three
 // doors and no groups: the trips they are on, their own share of the checklist,
@@ -427,7 +447,17 @@ export default function NavTabs({
   // browser rather than here, because the layout this bar lives in reads nothing
   // per-page from the database on purpose.
   const tester = useBetaTester();
-  const groups = tester ? GROUPS_WITH_SURVEY : GROUPS;
+  // And the allowlisted accounts get the door to the workshop screens. Same
+  // bargain as the survey row: settled in the browser, false while unknown, and
+  // checked again by the page at the other end.
+  const admin = useAdminUser();
+  const groups = admin
+    ? tester
+      ? GROUPS_EVERY
+      : GROUPS_WITH_ADMIN
+    : tester
+      ? GROUPS_WITH_SURVEY
+      : GROUPS;
   const [open, setOpen] = useState(false);
   // Kept on screen for the length of the closing animation after open goes
   // false. Unmounting on the press would cut the arc away mid-movement, so the
@@ -499,7 +529,7 @@ export default function NavTabs({
   );
   const [group, setGroup] = useState(holding ? holding.key : null);
   useEffect(() => {
-    const held = GROUPS_WITH_SURVEY.find((g) =>
+    const held = GROUPS_EVERY.find((g) =>
       g.kids.some((k) => onScreen(k.href, pathname)),
     );
     setGroup(held ? held.key : null);
@@ -1696,6 +1726,19 @@ function SurveyIcon({ className }) {
       <circle cx="7.4" cy="11.4" r="1" />
       <path d="M9.8 11.4h3.1" />
       <path d="M7.4 14.6h5.5" />
+    </svg>
+  );
+}
+
+// A flask, for the workshop row. Not a cog and not a set of sliders: Settings is
+// three sliders two rows below it, and the first drawing of this row was two
+// sliders, which at fifteen pixels was the same icon twice in one drawer.
+function ToolsIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M8.2 3v4.4l-3.6 6.5a1.6 1.6 0 0 0 1.4 2.4h8a1.6 1.6 0 0 0 1.4-2.4l-3.6-6.5V3" />
+      <path d="M7 3h6" />
+      <path d="M6.4 11.8h7.2" />
     </svg>
   );
 }

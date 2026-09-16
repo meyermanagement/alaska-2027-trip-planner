@@ -625,7 +625,7 @@ export default function BootVeil() {
       // running -- the component returns null rather than unmounting, so nothing
       // tears this observer down -- and it was still forcing this load\'s choice
       // back onto the document for the rest of the page\'s life. Which is how the
-      // watch page at /login/opening lost its long opening: asking for the
+      // watch page at /admin/opening lost its long opening: asking for the
       // arrival wrote "full" onto the document, this wrote "quick" back a moment
       // later, and the crossing carried on playing under a button that said
       // otherwise. Nothing after the lift can raise an opening over the app, so
@@ -727,7 +727,7 @@ export default function BootVeil() {
 
 // Both openings, with none of the machinery that decides between them or takes
 // them away. The veil above wraps this in the element the stylesheet hides once
-// the app has arrived; the page at /login/opening wraps the same markup in one
+// the app has arrived; the page at /admin/opening wraps the same markup in one
 // that is never hidden, so an opening can be watched for as long as it takes to
 // judge rather than for the second it is normally up. Which of the two shows is
 // the stylesheet's business either way: it reads data-boot on the document.

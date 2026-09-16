@@ -3,14 +3,19 @@
 import { useEffect, useState } from "react";
 
 /**
- * Whether the person looking at the screen is in the beta.
+ * What the browser is allowed to know about who is looking at the screen.
  *
- * Two things in the browser need this answer: the report button that hangs in
- * the corner, and the menu row for the beta survey. It cannot come from the
- * layout -- the layout is shared by every page and reads nothing from the
- * database on purpose -- so it comes from /api/beta/tester, which is the only
- * thing able to answer it, because the table it rests on is not readable from a
- * browser at all.
+ * Two answers, one request. Whether the person is in the beta decides the report
+ * button that hangs in the corner and the menu row for the beta survey; whether
+ * they are on the admin allowlist decides the menu row for the workshop screens.
+ * Neither can come from the layout -- the layout is shared by every page and
+ * reads nothing from the database on purpose -- so both come from
+ * /api/beta/tester, which is the only thing able to answer either, because the
+ * tables they rest on are not readable from a browser at all.
+ *
+ * They are asked together rather than from two routes because they are the same
+ * question with two halves, and a second round trip on every load to learn one
+ * more boolean about yourself is waste.
  *
  * One answer per browser session. sessionStorage rather than a state variable
  * because every client navigation remounts the things that ask, and a fresh
@@ -20,14 +25,17 @@ import { useEffect, useState } from "react";
  * opens.
  *
  * False while unknown, and false on any failure. A menu row or a floating button
- * that appears for the public is the worse of the two ways to be wrong.
+ * that appears for the public is the worse of the two ways to be wrong. Neither
+ * boolean is a permission: the page behind each row checks the same thing again
+ * for itself, and so does every route behind those pages.
  */
 const CACHE_KEY = "alyeska-beta-tester";
+const ADMIN_KEY = "alyeska-admin-user";
 
-function remembered() {
+function remembered(key) {
   if (typeof window === "undefined") return null;
   try {
-    const saved = window.sessionStorage.getItem(CACHE_KEY);
+    const saved = window.sessionStorage.getItem(key);
     if (saved === "1") return true;
     if (saved === "0") return false;
   } catch {
@@ -36,9 +44,25 @@ function remembered() {
   return null;
 }
 
-export default function useBetaTester() {
-  const [tester, setTester] = useState(() => remembered() === true);
-  const [settled, setSettled] = useState(() => remembered() !== null);
+function keep(key, yes) {
+  try {
+    window.sessionStorage.setItem(key, yes ? "1" : "0");
+  } catch {
+    // As above.
+  }
+}
+
+// Both halves, from the one request. Each caller picks the half it needs; a
+// screen that mounts the report button and the menu together makes one fetch
+// between them, because the second hook finds the answer already remembered.
+function useWhoIsAsking() {
+  const [flags, setFlags] = useState(() => ({
+    tester: remembered(CACHE_KEY) === true,
+    admin: remembered(ADMIN_KEY) === true,
+  }));
+  const [settled, setSettled] = useState(
+    () => remembered(CACHE_KEY) !== null && remembered(ADMIN_KEY) !== null,
+  );
 
   useEffect(() => {
     if (settled) return undefined;
@@ -50,14 +74,12 @@ export default function useBetaTester() {
         if (!res.ok) return;
         const json = await res.json();
         if (!alive) return;
-        const yes = Boolean(json?.tester);
-        setTester(yes);
+        const tester = Boolean(json?.tester);
+        const admin = Boolean(json?.admin);
+        setFlags({ tester, admin });
         setSettled(true);
-        try {
-          window.sessionStorage.setItem(CACHE_KEY, yes ? "1" : "0");
-        } catch {
-          // As above.
-        }
+        keep(CACHE_KEY, tester);
+        keep(ADMIN_KEY, admin);
       } catch {
         // Offline, or signed out. No button, no row, no complaint.
       }
@@ -68,5 +90,13 @@ export default function useBetaTester() {
     };
   }, [settled]);
 
-  return tester;
+  return flags;
+}
+
+export default function useBetaTester() {
+  return useWhoIsAsking().tester;
+}
+
+export function useAdminUser() {
+  return useWhoIsAsking().admin;
 }

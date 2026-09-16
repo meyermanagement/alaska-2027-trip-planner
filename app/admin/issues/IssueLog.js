@@ -120,7 +120,7 @@ export default function IssueLog({ issues = [], build = "" }) {
   return (
     <main className="screen px-5 pb-16 pt-7">
       <a href="/admin" className="text-sm text-teal underline">
-        Back to the beta desk
+        Back to Admin
       </a>
       <h1 className="mt-3 font-display text-3xl font-semibold">Issue log</h1>
       <p className="mt-2 max-w-prose text-sm text-ink-soft">

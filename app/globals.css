@@ -380,7 +380,7 @@ body {
  * app -- so the stylesheet lifts it after five seconds on its own.
  * ------------------------------------------------------------------ */
 
-/* The stage at /login/opening is the same picture in an element the rules below
+/* The stage at /admin/opening is the same picture in an element the rules below
    never hide, which is the only way to watch an opening that is designed to get
    out of the way. It shares this block so there is one description of what the
    veil looks like. */

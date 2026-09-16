@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import * as gemini from "@/lib/agent/providers/gemini";
 import { providerNames } from "@/lib/agent/llm";
 import { recordRefusals } from "@/lib/agent/refusals";
+import { isAdminUser } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 // Without these two lines the check is cut off at ten seconds and the page never
@@ -129,6 +130,13 @@ export async function GET(request) {
     // Spelled out because a browser looking at raw JSON will otherwise guess, and
     // guesses turn Curaçao into mojibake.
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  }
+  // The check spends real quota on every model in the ladder and answers about
+  // the deployment rather than about the caller, so it belongs to whoever runs
+  // the deployment. The page in front of it checks the same list; this is the
+  // door checking for itself, which is the only check that is a permission.
+  if (!isAdminUser(user)) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   // ?model=<name> asks that one model, patiently, and nothing else. The roll call

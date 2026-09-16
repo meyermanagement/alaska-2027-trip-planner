@@ -316,7 +316,7 @@ export default function SurveySheets({ sheets = [], keyMissing = false }) {
     <main className="screen px-5 pb-16 pt-7">
       <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-soft">
         <a href="/admin" className="hover:text-teal">
-          Beta desk
+          Admin
         </a>
       </p>
       <h1 className="font-display mt-1 text-3xl font-semibold">Beta survey</h1>

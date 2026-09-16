@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import CopyWord from "./CopyWord";
+import CopyWord from "../CopyWord";
 
 /**
  * The half of the desk that does things: type an address, send that person their
