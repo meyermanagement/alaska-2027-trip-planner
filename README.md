@@ -52,10 +52,21 @@ closed.
 ### Security
 
 Row-level security is enabled on every table. Access is granted through two
-`security definer` helpers, `is_family_member(family_id)` and
-`can_access_trip(trip_id)`, so a signed-in user can only read or write rows
-belonging to a family they are a member of. Unauthenticated visitors are
+`security definer` helpers, `private.is_family_member(family_id)` and
+`private.can_access_trip(trip_id)`, so a signed-in user can only read or write
+rows belonging to a family they are a member of. Unauthenticated visitors are
 redirected to `/login` by middleware and can read nothing.
+
+Those helpers, and the seven others that policies depend on, live in the
+`private` schema rather than `public`. Policies are evaluated with the caller's
+privileges, so `authenticated` has to be able to execute them -- and anything
+executable in `public` is also a REST endpoint at `/rest/v1/rpc/<name>`. Keeping
+them in `private`, which PostgREST does not expose, gives the policies what they
+need without handing testers a callable oracle. Any new policy helper belongs in
+`private`, and any function that calls one must qualify it as `private.<name>`.
+The three functions the browser genuinely calls by name -- `claim_traveler_seat`,
+`join_family_with_code`, `redeem_signup_code` -- stay in `public` and check their
+own caller.
 
 New accounts join a family by supplying the family invite code at sign-up; an
 `auth.users` trigger creates the profile and the membership row. An existing
