@@ -411,7 +411,13 @@ export async function POST(request) {
             `${err.message} Searching the web about a whole trip is the slow part. Ask me about one day, one town or one evening and I will get there — or ask me the same thing again and I will answer it from what I already know about the trip.`
           : err.message || "The assistant is unavailable right now.",
       },
-      { status: status === 403 ? 500 : status },
+      // Whatever the failure says it is. This used to turn 403 into 500, from a
+      // time when nothing here answered 403 and the remap was harmless. It is
+      // not harmless now: turning the AI off and then asking a question is
+      // refused with a 403, the browser's fault watch files any own-origin
+      // response of 500 or more, and every tester who tried it filed a fault
+      // against a message the app meant to send them.
+      { status },
     );
   }
 

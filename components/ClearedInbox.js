@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
+import { stampDaySaid } from "@/lib/format";
 
 /**
  * The messages that have left the inbox, kept where they can be found again.
@@ -128,7 +129,7 @@ export default function ClearedInbox() {
                       message.from_email ||
                       "Unknown sender"}
                     {", "}
-                    {dayOf(message.received_at)}
+                    {stampDaySaid(message.received_at) || "date unknown"}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-ink-faint">
                     {wasFiled ? (
@@ -225,15 +226,4 @@ function fareCount(n) {
 
 function rowCount(n) {
   return n === 1 ? "one itinerary row" : `${n} itinerary rows`;
-}
-
-function dayOf(value) {
-  if (!value) return "date unknown";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "date unknown";
-  return d.toLocaleDateString(undefined, {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
 }

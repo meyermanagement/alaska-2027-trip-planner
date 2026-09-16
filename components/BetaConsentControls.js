@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { stampDaySaid } from "@/lib/format";
 import {
   AI_PROVIDER,
   OPTIONAL_FEATURES,
@@ -139,11 +140,7 @@ export default function BetaConsentControls({ consent }) {
           term="Agreed"
           detail={
             consent?.accepted_at
-              ? new Date(consent.accepted_at).toLocaleDateString(undefined, {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })
+              ? stampDaySaid(consent.accepted_at) || "\u2014"
               : "\u2014"
           }
         />

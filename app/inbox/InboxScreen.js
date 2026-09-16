@@ -8,6 +8,7 @@ import { FARE_NEWSLETTERS } from "@/lib/deals/senders";
 import { matchInsured } from "@/lib/insurance/insured";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
+import { stampSaid } from "@/lib/format";
 import ClearedInbox from "@/components/ClearedInbox";
 
 /**
@@ -420,7 +421,7 @@ export default function InboxScreen({
                         </span>
                       ) : null}
                       <div className="text-xs text-ink-faint">
-                        {formatWhen(m.received_at)}
+                        {stampSaid(m.received_at)}
                       </div>
                     </div>
                     <div className="mt-1 truncate text-sm font-medium text-ink">
@@ -910,25 +911,4 @@ function joinWithAnd(parts) {
   if (parts.length === 1) return parts[0];
   if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
   return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
-}
-
-function formatWhen(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const now = new Date();
-  const sameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-  if (sameDay) {
-    return d.toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
 }
