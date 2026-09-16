@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { whoIs } from "@/lib/supabase/who";
+import { anonymizeReports } from "@/lib/account/reports";
 import { sweepFolder, removeAll } from "@/lib/account/storage";
 
 /**
@@ -188,30 +189,17 @@ export async function POST(request) {
   // failure costs. Scrub first and a failure means nothing was removed and the
   // address is still on a row we can try again; delete first and a failure here
   // leaves reports behind still naming somebody who asked to be forgotten. So a
-  // refusal to scrub refuses the whole deletion.
-  //
-  // What stays is the defect: the path, the build, the look, the stack, and what
-  // they wrote. What goes is everything that points at them -- the id, by the
-  // foreign key's own doing once the login is deleted, and here the address, the
-  // browser string, the screen size, the trail of screens they walked, and the
-  // screenshot keys, whose objects are removed from storage further down this
-  // same request.
-  const { error: scrubError } = await admin
-    .from("feedback")
-    .update({
-      email: null,
-      user_agent: null,
-      viewport: null,
-      trail: [],
-      shots: [],
-      trip_id: null,
-      anonymized_at: new Date().toISOString(),
-    })
-    .eq("user_id", me.id);
-  if (scrubError) {
+  // refusal to scrub refuses the whole deletion. lib/account/reports.js says
+  // what counts as naming a person and what is kept as the defect.
+  const scrub = await anonymizeReports({
+    admin,
+    userId: me.id,
+    email: me.email || "",
+  });
+  if (!scrub.ok) {
     await admin
       .from("deletion_requests")
-      .update({ note: `feedback: ${scrubError.message}` })
+      .update({ note: `feedback: ${scrub.message}` })
       .eq("id", receipt.id);
     return bad(
       "We could not finish anonymizing your reports. Nothing was removed. Please try again.",
