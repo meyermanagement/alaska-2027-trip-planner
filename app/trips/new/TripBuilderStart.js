@@ -44,8 +44,12 @@ import {
  * Nothing here writes to the database. Aly creates the trip from the
  * conversation.
  */
-export default function TripBuilderStart({ drafts = [] }) {
-  const [idea, setIdea] = useState("");
+export default function TripBuilderStart({
+  drafts = [],
+  seed = "",
+  fromPlace = "",
+}) {
+  const [idea, setIdea] = useState(seed);
   const boxRef = useRef(null);
   const clean = idea.trim();
 
@@ -158,6 +162,25 @@ export default function TripBuilderStart({ drafts = [] }) {
         </div>
       )}
 
+      {/* Where the sentence in the box came from, when it came from somewhere.
+          Without this the builder looks like it guessed: a box that is suddenly
+          full is unsettling, and the first thing somebody needs to know is that
+          these are their own words from the bucket list and that changing them
+          changes the trip and not the list. */}
+      {fromPlace ? (
+        <div className="mt-5 rounded-2xl border border-teal/40 bg-teal-soft/25 p-4">
+          <p className="text-sm font-semibold">
+            Started from {fromPlace} on your bucket list
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+            Everything you had already said about it is in the box. Add whatever
+            the list never had room for — how you would get there, where you
+            would sleep, what it can cost — and then start. Your bucket list
+            stays as it is.
+          </p>
+        </div>
+      ) : null}
+
       <textarea
         ref={boxRef}
         className="field mt-5 text-base leading-relaxed"
@@ -172,7 +195,7 @@ export default function TripBuilderStart({ drafts = [] }) {
            right on an empty screen and wrong on one carrying a list of drafts:
            the phone scrolls the focused box to the top of the window and the
            very thing this screen now says first goes off it. */
-        autoFocus={drafts.length === 0}
+        autoFocus={drafts.length === 0 && !seed}
       />
 
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Spinner } from "@/components/LinkPending";
+import Link from "next/link";
+import { PendingSpark, Spinner } from "@/components/LinkPending";
 import LocationField from "@/components/LocationField";
 import WhenToGo from "@/components/WhenToGo";
 import { MONTHS, monthsSaid } from "@/lib/someday/months";
@@ -660,6 +661,23 @@ export default function SomedayList({
                         ))}
                       </select>
                     </label>
+                    {/*
+                     * The way out of the list and into a real trip.
+                     *
+                     * It carries the row's id and nothing else: the builder reads
+                     * the place itself and writes the paragraph, so the link
+                     * cannot fall behind an edit made here a second earlier and
+                     * the sentence is not something anybody can rewrite in the
+                     * address bar. Pressing it changes no data -- the place stays
+                     * open on this list until somebody says the trip was booked.
+                     */}
+                    <Link
+                      href={`/trips/new?from=${row.id}`}
+                      className="inline-flex items-center gap-1.5 font-medium text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                    >
+                      Plan this trip
+                      <PendingSpark />
+                    </Link>
                     <button
                       type="button"
                       className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
