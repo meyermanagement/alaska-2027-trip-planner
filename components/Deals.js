@@ -23,6 +23,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/rewards";
 import { formatDay } from "@/lib/format";
+import { monthsSaid } from "@/lib/someday/months";
 
 function fareLine(deal) {
   const bits = [`${money(deal.price)} each`];
@@ -32,6 +33,10 @@ function fareLine(deal) {
     bits.push(
       `${deal.travel_start || "?"} to ${deal.travel_end || deal.travel_start}`,
     );
+  // Most alerts give a season, not a window, and the months are the part the
+  // family judges the fare on. Said as months so nobody reads a day into them.
+  else if (deal.travel_months?.length)
+    bits.push(monthsSaid(deal.travel_months.map(Number)));
   return bits.join(" \u00b7 ");
 }
 
