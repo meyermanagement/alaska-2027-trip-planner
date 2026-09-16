@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
+import { VERIFICATION_SENDERS } from "@/lib/inbox/verification";
 
 export const runtime = "nodejs";
 
@@ -60,7 +61,7 @@ export async function POST(_request, { params }) {
 
   const { data: message } = await supabase
     .from("inbox_messages")
-    .select("id, status")
+    .select("id, status, from_email")
     .eq("id", id)
     .maybeSingle();
   if (!message) {
@@ -75,12 +76,18 @@ export async function POST(_request, { params }) {
       parsed_reset: 0,
     });
   }
-  // A noted message is a fare alert that was read for the fares in it. There is
-  // nothing to put back: no itinerary rows were staged off it and no trip was
-  // touched, so reopening it would only move a newsletter back onto the inbox
-  // screen for somebody to throw out again. The fares it produced live on the
-  // bucket list and are turned down there.
-  if (message.status === "noted") {
+  // A noted message is one that was read rather than filed, and the two kinds
+  // want opposite answers here. A forwarding check was finished with by a person
+  // pressing Done with it, and a person who did that by mistake -- or who needs
+  // Google's link a second time on another device -- should be able to pull it
+  // back, which costs nothing because nothing was staged off it. A fare alert
+  // was read by Aly, has nothing on it to decide, and coming back would only put
+  // a newsletter on the list for somebody to throw out; the fares it found live
+  // on the bucket list and are turned down there.
+  const wasVerification = VERIFICATION_SENDERS.includes(
+    String(message.from_email || "").toLowerCase(),
+  );
+  if (message.status === "noted" && !wasVerification) {
     return NextResponse.json(
       {
         error:
@@ -89,7 +96,11 @@ export async function POST(_request, { params }) {
       { status: 400 },
     );
   }
-  if (message.status !== "filed" && message.status !== "deleted") {
+  if (
+    message.status !== "filed" &&
+    message.status !== "deleted" &&
+    message.status !== "noted"
+  ) {
     return NextResponse.json(
       { error: "This message is still being read." },
       { status: 400 },
@@ -137,7 +148,7 @@ export async function POST(_request, { params }) {
       auto_filed_at: null,
     })
     .eq("id", id)
-    .in("status", ["filed", "deleted"])
+    .in("status", ["filed", "deleted", "noted"])
     .select("id")
     .maybeSingle();
 

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
 import { stampDaySaid } from "@/lib/format";
+import { VERIFICATION_SENDERS } from "@/lib/inbox/verification";
 
 /**
  * The messages that have left the inbox, kept where they can be found again.
@@ -111,6 +112,16 @@ export default function ClearedInbox() {
               // nothing on it to decide, and the fares it produced are turned
               // down on the bucket list instead.
               const wasNoted = message.status === "noted";
+              // Two quite different things arrive here as 'noted'. A fare alert
+              // was read by Aly for the fares in it; a forwarding check was read
+              // by a person and finished with. Told apart on the sender alone,
+              // which is the same literal list the card uses -- no model, and no
+              // new column to carry a fact the address already states.
+              const wasVerification =
+                wasNoted &&
+                VERIFICATION_SENDERS.includes(
+                  String(message.from_email || "").toLowerCase(),
+                );
               const asking = askingId === message.id;
               const working = workingId === message.id;
               return (
@@ -149,6 +160,8 @@ export default function ClearedInbox() {
                           ? `, and it added ${rowCount(message.itinerary_rows)}.`
                           : "."}
                       </>
+                    ) : wasVerification ? (
+                      "A forwarding check you read and finished with. Nothing was filed and nothing was thrown away."
                     ) : wasNoted ? (
                       message.fares > 0 ? (
                         `Read for fares, and ${fareCount(message.fares)} of them matched what you are looking for.`
@@ -162,7 +175,7 @@ export default function ClearedInbox() {
                     )}
                   </p>
 
-                  {wasNoted ? null : asking ? (
+                  {wasNoted && !wasVerification ? null : asking ? (
                     <div className="mt-3 rounded-lg border border-[var(--line-strong)] bg-sand p-3">
                       <p className="text-sm leading-relaxed text-ink-soft">
                         {message.itinerary_rows > 0

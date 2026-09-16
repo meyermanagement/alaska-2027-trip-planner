@@ -70,7 +70,10 @@ export default function ForwardFares({ address, trip = null }) {
             press <span className="font-semibold text-ink">Read it</span> on the
             message from Gmail, and use the approve button at the top of it. If
             Gmail sent a code instead of a link, it is shown there to paste back
-            into the Forwarding settings.
+            into the Forwarding settings. Once Gmail says it is set up, press{" "}
+            <span className="font-semibold text-ink">Done with it</span> to take
+            the message off the list. Nothing is deleted, and it can be pulled
+            back from the bottom of the Inbox.
           </li>
           <li>
             Then make a filter instead of forwarding everything: in Settings,

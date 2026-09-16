@@ -209,6 +209,28 @@ export default function InboxScreen({
     }
   }
 
+  /**
+   * Finish with a forwarding check.
+   *
+   * No confirmation asked. Nothing is destroyed, the message stays readable in
+   * the drawer at the bottom of this screen, and the only thing the press can
+   * cost somebody who mistook the button is one trip to that drawer. Throw out
+   * asks because it destroys attachments; making this ask too would teach people
+   * to click through both.
+   */
+  async function doneWith(id) {
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/inbox/${id}/done`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      router.refresh();
+    } catch (e) {
+      window.alert("Could not clear that message: " + (e?.message || e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function throwOut(id) {
     if (
       !window.confirm(
@@ -468,29 +490,52 @@ export default function InboxScreen({
                     >
                       {isOpen && mode === "read" ? "Hide it" : "Read it"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenId(isOpen && mode === "file" ? null : m.id);
-                        setMode("file");
-                      }}
-                      className="rounded-lg border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal"
-                      disabled={busyId === m.id}
-                    >
-                      File it
-                    </button>
-                    {isUnknown && (
+                    {/* A forwarding check is offered neither of the next two.
+                        It belongs to no trip, so File it would ask which trip a
+                        Google robot's handshake goes on; and Trust sender would
+                        permanently trust an address nobody forwards from. Both
+                        being wrong is what left these messages stuck on the
+                        list with only Throw out, which destroys attachments and
+                        records the message as junk. Done with it says the true
+                        thing instead. */}
+                    {verification ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          setOpenId(isOpen && mode === "trust" ? null : m.id);
-                          setMode("trust");
-                        }}
-                        className="rounded-lg border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal"
+                        onClick={() => doneWith(m.id)}
+                        className="rounded-lg border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal disabled:cursor-progress disabled:opacity-60"
                         disabled={busyId === m.id}
                       >
-                        Trust sender
+                        {busyId === m.id ? "Clearing\u2026" : "Done with it"}
                       </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenId(isOpen && mode === "file" ? null : m.id);
+                            setMode("file");
+                          }}
+                          className="rounded-lg border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal"
+                          disabled={busyId === m.id}
+                        >
+                          File it
+                        </button>
+                        {isUnknown && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenId(
+                                isOpen && mode === "trust" ? null : m.id,
+                              );
+                              setMode("trust");
+                            }}
+                            className="rounded-lg border border-[var(--line-strong)] bg-white px-3 py-1.5 text-sm text-ink transition hover:border-teal hover:text-teal"
+                            disabled={busyId === m.id}
+                          >
+                            Trust sender
+                          </button>
+                        )}
+                      </>
                     )}
                     <button
                       type="button"
