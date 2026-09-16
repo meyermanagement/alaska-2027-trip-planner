@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { coverLabel } from "@/lib/insurance/policy";
+import { FARE_NEWSLETTERS } from "@/lib/deals/senders";
 import { matchInsured } from "@/lib/insurance/insured";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
@@ -240,8 +241,10 @@ export default function InboxScreen({
        * the two jobs nobody would guess an inbox screen was offering.
        */}
       <p className="mt-2 text-sm text-ink-soft">
-        It takes more than bookings. Forward the flight deal emails you already
-        get and she keeps the fares that fit a place on your bucket list or a
+        It takes more than bookings. Fare alert newsletters send cheap flights
+        all week and almost none of them are about you: forward{" "}
+        {FARE_NEWSLETTERS.slice(0, 2).join(", ")}, an airline sale, any of it,
+        and she keeps only the fares that fit a place on your bucket list or a
         trip whose flights are still to buy, with the newsletter credited so you
         can check the price yourself. Send a travel insurance policy and she
         reads out what it covers, who is named on it and what it leaves open.

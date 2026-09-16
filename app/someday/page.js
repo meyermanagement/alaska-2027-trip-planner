@@ -9,6 +9,7 @@ import SomedayList from "./SomedayList";
 import Deals from "@/components/Deals";
 import ForwardFares from "@/components/ForwardFares";
 import ForwardFaresLink from "@/components/ForwardFaresLink";
+import { FARE_NEWSLETTERS } from "@/lib/deals/senders";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
@@ -104,11 +105,12 @@ export default async function SomedayPage() {
           Bucket list
         </h1>
         <p className="mb-6 max-w-2xl text-sm text-ink-soft">
-          Places you want to go, and the months you could actually go in.
-          Forward the flight deal emails you already get and Aly reads every
-          fare in them, keeps the ones leaving from your airports for a place on
-          this list in a month that suits you, and says here whether the price
-          is worth it.{" "}
+          Places you want to go, and the months you could actually go in. Fare
+          alert newsletters send cheap flights all week and almost none of them
+          are about you. Forward {FARE_NEWSLETTERS.slice(0, 2).join(", ")}, an
+          airline sale, any of it, to your household address, and Aly keeps only
+          the fares leaving from your airports for a place on this list in a
+          month that suits you, then says here whether the price is worth it.{" "}
           <ForwardFaresLink>Here is how to point them at her</ForwardFaresLink>.
         </p>
 
