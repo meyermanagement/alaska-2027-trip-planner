@@ -23,6 +23,9 @@ import { SETTINGS_FOCUS } from "@/lib/agent/context";
  */
 export default function SettingsBody({
   email,
+  // How this account signs in, straight from the token: "google", "email", or
+  // whatever else is ever added. Only the label above the address depends on it.
+  provider = "",
   displayName,
   skin,
   textSize,
@@ -70,8 +73,18 @@ export default function SettingsBody({
                 </div>
               )}
               <div className="flex flex-wrap gap-x-2">
+                {/* What this account actually signs in with. It read "Google
+                    account" for everybody until September 16, 2026, including
+                    accounts created with an address and a password, which is the
+                    app telling a tester something untrue about their own
+                    identity on the screen that exists to tell them what is
+                    known about them. */}
                 <dt className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                  Google account
+                  {provider === "google"
+                    ? "Google account"
+                    : provider && provider !== "email"
+                      ? `${provider} account`
+                      : "Email address"}
                 </dt>
                 <dd className="min-w-0 flex-1 break-all">{email}</dd>
               </div>

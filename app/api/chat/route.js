@@ -16,6 +16,7 @@ import {
 } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
 import { resolveAccess } from "@/lib/travelers/access";
+import { consentIsCurrent, readConsent } from "@/lib/beta/consent";
 import { markSettled, noteAsked } from "@/lib/travelers/ledger";
 import { SLOT_BY_ID, slotFromWords } from "@/lib/travelers/slots";
 import {
@@ -195,6 +196,44 @@ export async function POST(request) {
     return NextResponse.json(
       { error: "Please sign in again." },
       { status: 401 },
+    );
+  }
+
+  // Asked before anything else is done, and before anything is written down.
+  //
+  // The refusal itself was never in doubt -- lib/agent/llm.js checks this account's
+  // consent row on every single call and will not send without it. But it checked
+  // it at the end of a pipeline that first read the whole household, opened a
+  // conversation and filed the question, so a tester who had just turned Aly off
+  // watched a thinking indicator run for about thirty seconds before being told
+  // she was off. That reads exactly like the thing they asked to stop, and it left
+  // a conversation row and a question behind for an answer that was never going to
+  // come. Asked here, the refusal is immediate and nothing is recorded.
+  //
+  // The check in llm.js stays where it is. This one is for the person waiting; that
+  // one is the guarantee, and it covers every other path into the model.
+  // Two different noes, said differently, because "Aly is turned off" sent to
+  // somebody whose agreement simply went out of date sends them to a switch that
+  // is already on.
+  const consentRow = await readConsent(supabase, user.id);
+  if (!consentIsCurrent(consentRow)) {
+    return NextResponse.json(
+      {
+        error:
+          "The beta agreement has been updated, so nothing is being sent until you have read it. Reload the app and it will ask you.",
+        consentStale: true,
+      },
+      { status: 403 },
+    );
+  }
+  if (!consentRow?.ai_processing) {
+    return NextResponse.json(
+      {
+        error:
+          "Aly is turned off for this account. Turn on AI assistance in Settings to ask her something.",
+        aiOff: true,
+      },
+      { status: 403 },
     );
   }
 

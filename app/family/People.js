@@ -6,6 +6,7 @@ import { PassportWarningPanel } from "@/components/PassportWarning";
 import MomentsEditor from "@/components/MomentsEditor";
 import AboutSections from "@/components/AboutSections";
 import DocumentPicker from "@/components/DocumentPicker";
+import { AI_PROVIDER } from "@/lib/beta/agreement";
 import ExtractedFieldsStrip from "@/components/ExtractedFieldsStrip";
 import { readFileFields } from "@/lib/documents/read";
 import DocumentViewer from "@/components/DocumentViewer";
@@ -490,9 +491,10 @@ export default function People({
             Snap passports, licenses and IDs with the phone.
           </span>{" "}
           Aly reads the number and expiry off the scan so you do not have to
-          type them, and every file you save stays cached on the phone — the
-          scan opens at the check-in desk with no signal, and the app itself
-          runs on the plane.
+          type them — that sends the file to {AI_PROVIDER}, and only while you
+          have document reading on — and every file you save stays cached on the
+          phone, so the scan opens at the check-in desk with no signal and the
+          app itself runs on the plane.
         </p>
       </div>
 
@@ -789,8 +791,10 @@ export default function People({
                     Snap {person.name === "You" ? "your" : `${person.name}'s`}{" "}
                     passport, license or ID with the phone camera and Add
                     document. Aly reads the number and expiry off the scan so
-                    you do not have to type them, and the file itself stays on
-                    the phone — openable at the check-in desk with no signal.
+                    you do not have to type them, which sends the file to{" "}
+                    {AI_PROVIDER} while document reading is on, and the file
+                    itself stays on the phone — openable at the check-in desk
+                    with no signal.
                   </p>
                 </div>
               )}
