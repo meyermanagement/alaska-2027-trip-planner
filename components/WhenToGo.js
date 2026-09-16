@@ -9,9 +9,8 @@ import { elapsedSaid } from "@/lib/agent/waiting";
  *
  * Twelve ticks and no help is a fair way of asking a question nobody can answer:
  * whether a place is an April place or a November place is research, and whether
- * this household could go in either is a question about school, heat, crowds and
- * the trips they have already committed to. This asks both halves at once and
- * hands back windows somebody can press.
+ * this household could go in either is a question about school, heat and crowds.
+ * This asks both halves at once and hands back windows somebody can press.
  *
  * The press is the whole design. Nothing arrives already ticked, because the
  * months on a bucket-list row are what a fare gets judged against, and a machine
@@ -27,7 +26,7 @@ import { elapsedSaid } from "@/lib/agent/waiting";
 /** Two honest things to say while a grounded look runs, and no third. */
 const LINES = [
   [0, "Reading up on when this place is good"],
-  [8, "Checking that against your trips and what you have told me"],
+  [8, "Checking that against what you have told me"],
   [26, "Still going. Grounded answers can take most of a minute"],
   [55, "This is longer than usual. It may come back as an error"],
 ];
@@ -173,9 +172,6 @@ export default function WhenToGo({
                   <p className="mt-1 text-sm leading-relaxed text-ink">
                     {window_.because}
                   </p>
-                  {window_.clash ? (
-                    <p className="mt-1 text-sm text-rose">{window_.clash}</p>
-                  ) : null}
                   <button
                     type="button"
                     className="btn btn-ghost mt-2"

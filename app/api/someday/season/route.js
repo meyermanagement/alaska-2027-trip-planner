@@ -87,30 +87,25 @@ export async function POST(request) {
 
   const today = todayISO();
 
-  const [
-    { data: travelers },
-    { data: preferences },
-    { data: facts },
-    { data: trips },
-  ] = await Promise.all([
-    supabase
-      .from("travelers")
-      .select(
-        "id, name, date_of_birth, about_me, mobility_aids, accessibility_notes",
-      )
-      .eq("is_person", true)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("travel_preferences")
-      .select("topic, topics, body")
-      .order("created_at", { ascending: true }),
-    supabase.from("household_facts").select("body, kind"),
-    supabase
-      .from("trips")
-      .select("name, start_date, end_date, status")
-      .eq("family_id", familyId)
-      .order("start_date", { ascending: true }),
-  ]);
+  // The trips they already have are deliberately not read. A window here is a
+  // month or two wide against a place with no dates, so anything could be made to
+  // collide with something, and the collision is only real once the trip has
+  // dates of its own.
+  const [{ data: travelers }, { data: preferences }, { data: facts }] =
+    await Promise.all([
+      supabase
+        .from("travelers")
+        .select(
+          "id, name, date_of_birth, about_me, mobility_aids, accessibility_notes",
+        )
+        .eq("is_person", true)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("travel_preferences")
+        .select("topic, topics, body")
+        .order("created_at", { ascending: true }),
+      supabase.from("household_facts").select("body, kind"),
+    ]);
 
   const people = travelers || [];
   const forWhom = row?.traveler_ids?.length ? row.traveler_ids : [];
@@ -129,7 +124,6 @@ export async function POST(request) {
     about: aboutLines(going),
     preferences: preferences || [],
     facts: facts || [],
-    trips: trips || [],
     today,
     deadline: Date.now() + Math.max(20000, MODEL_BUDGET_MS - elapsed),
   });

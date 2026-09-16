@@ -39,27 +39,19 @@ function placeSaid(row, travelers) {
  */
 const RANKS = [1, 2, 3, 4, 5];
 
-/** Which sort the list is in. Priority is the one you get without asking. */
+/**
+ * Which sort the list is in. Priority is the one you get without asking.
+ *
+ * Soonest month was here and is gone. The months on a bucket-list row say which
+ * time of year a place is worth going in, not which year, so ordering by the
+ * next one to come round put a place somebody might go to in nine years above a
+ * place they are saving for next spring, and read as a schedule the list does
+ * not have.
+ */
 const SORTS = [
   { id: "priority", label: "Priority" },
   { id: "newest", label: "Newest" },
-  { id: "months", label: "Soonest month" },
 ];
-
-/**
- * How far off the next month this place is good in, counted from this one.
- *
- * A place with no months ticked is good any month, which sounds like zero and
- * has to sort like infinity: "soonest month" is a question about places with an
- * answer, and a row that never named one has not answered it. Wraps the year, so
- * in November a January place is two months out and not minus ten.
- */
-function monthsAway(row, now) {
-  const months = (row.months || []).filter((m) => m >= 1 && m <= 12);
-  if (!months.length) return 99;
-  const here = now.getMonth() + 1;
-  return Math.min(...months.map((m) => (m - here + 12) % 12));
-}
 
 /**
  * The list in the order somebody asked for.
@@ -67,15 +59,10 @@ function monthsAway(row, now) {
  * Every sort ends on the same tiebreak -- the order the places were added --
  * so two rows the sort cannot separate never swap places between renders.
  */
-function sorted(rows, how, now) {
+function sorted(rows, how) {
   const list = [...rows];
   const added = (row) => new Date(row.created_at || 0).getTime();
   if (how === "newest") return list.sort((a, b) => added(b) - added(a));
-  if (how === "months") {
-    return list.sort(
-      (a, b) => monthsAway(a, now) - monthsAway(b, now) || added(a) - added(b),
-    );
-  }
   // Unranked is not a six. It is an absence, and it sits after everything
   // somebody has actually thought about.
   const rank = (row) => (RANKS.includes(row.priority) ? row.priority : 9);
@@ -218,7 +205,6 @@ export default function SomedayList({
       sorted(
         places.filter((row) => row.status === "open"),
         how,
-        new Date(),
       ),
     [places, how],
   );
