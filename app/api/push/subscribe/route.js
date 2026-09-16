@@ -20,11 +20,37 @@ import { optionalFeatureDecision } from "@/lib/beta/consent";
 export const runtime = "nodejs";
 
 export async function GET() {
-  return NextResponse.json({
-    configured: pushConfigured(),
+  const configured = pushConfigured();
+  const body = {
+    configured,
     key: pushPublicKey(),
     problem: pushProblem(),
-  });
+    subscribed: false,
+  };
+
+  // Whether this person has a live row, not just a live browser. The screen used
+  // to decide it was signed up by asking the browser alone, which is true right up
+  // until the row is retired underneath it -- turning Reminders off does exactly
+  // that. After which the phone still holds its subscription, the panel still says
+  // on, and the sender cannot see the row. Saying what the server holds lets the
+  // screen notice the disagreement and offer to fix it.
+  if (configured) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from("push_subscriptions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("enabled", true)
+        .limit(1);
+      body.subscribed = Boolean(data?.length);
+    }
+  }
+
+  return NextResponse.json(body);
 }
 
 export async function POST(request) {

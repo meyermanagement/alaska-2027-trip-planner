@@ -114,8 +114,13 @@ export default function PushAlerts() {
       const reg = await navigator.serviceWorker
         .getRegistration()
         .catch(() => null);
+      // Both halves have to agree. A browser holding a subscription the server has
+      // no enabled row for is not signed up -- the sender reads rows, not
+      // browsers -- and saying "on" there is the screen telling somebody they will
+      // be warned about a deadline when nothing will warn them. Treated as off, so
+      // the button offers to sign up again and the next press repairs the row.
       const existing = reg ? await reg.pushManager.getSubscription() : null;
-      if (alive) setState(existing ? "on" : "off");
+      if (alive) setState(existing && info.subscribed ? "on" : "off");
     })();
     return () => {
       alive = false;
@@ -151,6 +156,10 @@ export default function PushAlerts() {
         return;
       }
 
+      // Reusing whatever the browser already has is right: the endpoint is the
+      // identity, the row is upserted on it, and a browser that still holds a
+      // subscription the server retired gets that row switched back on by the
+      // POST below rather than a second row beside it.
       const subscription =
         (await registration.pushManager.getSubscription()) ||
         (await registration.pushManager.subscribe({

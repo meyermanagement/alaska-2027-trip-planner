@@ -190,10 +190,22 @@ export async function PATCH(request) {
     patch.diagnostics = body.diagnostics;
   }
 
+  // Kept separately from the merged result. What the household now believes and
+  // what this request actually changed are different questions, and the work that
+  // follows a switch has to key off the second one.
+  const changed =
+    body?.features && typeof body.features === "object"
+      ? changedFeatures(body.features)
+      : {};
+  const touchedNotifications = Object.prototype.hasOwnProperty.call(
+    changed,
+    "notifications",
+  );
+
   if (body?.features && typeof body.features === "object") {
     patch.features = {
       ...(existing.features || {}),
-      ...changedFeatures(body.features),
+      ...changed,
     };
   }
 
@@ -214,10 +226,23 @@ export async function PATCH(request) {
   // check the switch on the way out, so this is belt and braces -- but a device
   // that keeps a live subscription after its owner said no is a thing waiting to
   // go wrong, and the row costs nothing to retire.
-  if (patch.features && patch.features.notifications !== true) {
+  //
+  // Turning them back on has to undo exactly that, and for a while it did not. The
+  // screen that offers this decides whether a browser is signed up by asking the
+  // browser, not the server: the phone still holds the subscription it was given,
+  // so the panel says "on" and never offers to sign up again, while the row it
+  // needs stays retired and the deadline watch cannot see it. The household is not
+  // silenced -- the watch falls back to email -- but it is quietly demoted to a
+  // channel nobody chose, with the screen claiming otherwise. A permission that
+  // comes back has to bring the channel back with it.
+  //
+  // Keyed on whether this request mentioned the switch at all. Reading it off the
+  // merged record would let a change to the document reader retire or revive
+  // somebody's phones as a side effect.
+  if (touchedNotifications) {
     await supabase
       .from("push_subscriptions")
-      .update({ enabled: false })
+      .update({ enabled: changed.notifications === true })
       .eq("user_id", me.id);
   }
 
