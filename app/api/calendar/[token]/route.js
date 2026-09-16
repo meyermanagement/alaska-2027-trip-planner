@@ -3,9 +3,13 @@
 // Nobody is signed in here and nobody can be: this URL is read by Google
 // Calendar, Apple Calendar or Outlook on their own schedule, with no session and
 // no way to prompt for one. The token in the path is therefore the whole
-// credential, which is why it is 24 random bytes, why it is revocable, and why
-// this route reads through the service role and scopes every query by the family
-// the token belongs to rather than trusting row-level security to do it.
+// credential, which is why it is 24 random bytes, why it is revocable, why it
+// expires, and why this route reads through the service role and scopes every
+// query by the family the token belongs to rather than trusting row-level
+// security to do it.
+//
+// What it carries is deliberately thin -- titles, dates, places, a link back, and
+// none of the household's typed notes. See lib/calendar/ics.js for why.
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { familyCalendar } from "@/lib/calendar/ics";
@@ -33,10 +37,19 @@ export async function GET(request, { params }) {
 
   const { data: feed } = await supabase
     .from("calendar_feeds")
-    .select("family_id, created_by")
+    .select("family_id, created_by, expires_at")
     .eq("token", token)
     .maybeSingle();
   if (!feed) return new Response("Not found.", { status: 404 });
+
+  // An address that ran out. Six months, renewable from the Trips screen, and the
+  // answer is the same 404 an unknown token gets: a calendar app has nowhere to
+  // show an explanation, and a token that says "expired" rather than "unknown"
+  // confirms to a stranger that it was once real.
+  const expired = feed.expires_at && Date.parse(feed.expires_at) <= Date.now();
+  if (expired) {
+    return new Response("Not found.", { status: 404 });
+  }
 
   // The switch, checked on every read rather than only when the link was made.
   // A calendar app re-reads this URL for years without asking anyone, so the only

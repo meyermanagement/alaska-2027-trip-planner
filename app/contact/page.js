@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
@@ -37,6 +38,15 @@ export default async function ContactPage() {
         <div className="mt-6">
           <ContactForm defaultEmail={user.email || ""} />
         </div>
+
+        <p className="mt-6 text-xs leading-relaxed text-ink-soft">
+          Found a way to reach something you should not be able to reach? That
+          one goes to{" "}
+          <Link className="underline underline-offset-2" href="/security">
+            reporting a security problem
+          </Link>
+          , which says what we do about it and how quickly.
+        </p>
 
         <p className="mt-8 text-xs text-ink-soft">
           If the app is broken -- a screen will not open, a save will not save,
