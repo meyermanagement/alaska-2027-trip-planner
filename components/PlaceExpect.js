@@ -61,6 +61,11 @@ function saidWhen(value) {
 
 export default function PlaceExpect({ row }) {
   const [busy, setBusy] = useState(false);
+  // Shut by default, because a stored answer is four cards deep and a screen of
+  // eleven places would be a page you scroll past rather than read. An answer
+  // just asked for opens itself: somebody who waited most of a minute for it
+  // should not then have to press a second time to see what they paid for.
+  const [open, setOpen] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
   const [fresh, setFresh] = useState(null);
@@ -105,6 +110,7 @@ export default function PlaceExpect({ row }) {
         return;
       }
       setFresh(json);
+      setOpen(true);
     } catch {
       if (alive.current) setError("That did not come back. Try it again.");
     } finally {
@@ -151,106 +157,132 @@ export default function PlaceExpect({ row }) {
       {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
 
       {panel ? (
-        <div className="mt-2 rounded-xl border border-[var(--line)] bg-sand/60 p-3">
-          {panel.searched === false ? (
-            <p className="mb-2 text-sm text-ink-faint">
-              I could not search for this one, so what follows is general rather
-              than checked.
-            </p>
-          ) : null}
-
-          {panel.verdict ? (
-            <p className="font-medium text-ink">
-              {panel.verdict}
+        <details
+          open={open}
+          onToggle={(event) => setOpen(event.currentTarget.open)}
+          className="mt-2 rounded-xl border border-[var(--line)] bg-sand/60 [&[open]>summary>svg]:rotate-90"
+        >
+          {/*
+           * The verdict and the fraction are the summary, so the one line worth
+           * seeing at a glance is the line you get without opening anything. The
+           * child arrow is scoped with > rather than a descendant, or opening the
+           * panel would turn the arrow on the drawer inside it too.
+           */}
+          <summary className="flex cursor-pointer list-none items-baseline gap-2 p-3 text-sm">
+            <svg
+              viewBox="0 0 12 12"
+              className="mt-1 h-3 w-3 shrink-0 self-start text-ink-faint transition-transform"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 2.5L8 6L4 9.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="font-medium text-ink">
+              {panel.verdict || "What to expect"}
               {panel.fit ? (
                 <span className="font-normal text-ink-soft">
                   {" \u00b7 "}
                   {panel.fit}
                 </span>
               ) : null}
-            </p>
-          ) : null}
+            </span>
+          </summary>
 
-          {tips.length ? (
-            <ul className="mt-2 space-y-2">
-              {tips.map((tip) => (
-                <li
-                  key={tip.kind}
-                  className="rounded-lg border border-[var(--line)] bg-white p-3"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint">
-                    {HEADS[tip.kind] || "Worth knowing"}
-                  </p>
-                  <p className="mt-1 text-sm leading-relaxed text-ink">
-                    {tip.body}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <div className="px-3 pb-3">
+            {panel.searched === false ? (
+              <p className="mb-2 text-sm text-ink-faint">
+                I could not search for this one, so what follows is general
+                rather than checked.
+              </p>
+            ) : null}
 
-          {checks.length ? (
-            <details className="mt-2 [&[open]_summary_svg]:rotate-90">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
-                <svg
-                  viewBox="0 0 12 12"
-                  className="h-3 w-3 shrink-0 transition-transform"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M4 2.5L8 6L4 9.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                What I weighed
-              </summary>
-              <ul className="mt-2 space-y-1.5">
-                {checks.map((check) => {
-                  const tone = MATCH[check.match] || MATCH.unsure;
-                  return (
-                    <li key={check.about} className="flex gap-1.5 text-sm">
-                      <span
-                        className={`w-3 shrink-0 leading-relaxed ${tone.tone}`}
-                        aria-hidden="true"
-                      >
-                        {tone.mark}
-                      </span>
-                      <span className="leading-relaxed">
-                        <span className="font-medium text-ink">
-                          {check.about}
-                        </span>
-                        <span className="sr-only">{`: ${tone.said}. `}</span>
-                        <span className="text-ink-soft">
-                          {" \u2014 "}
-                          {check.because}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
+            {tips.length ? (
+              <ul className="space-y-2">
+                {tips.map((tip) => (
+                  <li
+                    key={tip.kind}
+                    className="rounded-lg border border-[var(--line)] bg-white p-3"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint">
+                      {HEADS[tip.kind] || "Worth knowing"}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink">
+                      {tip.body}
+                    </p>
+                  </li>
+                ))}
               </ul>
-            </details>
-          ) : null}
+            ) : null}
 
-          <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
-            {when ? <span>Aly, {when}</span> : <span>Aly</span>}
-            {sources.map((source) => (
-              <a
-                key={source.url}
-                href={source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-              >
-                {source.title || "Source"}
-              </a>
-            ))}
-          </p>
-        </div>
+            {checks.length ? (
+              <details className="mt-2 [&[open]_summary_svg]:rotate-90">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
+                  <svg
+                    viewBox="0 0 12 12"
+                    className="h-3 w-3 shrink-0 transition-transform"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M4 2.5L8 6L4 9.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  What I weighed
+                </summary>
+                <ul className="mt-2 space-y-1.5">
+                  {checks.map((check) => {
+                    const tone = MATCH[check.match] || MATCH.unsure;
+                    return (
+                      <li key={check.about} className="flex gap-1.5 text-sm">
+                        <span
+                          className={`w-3 shrink-0 leading-relaxed ${tone.tone}`}
+                          aria-hidden="true"
+                        >
+                          {tone.mark}
+                        </span>
+                        <span className="leading-relaxed">
+                          <span className="font-medium text-ink">
+                            {check.about}
+                          </span>
+                          <span className="sr-only">{`: ${tone.said}. `}</span>
+                          <span className="text-ink-soft">
+                            {" \u2014 "}
+                            {check.because}
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            ) : null}
+
+            <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
+              {when ? <span>Aly, {when}</span> : <span>Aly</span>}
+              {sources.map((source) => (
+                <a
+                  key={source.url}
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                >
+                  {source.title || "Source"}
+                </a>
+              ))}
+            </p>
+          </div>
+        </details>
       ) : null}
     </div>
   );
