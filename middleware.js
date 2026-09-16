@@ -39,10 +39,18 @@ const PUBLIC_PATHS = ["/login", "/auth", "/privacy", "/beta-terms"];
 // no way of being given one. The route itself checks the shared secret in the
 // x-postmark-webhook-secret header or the ?secret= query parameter before it
 // touches the database.
+//
+// The breached-password check has to be reachable while signed out, because the
+// only place it runs is the sign-up form, where by definition nobody has a
+// session. Redirecting it to the login page made the check silently do nothing:
+// the fetch came back as an HTML redirect, the caller could not parse it, and it
+// failed open on every signup. Nothing sensitive travels here — five characters
+// of a hash, no session, no body. See app/api/auth/pwned/route.js.
 const MACHINE_PATHS = [
   "/api/tasks/remind",
   "/api/mail/check",
   "/api/inbox/receive",
+  "/api/auth/pwned",
 ];
 
 // The calendar subscription is read by Google Calendar, Apple Calendar or
