@@ -165,8 +165,7 @@ export async function POST(request) {
   const expect = {
     tips: answer.tips,
     checks: answer.checks,
-    verdict: answer.verdict,
-    fit: answer.fit,
+    consider: answer.consider,
     searched: answer.searched,
   };
 

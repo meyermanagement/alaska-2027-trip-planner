@@ -13,12 +13,13 @@ import { elapsedSaid } from "@/lib/agent/waiting";
  * really like measured against what they have written down about themselves, how
  * far ahead it has to be booked, and what would quietly rule it out.
  *
- * Beside that it scores the fit, and the score is a fraction rather than a
- * percentage on purpose. A machine saying 84 percent invites the question it
- * cannot answer -- why not 91 -- and one disagreement retires the whole panel. A
- * fraction can be opened: the things it weighed are named, each one a line from
- * the family's own record with a sentence on how the place sits against it, so
- * anybody who disagrees can see exactly which line to argue with.
+ * Under that is a list of things to consider, each drawn from something the
+ * family has written down about themselves with a sentence on how this place sits
+ * against it. There is no grade and no score. A machine telling a family that
+ * somewhere on their own wish list is probably not for them is answering a
+ * question nobody asked, and a number behind that verdict only invites the one
+ * question it cannot answer. The lines are the answer, and somebody who disagrees
+ * can disagree with a line rather than with a verdict.
  *
  * Asked, never automatic, exactly like the months question beside it. A grounded
  * look costs most of a minute and money, and a screen of eleven places would spend
@@ -52,6 +53,20 @@ const MATCH = {
   no: { mark: "\u2717", said: "Collides", tone: "text-rose" },
   unsure: { mark: "\u2013", said: "Cannot tell", tone: "text-ink-faint" },
 };
+
+/**
+ * What the shut band says there is inside it: the length of the list, and
+ * deliberately nothing about how it came out. A count of the lines is a fact
+ * about the answer; a count of the ones that line up is a score, and a score is
+ * what this stopped keeping. Worked out here rather than read off the stored
+ * panel, so a row answered while this still kept a score gets the right line.
+ */
+function considerSaid(checks) {
+  if (!checks.length) return "";
+  return checks.length === 1
+    ? "1 thing to consider"
+    : `${checks.length} things to consider`;
+}
 
 function saidWhen(value) {
   const at = value ? new Date(value) : null;
@@ -131,6 +146,7 @@ export default function PlaceExpect({ row }) {
   const when = saidWhen(fresh ? fresh.saidAt : row.expect_said_at);
   const tips = Array.isArray(panel?.tips) ? panel.tips : [];
   const checks = Array.isArray(panel?.checks) ? panel.checks : [];
+  const consider = considerSaid(checks);
 
   return (
     <div>
@@ -150,9 +166,22 @@ export default function PlaceExpect({ row }) {
           className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
           onClick={ask}
         >
-          {panel ? "Ask again" : "What should we expect?"}
+          {panel ? "Ask again with anything new" : "What should we expect?"}
         </button>
       )}
+
+      {/*
+       * Ask again said on its own is a button whose cost and effect are both
+       * hidden: it throws away the answer below, it takes most of a minute, and
+       * the only reason to press it is that the family has changed since. So the
+       * label says what it asks with, and this line says what it does with it.
+       */}
+      {panel && !busy ? (
+        <p className="mt-1 text-xs leading-relaxed text-ink-faint">
+          Aly rereads your notes, how you like to travel and any fares you have
+          been sent, then replaces what is below. Takes about a minute.
+        </p>
+      ) : null}
 
       {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
 
@@ -163,10 +192,10 @@ export default function PlaceExpect({ row }) {
           className="mt-2 rounded-xl border border-[var(--line)] bg-sand/60 [&[open]>summary>svg]:rotate-90"
         >
           {/*
-           * The verdict and the fraction are the summary, so the one line worth
-           * seeing at a glance is the line you get without opening anything. The
-           * child arrow is scoped with > rather than a descendant, or opening the
-           * panel would turn the arrow on the drawer inside it too.
+           * What the band says while it is shut: that there is an answer here,
+           * and how many things it found for them to think about. Not how it came
+           * out. The arrow is matched with a child selector so that nothing
+           * nested inside can pick the rule up.
            */}
           <summary className="flex cursor-pointer list-none items-baseline gap-2 p-3 text-sm">
             <svg
@@ -184,11 +213,11 @@ export default function PlaceExpect({ row }) {
               />
             </svg>
             <span className="font-medium text-ink">
-              {panel.verdict || "What to expect"}
-              {panel.fit ? (
+              What to expect
+              {consider ? (
                 <span className="font-normal text-ink-soft">
                   {" \u00b7 "}
-                  {panel.fit}
+                  {consider}
                 </span>
               ) : null}
             </span>
@@ -221,24 +250,16 @@ export default function PlaceExpect({ row }) {
             ) : null}
 
             {checks.length ? (
-              <details className="mt-2 [&[open]_summary_svg]:rotate-90">
-                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
-                  <svg
-                    viewBox="0 0 12 12"
-                    className="h-3 w-3 shrink-0 transition-transform"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M4 2.5L8 6L4 9.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  What I weighed
-                </summary>
+              <div className="mt-3">
+                {/*
+                 * Out in the open rather than behind a second drawer. This is the
+                 * part that is about them rather than about the place, which makes
+                 * it the part worth reading, and a thing worth reading does not go
+                 * in a drawer inside a drawer.
+                 */}
+                <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint">
+                  Things to consider
+                </p>
                 <ul className="mt-2 space-y-1.5">
                   {checks.map((check) => {
                     const tone = MATCH[check.match] || MATCH.unsure;
@@ -264,7 +285,7 @@ export default function PlaceExpect({ row }) {
                     );
                   })}
                 </ul>
-              </details>
+              </div>
             ) : null}
 
             <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
