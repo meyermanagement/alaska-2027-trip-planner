@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runRetentionPurges, JOBS } from "@/lib/retention/purge";
+import { retryOpenDeletions } from "@/lib/account/retryDeletions";
 
 export const maxDuration = 60;
+
+const DELETIONS = "deletions";
 
 /**
  * Housekeeping: the retention promises, performed on a schedule.
@@ -19,7 +22,13 @@ export const maxDuration = 60;
  * works, or catching up after a spell where the scheduler was not calling. Moving
  * it onto its own schedule later is one entry in vercel.json and no change here.
  *
- * `?job=` runs one of them alone, which is what an evidence run wants.
+ * It also runs the deletion retry: every deletion receipt still open an hour
+ * after it was asked for is run again, and after three failures somebody is
+ * emailed once. Housekeeping and unfinished deletions belong on the same pass
+ * because they are the same promise -- that what we said would go, goes.
+ *
+ * `?job=` runs one of them alone, which is what an evidence run wants;
+ * `?job=deletions` runs only the retry.
  */
 export async function GET(request) {
   const secret = process.env.CRON_SECRET;
@@ -47,18 +56,30 @@ export async function GET(request) {
   }
 
   const asked = new URL(request.url).searchParams.get("job");
-  if (asked && !JOBS.includes(asked)) {
+  if (asked && asked !== DELETIONS && !JOBS.includes(asked)) {
     return NextResponse.json(
-      { error: `No such job. Try one of: ${JOBS.join(", ")}.` },
+      { error: `No such job. Try one of: ${[...JOBS, DELETIONS].join(", ")}.` },
       { status: 400 },
     );
   }
 
-  const outcome = await runRetentionPurges({
-    supabase,
-    source: "manual",
-    jobs: asked ? [asked] : JOBS,
-  });
+  const purges =
+    asked === DELETIONS
+      ? null
+      : await runRetentionPurges({
+          supabase,
+          source: "manual",
+          jobs: asked ? [asked] : JOBS,
+        });
 
-  return NextResponse.json(outcome, { status: outcome.ok ? 200 : 500 });
+  const deletions =
+    asked && asked !== DELETIONS
+      ? null
+      : await retryOpenDeletions({ supabase, source: "manual" });
+
+  const ok = (purges?.ok ?? true) && (deletions?.ok ?? true);
+  return NextResponse.json(
+    { ok, purges, deletions },
+    { status: ok ? 200 : 500 },
+  );
 }

@@ -5,6 +5,7 @@ import { sendDueTodayReminders } from "@/lib/email/sendReminders";
 import { siteOrigin } from "@/lib/email/sendInvite";
 import { runRecord } from "@/lib/tasks/runs";
 import { runRetentionPurges } from "@/lib/retention/purge";
+import { retryOpenDeletions } from "@/lib/account/retryDeletions";
 import { homeToday } from "@/lib/format";
 
 export const maxDuration = 60;
@@ -75,8 +76,18 @@ export async function GET(request) {
     retention = { ok: false, error: String(e?.message || e), jobs: [] };
   }
 
+  // And the deletions nobody finished. Same reasoning as the purges: this is the
+  // run the record proves is called, and an unfinished deletion is the promise
+  // with the shortest fuse on it -- 30 days, running from a receipt nobody reads.
+  let deletions = null;
+  try {
+    deletions = await retryOpenDeletions({ supabase, source: "cron" });
+  } catch (e) {
+    deletions = { ok: false, error: String(e?.message || e), rows: [] };
+  }
+
   return NextResponse.json(
-    { ...outcome, retention },
+    { ...outcome, retention, deletions },
     { status: outcome.ok ? 200 : 500 },
   );
 }
