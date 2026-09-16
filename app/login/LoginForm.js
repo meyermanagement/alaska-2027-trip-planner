@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import GoogleButton from "@/components/GoogleButton";
+import {
+  leakedPasswordCount,
+  leakedPasswordMessage,
+} from "@/lib/auth/pwned";
 
 /** The first hop after a password sign-in: see app/auth/land/route.js. */
 function landing(next) {
@@ -61,6 +65,17 @@ export default function LoginForm() {
       // code has no family and nowhere to land, which is worth stopping here.
       if (!inviteCode.trim()) {
         setError("Enter the code you were sent to start a new family.");
+        setBusy(false);
+        return;
+      }
+
+      // Checked before the account is created rather than after, because there
+      // is no password-change screen yet: a leaked password accepted here would
+      // stay in place for the length of the beta. Unknown answers pass through
+      // by design — see lib/auth/pwned.js.
+      const leaked = await leakedPasswordCount(password);
+      if (leaked) {
+        setError(leakedPasswordMessage(leaked));
         setBusy(false);
         return;
       }
