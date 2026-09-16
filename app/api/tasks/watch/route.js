@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runDeadlineWatch, watchRecord } from "@/lib/watch/run";
+import { runRetentionPurges } from "@/lib/retention/purge";
 import { siteOrigin } from "@/lib/email/sendInvite";
 import { homeToday } from "@/lib/format";
 
@@ -57,7 +58,24 @@ export async function GET(request) {
 
   await record({ supabase, outcome, source: "cron" });
 
-  return NextResponse.json(outcome, { status: outcome.ok ? 200 : 500 });
+  // The retention purges ride along with the nightly run. The free hosting plan
+  // allows two cron jobs and this app already has both, so rather than a third
+  // schedule the housekeeping happens on the back of this one -- once a night,
+  // which is the cadence a 30-day and a 90-day promise need. It is deliberately
+  // after the watch and deliberately cannot fail it: a purge that falls over is
+  // recorded in retention_runs and reported here, and a household still gets
+  // warned about its fare.
+  let retention = null;
+  try {
+    retention = await runRetentionPurges({ supabase, source: "cron" });
+  } catch (e) {
+    retention = { ok: false, error: String(e?.message || e), jobs: [] };
+  }
+
+  return NextResponse.json(
+    { ...outcome, retention },
+    { status: outcome.ok ? 200 : 500 },
+  );
 }
 
 /**
