@@ -43,7 +43,10 @@ export async function POST(request) {
   // Best-effort, like everywhere else the extractor is called: a rehearsal
   // that cannot reach the model asks its questions cold rather than failing.
   try {
-    const priors = await extractAboutMePriors(paragraph);
+    const priors = await extractAboutMePriors(paragraph, {
+      supabase,
+      userId: me.id,
+    });
     return NextResponse.json({ priors: priors || {} });
   } catch (err) {
     console.warn("about-you priors: extraction threw", err?.message || err);

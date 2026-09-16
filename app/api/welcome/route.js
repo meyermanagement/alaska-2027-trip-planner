@@ -71,7 +71,10 @@ export async function PATCH(request) {
   let priors = {};
   if (nextValue) {
     try {
-      priors = await extractAboutMePriors(nextValue);
+      priors = await extractAboutMePriors(nextValue, {
+        supabase,
+        userId: user.id,
+      });
     } catch (err) {
       console.warn("welcome about_me: extraction threw", err?.message || err);
       priors = {};
