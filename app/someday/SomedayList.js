@@ -1015,6 +1015,29 @@ export default function SomedayList({
                       </span>
                     </button>
 
+                    {/*
+                     * The one thing worth doing to a place you are only
+                     * scanning past, kept on the shut row.
+                     *
+                     * Everything else in the fold answers a question about the
+                     * place -- how much you want it, what it costs, what the
+                     * months are -- and is worth a press to open. This one
+                     * leaves the page entirely, and needing to unfold a row
+                     * first is a tap spent on nothing: the name is already
+                     * enough to know you want to plan it. Outside the head
+                     * button rather than inside it, because a link nested in a
+                     * button is invalid and a fold press would swallow it.
+                     */}
+                    {!unfolded.has(row.id) ? (
+                      <Link
+                        href={`/trips/new?from=${row.id}`}
+                        className="-mb-1 mt-0.5 inline-flex items-center gap-1.5 py-2 text-sm font-medium text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                      >
+                        Plan this trip
+                        <PendingSpark />
+                      </Link>
+                    ) : null}
+
                     {unfolded.has(row.id) ? (
                       <>
                         {row.why ? (
