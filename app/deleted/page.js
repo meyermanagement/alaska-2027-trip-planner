@@ -29,6 +29,11 @@ export const metadata = {
 export default function DeletedPage() {
   return (
     <main className="mx-auto w-full max-w-xl px-5 pb-16 pt-12">
+      {/* The report flag hangs off every screen and posts to a route that needs a
+          session, so on this one it is an offer to file a bug as an account that
+          no longer exists. The same marker the policy and the terms set takes it
+          off the page. Anybody who does need us has the address below. */}
+      <div data-quiet-chrome="1" hidden />
       <p className="section-label">Done</p>
       <h1 className="mt-1 font-display text-3xl font-semibold">
         Your account has been deleted
