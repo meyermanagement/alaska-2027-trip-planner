@@ -1,0 +1,257 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Spinner } from "@/components/LinkPending";
+import { elapsedSaid } from "@/lib/agent/waiting";
+
+/**
+ * Aly saying what a bucket-list place would actually be like for this household.
+ *
+ * A wish list is a column of place names, and a name is the least useful thing to
+ * look at when choosing what to do next. This answers the four things the name
+ * cannot: what it costs to fly there from their own airports, what the days are
+ * really like measured against what they have written down about themselves, how
+ * far ahead it has to be booked, and what would quietly rule it out.
+ *
+ * Beside that it scores the fit, and the score is a fraction rather than a
+ * percentage on purpose. A machine saying 84 percent invites the question it
+ * cannot answer -- why not 91 -- and one disagreement retires the whole panel. A
+ * fraction can be opened: the things it weighed are named, each one a line from
+ * the family's own record with a sentence on how the place sits against it, so
+ * anybody who disagrees can see exactly which line to argue with.
+ *
+ * Asked, never automatic, exactly like the months question beside it. A grounded
+ * look costs most of a minute and money, and a screen of eleven places would spend
+ * both eleven times over for a family who wanted to know about one.
+ */
+
+/** Four honest things to say while a grounded look runs, and no fifth. */
+const LINES = [
+  [0, "Reading up on what this place is like"],
+  [8, "Pricing it from your airports"],
+  [26, "Still going. Grounded answers can take most of a minute"],
+  [55, "This is longer than usual. It may come back as an error"],
+];
+
+function waitLine(seconds) {
+  let said = LINES[0][1];
+  for (const [at, text] of LINES) if (seconds >= at) said = text;
+  return said;
+}
+
+/** What each of the four is for, in the order they change a decision. */
+const HEADS = {
+  cost: "Getting there",
+  like: "What it is actually like",
+  book: "How far ahead",
+  stop: "What would rule it out",
+};
+
+const MATCH = {
+  yes: { mark: "\u2713", said: "Lines up", tone: "text-teal" },
+  no: { mark: "\u2717", said: "Collides", tone: "text-rose" },
+  unsure: { mark: "\u2013", said: "Cannot tell", tone: "text-ink-faint" },
+};
+
+function saidWhen(value) {
+  const at = value ? new Date(value) : null;
+  if (!at || Number.isNaN(at.getTime())) return "";
+  return at.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+export default function PlaceExpect({ row }) {
+  const [busy, setBusy] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const [error, setError] = useState("");
+  const [fresh, setFresh] = useState(null);
+  const alive = useRef(true);
+
+  // Set on the way in as well as cleared on the way out. A one-shot cleanup is
+  // enough in production and wrong in development, where effects are mounted
+  // twice on purpose: the first cleanup would latch this false and every answer
+  // after it would be thrown away as arriving after the screen had gone.
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!busy) return undefined;
+    setSeconds(0);
+    const at = Date.now();
+    const tick = window.setInterval(
+      () => setSeconds(Math.floor((Date.now() - at) / 1000)),
+      1000,
+    );
+    return () => window.clearInterval(tick);
+  }, [busy]);
+
+  async function ask() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/someday/expect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: row.id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!alive.current) return;
+      if (!res.ok) {
+        setError(json?.error || "That did not come back. Try it again.");
+        return;
+      }
+      setFresh(json);
+    } catch {
+      if (alive.current) setError("That did not come back. Try it again.");
+    } finally {
+      if (alive.current) setBusy(false);
+    }
+  }
+
+  // The answer just given wins over the one on the row, because the row was
+  // written by the same request and a page that has not been reloaded still
+  // carries the older props.
+  const panel =
+    fresh || (row.expect?.tips || row.expect?.checks ? row.expect : null);
+  const sources = Array.isArray(fresh ? fresh.sources : row.expect_sources)
+    ? (fresh ? fresh.sources : row.expect_sources)
+        .filter((one) => one?.url)
+        .slice(0, 4)
+    : [];
+  const when = saidWhen(fresh ? fresh.saidAt : row.expect_said_at);
+  const tips = Array.isArray(panel?.tips) ? panel.tips : [];
+  const checks = Array.isArray(panel?.checks) ? panel.checks : [];
+
+  return (
+    <div>
+      {busy ? (
+        <p className="inline-flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+          <Spinner className="h-4 w-4 text-teal" />
+          <span aria-live="polite">{waitLine(seconds)}</span>
+          {seconds >= 3 ? (
+            <span className="tabular text-xs text-ink-faint" aria-hidden="true">
+              {elapsedSaid(seconds)}
+            </span>
+          ) : null}
+        </p>
+      ) : (
+        <button
+          type="button"
+          className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+          onClick={ask}
+        >
+          {panel ? "Ask again" : "What should we expect?"}
+        </button>
+      )}
+
+      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+
+      {panel ? (
+        <div className="mt-2 rounded-xl border border-[var(--line)] bg-sand/60 p-3">
+          {panel.searched === false ? (
+            <p className="mb-2 text-sm text-ink-faint">
+              I could not search for this one, so what follows is general rather
+              than checked.
+            </p>
+          ) : null}
+
+          {panel.verdict ? (
+            <p className="font-medium text-ink">
+              {panel.verdict}
+              {panel.fit ? (
+                <span className="font-normal text-ink-soft">
+                  {" \u00b7 "}
+                  {panel.fit}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+
+          {tips.length ? (
+            <ul className="mt-2 space-y-2">
+              {tips.map((tip) => (
+                <li
+                  key={tip.kind}
+                  className="rounded-lg border border-[var(--line)] bg-white p-3"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint">
+                    {HEADS[tip.kind] || "Worth knowing"}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink">
+                    {tip.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {checks.length ? (
+            <details className="mt-2 [&[open]_summary_svg]:rotate-90">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.09em] text-ink-faint transition hover:text-ink-soft">
+                <svg
+                  viewBox="0 0 12 12"
+                  className="h-3 w-3 shrink-0 transition-transform"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M4 2.5L8 6L4 9.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                What I weighed
+              </summary>
+              <ul className="mt-2 space-y-1.5">
+                {checks.map((check) => {
+                  const tone = MATCH[check.match] || MATCH.unsure;
+                  return (
+                    <li key={check.about} className="flex gap-1.5 text-sm">
+                      <span
+                        className={`w-3 shrink-0 leading-relaxed ${tone.tone}`}
+                        aria-hidden="true"
+                      >
+                        {tone.mark}
+                      </span>
+                      <span className="leading-relaxed">
+                        <span className="font-medium text-ink">
+                          {check.about}
+                        </span>
+                        <span className="sr-only">{`: ${tone.said}. `}</span>
+                        <span className="text-ink-soft">
+                          {" \u2014 "}
+                          {check.because}
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          ) : null}
+
+          <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
+            {when ? <span>Aly, {when}</span> : <span>Aly</span>}
+            {sources.map((source) => (
+              <a
+                key={source.url}
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+              >
+                {source.title || "Source"}
+              </a>
+            ))}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}

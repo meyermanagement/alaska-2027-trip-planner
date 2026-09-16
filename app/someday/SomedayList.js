@@ -7,6 +7,7 @@ import Link from "next/link";
 import { PendingSpark, Spinner } from "@/components/LinkPending";
 import LocationField from "@/components/LocationField";
 import WhenToGo from "@/components/WhenToGo";
+import PlaceExpect from "@/components/PlaceExpect";
 import { MONTHS, monthsSaid } from "@/lib/someday/months";
 
 /**
@@ -751,6 +752,17 @@ export default function SomedayList({
                         })
                       }
                     />
+                  </div>
+                  {/*
+                   * A second line under it rather than a second link beside it.
+                   * The two questions are asked at different moments -- the
+                   * months when somebody is looking at empty ticks, this one
+                   * when they are deciding whether the place is realistic at
+                   * all -- and both open panels, so a shared row would put two
+                   * things that unfold next to each other.
+                   */}
+                  <div className="mt-2 text-sm">
+                    <PlaceExpect row={row} />
                   </div>
                 </>
               )}
