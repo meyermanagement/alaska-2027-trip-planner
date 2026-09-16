@@ -10,7 +10,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { familyCalendar } from "@/lib/calendar/ics";
 import { siteOrigin } from "@/lib/email/sendInvite";
-import { householdFeatureOn } from "@/lib/beta/consent";
+import { optionalFeatureOn, householdFeatureOn } from "@/lib/beta/consent";
 
 export const runtime = "nodejs";
 
@@ -33,22 +33,36 @@ export async function GET(request, { params }) {
 
   const { data: feed } = await supabase
     .from("calendar_feeds")
-    .select("family_id")
+    .select("family_id, created_by")
     .eq("token", token)
     .maybeSingle();
   if (!feed) return new Response("Not found.", { status: 404 });
 
   // The switch, checked on every read rather than only when the link was made.
   // A calendar app re-reads this URL for years without asking anyone, so the only
-  // moment a withdrawn permission can take effect is this one. 404 rather than 403
-  // because the reader is a calendar app with no way to be told anything useful,
-  // and because a token that answers differently depending on a setting tells a
-  // stranger something about the household. The link starts working again by
+  // moment a withdrawn permission can take effect is this one.
+  //
+  // Whose switch: the person who asked for the link. The link exists because they
+  // wanted their itinerary in their calendar, and it is their permission that made
+  // it. Asking the whole household instead would break a working subscription for
+  // the sake of a member who never went near the calendar screen -- and the first
+  // real household in production has three members, no owner row, and one consent
+  // record between them, so a unanimity rule would have silenced it outright.
+  //
+  // A link with no author on the row -- older than the column -- falls back to the
+  // household, where at least somebody has to allow it.
+  const permitted = feed.created_by
+    ? {
+        allowed: await optionalFeatureOn(supabase, feed.created_by, "calendar"),
+      }
+    : await householdFeatureOn(supabase, {
+        familyId: feed.family_id,
+        feature: "calendar",
+      });
+  // 404 rather than 403: the reader is a calendar app with no way to be told
+  // anything useful, and a token that answers differently depending on a setting
+  // tells a stranger something about the household. It starts working again by
   // itself if the switch goes back on.
-  const permitted = await householdFeatureOn(supabase, {
-    familyId: feed.family_id,
-    feature: "calendar",
-  });
   if (!permitted.allowed) {
     return new Response("Not found.", { status: 404 });
   }
