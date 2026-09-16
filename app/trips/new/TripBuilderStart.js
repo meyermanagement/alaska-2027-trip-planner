@@ -77,6 +77,10 @@ export default function TripBuilderStart({
     placed.current = true;
     box.focus({ preventScroll: true });
     box.setSelectionRange(seed.length, seed.length);
+    // Setting the selection does not move the box's own scroll until something
+    // is typed, so on a phone the caret sat at the end of a paragraph whose
+    // first line was the only one showing. Scroll it to the bottom by hand.
+    box.scrollTop = box.scrollHeight;
   }, [seed]);
 
   // The examples sit at the bottom of the screen and the box they fill is at the

@@ -77,9 +77,9 @@ export default async function NewTripPage({ searchParams }) {
   if (typeof from === "string" && from) {
     const { data: place } = await supabase
       .from("someday_places")
-      .select(
-        "place, why, months, nights, fare_ceiling, traveler_ids, priority",
-      )
+      // The nights and the fare ceiling stay on the bucket list on purpose, so
+      // they are not read here either.
+      .select("place, why, months, traveler_ids, priority")
       .eq("id", from)
       .eq("family_id", access?.familyId || "")
       .maybeSingle();
