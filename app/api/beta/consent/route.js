@@ -43,6 +43,26 @@ function cleanFeatures(input) {
   return out;
 }
 
+/**
+ * The same, for a change to *some* of the switches.
+ *
+ * `cleanFeatures` answers for all five because the gate submits all five, and
+ * absent means no there. Settings sends one at a time, and reusing the whole-form
+ * cleaner meant turning off Reminders also turned off forwarded mail and the
+ * document reader -- in the record, while the screen still showed them on. A key
+ * that was not mentioned is a switch nobody touched.
+ */
+function changedFeatures(input) {
+  const out = {};
+  if (!input || typeof input !== "object") return out;
+  for (const id of FEATURE_IDS) {
+    if (Object.prototype.hasOwnProperty.call(input, id)) {
+      out[id] = Boolean(input[id]);
+    }
+  }
+  return out;
+}
+
 function stamped(response, ok) {
   response.cookies.set(CONSENT_COOKIE, ok ? AGREEMENT_VERSION : "", {
     maxAge: ok ? CONSENT_COOKIE_MAX_AGE : 0,
@@ -173,7 +193,7 @@ export async function PATCH(request) {
   if (body?.features && typeof body.features === "object") {
     patch.features = {
       ...(existing.features || {}),
-      ...cleanFeatures(body.features),
+      ...changedFeatures(body.features),
     };
   }
 
