@@ -13,10 +13,19 @@ import { whoIs } from "@/lib/supabase/who";
  *
  * The check that says who can open what happens on the storage layer's own
  * side. `createSignedUrl` runs through the caller's session, and the storage
- * RLS on the 'documents' bucket refuses to sign paths whose first folder is
- * not a family the caller belongs to. So this route does not have to
- * re-implement the family check -- it only refuses signed-out callers up front
- * and reports what storage said.
+ * RLS on the 'documents' bucket decides. So this route does not re-implement
+ * the household check -- it refuses signed-out callers up front and reports
+ * what storage said.
+ *
+ * It does re-check one thing, and the September 16 isolation pass is why. The
+ * bucket rule used to be "are you in this household" while the rows describing
+ * these files are narrower than that, so a path could be signed for somebody
+ * who could not read the row it belongs to. The storage policies were narrowed
+ * to match (20260927_member_removal_and_document_scope.sql), and this route now
+ * also insists that a personal document's own row is visible to the caller
+ * before it signs anything. Two layers saying the same thing is deliberate: the
+ * bucket rule is keyed on a path convention, and a path convention is a
+ * promise the code makes to itself.
  */
 export async function POST(request) {
   const supabase = await createClient();
@@ -38,6 +47,23 @@ export async function POST(request) {
 
   if (!path) {
     return NextResponse.json({ error: "Missing path." }, { status: 400 });
+  }
+
+  // A personal document belongs to one traveler and is described by a
+  // traveler_documents row. If the caller cannot see that row, they have no
+  // business holding a link to the file, whatever the folder says.
+  if (path.split("/")[1] === "personal") {
+    const { data: row } = await supabase
+      .from("traveler_documents")
+      .select("id")
+      .eq("storage_path", path)
+      .maybeSingle();
+    if (!row) {
+      return NextResponse.json(
+        { error: "That document could not be opened." },
+        { status: 404 },
+      );
+    }
   }
 
   const options = download ? { download: filename || true } : undefined;

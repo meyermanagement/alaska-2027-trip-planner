@@ -116,6 +116,8 @@ export default function People({
   const [editingTripsFor, setEditingTripsFor] = useState(null);
   const [inviteBusy, setInviteBusy] = useState(null);
   const [inviteNote, setInviteNote] = useState(null);
+  const [removeBusy, setRemoveBusy] = useState(null);
+  const [removeNote, setRemoveNote] = useState(null);
   const [remindBusy, setRemindBusy] = useState(null);
   // Whether the person reading this page may set anybody's level. A secondary
   // traveler never sees the control; the database would refuse the write anyway,
@@ -448,6 +450,43 @@ export default function People({
     }
   }
 
+  // Takes somebody's access away and leaves their seat behind.
+  //
+  // The household keeps the person: their packing, their tasks and their share
+  // of the itinerary all stay, and the seat goes back to being unclaimed so it
+  // can be handed to the right address later. What goes is the ability to sign
+  // in to this household and open anything in it.
+  async function removeMember(person) {
+    setRemoveBusy(person.id);
+    setRemoveNote(null);
+    try {
+      const res = await fetch("/api/people/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ traveler_id: person.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setRemoveNote({
+        id: person.id,
+        ok: res.ok,
+        text: res.ok
+          ? data?.wasSignedIn
+            ? `${person.name} can no longer sign in to this household. Their seat is still here.`
+            : `The invitation for ${person.name} has been cancelled.`
+          : data?.error || "That could not be done.",
+      });
+      if (res.ok) router.refresh();
+    } catch {
+      setRemoveNote({
+        id: person.id,
+        ok: false,
+        text: "That could not be done.",
+      });
+    } finally {
+      setRemoveBusy(null);
+    }
+  }
+
   // Sends the branded sign-in email. The address itself is what grants access —
   // this is the nudge telling them it is waiting.
   async function sendInvite(person) {
@@ -765,6 +804,21 @@ export default function People({
               onReminders={(wanted) => setReminders(person, wanted)}
               onSendMine={() => sendMine(person)}
             />
+
+            {canSetLevels && (
+              <RemoveMemberRow
+                person={person}
+                isMe={
+                  person.user_id === userId ||
+                  (!!person.email &&
+                    !!userEmail &&
+                    person.email.toLowerCase() === userEmail.toLowerCase())
+                }
+                busy={removeBusy === person.id}
+                note={removeNote?.id === person.id ? removeNote : null}
+                onRemove={() => removeMember(person)}
+              />
+            )}
 
             {canSetLevels && (
               <LevelPicker
@@ -1232,6 +1286,104 @@ function humanizeLevelError(error, person) {
 // Somebody else's demotion asks first. It is not dangerous -- a primary can undo
 // it -- but it takes things away from a person, and the pill is one tap away from
 // the pill next to it.
+/**
+ * Taking somebody's access away.
+ *
+ * Only drawn for a person who has access to take away -- a claimed seat, or an
+ * invitation still outstanding -- and never for yourself, because the way you
+ * leave your own household is to delete your account in Settings. It asks
+ * first, in the words of what actually happens: the person stays on the trip,
+ * the sign-in stops.
+ */
+export function RemoveMemberRow({ person, isMe, busy, note, onRemove }) {
+  const [asking, setAsking] = useState(false);
+  const signedIn = !!person.user_id;
+  const invited = !signedIn && !!person.invited_at;
+
+  if (isMe || (!signedIn && !invited)) return null;
+
+  return (
+    <div className="no-print mt-2.5 border-t border-[var(--line)] pt-2.5">
+      <p className="section-label">Access to this household</p>
+
+      {asking ? (
+        <div className="mt-2 rounded-lg border border-rose/40 bg-rose/10 p-2.5">
+          <p className="text-xs leading-relaxed text-ink">
+            {signedIn ? (
+              <>
+                Remove {person.name}&rsquo;s access? They will not be able to
+                sign in to this household again, open its trips, or open any
+                document in it, and any reminders going to their phone stop.{" "}
+                <span className="font-semibold">
+                  {person.name} stays on your trips
+                </span>{" "}
+                &mdash; the packing, the tasks and the itinerary are untouched,
+                and you can invite them back later.
+              </>
+            ) : (
+              <>
+                Cancel the invitation for {person.name}? The sign-in email
+                already sent will stop working, and nothing else about them
+                changes.
+              </>
+            )}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-primary px-3 py-1 text-xs"
+              disabled={busy}
+              onClick={() => {
+                setAsking(false);
+                onRemove();
+              }}
+            >
+              {busy
+                ? "Removing…"
+                : signedIn
+                  ? "Yes, remove their access"
+                  : "Yes, cancel the invitation"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost px-3 py-1 text-xs"
+              onClick={() => setAsking(false)}
+            >
+              Keep their access
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <button
+            type="button"
+            className="btn btn-ghost px-3 py-1 text-xs"
+            disabled={busy}
+            onClick={() => setAsking(true)}
+          >
+            {signedIn ? "Remove from household" : "Cancel the invitation"}
+          </button>
+          <p className="text-xs leading-relaxed text-ink-soft">
+            {signedIn
+              ? "Stops them signing in. Keeps them on the trip."
+              : "Stops the sign-in email that was sent working."}
+          </p>
+        </div>
+      )}
+
+      {note && (
+        <p
+          className={`mt-1.5 text-xs font-semibold ${
+            note.ok ? "text-teal" : "text-rose"
+          }`}
+        >
+          {note.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function LevelPicker({ person, isMe, busy, note, onLevel }) {
   const level = person.access_level === SECONDARY ? SECONDARY : PRIMARY;
   const [asking, setAsking] = useState(null);
