@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { extractDocumentFields, READER_KINDS } from "@/lib/documents/extract";
-import { featureAllowed } from "@/lib/beta/consent";
+import { featureDecision } from "@/lib/beta/consent";
 
 /**
  * Read one uploaded document with a vision model, and return the few fields
@@ -27,6 +27,19 @@ export const runtime = "nodejs";
 // browser is still waiting on.
 export const maxDuration = 60;
 
+// What the person is told when the reader will not run, by which answer stopped
+// it. Each one names the control to change and the alternative that always works.
+const DOCUMENT_REFUSALS = {
+  "ai-off":
+    "AI assistance is off for this account, so nothing is sent to an AI service \u2014 including this file. Turn Aly back on in Settings if you want her to read it, or type the fields in by hand.",
+  "feature-off":
+    "Reading a document sends the file itself to an AI service. Turn on \u201cRead fields from documents\u201d in Settings to use the reader, or type the fields in by hand.",
+  "no-consent":
+    "The beta terms need to be accepted again before Aly reads anything. You can type the fields in by hand in the meantime.",
+  default:
+    "Aly is not able to read documents for this account right now. You can type the fields in by hand.",
+};
+
 export async function POST(request) {
   const supabase = await createClient();
   const me = await whoIs(supabase);
@@ -44,11 +57,14 @@ export async function POST(request) {
   // the blanket answer meant a tester who declined the optional feature had their
   // passport sent anyway. featureAllowed requires both, in order, so turning Aly
   // off still stops this too.
-  if (!(await featureAllowed(supabase, me.id, "documents"))) {
+  // The refusal has to name the switch that is actually off. Both answers can
+  // refuse this route, and telling someone to turn on a permission they already
+  // turned on is worse than saying nothing.
+  const decision = await featureDecision(supabase, me.id, "documents");
+  if (!decision.allowed) {
     return NextResponse.json(
       {
-        error:
-          "Reading a document sends the file itself to an AI service. Turn on \u201cRead fields from documents\u201d in Settings to use the reader, or type the fields in by hand.",
+        error: DOCUMENT_REFUSALS[decision.reason] || DOCUMENT_REFUSALS.default,
       },
       { status: 403 },
     );
