@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { whoIs } from "@/lib/supabase/who";
+import { sweepFolder, removeAll } from "@/lib/account/storage";
 
 /**
  * Deleting an account, and the household with it when the household is one
@@ -32,65 +33,8 @@ import { whoIs } from "@/lib/supabase/who";
  * user is not something a user's own token can do.
  */
 
-// Storage removes in batches. A household with a long inbox history can carry
-// more paths than one call should hold.
-const BATCH = 100;
-
 function bad(message, status = 400, extra = {}) {
   return NextResponse.json({ error: message, ...extra }, { status });
-}
-
-// Everything under one prefix, not just the paths still named by a row.
-//
-// The explicit paths from account_deletion_paths are the files the app knows
-// about. A cover regenerated three times leaves two objects nothing points at any
-// more, and an upload that failed halfway leaves one nobody ever pointed at. Both
-// buckets key on the family id as the first folder, so the folder is the honest
-// unit of "this household's files".
-//
-// Recursive, because the documents bucket is not flat: a passport sits at
-// {family}/personal/{traveler}/{file} and an attachment at {family}/inbox/{...}.
-// A one-level walk would list the folder names, find no objects in them, and
-// report a clean sweep over files it never looked at. Storage marks a folder by
-// returning no id, and the depth cap is there so a surprising layout costs a
-// truncated sweep rather than an unbounded walk.
-async function sweepFolder(admin, bucket, prefix, depth = 0) {
-  if (depth > 4) return [];
-  const found = [];
-  let offset = 0;
-  for (;;) {
-    const { data, error } = await admin.storage
-      .from(bucket)
-      .list(prefix, { limit: 1000, offset });
-    if (error || !data?.length) break;
-    for (const entry of data) {
-      const path = `${prefix}/${entry.name}`;
-      if (entry.id) {
-        found.push(path);
-      } else {
-        found.push(...(await sweepFolder(admin, bucket, path, depth + 1)));
-      }
-    }
-    if (data.length < 1000) break;
-    offset += data.length;
-  }
-  return found;
-}
-
-async function removeAll(admin, bucket, paths) {
-  const unique = [...new Set(paths.filter(Boolean))];
-  let removed = 0;
-  const errors = [];
-  for (let i = 0; i < unique.length; i += BATCH) {
-    const slice = unique.slice(i, i + BATCH);
-    const { data, error } = await admin.storage.from(bucket).remove(slice);
-    if (error) {
-      errors.push({ bucket, paths: slice, message: error.message });
-    } else {
-      removed += data?.length || 0;
-    }
-  }
-  return { removed, errors };
 }
 
 export async function POST(request) {
@@ -192,6 +136,10 @@ export async function POST(request) {
       family_id: familyId,
       scope,
       requested_by: "self",
+      // Counted from the first run, so the nightly retry knows whether a row it
+      // finds open has been tried once or three times.
+      attempts: 1,
+      last_attempt_at: new Date().toISOString(),
     })
     .select("id")
     .single();
