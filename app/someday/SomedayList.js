@@ -30,14 +30,29 @@ function placeSaid(row, travelers) {
 }
 
 /**
- * The ranks a place can be given, 1 first.
+ * The ranks a place can be given, highest first.
  *
- * Five rather than three because the household asked for a number: a list long
- * enough to need ranking usually has more than three real levels in it, and
- * "2" and "3" are an argument the family can have with each other rather than
- * with the app's vocabulary.
+ * Words rather than the five numbers that were here before. A number asked the
+ * family to hold a scale in their heads and then argue about whether a place was
+ * a 2 or a 3, an argument with no answer and nothing downstream that reads the
+ * difference. High, medium and low say it out loud and are legible on a card
+ * where a bare 3 was not.
+ *
+ * Stored as the same smallint, 1 first, so the sort and everything reading the
+ * column keep working: the word is the label, the number is still the order.
  */
-const RANKS = [1, 2, 3, 4, 5];
+const RANKS = [
+  { value: 1, label: "High" },
+  { value: 2, label: "Medium" },
+  { value: 3, label: "Low" },
+];
+
+/** The rank on a row, or null when it is unranked or out of range. */
+function rankOf(row) {
+  return RANKS.some((rank) => rank.value === row?.priority)
+    ? row.priority
+    : null;
+}
 
 /**
  * Which sort the list is in. Priority is the one you get without asking.
@@ -65,7 +80,7 @@ function sorted(rows, how) {
   if (how === "newest") return list.sort((a, b) => added(b) - added(a));
   // Unranked is not a six. It is an absence, and it sits after everything
   // somebody has actually thought about.
-  const rank = (row) => (RANKS.includes(row.priority) ? row.priority : 9);
+  const rank = (row) => rankOf(row) ?? 9;
   return list.sort((a, b) => rank(a) - rank(b) || added(a) - added(b));
 }
 
@@ -121,8 +136,8 @@ const BLANK = {
   lon: null,
   why: "",
   months: [],
-  // Null rather than 3. A place nobody has ranked should stay unranked, not be
-  // handed a middling number the family never chose.
+  // Null rather than medium. A place nobody has ranked should stay unranked, not
+  // be handed a middling answer the family never chose.
   priority: null,
   traveler_ids: [],
   // Carried through the form so an accepted window survives the save, and
@@ -140,7 +155,7 @@ function formFrom(row) {
     lon: row.lon ?? null,
     why: row.why || "",
     months: [...(row.months || [])],
-    priority: RANKS.includes(row.priority) ? row.priority : null,
+    priority: rankOf(row),
     traveler_ids: [...(row.traveler_ids || [])],
     months_reason: row.months_reason || null,
     months_sources: Array.isArray(row.months_sources) ? row.months_sources : [],
@@ -468,33 +483,32 @@ export default function SomedayList({
       </div>
 
       {/*
-       * The rank, asked as chips for the same reason the months are: five taps
+       * The rank, asked as chips for the same reason the months are: three taps
        * side by side let somebody see the whole scale while they choose, where a
        * dropdown asks them to remember it. Pressing the chip that is already on
-       * clears it, which is the only way back to unranked once a number is set.
+       * clears it, which is the only way back to unranked once one is set.
        */}
       <div className="mt-3">
         <p className="section-label">How much you want it</p>
         <p className="mt-1 text-sm text-ink-soft">
-          1 comes first. Leave it blank if you have not decided.
+          Leave it blank if you have not decided.
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {RANKS.map((rank) => {
-            const on = form.priority === rank;
+            const on = form.priority === rank.value;
             return (
               <button
-                key={rank}
+                key={rank.value}
                 type="button"
                 aria-pressed={on}
-                aria-label={`Priority ${rank}`}
                 className={
                   on
-                    ? "w-10 rounded-full border border-teal bg-teal py-1 text-sm font-medium text-white"
-                    : "w-10 rounded-full border border-[var(--line)] py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
+                    ? "rounded-full border border-teal bg-teal px-4 py-1 text-sm font-medium text-white"
+                    : "rounded-full border border-[var(--line)] px-4 py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
                 }
-                onClick={() => set("priority", on ? null : rank)}
+                onClick={() => set("priority", on ? null : rank.value)}
               >
-                {rank}
+                {rank.label}
               </button>
             );
           })}
@@ -630,7 +644,7 @@ export default function SomedayList({
                       </span>
                       <select
                         className="field"
-                        value={RANKS.includes(row.priority) ? row.priority : ""}
+                        value={rankOf(row) ?? ""}
                         disabled={Boolean(busy)}
                         onChange={(event) => {
                           const next = event.target.value;
@@ -641,8 +655,8 @@ export default function SomedayList({
                       >
                         <option value="">No priority</option>
                         {RANKS.map((rank) => (
-                          <option key={rank} value={rank}>
-                            Priority {rank}
+                          <option key={rank.value} value={rank.value}>
+                            {rank.label} priority
                           </option>
                         ))}
                       </select>
