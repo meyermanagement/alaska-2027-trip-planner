@@ -7,15 +7,51 @@
 // — but a no here explains every silent morning.
 
 import { NextResponse } from "next/server";
-import { emailTransport, emailFrom } from "@/lib/email/send";
+import {
+  emailTransport,
+  emailFrom,
+  sendingAddress,
+  onOwnDomain,
+  transportProblem,
+} from "@/lib/email/send";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request) {
+  // The probe answers the scheduler and the owner, not the internet. It only ever
+  // said which variables are present -- no keys, no addresses -- but a list of
+  // which integrations a server has configured is still reconnaissance, and it was
+  // reachable by anybody who guessed the path.
+  const secret = process.env.CRON_SECRET;
+  const bearer = request.headers.get("authorization");
+  if (!secret || bearer !== `Bearer ${secret}`) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not allowed." }, { status: 401 });
+    }
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (membership?.role !== "owner") {
+      return NextResponse.json({ error: "Not allowed." }, { status: 403 });
+    }
+  }
+
   const transport = emailTransport();
   return NextResponse.json({
     transport,
     from: Boolean(emailFrom()),
+    // Named, not just counted: the whole point of the check is whether household
+    // mail is going out as us, and a boolean cannot answer that.
+    sendingAddress: sendingAddress(),
+    ownDomain: onOwnDomain(),
+    problem: transportProblem(),
     gmailUser: Boolean(process.env.GMAIL_USER),
     gmailPassword: Boolean(process.env.GMAIL_APP_PASSWORD),
     resendKey: Boolean(process.env.RESEND_API_KEY),
@@ -26,6 +62,7 @@ export async function GET() {
     ready: Boolean(
       transport &&
       emailFrom() &&
+      !transportProblem() &&
       process.env.CRON_SECRET &&
       process.env.SUPABASE_SERVICE_ROLE_KEY,
     ),
