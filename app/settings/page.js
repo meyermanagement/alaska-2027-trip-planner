@@ -76,6 +76,47 @@ export default async function SettingsPage() {
     readConsent(supabase, user.id),
   ]);
 
+  // What the delete control has to say before it draws a button: the household's
+  // own name, how many other people are in it, and whether this person is the
+  // last owner of a household others are still using. Read here rather than
+  // fetched by the control, so the copy is right on first paint -- a panel that
+  // says "this deletes everything" for a moment and then corrects itself to "only
+  // your seat" is worse than no panel.
+  //
+  // The route works all of it out again from the membership before it deletes
+  // anything. None of this is a permission.
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("family_id, role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  let deletion = { householdName: "", others: 0, role: null, lastOwner: false };
+
+  if (membership?.family_id) {
+    const [{ data: family }, { data: members }] = await Promise.all([
+      supabase
+        .from("families")
+        .select("name")
+        .eq("id", membership.family_id)
+        .maybeSingle(),
+      supabase
+        .from("family_members")
+        .select("user_id, role")
+        .eq("family_id", membership.family_id),
+    ]);
+    const others = (members || []).filter((m) => m.user_id !== user.id);
+    deletion = {
+      householdName: family?.name || "",
+      others: others.length,
+      role: membership.role || null,
+      lastOwner:
+        membership.role === "owner" &&
+        others.length > 0 &&
+        others.every((m) => m.role !== "owner"),
+    };
+  }
+
   return (
     <SettingsBody
       email={user.email}
@@ -87,6 +128,7 @@ export default async function SettingsPage() {
       secondary={secondary}
       setupDoneAt={household?.setup_done_at || null}
       setupLeft={setup?.left || 0}
+      deletion={deletion}
     />
   );
 }

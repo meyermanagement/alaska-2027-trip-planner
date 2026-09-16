@@ -4,6 +4,7 @@ import SkinPicker from "@/components/SkinPicker";
 import BetaConsentControls from "@/components/BetaConsentControls";
 import TextSizePicker from "@/components/TextSizePicker";
 import SetupDoneControl from "@/components/SetupDoneControl";
+import DeleteAccountControl from "@/components/DeleteAccountControl";
 import { SETTINGS_FOCUS } from "@/lib/agent/context";
 
 /**
@@ -30,6 +31,7 @@ export default function SettingsBody({
   secondary = false,
   setupDoneAt = null,
   setupLeft = 0,
+  deletion = null,
 }) {
   return (
     <>
@@ -90,6 +92,14 @@ export default function SettingsBody({
               <button className="btn btn-ghost text-sm">Log out</button>
             </form>
           </section>
+
+          {/* Last on the screen, which is where a one-way door belongs: nobody
+              should meet it on the way to a color picker. It is its own section
+              rather than a line under Log out, because the two are unlike --
+              logging out is Tuesday, this is forever -- and a quiet link beside
+              a routine control is how somebody deletes a household by reaching
+              for the wrong thing. */}
+          {deletion && <DeleteAccountControl {...deletion} />}
         </div>
       </main>
       {/* The button in the corner is drawn by the frame on every screen, but the
