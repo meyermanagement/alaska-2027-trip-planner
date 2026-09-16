@@ -8,6 +8,7 @@ import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
 import Deals from "@/components/Deals";
 import ForwardFares from "@/components/ForwardFares";
+import ForwardFaresLink from "@/components/ForwardFaresLink";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
@@ -107,7 +108,8 @@ export default async function SomedayPage() {
           Forward the flight deal emails you already get and Aly reads every
           fare in them, keeps the ones leaving from your airports for a place on
           this list in a month that suits you, and says here whether the price
-          is worth it.
+          is worth it.{" "}
+          <ForwardFaresLink>Here is how to point them at her</ForwardFaresLink>.
         </p>
 
         {fares.some((deal) => deal.status === "open") ? (

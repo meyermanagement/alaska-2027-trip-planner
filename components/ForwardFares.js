@@ -25,7 +25,10 @@ export default function ForwardFares({ address, trip = null }) {
   if (!address) return null;
 
   return (
-    <details className="mt-8 rounded-2xl border border-[var(--line)] bg-white/50 px-4 py-3">
+    <details
+      id="forward-fares"
+      className="mt-8 scroll-mt-24 rounded-2xl border border-[var(--line)] bg-white/50 px-4 py-3"
+    >
       <summary className="cursor-pointer list-none text-sm font-semibold text-ink-soft transition hover:text-teal">
         {trip
           ? "Already get flight deal emails? Have them checked against this trip"
@@ -86,7 +89,7 @@ export default function ForwardFares({ address, trip = null }) {
         <p className="text-ink-faint">
           {trip
             ? "This trip already has dates and a party, which is what a fare gets judged against, so anything forwarded from now on can be measured the moment it arrives."
-            : "Worth doing after your bucket list has a few places on it with the months and the fare you would pay filled in. Those are what a fare gets judged against, and until a place has them a forwarded alert has nothing to match."}
+            : "Worth doing once your bucket list has a few places on it with the months ticked. The months and the airports you fly from are what a fare gets judged against, and until a place has them a forwarded alert has nothing to match."}
         </p>
       </div>
     </details>
