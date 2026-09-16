@@ -200,6 +200,13 @@ $$;
 
 revoke all on function private.item_trip(uuid) from public;
 revoke all on function private.item_trip(uuid) from anon;
+grant execute on function private.item_trip(uuid) to authenticated;
+grant execute on function private.item_trip(uuid) to service_role;
+
+revoke all on function private.uuid_or_null(text) from public;
+revoke all on function private.uuid_or_null(text) from anon;
+grant execute on function private.uuid_or_null(text) to authenticated;
+grant execute on function private.uuid_or_null(text) to service_role;
 
 /**
  * Can the caller open this object in the documents bucket?
@@ -248,8 +255,18 @@ $$;
 comment on function private.can_open_document(text) is
   'Read rule for the documents bucket, keyed on the <family_id>/<scope>/<owner_id>/ path convention. Mirrors the row policies on traveler_documents, insurance_documents and item_documents; unknown scopes are primaries only.';
 
+-- The grants matter as much as the revokes, and the first attempt at this
+-- migration proved it: revoking from PUBLIC also takes EXECUTE away from
+-- `authenticated`, which inherits it, so every document read in production
+-- answered "permission denied for function can_open_document" until the grant
+-- was added. A policy that calls a function the caller may not execute does not
+-- fail closed in a useful way -- it fails for everybody. The other private
+-- helpers (is_family_member, on_trip, is_secondary_traveler) carry exactly this
+-- pair of grants; anything new called from a policy has to match them.
 revoke all on function private.can_open_document(text) from public;
 revoke all on function private.can_open_document(text) from anon;
+grant execute on function private.can_open_document(text) to authenticated;
+grant execute on function private.can_open_document(text) to service_role;
 
 drop policy if exists documents_read on storage.objects;
 create policy documents_read on storage.objects
