@@ -48,6 +48,12 @@ export default async function InboxPage() {
   // still governed by the two-minute idempotency guard inside
   // parseInboxMessage, so a live parse in another invocation is never
   // interrupted.
+  //
+  // 'refused' is in the list because the card it produces says "turn AI
+  // assistance back on in Settings to have her file it", and a promise like that
+  // has to be kept by something. A household that turns the reading back on has
+  // its unread mail read on the next visit to this screen. A refusal costs no
+  // model call, so a household that leaves it off simply gets refused again.
   const admin = createAdminClient();
   if (admin) {
     const stuckSince = new Date(Date.now() - 2 * 60 * 1000).toISOString();
@@ -55,7 +61,7 @@ export default async function InboxPage() {
       .from("inbox_messages")
       .select("id, parse_status, received_at")
       .eq("family_id", familyId)
-      .in("parse_status", ["pending", "running"])
+      .in("parse_status", ["pending", "running", "refused"])
       .lte("received_at", stuckSince)
       .order("received_at", { ascending: false })
       .limit(3);
