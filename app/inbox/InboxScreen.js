@@ -10,6 +10,8 @@ import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
 import { stampSaid } from "@/lib/format";
 import ClearedInbox from "@/components/ClearedInbox";
+import InboxMessageBody from "@/components/InboxMessageBody";
+import { readVerification } from "@/lib/inbox/verification";
 
 /**
  * The screen a family reads their inbox on.
@@ -47,7 +49,7 @@ export default function InboxScreen({
 }) {
   const router = useRouter();
   const [openId, setOpenId] = useState(null);
-  const [mode, setMode] = useState(null); // "file" | "trust" | null
+  const [mode, setMode] = useState(null); // "read" | "file" | "trust" | null
   const [busyId, setBusyId] = useState(null);
   const [copied, setCopied] = useState(false);
   const [undoBusyId, setUndoBusyId] = useState(null);
@@ -394,6 +396,10 @@ export default function InboxScreen({
               ? travelerById.get(m.attributed_traveler_id)
               : null;
             const files = byMessage.get(m.id) || [];
+            // Whether this is a forwarding check rather than a booking. Decided
+            // here so the Read it button can say so before it is pressed -- the
+            // whole reason somebody opens this screen mid-setup is to find it.
+            const verification = readVerification(m);
             return (
               <article
                 key={m.id}
@@ -450,6 +456,21 @@ export default function InboxScreen({
                     <button
                       type="button"
                       onClick={() => {
+                        setOpenId(isOpen && mode === "read" ? null : m.id);
+                        setMode("read");
+                      }}
+                      className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+                        verification
+                          ? "border-teal bg-teal/10 font-semibold text-teal hover:bg-teal/15"
+                          : "border-[var(--line-strong)] bg-white text-ink hover:border-teal hover:text-teal"
+                      }`}
+                      disabled={busyId === m.id}
+                    >
+                      {isOpen && mode === "read" ? "Hide it" : "Read it"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
                         setOpenId(isOpen && mode === "file" ? null : m.id);
                         setMode("file");
                       }}
@@ -481,6 +502,13 @@ export default function InboxScreen({
                     </button>
                   </div>
                 </header>
+
+                {isOpen && mode === "read" && (
+                  <InboxMessageBody
+                    text={m.text_body}
+                    verification={verification}
+                  />
+                )}
 
                 {isOpen && mode === "file" && (
                   <FilePicker
