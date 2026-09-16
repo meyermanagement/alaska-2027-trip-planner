@@ -48,6 +48,14 @@ const PUBLIC_PATHS = ["/login", "/auth", "/privacy", "/beta-terms"];
 // of a hash, no session, no body. See app/api/auth/pwned/route.js.
 const MACHINE_PATHS = [
   "/api/tasks/remind",
+  // The deadline watch and the housekeeping run arrive the same way and were not
+  // on this list, which is not a theoretical problem: watch_runs held sixteen
+  // rows from the morning email and not one from the watch, because every
+  // scheduled call to it was answered with a redirect to /login and the
+  // scheduler's bearer token never reached the route that checks it. A job that
+  // is refused before it starts looks exactly like a job with nothing to do.
+  "/api/tasks/watch",
+  "/api/tasks/maintain",
   "/api/mail/check",
   "/api/inbox/receive",
   "/api/auth/pwned",

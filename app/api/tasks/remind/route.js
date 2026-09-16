@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendDueTodayReminders } from "@/lib/email/sendReminders";
 import { siteOrigin } from "@/lib/email/sendInvite";
 import { runRecord } from "@/lib/tasks/runs";
+import { runRetentionPurges } from "@/lib/retention/purge";
 import { homeToday } from "@/lib/format";
 
 export const maxDuration = 60;
@@ -58,7 +59,26 @@ export async function GET(request) {
   // because a failed send gives its rows back so tomorrow will retry.
   await recordRun({ supabase, outcome, source: "cron" });
 
-  return NextResponse.json(outcome, { status: outcome.ok ? 200 : 500 });
+  // The retention purges ride along with the morning run. The free hosting plan
+  // allows two cron jobs and both are taken, so rather than a third schedule the
+  // housekeeping happens on the back of one -- and it is this one rather than the
+  // evening watch because this is the run the record proves is actually being
+  // called. Once a night is the cadence a 30-day and a 90-day promise need.
+  //
+  // Deliberately after the email and deliberately unable to break it: a purge
+  // that falls over is written to retention_runs and reported here, and the
+  // household still gets its morning list.
+  let retention = null;
+  try {
+    retention = await runRetentionPurges({ supabase, source: "cron" });
+  } catch (e) {
+    retention = { ok: false, error: String(e?.message || e), jobs: [] };
+  }
+
+  return NextResponse.json(
+    { ...outcome, retention },
+    { status: outcome.ok ? 200 : 500 },
+  );
 }
 
 /**
