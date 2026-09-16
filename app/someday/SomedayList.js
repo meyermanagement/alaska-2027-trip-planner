@@ -792,6 +792,46 @@ export default function SomedayList({
   return (
     <div>
       {/*
+       * On an empty account the invitation comes before the button, because
+       * the button on its own does not say what a bucket list is for. With
+       * places on the list it is gone and the button leads.
+       */}
+      {!live.length && editing !== "new" ? (
+        <div className="card mb-3 p-4">
+          <h2 className="font-display text-lg font-semibold">
+            Nothing on the list yet
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-ink-soft">
+            A place and the months you could go is enough for Aly to know a fare
+            worth mentioning from one that is merely cheap. Without a list she
+            is guessing at what you want.
+          </p>
+        </div>
+      ) : null}
+
+      {/*
+       * Above the list rather than under it. A bucket list only grows, so the
+       * button that grows it was the one thing on this page that moved further
+       * away the more the page was used - past twenty places, adding the
+       * twenty-first meant scrolling past twenty. The form opens in the same
+       * spot, which is also where the eye already is on arriving meaning to add
+       * something.
+       */}
+      <div className="mb-4">
+        {editing === "new" ? (
+          theForm
+        ) : (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => start(null)}
+          >
+            Add a place
+          </button>
+        )}
+      </div>
+
+      {/*
        * Only once there is enough list to order. Two places do not need a sort
        * control, and a row of buttons above two cards is a question nobody asked.
        */}
@@ -1146,30 +1186,7 @@ export default function SomedayList({
             </button>
           </p>
         </div>
-      ) : editing !== "new" ? (
-        <div className="card p-4">
-          <h2 className="font-display text-lg font-semibold">
-            Nothing on the list yet
-          </h2>
-          <p className="mt-1 max-w-xl text-sm text-ink-soft">
-            A place and the months you could go is enough for Aly to know a fare
-            worth mentioning from one that is merely cheap. Without a list she
-            is guessing at what you want.
-          </p>
-        </div>
       ) : null}
-
-      {editing === "new" ? (
-        theForm
-      ) : (
-        <button
-          type="button"
-          className="btn btn-primary mt-3"
-          onClick={() => start(null)}
-        >
-          Add a place
-        </button>
-      )}
 
       {settled.length ? (
         <div className="mt-8">
