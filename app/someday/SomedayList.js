@@ -669,8 +669,9 @@ export default function SomedayList({
                      * the place itself and writes the paragraph, so the link
                      * cannot fall behind an edit made here a second earlier and
                      * the sentence is not something anybody can rewrite in the
-                     * address bar. Pressing it changes no data -- the place stays
-                     * open on this list until somebody says the trip was booked.
+                     * address bar. Pressing it changes no data: the place stays
+                     * open on this list, and building the trip is what settles
+                     * it, rather than a separate field saying so here.
                      */}
                     <Link
                       href={`/trips/new?from=${row.id}`}
@@ -686,34 +687,6 @@ export default function SomedayList({
                     >
                       Edit
                     </button>
-                    {trips.length ? (
-                      <label className="flex items-center gap-1.5 text-ink-soft">
-                        <span className="sr-only">
-                          The trip {row.place} became
-                        </span>
-                        <select
-                          className="field"
-                          value=""
-                          disabled={Boolean(busy)}
-                          onChange={(event) => {
-                            const tripId = event.target.value;
-                            if (!tripId) return;
-                            change(row, {
-                              status: "booked",
-                              trip_id: tripId,
-                              watch: false,
-                            });
-                          }}
-                        >
-                          <option value="">We booked it&hellip;</option>
-                          {trips.map((trip) => (
-                            <option key={trip.id} value={trip.id}>
-                              {trip.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : null}
                     <button
                       type="button"
                       className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"

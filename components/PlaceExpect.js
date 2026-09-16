@@ -166,20 +166,21 @@ export default function PlaceExpect({ row }) {
           className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
           onClick={ask}
         >
-          {panel ? "Ask again with anything new" : "What should we expect?"}
+          {panel ? "Ask what to expect again" : "What should we expect?"}
         </button>
       )}
 
       {/*
-       * Ask again said on its own is a button whose cost and effect are both
-       * hidden: it throws away the answer below, it takes most of a minute, and
-       * the only reason to press it is that the family has changed since. So the
-       * label says what it asks with, and this line says what it does with it.
+       * Ask again, on its own, names neither the question it asks nor what
+       * pressing it costs. Somebody arriving at a place they asked about weeks
+       * ago has no way to tell what would be asked again. So the label repeats
+       * the question it is asking, and this line says what it reads, what it
+       * replaces and roughly how long it takes.
        */}
       {panel && !busy ? (
         <p className="mt-1 text-xs leading-relaxed text-ink-faint">
           Aly rereads your notes, how you like to travel and any fares you have
-          been sent, then replaces what is below. Takes about a minute.
+          been sent, then replaces the answer below. Takes about a minute.
         </p>
       ) : null}
 
