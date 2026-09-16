@@ -50,6 +50,12 @@ export async function GET(request) {
   const q = (params.get("q") || "").trim().slice(0, 120);
   const near = (params.get("near") || "").trim().slice(0, 120);
   const category = (params.get("category") || "").trim().slice(0, 40);
+  // A box that is asking about the whole world rather than about somewhere near
+  // something. On a bucket list, "Bergen" leaning toward Missouri because that is
+  // where the household lives is the wrong answer every single time: the point of
+  // the list is places nobody has been. Boxes say so for themselves, because the
+  // server cannot tell from the words which kind of question it is being asked.
+  const anywhere = params.get("anywhere") === "1";
 
   // Two characters is not a search, it is the beginning of one. Home is put at the
   // top of the list in the browser, from an address fetched once when the box
@@ -65,7 +71,7 @@ export async function GET(request) {
   // better anchor than either of these -- so the home row is only read when
   // there is no destination, keeping the common path at the same cost it was.
   let fallback = null;
-  if (!near) {
+  if (!near && !anywhere) {
     const { data: family } = await supabase
       .from("families")
       .select("home_lat, home_lon")
@@ -74,9 +80,9 @@ export async function GET(request) {
     fallback = homeAnchor(family?.[0]) || ipAnchor(request.headers);
   }
 
-  const key = `${q.toLowerCase()}|${near.toLowerCase()}|${category}|${anchorKey(
-    fallback,
-  )}`;
+  const key = `${q.toLowerCase()}|${near.toLowerCase()}|${category}|${
+    anywhere ? "anywhere" : anchorKey(fallback)
+  }`;
   const cached = results.get(key);
   if (cached) {
     return NextResponse.json({ places: cached, cached: true });

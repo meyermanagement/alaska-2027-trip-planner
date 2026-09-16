@@ -9,6 +9,10 @@
 // "Dinner at Simon and Seafort's" you have said where you are going and should
 // not have to say it again.
 //
+// It can also be told that the question is not a local one. A box on the bucket
+// list is asking about places nobody has been, so leaning it toward the
+// household's own address only ever buries the answer.
+//
 // It stays a plain text field underneath all of it. Anything can be typed and
 // kept, nothing has to be chosen from the list, and if the geocoder is down the
 // box behaves exactly as it did before this existed.
@@ -59,6 +63,7 @@ export default function LocationField({
   onEnter = null,
   onEscape = null,
   offerHome = false,
+  anywhere = false,
 }) {
   const [places, setPlaces] = useState([]);
   // A sentence explaining why a typed house number produced only streets. Empty
@@ -95,6 +100,10 @@ export default function LocationField({
         const params = new URLSearchParams({ q });
         if (destination) params.set("near", destination);
         if (category) params.set("category", category);
+        // Nothing local about the question. Said to the server rather than
+        // worked out there, because the words alone cannot tell a box that means
+        // "somewhere we have never been" from one that means "near the house".
+        if (anywhere) params.set("anywhere", "1");
         const res = await fetch(`/api/places?${params.toString()}`);
         const json = res.ok ? await res.json() : null;
         // A reply for something the user has since typed past is not an answer.
@@ -108,7 +117,7 @@ export default function LocationField({
         if (askedFor.current === q) setBusy(false);
       }
     },
-    [destination, category],
+    [destination, category, anywhere],
   );
 
   // Typing. One request per pause, not one per keystroke.

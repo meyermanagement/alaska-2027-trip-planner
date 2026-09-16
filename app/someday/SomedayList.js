@@ -203,6 +203,28 @@ function underFilter(row, only) {
   return rankOf(row) === Number(only);
 }
 
+/**
+ * Whether a row answers the months picked, which is any of them rather than all.
+ *
+ * "May or June" is the question a family actually has -- they have a fortnight
+ * free and want to know what is worth doing in it -- and a place good in May and
+ * a place good in June are both answers to it. Asking for every picked month at
+ * once would return only places with a season that spans the whole window, which
+ * is a different and much rarer question.
+ *
+ * A place with no months at all is its own answer, because the list of places
+ * nobody has said a season for is the one worth working through.
+ */
+function underMonths(row, picked) {
+  if (!picked.size) return true;
+  const mine = row.months || [];
+  if (picked.has("none")) {
+    if (!mine.length) return true;
+    if (picked.size === 1) return false;
+  }
+  return mine.some((month) => picked.has(month));
+}
+
 const BLANK = {
   place: "",
   lat: null,
@@ -293,6 +315,25 @@ export default function SomedayList({
   // explanation, which is worse than one press.
   const [only, setOnly] = useState("");
 
+  // Which months the list is narrowed to, empty for all of them, and "none"
+  // among them for the places with no season said. A set rather than one month
+  // because a free fortnight straddles two of them more often than not.
+  const [picked, setPicked] = useState(() => new Set());
+
+  // Whether the strip of twelve is on screen. Shut by default: it is twelve
+  // chips plus one, which is more than the sort and priority rows put together,
+  // and most visits to this page are not asking a month question at all.
+  const [whenOpen, setWhenOpen] = useState(false);
+
+  function pick(month) {
+    setPicked((was) => {
+      const next = new Set(was);
+      if (next.has(month)) next.delete(month);
+      else next.add(month);
+      return next;
+    });
+  }
+
   // Which rows are unfolded, by id. A set rather than one id because a family
   // comparing two places wants both open at once, and because the alternative
   // closes the row you were reading when you open another.
@@ -317,22 +358,70 @@ export default function SomedayList({
   // them would give you. A chip that leads to an empty screen is worse than one
   // that admits in advance there is nothing behind it.
   const counts = useMemo(() => {
-    const tally = { "": live.length };
+    // Counted against the rows the other filter has already let through, so a
+    // priority chip says how many places pressing it would actually leave on
+    // screen rather than how many exist somewhere behind a month nobody picked.
+    const under = live.filter((row) => underMonths(row, picked));
+    const tally = { "": under.length };
     for (const filter of FILTERS) {
-      tally[filter.id] = live.filter((row) =>
+      tally[filter.id] = under.filter((row) =>
         underFilter(row, filter.id),
       ).length;
     }
     return tally;
-  }, [live]);
+  }, [live, picked]);
+
+  // The same courtesy for the months, counted against the priority filter. A
+  // month already picked is counted as though it were not, so its chip keeps
+  // saying what it is holding rather than what removing it would cost.
+  const monthCounts = useMemo(() => {
+    const under = live.filter((row) => underFilter(row, only));
+    const tally = {
+      none: under.filter((row) => !(row.months || []).length).length,
+    };
+    MONTHS.forEach((name, index) => {
+      const month = index + 1;
+      tally[month] = under.filter((row) =>
+        (row.months || []).includes(month),
+      ).length;
+    });
+    return tally;
+  }, [live, only]);
+
+  // What the shut chip says. The months as the family would say them, plus the
+  // seasonless places if those are in the picture, because a chip that only said
+  // "Months" while quietly holding four of them is a list with places missing
+  // from it and no visible reason. At rest it is the bare word: "Any month"
+  // would read as a filter that had been chosen, and it is also what the row
+  // summary says about a place with no season, which are different things.
+  const pickedMonths = [...picked]
+    .filter((month) => month !== "none")
+    .sort((a, b) => a - b);
+  const whenSaid = picked.size
+    ? [
+        // Guarded, because monthsSaid of nothing is "any month", which is the
+        // true thing to say about a place with no season and the wrong thing to
+        // say about a filter that is holding one month out of twelve.
+        pickedMonths.length ? monthsSaid(pickedMonths) : "",
+        picked.has("none") ? "no season said" : "",
+      ]
+        .filter(Boolean)
+        .join(" \u00b7 ")
+        // Sentence case, so the chip does not sit among six Title Case ones
+        // beginning with a small letter when the only thing picked is the
+        // seasonless pile.
+        .replace(/^./, (first) => first.toUpperCase())
+    : "Months";
 
   const open = useMemo(
     () =>
       sorted(
-        live.filter((row) => underFilter(row, only)),
+        live.filter(
+          (row) => underFilter(row, only) && underMonths(row, picked),
+        ),
         how,
       ),
-    [live, how, only],
+    [live, how, only, picked],
   );
 
   function start(row) {
@@ -525,6 +614,13 @@ export default function SomedayList({
           placeholder="Kyoto, Japan"
           className="field w-full"
           inputProps={{ id: "someday-place", maxLength: 120 }}
+          /*
+           * A bucket list is a list of places nobody has been. Biasing it toward
+           * home meant typing "Bergen" and being offered a road in Missouri
+           * before the city in Norway, which is the opposite of what this list
+           * is for.
+           */
+          anywhere
         />
       </div>
 
@@ -748,6 +844,102 @@ export default function SomedayList({
               </button>
             );
           })}
+
+          {/*
+           * Twelve chips behind one, rather than beside the six already here. A
+           * month question is asked on some visits and not most, and a row of
+           * nineteen chips wrapping to three lines on a phone taxes every visit
+           * for the sake of that one.
+           */}
+          <button
+            type="button"
+            aria-expanded={whenOpen}
+            className={
+              picked.size
+                ? "inline-flex items-center gap-1 rounded-full border border-teal bg-teal px-2.5 py-1 text-sm font-medium text-white"
+                : "inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
+            }
+            onClick={() => setWhenOpen((was) => !was)}
+          >
+            {whenSaid}
+            <Caret open={whenOpen} />
+          </button>
+        </div>
+      ) : null}
+
+      {live.length > 2 && whenOpen ? (
+        <div className="mb-3 rounded-xl border border-[var(--line)] bg-white p-2.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {MONTHS.map((name, index) => {
+              const month = index + 1;
+              const on = picked.has(month);
+              const count = monthCounts[month] || 0;
+              const empty = count === 0;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={empty && !on}
+                  className={
+                    on
+                      ? "rounded-full border border-teal bg-teal px-2.5 py-1 text-sm font-medium text-white"
+                      : empty
+                        ? "cursor-default rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-faint opacity-60"
+                        : "rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
+                  }
+                  onClick={() => pick(month)}
+                >
+                  {name}{" "}
+                  <span className={on ? "" : "text-ink-faint"}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/*
+           * On its own line rather than thirteenth in the row. It is not a month,
+           * and at some widths a divider before it landed at the end of the
+           * months and looked like a stray mark.
+           *
+           * The places nobody has said a season for, which is the working list
+           * for anybody trying to finish this page rather than shop from it.
+           */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              aria-pressed={picked.has("none")}
+              disabled={!monthCounts.none && !picked.has("none")}
+              className={
+                picked.has("none")
+                  ? "rounded-full border border-teal bg-teal px-2.5 py-1 text-sm font-medium text-white"
+                  : !monthCounts.none
+                    ? "cursor-default rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-faint opacity-60"
+                    : "rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-ink-soft hover:border-[var(--line-hover)]"
+              }
+              onClick={() => pick("none")}
+            >
+              No season said{" "}
+              <span className={picked.has("none") ? "" : "text-ink-faint"}>
+                {monthCounts.none || 0}
+              </span>
+            </button>
+          </div>
+
+          {picked.size ? (
+            <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+              {pickedMonths.length
+                ? "Places worth going in any of the months picked."
+                : "Places with no season on them yet."}{" "}
+              <button
+                type="button"
+                className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                onClick={() => setPicked(new Set())}
+              >
+                Clear
+              </button>
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -918,24 +1110,39 @@ export default function SomedayList({
         </ul>
       ) : live.length ? (
         /*
-         * Only reachable by retiring the last place under a filter that is still
-         * on, since a chip with nothing behind it cannot be pressed. It says
-         * which filter rather than going blank, because an empty list under a
-         * filter looks exactly like an empty list.
+         * Only reachable by retiring the last place under filters that are still
+         * on, since a chip with nothing behind it cannot be pressed and both
+         * counts are taken against the other filter. It names whichever filters
+         * are on rather than going blank, because an empty list under a filter
+         * looks exactly like an empty list.
          */
         <div className="card p-4">
           <p className="text-sm text-ink-soft">
-            Nothing on the list is{" "}
-            {only === "none"
-              ? "unranked"
-              : `${(FILTERS.find((one) => one.id === only)?.label || "").toLowerCase()} priority`}
+            Nothing on the list{" "}
+            {[
+              only
+                ? only === "none"
+                  ? "is unranked"
+                  : `is ${(FILTERS.find((one) => one.id === only)?.label || "").toLowerCase()} priority`
+                : "",
+              picked.size
+                ? pickedMonths.length
+                  ? `is worth going in ${monthsSaid(pickedMonths)}`
+                  : "is without a season"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" and ")}
             .{" "}
             <button
               type="button"
               className="text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-              onClick={() => setOnly("")}
+              onClick={() => {
+                setOnly("");
+                setPicked(new Set());
+              }}
             >
-              Show all {counts[""]}
+              Show all {live.length}
             </button>
           </p>
         </div>
