@@ -6,15 +6,16 @@ import { useRouter } from "next/navigation";
 /**
  * The one way to stop the setup marks in the menu.
  *
- * The menu marks the rows behind the four things the welcome checklist asked
- * for, and takes the marks away by itself the moment the fourth one is done.
- * This is for the household where one of the four is never going to happen --
- * nobody else in the house to describe, or no past trip worth typing in -- so
+ * The menu marks the rows behind the five things the welcome checklist asked
+ * for, and takes the marks away by itself the moment the last one is done.
+ * This is for the household where one of them is never going to happen --
+ * nobody else in the house to describe, no iPhone to install me on, or no past
+ * trip worth typing in -- so
  * that "stop asking" is an answer somebody can give rather than a thing they
  * have to put up with.
  *
- * There is deliberately no per-row dismissal. Four rows with four small crosses
- * is a second checklist to keep, and it would let a family turn off the one mark
+ * There is deliberately no per-row dismissal. A small cross on every row is a
+ * second checklist to keep, and it would let a family turn off the one mark
  * that was worth the most to them without ever seeing what it was for.
  *
  * The way back is on the same button, because a control that only goes one way
@@ -59,7 +60,7 @@ export default function SetupDoneControl({ doneAt = null, left = 0 }) {
       <h2 className="font-display text-xl font-semibold">Setting up</h2>
       <p className="mt-1 text-sm text-ink-soft">
         {done
-          ? "The menu is not marking anything. Aly still works better with the four things filled in, and you can pick them up again whenever you like."
+          ? "The menu is not marking anything. Aly still works better with these things filled in, and you can pick them up again whenever you like."
           : left > 0
             ? `The menu is marking ${left === 1 ? "the one place" : `the ${left} places`} where something from the welcome checklist is still outstanding.`
             : "Everything the welcome checklist asked for is done, so the menu is not marking anything."}

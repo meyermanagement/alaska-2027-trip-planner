@@ -60,7 +60,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
   // person who booked it. The buttons inside a tip card are gated separately.
   const secondary = Boolean(access?.can.isSecondary);
 
-  // What is left of the four things the welcome checklist asked for, so the menu
+  // What is left of the five things the welcome checklist asked for, so the menu
   // can mark the rows the work is behind and count them. After the access read
   // rather than alongside it, because it is scoped to the household and there is
   // no household until resolveAccess has said which one. It costs one lookup by

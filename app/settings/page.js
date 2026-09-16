@@ -36,7 +36,7 @@ export default async function SettingsPage() {
 
   // What the menu is marking, and whether this household has said it is done.
   // The loader runs first because it stamps the column itself when the last of
-  // the four lands, and a read taken alongside it could show a stale null on the
+  // the five lands, and a read taken alongside it could show a stale null on the
   // very load that finished the job.
   const setup = secondary
     ? null

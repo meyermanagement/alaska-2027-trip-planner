@@ -8,9 +8,10 @@ import { useBooted, useRevealed } from "@/components/reveal";
 import { SETUP_ITEM_HREF } from "@/lib/setup/items";
 
 /**
- * The shown-once informational screen after the welcome walkthrough. Four
- * things worth doing next -- the rest of the family's own words, Wallet,
- * forwarding, past trips -- each drawn with a small compass mark that finds
+ * The shown-once informational screen after the welcome walkthrough. Five
+ * things worth doing next -- the app on the Home Screen with notifications on,
+ * the rest of the family's own words, Wallet, forwarding, past trips -- each
+ * drawn with a small compass mark that finds
  * north as its row arrives. Nothing on the screen is actionable: it is telling
  * the family what is worth doing before they move on to a first trip, and the
  * "take me to the trip builder" button is the same escape hatch the old flow
@@ -27,9 +28,17 @@ import { SETUP_ITEM_HREF } from "@/lib/setup/items";
  * earlier on Meet Aly. This screen used to talk about her -- "Aly warns you
  * about a passport expiry", "a chain Aly steers you around" -- which put a
  * narrator between the family and the assistant they had just been introduced
- * to, and turned four favors she is asking for into four features being
- * described. She is the one who needs these four things and the one they make
+ * to, and turned the favors she is asking for into features being
+ * described. She is the one who needs these things and the one they make
  * better, so she asks: I warn you, I steer you around, forward it to me.
+ *
+ * ---- Order ---------------------------------------------------------------
+ *
+ * Installing is first because it is the only row that changes what the app can
+ * do rather than how well it can do it. On an iPhone, Safari will not so much
+ * as offer the permission prompt until the site is on the Home Screen -- so
+ * until that is done, every warning the app has that cannot wait until the
+ * morning email has nowhere to go.
  *
  * ---- Motion --------------------------------------------------------------
  *
@@ -84,6 +93,18 @@ const BEAT = {
 };
 
 const ITEMS = [
+  {
+    key: "install",
+    title: "Put me on your Home Screen, then turn notifications on",
+    // The exact taps, because this is the row somebody gives up on. "Install
+    // the app" is not a thing an iPhone offers by that name anywhere.
+    lead: "On an iPhone: tap the share button in Safari, then Add to Home Screen. Open me from the new icon, then turn notifications on from Reminders.",
+    points: [
+      "An iPhone will not offer notifications at all until I am on the Home Screen. Apple's rule, not mine.",
+      "Then I can tap you on the shoulder about a fare that has to be bought today, instead of waiting for tomorrow morning's email",
+      "I open full screen from your own icon, with no address bar in the way",
+    ],
+  },
   {
     key: "others",
     title: "Tell me about everyone else",
@@ -153,7 +174,7 @@ function CompassMark({ delay }) {
 
 /**
  * One thing worth doing, and its own arrival. Its observer is the row's, not
- * the list's, so the fourth row is still worth scrolling to.
+ * the list's, so the last row is still worth scrolling to.
  */
 /**
  * The mark on a row whose work is already behind it. Same weight as the compass
@@ -272,19 +293,19 @@ function NextStepRow({
 export default function NextStepsChecklist({
   onContinue,
   inboxAddress = "",
-  // Which of the four are already behind them, by key. Empty on the first walk
+  // Which of the five are already behind them, by key. Empty on the first walk
   // through, when nothing has been done yet and a screenful of ticks would be a
   // lie; filled in when somebody comes back to this screen from the menu, where
   // the whole reason they tapped it was to find out where they had got to.
   done = [],
   // Whether the rows go anywhere. Off during the walkthrough: the screen is
-  // there to be read once and left by the button at the foot of it, and four
-  // cards that each lead out of the flow is four ways to abandon it a screen
+  // there to be read once and left by the button at the foot of it, and cards
+  // that each lead out of the flow are so many ways to abandon it a screen
   // before it ends. On every arrival after that they are the fastest route to
   // the thing being asked for.
   linked = false,
   continueLabel = "Take me to the trip builder",
-  headline = "Four things worth doing next",
+  headline = "Five things worth doing next",
   intro = "None of it is required to keep going. Each one makes my answers fit your family better.",
   eyebrow = "Welcome to Alyeska",
 }) {

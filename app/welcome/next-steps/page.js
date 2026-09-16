@@ -9,21 +9,22 @@ import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import NextStepsBody from "./NextStepsBody";
 
-export const metadata = { title: "Four things worth doing next · Alyeska" };
+export const metadata = { title: "Five things worth doing next · Alyeska" };
 export const dynamic = "force-dynamic";
 
 /**
  * The last screen of the first-login walkthrough.
  *
- * Comes after the interview proof. Purely informational: four things worth
- * doing before or during a first trip -- the rest of the family's own words,
- * Wallet, forwarding, past trips -- with a compass mark orienting into place
+ * Comes after the interview proof. Purely informational: five things worth
+ * doing before or during a first trip -- me on the Home Screen with
+ * notifications on, the rest of the family's own words, Wallet, forwarding,
+ * past trips -- with a compass mark orienting into place
  * for each row. Nothing here is required and nothing is written; the button
  * hands the family off to the trip builder, which is where the proof screen
  * used to go directly.
  *
  * It sat at the end of the invited-member walk until now, which was the wrong
- * end of the app. All four rows are the household owner's work, and the guard
+ * end of the app. All five rows are the household owner's work, and the guard
  * below turned a secondary away from the screen regardless -- so the rows that
  * survived pointed an invited member at a Family tab they cannot open. On this
  * path the reader is the owner and every row is theirs to do.
@@ -54,8 +55,8 @@ export default async function WelcomeNextStepsPage() {
     // on their way to a first trip, and a family who came back here from the
     // menu six weeks later wants to be put back where they were.
     supabase.from("trips").select("id", { count: "exact", head: true }),
-    // Which of the four are already behind them, so a revisit says where they
-    // got to rather than asking for all four again. Null once the household has
+    // Which of the five are already behind them, so a revisit says where they
+    // got to rather than asking for all five again. Null once the household has
     // finished or dismissed setting up, and the screen then reads as the
     // reference version it also serves as from the practice hub.
     loadSetupState(supabase, {
@@ -120,8 +121,8 @@ export default async function WelcomeNextStepsPage() {
           /* Tappable from the second arrival, for the same reason the menu is
            back: somebody who came here to see what was left wants the screen
            the row is about, not a description of it. Left alone during the
-           walkthrough, where four cards leading out of the flow would be four
-           ways to abandon it one screen before it ends. */
+           walkthrough, where a card leading out of the flow is one more way
+           to abandon it a screen before it ends. */
           linked={revisit}
           inboxAddress={inboxAddressFor(household?.inbox_local_part)}
         />

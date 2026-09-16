@@ -382,7 +382,7 @@ const EMPTY_MARKS = new Set();
 
 // The row that reopens the welcome checklist, and the only way back to it: the
 // screen is shown once, on a path the owner walks a single time, and everything
-// explaining why any of the four things matter lives on it.
+// explaining why any of the five things matter lives on it.
 
 const REMEMBERED = "alyeska.level";
 
@@ -427,10 +427,10 @@ export default function NavTabs({
   // asking. Absent on the skeleton, which has no database.
   trip = null,
   today = null,
-  // What the family has not got round to yet, from the four things the welcome
+  // What the family has not got round to yet, from the five things the welcome
   // checklist asked for: how many are left, and which menu addresses they are
   // behind. Absent for anybody the checklist was never shown to, and absent
-  // once all four are done, which is how the marks retire themselves.
+  // once all five are done, which is how the marks retire themselves.
   setup = null,
 }) {
   // Read once, lazily, so the first frame the skeleton draws is already right
@@ -511,14 +511,14 @@ export default function NavTabs({
   const secondary = effective === SECONDARY;
 
   // The rows carrying a mark, and how many things are still worth doing. A
-  // secondary traveler never sees either: none of the four is their work, and
-  // three of the four screens the database refuses them anyway.
+  // secondary traveler never sees either: none of them is their work, and most
+  // of the screens they point at the database refuses them anyway.
   const setupLeft = secondary ? 0 : Number(setup?.left || 0);
   const setupMarks =
     secondary || !setupLeft ? EMPTY_MARKS : new Set(setup?.marks || []);
-  // How many were asked for in the first place, so the subtitle reads "2 of 4"
+  // How many were asked for in the first place, so the subtitle reads "2 of 5"
   // against the real list rather than a number written twice in two files.
-  const setupTotal = Number(setup?.total || 4);
+  const setupTotal = Number(setup?.total || 5);
 
   // Which group is open, and only ever one. The menu is thrown from a disc in
   // the bottom corner and has a phone's height to live in; two groups open at
@@ -988,10 +988,10 @@ export default function NavTabs({
   // stylesheet rather than here.
   const column = (
     <>
-      {/* The way back to the four things the welcome checklist asked for, and
+      {/* The way back to the things the welcome checklist asked for, and
           the count of how many are left. It sits above everything, including
           the current-trip plate: it is the shortest-lived row in the menu, it
-          retires itself the moment the fourth thing is done, and the whole
+          retires itself the moment the last thing is done, and the whole
           reason it exists is that the screen it opens is otherwise reachable
           only on a path the owner walks once. Drawn as a page rather than a
           band because it goes somewhere. */}
@@ -1019,7 +1019,7 @@ export default function NavTabs({
             </span>
             <span className="arc-sub block truncate text-xs leading-tight">
               {setupLeft === setupTotal
-                ? "Four things worth doing"
+                ? "Five things worth doing"
                 : `${setupLeft} of ${setupTotal} still to do`}
             </span>
           </span>
@@ -1591,10 +1591,10 @@ export default function NavTabs({
               )}
               {/* And the quiet twin of it: while there is still something on
                   the welcome checklist undone, the compass carries one small
-                  teal dot. Without it nothing about the four things is visible
+                  teal dot. Without it nothing about the checklist is visible
                   until somebody opens the menu, which is the state we are
                   trying to get out of. Bottom of the disc, opposite the count,
-                  and gone the moment the fourth thing is done. */}
+                  and gone the moment the last thing is done. */}
               {setupLeft > 0 && !open && (
                 <span className="absolute -bottom-0.5 -right-0.5 h-[11px] w-[11px] rounded-full bg-teal ring-2 ring-[var(--disc-face)]">
                   <span className="sr-only">
