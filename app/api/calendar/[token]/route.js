@@ -90,7 +90,15 @@ export async function GET(request, { params }) {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
       "Content-Disposition": 'inline; filename="alyeska.ics"',
-      "Cache-Control": "public, max-age=900",
+      // The token in this URL is the only thing standing between a stranger and
+      // the household's itinerary, so the feed must never sit in a shared cache.
+      // It did: the edge held a copy for fifteen minutes, and a household that
+      // deleted its account could still have its trip read back out of that copy
+      // after every row was gone. Calendar clients honor REFRESH-INTERVAL on
+      // their own; they do not need a CDN in front of this.
+      "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+      "CDN-Cache-Control": "no-store",
+      "Vercel-CDN-Cache-Control": "no-store",
     },
   });
 }
