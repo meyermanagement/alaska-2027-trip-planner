@@ -36,6 +36,17 @@ const PUBLIC_PATHS = [
   // A researcher with a security finding has no account with us. An address they
   // cannot reach without signing in is an address that does not exist.
   "/security",
+  // The same argument, arrived at late: these two were behind the login until
+  // September 16, 2026. The pledge is the list of promises the app is built
+  // around, and Contact us is where the controller can be reached -- including by
+  // somebody who has just declined the agreement and therefore has no way into
+  // the app at all. A promise readable only by people who already said yes is
+  // not a promise, and a controller address behind a sign-in is not an address.
+  "/pledge",
+  "/contact",
+  // Where an account lands the moment it has deleted itself. It cannot require a
+  // session: the session is the thing that just stopped existing.
+  "/deleted",
 ];
 
 // The nightly reminder run arrives with no session at all — a scheduler is not a

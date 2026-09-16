@@ -71,8 +71,12 @@ export default function DeleteAccountControl({
         );
       }
       // Out of the app entirely rather than back to a screen that will try to
-      // load a household that no longer exists.
-      window.location.assign("/login");
+      // load a household that no longer exists -- and to a page that says the
+      // deletion happened, rather than to a sign-in form that looks exactly like
+      // having been logged out. The person who just pressed this is owed the
+      // outcome in words; /login was silent about the one thing they cared
+      // about.
+      window.location.assign("/deleted");
     } catch (err) {
       setFailed(
         err?.message === "Failed to fetch"

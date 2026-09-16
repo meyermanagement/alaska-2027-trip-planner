@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { AI_PROVIDER } from "@/lib/beta/agreement";
 import {
   ACCEPT_ATTR,
   humanBytes,
@@ -104,6 +105,15 @@ export default function DocumentPicker({
         Take a photo or pick a PDF. Aly reads the number and expiry off the scan
         and fills the fields below, and the file itself stays cached on the
         phone so it opens at the desk with no signal.
+      </p>
+      {/* Named here, not only on the consent screen where the permission was
+          given. This is the screen where somebody is choosing to hand over a
+          passport photograph, and until September 16, 2026 it was the one screen
+          in the flow that never said the file leaves the phone or who reads it. */}
+      <p className="text-[11px] leading-snug text-ink-soft">
+        Reading it sends the file to {AI_PROVIDER}, and only while &ldquo;read
+        fields from documents&rdquo; is on in Settings. Turn that off and the
+        file is stored without being read.
       </p>
 
       {has && kind && (

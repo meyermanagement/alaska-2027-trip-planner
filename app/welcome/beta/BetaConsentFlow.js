@@ -98,18 +98,23 @@ export default function BetaConsentFlow({ gap, email, existing, practice }) {
   const [dataAcknowledged, setDataAcknowledged] = useState(false);
   const [openCategory, setOpenCategory] = useState(null);
   const [diagnostics, setDiagnostics] = useState(
-    existing ? existing.diagnostics : true,
+    existing ? existing.diagnostics : false,
   );
   // Null until answered, so Continue on the AI screen has nothing to press. A
   // default of either true or false would be the app answering for them.
   const [aiProcessing, setAiProcessing] = useState(null);
-  // On to start, so a tester sees the app as it is meant to work rather than a
-  // hollowed-out version of it and a list of switches to guess at. Every one of
-  // these is a convenience the app performs on information it already holds --
-  // parsing what you forwarded, reading a field off a file you uploaded --
-  // rather than a new disclosure, and each says in one line what turning it off
-  // costs. The one screen that genuinely cannot be answered in advance is the
-  // AI question above, and that one still starts unanswered.
+  // Off to start. These began pre-ticked, on the argument that each is a
+  // convenience performed on information the app already holds rather than a new
+  // disclosure -- and that argument does not survive being written down. Two of
+  // them send a household's own material to a third party: the forwarded-mail
+  // parser, and the document reader, which hands a passport photograph to an
+  // outside model. A switch that is already on before anybody has read it is not
+  // a decision the tester made, and the first rule at the top of this file says
+  // nothing is pre-agreed.
+  //
+  // So every one of them starts off, each says in one line what leaving it off
+  // costs, and turning one on is a press. The app a tester meets first does less
+  // than the app can do; that is the honest order to meet it in.
   //
   // Somebody re-agreeing keeps what they last chose: a version bump reopening
   // this gate must not quietly switch back on something they deliberately
@@ -119,7 +124,7 @@ export default function BetaConsentFlow({ gap, email, existing, practice }) {
     for (const f of OPTIONAL_FEATURES) {
       start[f.id] = existing?.features
         ? Boolean(existing.features[f.id])
-        : true;
+        : false;
     }
     return start;
   });
@@ -546,7 +551,7 @@ function YourData({
           checked={diagnostics}
           onChange={setDiagnostics}
           label="Send crash reports and timings."
-          note="On by default because it is how broken screens get found. Off is fine, and you can change it in Settings."
+          note="Off unless you turn it on. It is how broken screens get found, so it helps — and you can change it here or in Settings at any time."
         />
       </div>
 
@@ -658,7 +663,7 @@ function AiChoice({ choice, setChoice }) {
 function Features({ features, setFeatures }) {
   return (
     <section>
-      <Heading sub="All on to start. Turn off anything you would rather do yourself; each one says what that costs you.">
+      <Heading sub="All off to start. Turn on whichever of these you want Aly to do for you; each one says what leaving it off costs.">
         Optional parts
       </Heading>
       <ul className="mt-4 space-y-2">

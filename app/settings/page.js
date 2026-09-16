@@ -120,6 +120,7 @@ export default async function SettingsPage() {
   return (
     <SettingsBody
       email={user.email}
+      provider={user.provider}
       displayName={profile?.display_name}
       skin={profile?.skin}
       textSize={profile?.text_size}
