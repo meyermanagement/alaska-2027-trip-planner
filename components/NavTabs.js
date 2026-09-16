@@ -190,9 +190,14 @@ const GROUPS_BASE = [
         // the right trip. Sits under Checklist because filing an incoming
         // confirmation is the same shape of work as packing and reminders:
         // it is what has to be dealt with before you go.
+        //
+        // The line names all three kinds of mail the address takes. Saying
+        // confirmations alone described the first thing it was built for and
+        // hid the two nobody would think to try: fare alerts read against the
+        // bucket list, and a policy read for what it actually covers.
         href: "/inbox",
         label: "Inbox",
-        sub: "Confirmations forwarded to Aly",
+        sub: "Bookings, fares and policies",
         Icon: InboxIcon,
       },
     ],

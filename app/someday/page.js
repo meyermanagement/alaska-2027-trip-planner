@@ -21,7 +21,10 @@ export const metadata = { title: "Bucket list · Alyeska" };
  * cannot be acted on: knowing that a family likes the idea of Japan tells you
  * nothing about whether the fare in front of you is good news. The months they
  * could actually go and who it is for are what turn a wish into something a fare
- * can be judged against. The nights and the airfare ceiling are still columns and
+ * can be judged against. That is what the line under the heading now says out
+ * loud, because the one thing this screen does that no other wish list does was
+ * being described as the difference between a wish and something Aly can tell
+ * you about, which names no capability anybody would go looking for. The nights and the airfare ceiling are still columns and
  * Aly still fills them from what people say, but the form stopped asking: nothing
  * checks fares on a schedule yet, so the screen was collecting numbers that
  * changed nothing.
@@ -100,9 +103,11 @@ export default async function SomedayPage() {
           Bucket list
         </h1>
         <p className="mb-6 max-w-2xl text-sm text-ink-soft">
-          Places you want to go, and what would make each one worth doing. The
-          months, the length and the fare you would pay are the difference
-          between a wish and something Aly can tell you about when it happens.
+          Places you want to go, and the months you could actually go in.
+          Forward the flight deal emails you already get and Aly reads every
+          fare in them, keeps the ones leaving from your airports for a place on
+          this list in a month that suits you, and says here whether the price
+          is worth it.
         </p>
 
         {fares.some((deal) => deal.status === "open") ? (

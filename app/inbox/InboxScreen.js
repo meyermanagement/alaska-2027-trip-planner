@@ -233,6 +233,19 @@ export default function InboxScreen({
         them onto the right trip. Airline confirmations, hotel bookings, the
         rental car -- any one of them, from any address.
       </p>
+      {/*
+       * The other two things this address does, said here rather than left to be
+       * discovered. A family who thinks the mailbox only takes confirmations
+       * forwards confirmations, and the fare reading and the policy reading are
+       * the two jobs nobody would guess an inbox screen was offering.
+       */}
+      <p className="mt-2 text-sm text-ink-soft">
+        It takes more than bookings. Forward the flight deal emails you already
+        get and she keeps the fares that fit a place on your bucket list or a
+        trip whose flights are still to buy, with the newsletter credited so you
+        can check the price yourself. Send a travel insurance policy and she
+        reads out what it covers, who is named on it and what it leaves open.
+      </p>
 
       <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--line)] bg-sand p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
