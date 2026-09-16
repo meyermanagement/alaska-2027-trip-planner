@@ -164,7 +164,7 @@ export default function ClearedInbox() {
                       "A forwarding check you read and finished with. Nothing was filed and nothing was thrown away."
                     ) : wasNoted ? (
                       message.fares > 0 ? (
-                        `Read for fares, and ${fareCount(message.fares)} of them matched what you are looking for.`
+                        `Read for fares, and ${fareCount(message.fares)} matched what you are looking for.`
                       ) : (
                         `Read for fares, and none were kept${
                           message.parse_error ? ` — ${message.parse_error}` : ""
