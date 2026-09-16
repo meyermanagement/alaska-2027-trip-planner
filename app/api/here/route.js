@@ -17,6 +17,7 @@ import {
   searchUrl,
 } from "@/lib/places/photon";
 import { normalizeHere } from "@/lib/places/here";
+import { optionalFeatureOn } from "@/lib/beta/consent";
 import {
   addressAt,
   addressTrouble,
@@ -45,6 +46,21 @@ export async function GET(request) {
   // is the same shape: a point, a label, and how sure we are of it.
   const at = (request.nextUrl.searchParams.get("at") || "").trim();
   if (at) {
+    // A pair of coordinates is the phone talking, and the phone is the part the
+    // gate asked about: "Use where you are", with "type a place name instead" as
+    // the answer for no. Typed names carry on below whatever the switch says --
+    // refusing those would punish the person who declined instead of respecting
+    // them.
+    if (!(await optionalFeatureOn(supabase, user.id, "location"))) {
+      return NextResponse.json(
+        {
+          error:
+            "Turn on Use where you are in Settings to work from your phone's location, or type a place name instead.",
+          reason: "feature-off",
+        },
+        { status: 403 },
+      );
+    }
     const [lat, lon] = at.split(",").map((n) => Number(n));
     const { hit, why, detail } = await addressAt(lat, lon);
     if (!hit) {

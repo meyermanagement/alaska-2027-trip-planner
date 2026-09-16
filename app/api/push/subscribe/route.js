@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pushConfigured, pushProblem, pushPublicKey } from "@/lib/push/send";
+import { optionalFeatureDecision } from "@/lib/beta/consent";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,28 @@ export async function POST(request) {
 
   if (!pushConfigured()) {
     return NextResponse.json({ error: pushProblem() }, { status: 503 });
+  }
+
+  // The gate asked whether we may interrupt them and offered an honest answer for
+  // no -- "check the Reminders screen yourself". Storing a subscription for a
+  // browser whose owner declined would make that answer false, so the switch is
+  // read here rather than trusted to the screen that offers the button.
+  const decision = await optionalFeatureDecision(
+    supabase,
+    user.id,
+    "notifications",
+  );
+  if (!decision.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          decision.reason === "no-consent"
+            ? "Your beta agreement needs looking at again before notifications can be set up."
+            : "Turn on Reminders before they matter in Settings, and this browser can be signed up for them.",
+        reason: decision.reason,
+      },
+      { status: 403 },
+    );
   }
 
   let body = {};

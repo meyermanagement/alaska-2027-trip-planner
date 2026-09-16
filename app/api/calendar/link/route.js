@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { siteOrigin } from "@/lib/email/sendInvite";
 import { randomBytes } from "crypto";
+import { optionalFeatureDecision } from "@/lib/beta/consent";
 
 export const runtime = "nodejs";
 
@@ -37,6 +38,23 @@ export async function GET(request) {
   const familyId = await familyOf(supabase, user.id);
   if (!familyId)
     return NextResponse.json({ error: "No family yet." }, { status: 404 });
+
+  // With the switch off the URL is not handed out, even though the row may still
+  // exist from before -- a link that keeps working after somebody said no is the
+  // whole problem with a URL that never expires.
+  const decision = await optionalFeatureDecision(supabase, user.id, "calendar");
+  if (!decision.allowed) {
+    return NextResponse.json({
+      url: null,
+      createdAt: null,
+      lastReadAt: null,
+      reason: decision.reason,
+      note:
+        decision.reason === "no-consent"
+          ? "Your beta agreement needs looking at again before the calendar link can be used."
+          : "Turn on Add trips to your calendar in Settings to get a subscription link.",
+    });
+  }
 
   const { data } = await supabase
     .from("calendar_feeds")
@@ -69,6 +87,20 @@ export async function POST(request) {
   const familyId = await familyOf(supabase, user.id);
   if (!familyId)
     return NextResponse.json({ error: "No family yet." }, { status: 404 });
+
+  const decision = await optionalFeatureDecision(supabase, user.id, "calendar");
+  if (!decision.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          decision.reason === "no-consent"
+            ? "Your beta agreement needs looking at again before the calendar link can be used."
+            : "Turn on Add trips to your calendar in Settings, and a link can be made.",
+        reason: decision.reason,
+      },
+      { status: 403 },
+    );
+  }
 
   const { data: existing } = await supabase
     .from("calendar_feeds")

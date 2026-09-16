@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pushConfigured, pushProblem, sendPush } from "@/lib/push/send";
+import { optionalFeatureOn } from "@/lib/beta/consent";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,17 @@ export async function POST() {
 
   if (!pushConfigured()) {
     return NextResponse.json({ error: pushProblem() }, { status: 503 });
+  }
+
+  if (!(await optionalFeatureOn(supabase, user.id, "notifications"))) {
+    return NextResponse.json(
+      {
+        error:
+          "Turn on Reminders before they matter in Settings first, then this will send one.",
+        reason: "feature-off",
+      },
+      { status: 403 },
+    );
   }
 
   const { data: me } = await supabase

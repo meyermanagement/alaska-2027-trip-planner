@@ -10,6 +10,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { familyCalendar } from "@/lib/calendar/ics";
 import { siteOrigin } from "@/lib/email/sendInvite";
+import { householdFeatureOn } from "@/lib/beta/consent";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,21 @@ export async function GET(request, { params }) {
     .eq("token", token)
     .maybeSingle();
   if (!feed) return new Response("Not found.", { status: 404 });
+
+  // The switch, checked on every read rather than only when the link was made.
+  // A calendar app re-reads this URL for years without asking anyone, so the only
+  // moment a withdrawn permission can take effect is this one. 404 rather than 403
+  // because the reader is a calendar app with no way to be told anything useful,
+  // and because a token that answers differently depending on a setting tells a
+  // stranger something about the household. The link starts working again by
+  // itself if the switch goes back on.
+  const permitted = await householdFeatureOn(supabase, {
+    familyId: feed.family_id,
+    feature: "calendar",
+  });
+  if (!permitted.allowed) {
+    return new Response("Not found.", { status: 404 });
+  }
 
   // Tasks and itinerary items belong to a trip rather than to a family, so the
   // trips are read first and everything else is scoped to their ids. That is what
