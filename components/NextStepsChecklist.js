@@ -201,6 +201,37 @@ function DoneMark() {
   );
 }
 
+// Who is holding a row up, said in the row's own words. Two clauses at most,
+// because the family row asks for two things and a household can be behind on
+// either or both: a paragraph in About you, and one favorite moment.
+//
+// The point of naming anybody is that the alternative reads as an accusation
+// the app cannot back up. A row that says "fill in their About you and their
+// favorite moments" to a family who wrote a paragraph for everybody looks like
+// work being ignored, when what is actually missing is the other half.
+function waitingSentence(waiting) {
+  if (!waiting) return "";
+  const list = (names) =>
+    names.length < 3
+      ? names.join(" and ")
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const clauses = [];
+  const about = waiting.about || [];
+  const moments = waiting.moments || [];
+  if (about.length) {
+    clauses.push(
+      `${list(about)} ${about.length > 1 ? "have" : "has"} nothing in About you yet`,
+    );
+  }
+  if (moments.length) {
+    clauses.push(
+      `${list(moments)} ${moments.length > 1 ? "have" : "has"} About you filled in and ${moments.length > 1 ? "still need" : "still needs"} a favorite moment`,
+    );
+  }
+  if (!clauses.length) return "";
+  return `${clauses.join(". ")}.`;
+}
+
 function NextStepRow({
   item,
   inboxAddress,
@@ -208,6 +239,7 @@ function NextStepRow({
   index,
   done = false,
   linked = false,
+  waiting = "",
 }) {
   const [ref, shown] = useRevealed();
   const base = Math.min(index, BEAT.rowStepMax) * BEAT.rowStep;
@@ -261,6 +293,17 @@ function NextStepRow({
             ? item.leadWithoutAddress
             : item.lead}
         </p>
+        {/* What is actually outstanding, under the ask rather than instead of
+            it: the row still has to explain what it wants to somebody arriving
+            for the first time, and this says who it is waiting on. */}
+        {waiting && (
+          <p
+            className="ma-in mt-1 text-sm font-medium leading-relaxed text-teal"
+            style={{ animationDelay: `${base + BEAT.lead + 0.06}s` }}
+          >
+            {waiting}
+          </p>
+        )}
         {item.key === "forwarding" && inboxAddress && (
           <span
             className="ma-chip relative z-20 inline-flex"
@@ -298,6 +341,10 @@ export default function NextStepsChecklist({
   // lie; filled in when somebody comes back to this screen from the menu, where
   // the whole reason they tapped it was to find out where they had got to.
   done = [],
+  // Who each outstanding row is still waiting on, by row key. Only the family
+  // row has anything to say here today: the others are one fact about the
+  // household with nobody's name in them.
+  waitingOn = null,
   // Whether the rows go anywhere. Off during the walkthrough: the screen is
   // there to be read once and left by the button at the foot of it, and cards
   // that each lead out of the flow are so many ways to abandon it a screen
@@ -366,6 +413,11 @@ export default function NextStepsChecklist({
             booted={booted}
             done={done.includes(item.key)}
             linked={linked}
+            waiting={
+              item.key === "others" && !done.includes("others")
+                ? waitingSentence(waitingOn)
+                : ""
+            }
           />
         ))}
       </ol>

@@ -118,6 +118,10 @@ export default async function WelcomeNextStepsPage() {
               : undefined
           }
           done={setup?.done || []}
+          /* Who the family row is still waiting on, so a household who wrote a
+           paragraph for everybody is told it is the moments that are missing
+           rather than being asked again for work they already did. */
+          waitingOn={setup?.waitingOn || null}
           /* Tappable from the second arrival, for the same reason the menu is
            back: somebody who came here to see what was left wants the screen
            the row is about, not a description of it. Left alone during the
