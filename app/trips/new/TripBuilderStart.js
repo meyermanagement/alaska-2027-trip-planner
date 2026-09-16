@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import DictationHint from "@/components/DictationHint";
 import {
@@ -55,6 +55,29 @@ export default function TripBuilderStart({
 
   const read = readIdea(idea);
   const covered = new Set(read.filter((r) => r.mentioned).map((r) => r.id));
+
+  // Arriving from the bucket list, the cursor belongs at the end of the sentence
+  // that is already there.
+  //
+  // The point of this screen when it is seeded is not to read the paragraph, it
+  // is to add the two things the list never held -- how you would get there,
+  // where you would sleep -- and a full box with no cursor in it asks somebody
+  // to tap into a wall of text and then hunt for the end of it. preventScroll
+  // keeps the browser from hauling the box to the top of the window, which on a
+  // phone would push the panel saying where the sentence came from off screen at
+  // the moment it needs to be read.
+  // The ref, rather than an empty dependency list, is what keeps this to once:
+  // the cursor must not be thrown back to the end while somebody is fixing the
+  // middle of the paragraph, and in development the effect runs twice anyway.
+  const placed = useRef(false);
+  useEffect(() => {
+    if (!seed || placed.current) return;
+    const box = boxRef.current;
+    if (!box) return;
+    placed.current = true;
+    box.focus({ preventScroll: true });
+    box.setSelectionRange(seed.length, seed.length);
+  }, [seed]);
 
   // The examples sit at the bottom of the screen and the box they fill is at the
   // top, so on a phone pressing one used to look like nothing happening: the
@@ -195,6 +218,8 @@ export default function TripBuilderStart({
            right on an empty screen and wrong on one carrying a list of drafts:
            the phone scrolls the focused box to the top of the window and the
            very thing this screen now says first goes off it. */
+        /* The seeded case is handled by the effect above, which also has to put
+           the cursor somewhere in particular. */
         autoFocus={drafts.length === 0 && !seed}
       />
 
