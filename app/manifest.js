@@ -12,9 +12,12 @@
  * dark icon is a seam you see every cold start, so they are the dark page.
  *
  * The icons are the sign-in dial: a slate disc with the sixteen graduations and
- * the needle in Midnight Aurora's four accents, on that skin's page rather than
- * on a tile. This is the one place the mark cannot follow the skin, because a
- * file on a home screen is painted once. Two of them, because a launcher does
+ * the needle in Midnight Aurora's four accents, standing on a tile in that
+ * skin's plate color so the disc has something to be a disc against. This is
+ * the one place the mark cannot follow the skin, because a file on a home
+ * screen is painted once. The tiles are square-cornered on purpose -- every
+ * launcher masks the square itself, and rounding it here too leaves a dark
+ * fringe outside the mask. Two of them, because a launcher does
  * two different things with an icon -- one shown as given, and one edge-to-edge
  * maskable copy with the instrument pulled in to radius 12.3 of the 32-unit box
  * so nothing that means anything crosses the circle a launcher may crop to.
