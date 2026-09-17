@@ -365,7 +365,7 @@ export default function HomeLanding() {
         <Scene
           label="While you are there"
           title="The whole day, and everything you booked for it, on one screen."
-          body="It opens on the day you are living, not on day one. Underneath each thing is the booking itself — the confirmation number, the check-in time, the address to hand a driver — so nobody is hunting through an inbox on hotel wifi for a code they forwarded in March. Aly reads those confirmations in whatever language they arrive in and pulls out the part that would have caught you: cash only, thirty minutes early, ID at the desk. And the day has its own bag, so what you carry today is a short list, not the whole suitcase."
+          body="It opens on the day you are living, not on day one. Underneath each thing is the booking itself — the confirmation number, the check-in time, the address to hand a driver — so nobody is hunting through an inbox on hotel wifi for a code they forwarded in March. Aly reads those confirmations in whatever language they arrive in and pulls out the part that would have caught you: cash only, thirty minutes early, ID at the desk. And everything you need for each day is kept on the day it is needed, so you are not standing at the door trying to remember what today takes."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
