@@ -7,7 +7,19 @@ export const metadata = { title: "Sign in · Alyeska" };
 export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-      <div className="mb-7 text-center">
+      {/* The same lockup the emails wear, drawn with the app's own dial instead
+          of the PNG an inbox has to be sent. Horizontal: the mark on the left,
+          and a left-aligned column of name, hairline and caption beside it, the
+          whole arrangement centered on the screen. It used to be a centered
+          stack -- dial over name over tagline -- which is a different shape from
+          the message that brings somebody here, and the sign-in screen is the
+          one surface where the two are seen within a few seconds of each other.
+
+          The caption is the email's caption, in the email's order: Travel, a
+          middot in the rule's own color, then the house line. Three words about
+          what the product does read as a subtitle to the name when they hang off
+          it and as a stray sentence when they float under the whole lockup. */}
+      <div className="mb-7 flex items-center justify-center gap-[13px]">
         {/* The dial the rest of the app wears -- the same graduated bezel the
             menu button carries, so the first surface a new sign-in sees is the
             same instrument they will find in the header once they are in.
@@ -19,7 +31,7 @@ export default function LoginPage() {
             header. This screen is where it started, because it is the one with
             nothing else on it: no header to match and no colored button around
             the mark. */}
-        <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)]">
+        <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[var(--disc-edge)] bg-[var(--disc-face)] text-ink shadow-[var(--disc-shadow)]">
           <AlyeskaMark
             className="h-[60px] w-[60px]"
             bezel
@@ -27,25 +39,26 @@ export default function LoginPage() {
             bezelColor="var(--aurora-mid)"
           />
         </span>
-        {/* The wordmark, not a page heading: the same letterspaced capitals over
-            the same hairline that the loading screens and the menu carry, so the
-            screen somebody signs in on wears the mark rather than announcing the
-            name. Set larger than anywhere else in the app because on this screen
-            there is nothing else above the form to look at. */}
-        <h1
-          className="aly-word font-display mt-3"
-          style={{ fontSize: "var(--fs-xl)" }}
-        >
-          Alyeska
-          <span className="aly-word-rule mid" />
-        </h1>
-        {/* The house line, the same three words the emails carry under the same
-            lockup, so the screen somebody signs in on and the message that
-            brought them here read as one thing. It says what the app is; the
-            pledge at the bottom of the screen says how it is paid for. */}
-        <p className="mt-2 text-sm text-ink-soft">
-          Personalized. Contextualized. Simplified.
-        </p>
+        <div className="min-w-0 text-left">
+          {/* The wordmark, not a page heading: the same letterspaced capitals
+              over the same hairline that the loading screens, the menu and the
+              email headers carry. The rule loses its centering here, because
+              this column is set from the left the way the email's type cell
+              is. */}
+          <h1 className="aly-word font-display text-[21px]">
+            Alyeska
+            <span className="aly-word-rule" />
+          </h1>
+          <p className="mt-1.5 text-[13px] font-medium leading-[1.35] text-ink-soft">
+            <span className="font-semibold">Travel</span>
+            {/* The divider in the rule's own color. The email hard-codes a pale
+                teal because an inbox has no opacity worth relying on; on screen
+                the rule is the word's ink at 40 percent, so the middot is
+                too. */}
+            <span className="opacity-40">&nbsp;&middot;&nbsp;</span>
+            Personalized. Contextualized. Simplified.
+          </p>
+        </div>
       </div>
       <Suspense
         fallback={<div className="card h-72 animate-pulse bg-white/70" />}
