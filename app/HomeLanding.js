@@ -523,7 +523,7 @@ export default function HomeLanding() {
         <Scene
           label="The money"
           title="What it has cost, and which card to hand over."
-          body="Every price on the trip in one place, against the number you meant to spend. Your cards and points are in there too, so the answer to who pays for dinner is the card that earns the most on it and the credit you have not used yet."
+          body="Every price on the trip in one place, against the number you meant to spend. Your cards and points are in there too, so the answer to who pays for dinner is the card that earns the most on it and the credit you have not used yet. She reads your trip insurance policy too, and the coverage your card or reward program gives you when you booked through it, so you know what you already have before you buy it again."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">

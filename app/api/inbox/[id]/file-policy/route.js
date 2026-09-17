@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
-import { normalizeCovers } from "@/lib/insurance/policy";
+import { normalizeCovers, POLICY_KINDS } from "@/lib/insurance/policy";
 import { matchInsured } from "@/lib/insurance/insured";
 
 export const runtime = "nodejs";
@@ -115,7 +115,9 @@ export async function POST(request, { params }) {
     .from("insurance_policies")
     .insert({
       family_id: message.family_id,
-      kind: staged.kind === "annual" ? "annual" : "trip",
+      kind: POLICY_KINDS.some((k) => k.value === staged.kind)
+        ? staged.kind
+        : "trip",
       provider: staged.provider,
       plan_name: staged.plan_name,
       policy_number: staged.policy_number,

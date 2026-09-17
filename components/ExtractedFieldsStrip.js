@@ -1,6 +1,6 @@
 "use client";
 
-import { canonicalCover, coverLabel } from "@/lib/insurance/policy";
+import { canonicalCover, coverLabel, kindLabel } from "@/lib/insurance/policy";
 
 /**
  * The keep-or-edit strip that shows what Aly read from a scan.
@@ -112,7 +112,7 @@ function prettyPolicy(field, value) {
     return (Array.isArray(value) ? value : []).join(", ");
   }
   if (field === "kind") {
-    return value === "annual" ? "Annual plan" : "This trip";
+    return kindLabel(value);
   }
   if (
     field === "premium" ||

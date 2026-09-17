@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { coverLabel } from "@/lib/insurance/policy";
+import { coverLabel, kindLabel } from "@/lib/insurance/policy";
 import { FARE_NEWSLETTERS } from "@/lib/deals/senders";
 import { matchInsured } from "@/lib/insurance/insured";
 import { Spinner } from "@/components/LinkPending";
@@ -731,7 +731,7 @@ function FilePicker({
               {policy.plan_name ? ` · ${policy.plan_name}` : ""}
             </p>
             <p className="mt-0.5 text-xs text-ink-soft">
-              {policy.kind === "annual" ? "Annual plan" : "Bought for one trip"}
+              {kindLabel(policy.kind)}
               {policy.policy_number ? ` · ${policy.policy_number}` : ""}
               {policy.coverage_start
                 ? ` · covers ${policy.coverage_start}${policy.coverage_end ? ` to ${policy.coverage_end}` : " onward"}`

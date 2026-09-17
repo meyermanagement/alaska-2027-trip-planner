@@ -8,10 +8,12 @@ import { money } from "@/lib/budget/budget";
 import { formatRange } from "@/lib/format";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import {
+  CARD_CONDITION,
   COVERS,
   POLICY_KINDS,
   coverLabel,
   coverageAgainstTrip,
+  isCardPolicy,
   kindLabel,
   limitLines,
   normalizeCovers,
@@ -28,6 +30,7 @@ import InboxAddressChip from "./InboxAddressChip";
 
 const EMPTY_DRAFT = {
   kind: "trip",
+  rewards_program_id: "",
   provider: "",
   plan_name: "",
   policy_number: "",
@@ -48,6 +51,7 @@ function draftFrom(policy) {
   if (!policy) return { ...EMPTY_DRAFT };
   return {
     kind: policy.kind || "trip",
+    rewards_program_id: policy.rewards_program_id || "",
     provider: policy.provider || "",
     plan_name: policy.plan_name || "",
     policy_number: policy.policy_number || "",
@@ -90,6 +94,7 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
   const [insured, setInsured] = useState([]);
   const [docs, setDocs] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [inboxAddress, setInboxAddress] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -116,35 +121,49 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
 
   const load = useCallback(async () => {
     if (!familyId) return;
-    const [policyRows, linkRows, insuredRows, docRows, tripRows, household] =
-      await Promise.all([
-        supabase
-          .from("insurance_policies")
-          .select("*")
-          .eq("family_id", familyId)
-          .order("created_at", { ascending: true }),
-        supabase.from("trip_insurance_policies").select("trip_id, policy_id"),
-        supabase
-          .from("insurance_policy_travelers")
-          .select("policy_id, traveler_id"),
-        supabase
-          .from("insurance_documents")
-          .select(
-            "id, policy_id, storage_path, mime_type, size_bytes, original_filename, label, sort_order",
-          )
-          .eq("family_id", familyId)
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("trips")
-          .select("id, name, start_date, end_date")
-          .eq("family_id", familyId)
-          .order("start_date", { ascending: true }),
-        supabase
-          .from("families")
-          .select("inbox_local_part")
-          .eq("id", familyId)
-          .maybeSingle(),
-      ]);
+    const [
+      policyRows,
+      linkRows,
+      insuredRows,
+      docRows,
+      tripRows,
+      programRows,
+      household,
+    ] = await Promise.all([
+      supabase
+        .from("insurance_policies")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("created_at", { ascending: true }),
+      supabase.from("trip_insurance_policies").select("trip_id, policy_id"),
+      supabase
+        .from("insurance_policy_travelers")
+        .select("policy_id, traveler_id"),
+      supabase
+        .from("insurance_documents")
+        .select(
+          "id, policy_id, storage_path, mime_type, size_bytes, original_filename, label, sort_order",
+        )
+        .eq("family_id", familyId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("trips")
+        .select("id, name, start_date, end_date")
+        .eq("family_id", familyId)
+        .order("start_date", { ascending: true }),
+      // The wallet, so coverage that comes with a card can name the card it
+      // comes with rather than repeating its name as free text.
+      supabase
+        .from("rewards_programs")
+        .select("id, brand, program_name, kind")
+        .eq("family_id", familyId)
+        .order("brand", { ascending: true }),
+      supabase
+        .from("families")
+        .select("inbox_local_part")
+        .eq("id", familyId)
+        .maybeSingle(),
+    ]);
 
     const firstError =
       policyRows.error || linkRows.error || insuredRows.error || docRows.error;
@@ -158,6 +177,7 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
     setInsured(insuredRows.data || []);
     setDocs(docRows.data || []);
     setTrips(tripRows.data || []);
+    setPrograms(programRows.data || []);
     setInboxAddress(inboxAddressFor(household.data?.inbox_local_part));
     setLoaded(true);
   }, [supabase, familyId]);
@@ -553,6 +573,7 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
           extract={extract}
           pendingFile={pendingFile}
           insuredRead={insuredRead}
+          programs={programs}
           onPickFile={readPolicyFile}
           onApplyRead={applyRead}
           onApplyAllRead={applyAllRead}
@@ -628,6 +649,9 @@ function PolicyCard({
               ? ` · ${formatRange(policy.coverage_start, policy.coverage_end)}`
               : ""}
           </p>
+          {isCardPolicy(policy) && (
+            <p className="mt-1 text-xs text-ink-soft">{CARD_CONDITION}</p>
+          )}
         </div>
         {!readOnly && (
           <div className="flex shrink-0 gap-1.5">
@@ -954,6 +978,7 @@ function PolicyForm({
   extract,
   pendingFile,
   insuredRead,
+  programs = [],
   onPickFile,
   onApplyRead,
   onApplyAllRead,
@@ -1082,6 +1107,23 @@ function PolicyForm({
             ))}
           </select>
         </label>
+        {draft.kind === "card" && (
+          <label className={LABEL}>
+            Which card
+            <select
+              className={FIELD}
+              value={draft.rewards_program_id || ""}
+              onChange={(e) => set("rewards_program_id", e.target.value)}
+            >
+              <option value="">Not in the Wallet yet</option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {[p.brand, p.program_name].filter(Boolean).join(" · ")}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className={LABEL}>
           Coverage starts
           <input
