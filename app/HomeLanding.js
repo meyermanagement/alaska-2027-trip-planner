@@ -118,6 +118,21 @@ function Scene({ label, title, body, media, flip }) {
   );
 }
 
+/**
+ * One tip: when to act, the thing itself, and where it came from. The source
+ * line is not decoration -- a tip nobody can check is a rumor, and the product
+ * carries a real link on every one of these.
+ */
+function Tip({ when, title, source }) {
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+      <p className="section-label text-[11px]">{when}</p>
+      <p className="mt-1 text-[14px] font-semibold leading-snug">{title}</p>
+      <p className="mt-1 text-[12px] text-ink-soft">Source: {source}</p>
+    </div>
+  );
+}
+
 /** A row inside one of the product panels below. */
 function Row({ left, right, sub, last }) {
   return (
@@ -432,16 +447,40 @@ export default function HomeLanding() {
         />
 
         <Scene
-          label="Reminders"
+          label="Pro tips"
           flip
-          title="Told in time to do something about it."
-          body="The things that have to happen before a trip are counted back from your own departure, not read off a generic checklist. A passport is raised months before the date on it becomes a problem, and anything due tomorrow is said the day before, while there is still an evening to do it in."
+          title="The things you would only know if you had been before."
+          body="Short, specific things worth knowing about where you are going, dated to the day they matter: the permit that has to be bought before you fly, the stretch of road with no signal, the sunscreen that is against the law there. Every one of them says where it came from, so you can check it yourself instead of taking our word for it."
           media={
-            <Shot
-              src="/landing/morning.jpg"
-              alt="Snorkel masks, a hat and a towel on dark sand at sunrise"
-              className="aspect-[4/3]"
-            />
+            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="font-display text-[17px] font-semibold">
+                  Worth knowing &middot; Maui
+                </p>
+                <p className="text-[13px] text-ink-soft">3 new</p>
+              </div>
+              {/* Deliberately not the ledger shape the money and day panels
+                  use: a tip is a sentence with a date and a source under it,
+                  and two Row lists in a row would read as the same screen
+                  twice. */}
+              <div className="mt-4 space-y-2.5">
+                <Tip
+                  when="Buy by February 11"
+                  title="The sunrise permit goes on sale 60 days out"
+                  source="recreation.gov"
+                />
+                <Tip
+                  when="Day 4, before you leave"
+                  title="No signal on the back road — download the map first"
+                  source="Your own days, no model involved"
+                />
+                <Tip
+                  when="Before you pack"
+                  title="Sunscreen with oxybenzone cannot be sold in Hawaii"
+                  source="Hawaii Revised Statutes 342D-21"
+                />
+              </div>
+            </div>
           }
         />
       </div>
