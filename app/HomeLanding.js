@@ -27,7 +27,7 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  * the draft, the day itself, the day that changed, the money, the morning email
  * -- each one a photograph or a piece of the actual product, arriving as you
  * reach it. The argument underneath every scene is the same argument, and it is
- * the only one worth making to somebody who has planned a trip: someone
+ * the only one worth making to somebody who has planned a trip: Alyeska
  * has your back, before you go and while you are there.
  *
  * Four rules it keeps.
@@ -195,7 +195,7 @@ export default function HomeLanding() {
                 className="ma-in mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
                 style={{ animationDelay: "80ms" }}
               >
-                Someone has your back.
+                Alyeska has your back.
                 <br />
                 Before you go, and while you are there.
               </h1>
