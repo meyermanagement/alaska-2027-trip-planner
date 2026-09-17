@@ -31,6 +31,17 @@ import { HERO_CONVERSATION } from "@/lib/home/heroConversation";
  * Motion is a preference, not a given. Anybody who has asked their system for
  * less of it is handed the finished transcript, scrollable, with no typing, no
  * thinking pause and no follower.
+ *
+ * It is also shaped like a conversation rather than a document. The first
+ * version set the question in bold and the reply in plain text, both flush
+ * left in one column, which read as a heading followed by a paragraph -- a
+ * person skimming it could not tell that two parties were speaking. So the
+ * question is now a bubble on the right, where every messaging app on the
+ * reader's phone puts the thing they said themselves, and everything Aly
+ * writes is gathered into one bubble on the left under her name. The
+ * paragraphs, the list of what to bring and the closing line all live inside
+ * that single reply rather than floating as separate blocks, because they are
+ * one answer and were always meant to be read as one.
  */
 
 const CHAR_MS = 26; // questions, typed
@@ -193,6 +204,79 @@ export default function AskDemo() {
 
   const visible = playing ? BLOCKS.slice(0, at + 1) : BLOCKS;
 
+  // Everything Aly writes in a turn is one reply, so consecutive blocks of
+  // hers are gathered into a single bubble before anything is drawn. The
+  // stamp, the question and the thinking dots stay on their own.
+  const rendered = [];
+  for (let i = 0; i < visible.length; i += 1) {
+    const block = visible[i];
+    const fromAly =
+      block.kind === "answer" ||
+      block.kind === "checklistTitle" ||
+      block.kind === "checklistItem" ||
+      block.kind === "tail";
+    if (fromAly) {
+      const open = rendered[rendered.length - 1];
+      if (open && open.kind === "reply" && open.turn === block.turn) {
+        open.parts.push({ block, index: i });
+      } else {
+        rendered.push({
+          kind: "reply",
+          turn: block.turn,
+          parts: [{ block, index: i }],
+        });
+      }
+    } else {
+      rendered.push({ kind: block.kind, turn: block.turn, block, index: i });
+    }
+  }
+
+  /** One paragraph of Aly's reply, drawn inside her bubble. */
+  const replyPart = ({ block, index }) => {
+    const live = playing && index === at;
+    const text = live ? partial(block, shown) : block.text;
+    const key = `${block.turn}-${block.kind}-${index}`;
+
+    if (block.kind === "checklistTitle") {
+      return (
+        <p
+          key={key}
+          className="mt-4 text-[12px] font-semibold uppercase tracking-[0.14em]"
+          style={{ color: "rgba(246,243,236,0.62)" }}
+        >
+          {text}
+        </p>
+      );
+    }
+
+    if (block.kind === "checklistItem") {
+      return (
+        <p
+          key={key}
+          className="home-ask-item mt-2 text-[14px] leading-relaxed"
+          style={{ color: "rgba(246,243,236,0.92)" }}
+        >
+          {text}
+        </p>
+      );
+    }
+
+    return (
+      <p
+        key={key}
+        className="mt-2.5 text-[14px] leading-relaxed"
+        style={{
+          color:
+            block.kind === "tail"
+              ? "rgba(246,243,236,0.74)"
+              : "rgba(246,243,236,0.94)",
+        }}
+      >
+        {text}
+      </p>
+    );
+  };
+
   return (
     <div
       className="rounded-[var(--radius-card)] p-5"
@@ -212,7 +296,22 @@ export default function AskDemo() {
           overflowY: playing ? "auto" : "visible",
         }}
       >
-        {visible.map((block, i) => {
+        {rendered.map((entry) => {
+          if (entry.kind === "reply") {
+            return (
+              <div
+                key={`reply-${entry.turn}`}
+                className="home-ask-reply"
+                data-turn={entry.turn}
+              >
+                <p className="home-ask-who">Aly</p>
+                {entry.parts.map(replyPart)}
+              </div>
+            );
+          }
+
+          const block = entry.block;
+          const i = entry.index;
           const live = playing && i === at;
           const text = live ? partial(block, shown) : block.text;
           const key = `${block.turn}-${block.kind}-${i}`;
@@ -229,66 +328,16 @@ export default function AskDemo() {
 
           if (block.kind === "stamp") {
             return (
-              <p
-                key={key}
-                className="mt-5 text-[12px] font-semibold uppercase tracking-[0.14em] first:mt-0"
-                style={{ color: "rgba(246,243,236,0.58)" }}
-              >
-                {text}
-              </p>
-            );
-          }
-
-          if (block.kind === "question") {
-            return (
-              <p
-                key={key}
-                className="mt-2 text-[15px] font-semibold"
-                style={{ color: "rgba(246,243,236,0.98)" }}
-              >
-                &ldquo;{text}
-                {live ? <span className="home-ask-caret" /> : null}
-                {live ? "" : "\u201d"}
-              </p>
-            );
-          }
-
-          if (block.kind === "checklistTitle") {
-            return (
-              <p
-                key={key}
-                className="mt-4 text-[12px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "rgba(246,243,236,0.58)" }}
-              >
-                {text}
-              </p>
-            );
-          }
-
-          if (block.kind === "checklistItem") {
-            return (
-              <p
-                key={key}
-                className="home-ask-item mt-2 text-[14px] leading-relaxed"
-                style={{ color: "rgba(246,243,236,0.9)" }}
-              >
+              <p key={key} className="home-ask-stamp">
                 {text}
               </p>
             );
           }
 
           return (
-            <p
-              key={key}
-              className="mt-2.5 text-[14px] leading-relaxed"
-              style={{
-                color:
-                  block.kind === "tail"
-                    ? "rgba(246,243,236,0.72)"
-                    : "rgba(246,243,236,0.9)",
-              }}
-            >
+            <p key={key} className="home-ask-said">
               {text}
+              {live ? <span className="home-ask-caret" /> : null}
             </p>
           );
         })}

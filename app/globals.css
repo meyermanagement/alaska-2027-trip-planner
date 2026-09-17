@@ -8521,6 +8521,66 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   margin-top: 0;
 }
 
+/* Who is speaking, said by the shape rather than the weight of the type.
+
+   The first version put the question in bold and the reply in plain text, both
+   flush left, which reads as a heading over a paragraph. The reader has a
+   phone in their pocket that has taught them one convention: the thing I said
+   is a bubble on the right, the thing the other party said is a bubble on the
+   left. So that is what this is. The time and place sits centered between the
+   exchanges, where a messaging app puts it. */
+.home-ask-stamp {
+  margin-top: 1.6rem;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(246, 243, 236, 0.5);
+}
+
+.home-ask-window > .home-ask-stamp:first-child {
+  margin-top: 0;
+}
+
+.home-ask-said {
+  max-width: 88%;
+  margin-top: 0.7rem;
+  margin-left: auto;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgba(246, 243, 236, 0.26);
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  background: rgba(246, 243, 236, 0.15);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: rgba(246, 243, 236, 0.98);
+}
+
+.home-ask-reply {
+  max-width: 94%;
+  margin-top: 0.7rem;
+  margin-right: auto;
+  padding: 0.7rem 0.9rem 0.8rem;
+  border: 1px solid rgba(246, 243, 236, 0.14);
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  background: rgba(8, 14, 19, 0.55);
+}
+
+/* Her name once at the top of the reply, not on every paragraph inside it. */
+.home-ask-who {
+  margin-bottom: 0.1rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(246, 243, 236, 0.55);
+}
+
+.home-ask-reply > p:nth-child(2) {
+  margin-top: 0.25rem;
+}
+
 /* The caret that sits at the end of the question being typed. It is a block
    rather than a line because a line over a photograph disappears. */
 .home-ask-caret {
@@ -8549,7 +8609,13 @@ html[data-skin="sodium"] .arc-pill.kid::before {
 .home-ask-think {
   display: flex;
   gap: 0.28rem;
+  width: fit-content;
   margin-top: 0.7rem;
+  margin-right: auto;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgba(246, 243, 236, 0.14);
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  background: rgba(8, 14, 19, 0.55);
 }
 
 .home-ask-think span {
