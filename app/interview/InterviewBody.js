@@ -26,7 +26,7 @@ import {
   personalizationContext,
   personalizeReasons,
 } from "@/lib/travelers/interviewPersonalize";
-import { suggestionKey, whysAfterUntick } from "@/lib/travelers/interviewChips";
+import { whysAfterUntick } from "@/lib/travelers/interviewChips";
 import {
   BAND_MIN,
   BAND_MAX,
@@ -478,15 +478,6 @@ export default function InterviewBody({
   }, [people, live]);
   const [done, setDone] = useState(false);
   const focusRef = useRef(null);
-  // Session cache for Aly-generated follow-up chips. Keyed by
-  // `${slot}::${choice}::${chip}` (all lowercase); value is the array of
-  // suggestion strings returned by /api/interview/suggest. Held in a ref so
-  // repeated taps on the same chip -- including tapping OFF and back ON --
-  // never re-hit the model within one session. A refresh of the interview
-  // clears the cache, which is fine: the primary answers ten or eleven
-  // questions and
-  // moves on, so the cache lifetime maps to a real session.
-  const suggestionCache = useRef(new Map());
   // A screen-reader-only live region that announces the new prompt as each
   // question arrives, so keyboard and assistive-tech users hear the change of
   // question without visible focus moving anywhere on the page. Nothing on
@@ -713,7 +704,6 @@ export default function InterviewBody({
             remaining: order.filter((v) => v !== value),
             whys: prev,
             context: live,
-            cacheGet: (key) => suggestionCache.current.get(key),
           }),
         );
       }
@@ -1421,7 +1411,6 @@ export default function InterviewBody({
                     setWhys={setWhys}
                     ownWords={ownWords}
                     setOwnWords={setOwnWords}
-                    cache={suggestionCache}
                     context={live}
                   />
                 )}
@@ -1466,7 +1455,6 @@ export default function InterviewBody({
                     setWhys={setWhys}
                     ownWords={ownWords}
                     setOwnWords={setOwnWords}
-                    cache={suggestionCache}
                     context={live}
                   />
                 )}
@@ -1487,7 +1475,6 @@ export default function InterviewBody({
                     setWhys={setWhys}
                     ownWords={ownWords}
                     setOwnWords={setOwnWords}
-                    cache={suggestionCache}
                     context={live}
                   />
                 )}
@@ -1512,7 +1499,6 @@ export default function InterviewBody({
                   setWhys={setWhys}
                   ownWords={ownWords}
                   setOwnWords={setOwnWords}
-                  cache={suggestionCache}
                   context={live}
                 />
               </div>
@@ -1533,7 +1519,6 @@ export default function InterviewBody({
                   setWhys={setWhys}
                   ownWords={ownWords}
                   setOwnWords={setOwnWords}
-                  cache={suggestionCache}
                   context={live}
                 />
               </div>
@@ -1650,27 +1635,22 @@ export default function InterviewBody({
 // text to the reason on its own line; tapping again removes just that line,
 // so several suggestions can stack into a fuller answer without retyping.
 //
-// The base suggestions are hand-written and ship with the question. Beyond
-// them, the panel asks Aly on the fly for follow-up chips that extend the
-// specific base chip the primary just tapped -- "The kids do better when
-// they are busy" leads to more kid-energy chips, "We won't be back here for
-// a while" leads to more scarcity chips, and so on. Each fetch runs in the
-// background against /api/interview/suggest; the results merge into a growing
-// pool of extra chips (deduplicated, capped around ten total in the second
-// row) that appear under a "More" heading. Pending fetches show a small dot
-// placeholder in the same layout so the row is a wait rather than a jump.
+// Every chip in both rows is hand-written and ships with the question. The
+// second row -- the one under "More" -- used to be generated on the fly: each
+// tap on a base chip fired a request to a model for follow-ups that extended
+// that particular chip. It was a model call on a screen where a family is
+// moving fast, it could arrive late enough that the row jumped under a moving
+// thumb, it could arrive not at all, and what it produced was a sentence that
+// nobody had read before it was offered as the family's own words. None of
+// that is worth the branching it bought, so the follow-ups are now written per
+// option in lib/travelers/interview.js under a `more` key beside `reasons`,
+// and picking an option decides both rows at once.
 //
-// Within the More row, the hand-written otherReasons (the neutral third-way
-// suggestions that ship with the question) come first, and Aly's tailored
-// follow-ups append after them in pick order. That way a chip that just
-// arrived from the network does not shove the hand-written suggestions off
-// the top of the row -- the anchor stays put, the new material lands at the
-// end.
-//
-// A session-lifetime cache (keyed by slot::choice::chip) means tapping the
-// same base chip twice -- or toggling one off and back on -- never re-hits
-// the model. The cache lives on the parent InterviewBody's suggestionCache
-// ref.
+// Within the More row, the question's otherReasons come first. They belong to
+// no option -- they are the genuinely mixed answers, "one packed day, one slow
+// day" -- so they are the part of the row that does not move as ticks change.
+// Each ticked option's own `more` lines follow in tick order, so a second tick
+// appends below rather than reordering what is already on screen.
 //
 // The opposing option's hand-written reasons are still NOT surfaced: they
 // argue against the answer just picked, and stacking them into the reason
@@ -1686,13 +1666,11 @@ const MORE_CAP = 10;
 // instead of scrolled away.
 const PRIMARY_CAP = 6;
 
-// Client-side twin of the server's signatureOf in
-// app/api/interview/suggest/route.js. Same intent: two chips that only differ
-// by punctuation, pronoun choice, filler verbs, or boilerplate endings plan
-// the same day, so they are one chip. Kept in sync with the server so a
-// primary chip and an otherReasons chip that say the same thing in different
-// words are not both drawn, and so a stale cached follow-up cannot pass the
-// client's dedupe even if it slipped past the server's.
+// Two chips that only differ by punctuation, pronoun choice, filler verbs, or
+// boilerplate endings plan the same day, so they are one chip. This is what
+// keeps a primary chip and an otherReasons chip that say the same thing in
+// different words from both being drawn, and it earns its keep across two
+// ticked options whose second rows overlap.
 function signatureOf(value) {
   return String(value || "")
     .toLowerCase()
@@ -2135,7 +2113,6 @@ function WhyPanel({
   setWhys,
   ownWords,
   setOwnWords,
-  cache,
   context,
 }) {
   // A question may override the heading and the placeholder. "Why?" is the
@@ -2163,10 +2140,7 @@ function WhyPanel({
   // the family's actual names when we know them, so the chip reads as if Aly
   // knew who she was writing to rather than a stock questionnaire.
   //
-  // The owner map records which ticked option each chip came from, so a
-  // follow-up request asks about the right option rather than about whichever
-  // one happened to be ticked first.
-  const { primary, chipOwners } = useMemo(() => {
+  const primary = useMemo(() => {
     const chosen = (
       Array.isArray(choices) && choices.length > 0 ? choices : [choice]
     ).filter(Boolean);
@@ -2176,7 +2150,6 @@ function WhyPanel({
     );
     const seen = new Set();
     const list = [];
-    const owners = new Map();
     for (const value of chosen) {
       const opt = (question.options || []).find((o) => o.value === value);
       let taken = 0;
@@ -2189,12 +2162,22 @@ function WhyPanel({
         if (!sig || seen.has(sig)) continue;
         seen.add(sig);
         list.push(chip);
-        owners.set(chip.toLowerCase(), value);
         taken += 1;
       }
     }
-    return { primary: list, chipOwners: owners };
+    return list;
   }, [question, choices, choice, context]);
+
+  // The ticked options, in tick order, so the second row is assembled in the
+  // same order the family answered in.
+  const ticked = useMemo(
+    () =>
+      (Array.isArray(choices) && choices.length > 0
+        ? choices
+        : [choice]
+      ).filter(Boolean),
+    [choices, choice],
+  );
 
   // A question can ship with no reason chips at all -- the money question does,
   // because chips on an ordered answer would look like they explained the whole
@@ -2204,138 +2187,50 @@ function WhyPanel({
   const hasChips = primary.length > 0;
 
   const activeSet = new Set((whys || []).map((s) => (s || "").toLowerCase()));
-  // Which primary chips are actually picked, in the order they were picked --
-  // so "More" starts with follow-ups to the FIRST pick and appends the next
-  // pick's follow-ups below, rather than shuffling the order on each re-render.
+  // Which primary chips are actually picked. The second row appears once one
+  // of them is on, so the panel opens as a question with a short answer rather
+  // than as a wall of eleven chips.
   const pickedPrimary = (whys || []).filter((l) =>
     primary.some((p) => p.toLowerCase() === (l || "").toLowerCase()),
   );
 
-  // Track pending fetches and generated pools by cache key. State is used
-  // rather than a plain ref for the visible pool so the panel re-renders
-  // when a fetch resolves; the ref is the durable session cache.
-  const [pool, setPool] = useState(() => ({}));
-  const [pendingKeys, setPendingKeys] = useState(() => new Set());
-
-  const keyFor = useCallback(
-    (chip) => suggestionKey(question.slot, chip),
-    [question.slot],
-  );
-
-  // When a base chip is picked, ensure we have follow-ups for it. Read from
-  // the session cache first; only fetch when it is genuinely absent.
-  useEffect(() => {
-    const missing = pickedPrimary.filter((chip) => {
-      const k = keyFor(chip);
-      return !cache.current.has(k) && !pendingKeys.has(k);
-    });
-    if (missing.length === 0) return;
-    // Mark all as pending atomically before firing any request so a burst of
-    // taps does not double-fire the same key.
-    setPendingKeys((prev) => {
-      const next = new Set(prev);
-      for (const chip of missing) next.add(keyFor(chip));
-      return next;
-    });
-    for (const chip of missing) {
-      const k = keyFor(chip);
-      (async () => {
-        let suggestions = [];
-        try {
-          const res = await fetch("/api/interview/suggest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              slot: question.slot,
-              // The option this chip belongs to, which on a several-tick
-              // question is not always the first one ticked.
-              choice: chipOwners.get(chip.toLowerCase()) || choice,
-              chip,
-              // Every chip already on screen, so a follow-up cannot arrive
-              // saying what the row beside it says. The server only knows the
-              // reasons of one option; the row can be showing three options'
-              // worth.
-              showing: primary,
-            }),
-          });
-          const data = await res.json();
-          if (Array.isArray(data?.suggestions)) suggestions = data.suggestions;
-        } catch {
-          suggestions = [];
-        }
-        cache.current.set(k, suggestions);
-        setPool((prev) => ({ ...prev, [k]: suggestions }));
-        setPendingKeys((prev) => {
-          const next = new Set(prev);
-          next.delete(k);
-          return next;
-        });
-      })();
-    }
-  }, [
-    pickedPrimary,
-    pendingKeys,
-    cache,
-    choice,
-    chipOwners,
-    primary,
-    keyFor,
-    question.slot,
-  ]);
-
-  // Assemble the "More" pool. Hand-written otherReasons come first because
-  // they are steady, ship with the question, and act as the anchor of the
-  // row -- something to look at while Aly's follow-ups are still being
-  // fetched, and something that stays in the same place across taps.
-  // Aly's tailored follow-ups (in pick order) append after them, so a chip
-  // that just arrived does not shove the hand-written suggestions off the
-  // top of the row. Everything is deduped by SIGNATURE against the primary
-  // row and each other (so near-duplicates that differ only in punctuation
-  // or pronouns are caught, not just exact matches), and capped at
-  // MORE_CAP so the row does not run away. Picked chips are NOT filtered
-  // out so a wrong tap can be untapped.
-  const more = (() => {
-    // Seed the dedupe set with the primary row's signatures only. Picked
-    // chips are NOT added to the seen set, so a chip that got tapped in
-    // More stays visible in More and can be untapped from the same place
-    // it was tapped -- the same behavior the primary row already has
-    // (tapping a primary chip does not remove it from the primary row).
-    // The chip's picked state is drawn on the chip itself; that is
-    // enough to show it is on. Removing a picked chip from the row was
-    // the reason a wrong tap could not be undone.
+  // Assemble the "More" row. The question's neutral otherReasons come first
+  // because they belong to no option and so are the part of the row that does
+  // not move as ticks change; each ticked option's own `more` lines follow in
+  // tick order. Everything is deduped by SIGNATURE against the primary row and
+  // against each other -- two ticked options can carry second-row lines that
+  // plan the same day in different words -- and capped at MORE_CAP so a
+  // three-tick question does not run away down the screen. Picked chips are
+  // NOT filtered out, so a wrong tap can be untapped from the place it was
+  // tapped.
+  const more = useMemo(() => {
     const seen = new Set();
     for (const s of primary) {
       const sig = signatureOf(s);
       if (sig) seen.add(sig);
     }
     const out = [];
-    for (const r of personalizeReasons(question.otherReasons || [], context)) {
-      if (out.length >= MORE_CAP) return out;
-      const sig = signatureOf(r);
-      if (!sig || seen.has(sig)) continue;
+    const push = (chip) => {
+      if (out.length >= MORE_CAP) return false;
+      const sig = signatureOf(chip);
+      if (!sig || seen.has(sig)) return true;
       seen.add(sig);
-      out.push(r);
+      out.push(chip);
+      return true;
+    };
+    for (const r of personalizeReasons(question.otherReasons || [], context)) {
+      if (!push(r)) return out;
     }
-    for (const chip of pickedPrimary) {
-      const k = keyFor(chip);
-      const generated = cache.current.get(k) || pool[k] || [];
-      for (const g of generated) {
-        if (!g) continue;
-        const sig = signatureOf(g);
-        if (!sig || seen.has(sig)) continue;
-        seen.add(sig);
-        out.push(g);
-        if (out.length >= MORE_CAP) return out;
+    for (const value of ticked) {
+      const opt = (question.options || []).find((o) => o.value === value);
+      for (const r of personalizeReasons((opt && opt.more) || [], context)) {
+        if (!push(r)) return out;
       }
     }
     return out;
-  })();
+  }, [question, ticked, primary, context]);
 
-  const anyPickedPrimary = pickedPrimary.length > 0;
-  const anyPending = pickedPrimary.some((chip) =>
-    pendingKeys.has(keyFor(chip)),
-  );
-  const showMoreSection = anyPickedPrimary && (more.length > 0 || anyPending);
+  const showMoreSection = pickedPrimary.length > 0 && more.length > 0;
 
   function toggle(chip) {
     const key = chip.toLowerCase();
@@ -2397,17 +2292,6 @@ function WhyPanel({
             {more.map((chip) => (
               <Chip key={chip} chip={chip} />
             ))}
-            {anyPending && (
-              <span
-                className="inline-flex items-center gap-1 rounded-full border border-dashed border-sand-deep bg-white/60 px-3 py-1.5 text-sm text-ink-soft"
-                aria-live="polite"
-                aria-label="Loading more suggestions"
-              >
-                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink-soft"></span>
-                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink-soft [animation-delay:150ms]"></span>
-                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink-soft [animation-delay:300ms]"></span>
-              </span>
-            )}
           </div>
         </div>
       )}
