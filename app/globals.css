@@ -5557,6 +5557,15 @@ html[data-route="3"] .quick-tall .quick-heading {
     border-color: transparent;
   }
 
+  .nav-rail .arc-pill.group.on {
+    background: var(--color-teal);
+    border-color: transparent;
+  }
+
+  .nav-rail .arc-pill.group.on .arc-label {
+    color: var(--color-on-accent);
+  }
+
   /* Set as a name rather than a heading. In the arc these labels head the
      sheet's own rows, so small caps are right; in the rail the group row is
      itself the destination, and a column of letter-spaced capitals reads as a
@@ -7927,6 +7936,30 @@ html[data-skin="sodium"] .arc-pill.group.open {
     rgba(255, 255, 255, 0.7) 14%,
     var(--arc-face)
   );
+}
+
+/* A level-one row that is a plain link can be the screen you are standing on,
+   which a band that only opens never can. It has to say so the way every other
+   row in this menu says it -- filled in the accent -- and these rules have to
+   come after the band's own face, or the band would win on order alone and the
+   only visible effect of being here would be the subtitle turning the colour of
+   text on the accent while the surface behind it stayed pale. */
+.arc-pill.group.on,
+html[data-skin="aurora"] .arc-pill.group.on,
+html[data-skin="sodium"] .arc-pill.group.on {
+  --arc-band-face: var(--color-teal);
+  --arc-band-edge: transparent;
+  color: var(--color-on-accent);
+}
+
+.arc-pill.group.on .arc-label,
+.arc-pill.group.on .arc-disc {
+  color: var(--color-on-accent);
+}
+
+.arc-pill.group.on .arc-sub {
+  color: var(--color-on-accent);
+  opacity: 0.82;
 }
 
 .arc-pill.group .arc-disc {
