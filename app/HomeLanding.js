@@ -510,7 +510,7 @@ export default function HomeLanding() {
           label="When it changes"
           flip
           title="The ones you can see coming, and the ones you cannot."
-          body="Some of it you can see coming: rain forecast for the afternoon you booked the boat, a connection too tight to make, two things booked in towns an hour apart. Aly tells you while there is still time to move something. The rest lands on the day, and then it helps that every booking, price and plan for that afternoon is already in one place. Nothing changes until you say so."
+          body="Some of it you can see coming: rain forecast for the afternoon you booked the boat, a connection too tight to make, two things booked in towns an hour apart. Aly tells you while there is still time to move something. The rest lands on the day, and then it helps that every booking, price and plan for that afternoon is already in one place. Ask what to do instead and she works it out with you on the spot, with the day rebuilt around whatever you decide. That is what having your back means."
           media={
             <Shot
               src="/landing/rain.jpg"
