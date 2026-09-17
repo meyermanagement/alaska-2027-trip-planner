@@ -68,20 +68,19 @@ export default function LoginPage() {
       >
         <LoginForm />
       </Suspense>
-      {/* Both closing lines sit under the form rather than over it. The name and
-          the dial are enough of a header: what somebody arrives at this screen to
-          do is sign in, and two lines of promise between the mark and the email
-          field push the one control on the page further from the top of it.
+      {/* One closing line, under the form rather than over it. The name and the
+          dial are enough of a header: what somebody arrives at this screen to do
+          is sign in, and a line of promise between the mark and the email field
+          pushes the one control on the page further from the top of it.
 
-          Order matters between the two. The privacy note is about the thing you
-          are in the middle of doing, so it stays nearest the form; the pledge is
-          what the app stands for and closes the screen. */}
+          What stays is the note about the thing you are in the middle of doing.
+          The pledge line moved to the front door, where it closes the page a
+          stranger reads; here it was the second promise on a screen with one
+          control, and the promise nearest the form should be the one about
+          signing in. */}
       <p className="mt-6 text-center text-xs text-ink-soft">
         Family data is private. Only signed-in members of the family group can
         read or edit trips.
-      </p>
-      <p className="mt-3 text-center text-sm text-ink-soft">
-        No ads. No commissions. Just the memories that matter.
       </p>
     </main>
   );

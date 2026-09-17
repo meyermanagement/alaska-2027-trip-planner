@@ -628,7 +628,7 @@ export default function HomeLanding() {
             className="ma-in mt-2 font-display text-[26px] font-semibold sm:text-[30px]"
             style={{ animationDelay: "60ms" }}
           >
-            How this app makes its money, and how it does not
+            Aly answers for the traveler in front of her, and for nobody else
           </h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             {PLEDGE_PROMISES.map((promise, i) => (
@@ -682,7 +682,7 @@ export default function HomeLanding() {
       >
         <div className="border-t border-[var(--line)] py-16 text-center">
           <h2 className="ma-in font-display text-[28px] font-semibold leading-tight sm:text-[36px]">
-            Plan it once. Then just be there.
+            No ads. No commissions. Just the memories that matter.
           </h2>
           <div
             className="ma-in mt-6 flex flex-wrap items-center justify-center gap-3"
