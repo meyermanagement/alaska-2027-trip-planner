@@ -36,6 +36,13 @@ import { isComing } from "@/lib/pets/pets";
 import CoverQueue from "./CoverQueue";
 import { coverQueuePatch } from "@/lib/covers/queue";
 import { SECONDARY } from "@/lib/travelers/access";
+import NavCount from "./NavCount";
+import {
+  withLeaves,
+  holdingGroup,
+  opensASecondRow,
+  countPlacement,
+} from "@/lib/nav/groups";
 
 /**
  * What the look put on the other tabs, said on the tab that started it.
@@ -224,18 +231,8 @@ export default function TripView({
   // trip cost is not their business, but the evacuation number is, and a minor
   // stuck in a clinic abroad should be able to read the policy without waiting
   // on a parent's phone.
-  const groups = useMemo(
-    () =>
-      TAB_GROUPS.map((g) => ({
-        ...g,
-        leaves: g.tabs
-          .map((id) => tabs.find((t) => t.id === id))
-          .filter(Boolean),
-      })).filter((g) => g.leaves.length),
-    [tabs],
-  );
-  const group =
-    groups.find((g) => g.leaves.some((t) => t.id === tab)) || groups[0];
+  const groups = useMemo(() => withLeaves(TAB_GROUPS, tabs), [tabs]);
+  const group = holdingGroup(groups, tab);
   // Where you were inside each door. Coming back to Getting ready should return
   // to the tasks you were working through, not start again at Packing.
   const [lastLeaf, setLastLeaf] = useState({});
@@ -787,12 +784,11 @@ export default function TripView({
         <nav ref={tabBarRef} className="tabbar no-print" role="tablist">
           {groups.map((g) => {
             const here = group?.id === g.id;
-            // The red count belongs on the door while it is shut. Tips are the
-            // one thing on a trip that arrive without anybody asking, so if they
-            // are now one level down, the level above has to say so -- otherwise
-            // grouping the tabs would have hidden the only badge in the app that
-            // exists to be noticed.
-            const badge = g.leaves.some((t) => t.id === "tips") && tipCount > 0;
+            // Where the red count sits, decided by the rule both navigations
+            // now share rather than by this bar alone: on the door while the
+            // thing it counts is not what you are looking at, on the leaf once
+            // the door is open and you are somewhere else inside it.
+            const placed = countPlacement(g, tab, { tips: tipCount });
             return (
               <button
                 key={g.id}
@@ -805,12 +801,7 @@ export default function TripView({
                 className="tab"
               >
                 {g.label}
-                {badge && (!here || tab !== "tips") && (
-                  <span className="ml-1.5 inline-block min-w-[1.15rem] rounded-full bg-rose px-1 text-xs leading-[1.15rem] font-bold text-on-accent">
-                    {tipCount}
-                    <span className="sr-only"> tips to read</span>
-                  </span>
-                )}
+                <NavCount n={placed.onDoor} what="tips to read" />
               </button>
             );
           })}
@@ -828,7 +819,7 @@ export default function TripView({
       {/* Lighter than the bar above it on purpose: these are the same door, not
           four more of them. A door with one thing behind it draws nothing, so
           Days and Money stay silent. */}
-      {group && group.leaves.length > 1 && (
+      {opensASecondRow(group) && (
         <div
           className="no-print mt-3 flex flex-wrap gap-2"
           role="tablist"
@@ -846,12 +837,11 @@ export default function TripView({
                 className={here ? "chip chip-shade font-semibold" : "chip"}
               >
                 {t.label}
-                {t.id === "tips" && tipCount > 0 && (
-                  <span className="ml-1.5 inline-block min-w-[1.05rem] rounded-full bg-rose px-1 text-2xs leading-[1.05rem] font-bold text-on-accent">
-                    {tipCount}
-                    <span className="sr-only"> tips to read</span>
-                  </span>
-                )}
+                <NavCount
+                  n={t.id === "tips" ? tipCount : 0}
+                  what="tips to read"
+                  size="leaf"
+                />
               </button>
             );
           })}

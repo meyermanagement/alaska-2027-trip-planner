@@ -845,6 +845,16 @@ export default function NavTabs({
           // that opens should say how much it opens; it is also the only
           // number that replaces the sentence the group used to carry.
           count: g.kids.length,
+          // Whether the number this band carries is still about a screen you
+          // are not looking at. The rule is shared with a trip's tab bar now:
+          // a count sits on the door while the thing it counts is not what is
+          // on screen, and comes off only once you are actually standing on
+          // that screen. It used to come off the moment the door opened, which
+          // meant the one number in this menu worth interrupting somebody for
+          // could vanish without them having read a single reminder.
+          countElsewhere: g.kids.some(
+            (k) => k.badge && !onScreen(k.href, pathname),
+          ),
           // The Travel Journal band carries the way out of a trip on its right
           // end while you are inside one.
           wayOut: insideTrip && g.key === "journal",
@@ -1035,7 +1045,7 @@ export default function NavTabs({
       {rows.map((row) => {
         if (row.kind === "group") {
           const isOpen = group === row.groupKey;
-          const count = row.badge && !isOpen ? attention : 0;
+          const count = row.badge && row.countElsewhere ? attention : 0;
           const toggle = () =>
             setGroup((held) => (held === row.groupKey ? null : row.groupKey));
           /* What a band says: the icon, the name in small caps, how
