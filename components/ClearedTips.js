@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { announceTipResolved } from "@/lib/tips/cleared";
 import { ChevronDisc } from "./ChevronDisc";
 
@@ -124,6 +124,12 @@ export default function ClearedTips({
   // Which record to show: one trip's, or the Wallet's. Exactly one of these.
   tripId = null,
   wallet = false,
+  // Without the disclosure around it, for a surface that is already the record
+  // -- the Wallet's History tab. On a trip the list sits under the live advice
+  // and has to ask before it takes up room; on a tab you opened on purpose,
+  // making you press a second time to see the only thing there would be a door
+  // in front of a door. The rows inside stay shut either way.
+  bare = false,
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState(null);
@@ -169,6 +175,29 @@ export default function ClearedTips({
 
   if (!tripId && !wallet) return null;
 
+  // Bare: nothing to press, so nothing waits to be asked. The fetch runs on
+  // mount, and the tab that holds this only mounts it the first time somebody
+  // goes there, so the cost is still paid once and only by whoever wanted it.
+  if (bare) {
+    return (
+      <section className="no-print">
+        <h2 className="font-display text-lg font-semibold">
+          Tips you have cleared
+        </h2>
+        <div className="mt-3">
+          <Record
+            busy={busy}
+            problem={problem}
+            rows={rows}
+            wallet={wallet}
+            onLoad={load}
+            onRestore={restore}
+          />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <details
       className="no-print mt-8 border-t border-[var(--line)] pt-5"
@@ -183,29 +212,50 @@ export default function ClearedTips({
       </summary>
 
       <div className="mt-4">
-        {problem ? (
-          <p role="alert" className="text-sm text-rose">
-            {problem}
-          </p>
-        ) : null}
-        {busy && rows === null ? (
-          <p className="text-sm text-ink-soft">Fetching…</p>
-        ) : null}
-        {rows && !rows.length ? (
-          <p className="text-sm leading-relaxed text-ink-soft">
-            {wallet
-              ? "Nothing cleared here yet. Anything you clear in the Wallet ends up here, in case it stops being wrong, and can be brought back."
-              : "Nothing cleared on this trip yet. Anything you clear — here, on the Itinerary, or on the packing list — ends up here, in case it stops being wrong, and can be brought back."}
-          </p>
-        ) : null}
-        {rows && rows.length ? (
-          <ul className="space-y-3">
-            {rows.map((tip) => (
-              <ClearedCard key={tip.id} tip={tip} onRestore={restore} />
-            ))}
-          </ul>
-        ) : null}
+        <Record
+          busy={busy}
+          problem={problem}
+          rows={rows}
+          wallet={wallet}
+          onRestore={restore}
+        />
       </div>
     </details>
+  );
+}
+
+// The list itself, which is the same whether a disclosure opened it or a tab
+// did. onLoad is passed only by the bare version, which has nothing to press and
+// so has to fetch for itself.
+function Record({ busy, problem, rows, wallet, onLoad = null, onRestore }) {
+  useEffect(() => {
+    if (onLoad) onLoad();
+  }, [onLoad]);
+
+  return (
+    <>
+      {problem ? (
+        <p role="alert" className="text-sm text-rose">
+          {problem}
+        </p>
+      ) : null}
+      {busy && rows === null ? (
+        <p className="text-sm text-ink-soft">Fetching…</p>
+      ) : null}
+      {rows && !rows.length ? (
+        <p className="text-sm leading-relaxed text-ink-soft">
+          {wallet
+            ? "Nothing cleared here yet. Anything you clear in the Wallet ends up here, in case it stops being wrong, and can be brought back."
+            : "Nothing cleared on this trip yet. Anything you clear — here, on the Itinerary, or on the packing list — ends up here, in case it stops being wrong, and can be brought back."}
+        </p>
+      ) : null}
+      {rows && rows.length ? (
+        <ul className="space-y-3">
+          {rows.map((tip) => (
+            <ClearedCard key={tip.id} tip={tip} onRestore={onRestore} />
+          ))}
+        </ul>
+      ) : null}
+    </>
   );
 }

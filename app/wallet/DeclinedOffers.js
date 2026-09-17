@@ -9,7 +9,10 @@
 // which is a worse failure than asking twice.
 //
 // It stays off the screen entirely until there is a refusal to show. Nobody
-// arrives at the Wallet looking for a list of things they already decided.
+// arrives at the Wallet looking for a list of things they already decided --
+// unless they went to the History tab, which is the one place where an empty list
+// is an answer rather than clutter, and where saying nothing would read as the
+// tab having failed to load.
 
 import { useState } from "react";
 import { offerDate, offerHost } from "@/lib/rewards-offers";
@@ -33,11 +36,15 @@ function terms(offer) {
   return parts.join(", ");
 }
 
-export default function DeclinedOffers({ offers = [] }) {
+export default function DeclinedOffers({
+  offers = [],
+  // On the History tab, where the heading and an empty line are the point.
+  bare = false,
+}) {
   const [rows, setRows] = useState(offers);
   const [busy, setBusy] = useState(null);
 
-  if (!rows.length) return null;
+  if (!rows.length && !bare) return null;
 
   const askAgain = async (offer) => {
     setBusy(offer.id);
@@ -55,14 +62,14 @@ export default function DeclinedOffers({ offers = [] }) {
   };
 
   return (
-    <section className="no-print mt-8">
+    <section className={bare ? "no-print" : "no-print mt-8"}>
       <h2 className="font-display text-lg font-semibold">
         Offers you turned down
       </h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Aly leaves these alone unless the terms genuinely improve — a bigger
-        bonus, less spending, or a smaller fee. Ask again and she will treat it
-        as an open question at the next look.
+        {rows.length
+          ? "Aly leaves these alone unless the terms genuinely improve — a bigger bonus, less spending, or a smaller fee. Ask again and she will treat it as an open question at the next look."
+          : "Nothing turned down yet. Press “Not this card” on a welcome offer and it lands here, with the terms you saw and the day you saw them, so a card you passed on once is never quietly retired for good."}
       </p>
       <ul className="mt-3 space-y-2">
         {rows.map((offer) => (

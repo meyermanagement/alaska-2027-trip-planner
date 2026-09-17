@@ -11,6 +11,7 @@ import {
   catalogEntry,
 } from "@/lib/rewards-catalog";
 import { ASK_ALY_EVENT, BubbleIcon } from "@/components/AskAlyTrigger";
+import { ChevronDisc } from "@/components/ChevronDisc";
 import {
   CREDIT_PERIODS,
   KIND_ORDER,
@@ -155,6 +156,12 @@ export default function RewardsBoard({
   const [form, setForm] = useState(null); // null | { id | null, values }
   const [busy, setBusy] = useState(false);
   const [shown, setShown] = useState(() => new Set());
+  // Which program cards are open. Empty to start, so a wallet of twenty-one
+  // programs arrives as twenty-one titles and balances rather than eight screens
+  // of earning rules -- the question this board answers most often is "what have
+  // we got and how much is in it", and everything below the header row is the
+  // answer to a question about one program you have already picked out.
+  const [opened, setOpened] = useState(() => new Set());
   const [balanceFor, setBalanceFor] = useState(null);
   const [balanceDraft, setBalanceDraft] = useState("");
   const formRef = useRef(null);
@@ -172,6 +179,13 @@ export default function RewardsBoard({
     if (!form) return;
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [form?.id, Boolean(form)]);
+
+  // Whether somebody is searching, rather than filtering. The two filters narrow
+  // by things written on the header row -- kind, and whose it is -- so a shut card
+  // still shows why it survived. Typed words match the perks, the earning rules
+  // and the credits, which are all inside the shut part, so the search is the one
+  // control that has to open what it kept.
+  const searching = query.trim().length > 0;
 
   const nameFor = (id) => travelers.find((t) => t.id === id)?.name;
   const total = totalEstimatedValue(rows);
@@ -639,9 +653,29 @@ export default function RewardsBoard({
               const credits = normalizeCredits(row.credits);
               const value = estimatedValue(row);
               const points = formatPoints(row.points_balance);
+              // A search matches on perks, earning rules and credits as well as
+              // the brand, and most of that is inside the shut part of the card.
+              // Narrowing to one card and then hiding the words you searched for
+              // would be the board palming the answer, so a live search opens
+              // what it kept. The header stops being a button while that is true
+              // rather than sitting there doing nothing when pressed, and the
+              // cards go back to however you had them when the box is cleared.
+              const open = opened.has(row.id) || searching;
               return (
-                <article key={row.id} className="card p-4 sm:p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <article key={row.id} className="card">
+                  <HeaderShell
+                    open={open}
+                    fixed={searching}
+                    onToggle={() =>
+                      setOpened((set) => {
+                        const next = new Set(set);
+                        if (next.has(row.id)) next.delete(row.id);
+                        else next.add(row.id);
+                        return next;
+                      })
+                    }
+                    label={`${open ? "Hide" : "Show"} details for ${row.brand}`}
+                  >
                     <div className="min-w-0">
                       <h3 className="font-display text-lg font-semibold">
                         {row.brand}
@@ -698,138 +732,146 @@ export default function RewardsBoard({
                         </p>
                       )}
                     </div>
-                  </div>
+                  </HeaderShell>
 
-                  {rules.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {rules.map((rule, i) => (
-                        <span
-                          key={i}
-                          className="rounded-full border border-[var(--line)] bg-white/70 px-2.5 py-1 text-xs font-medium text-ink-soft"
-                        >
-                          {formatRule(rule)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {credits.length > 0 && (
-                    <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/60 px-3 py-2">
-                      <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                        Statement credits
-                      </p>
-                      <ul className="mt-1 space-y-0.5">
-                        {credits.map((credit, i) => (
-                          <li key={i} className="text-sm text-ink-soft">
-                            <span className="font-semibold text-ink">
-                              {formatMoney(credit.amount)}
-                            </span>{" "}
-                            {formatCredit(credit).replace(
-                              `${formatMoney(credit.amount)} `,
-                              "",
-                            )}
-                          </li>
+                  <div
+                    className={
+                      open
+                        ? "px-4 pb-4 sm:px-5 sm:pb-5"
+                        : "hidden px-4 pb-4 sm:px-5 sm:pb-5 print:block"
+                    }
+                  >
+                    {rules.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {rules.map((rule, i) => (
+                          <span
+                            key={i}
+                            className="rounded-full border border-[var(--line)] bg-white/70 px-2.5 py-1 text-xs font-medium text-ink-soft"
+                          >
+                            {formatRule(rule)}
+                          </span>
                         ))}
-                      </ul>
-                    </div>
-                  )}
+                      </div>
+                    )}
 
-                  {(row.perks || row.expiry_note || row.notes) && (
-                    <div className="mt-3 space-y-1 text-sm text-ink-soft">
-                      {row.perks && <p>{row.perks}</p>}
-                      {row.expiry_note && <p>{row.expiry_note}</p>}
-                      {row.notes && <p>{row.notes}</p>}
-                    </div>
-                  )}
+                    {credits.length > 0 && (
+                      <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/60 px-3 py-2">
+                        <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                          Statement credits
+                        </p>
+                        <ul className="mt-1 space-y-0.5">
+                          {credits.map((credit, i) => (
+                            <li key={i} className="text-sm text-ink-soft">
+                              <span className="font-semibold text-ink">
+                                {formatMoney(credit.amount)}
+                              </span>{" "}
+                              {formatCredit(credit).replace(
+                                `${formatMoney(credit.amount)} `,
+                                "",
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
-                  {row.member_number && (
-                    <p className="mt-3 text-sm text-ink-soft">
-                      Member{" "}
-                      <span className="font-mono">
-                        {shown.has(row.id)
-                          ? row.member_number
-                          : maskNumber(row.member_number)}
-                      </span>{" "}
+                    {(row.perks || row.expiry_note || row.notes) && (
+                      <div className="mt-3 space-y-1 text-sm text-ink-soft">
+                        {row.perks && <p>{row.perks}</p>}
+                        {row.expiry_note && <p>{row.expiry_note}</p>}
+                        {row.notes && <p>{row.notes}</p>}
+                      </div>
+                    )}
+
+                    {row.member_number && (
+                      <p className="mt-3 text-sm text-ink-soft">
+                        Member{" "}
+                        <span className="font-mono">
+                          {shown.has(row.id)
+                            ? row.member_number
+                            : maskNumber(row.member_number)}
+                        </span>{" "}
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2"
+                          onClick={() =>
+                            setShown((set) => {
+                              const next = new Set(set);
+                              if (next.has(row.id)) next.delete(row.id);
+                              else next.add(row.id);
+                              return next;
+                            })
+                          }
+                        >
+                          {shown.has(row.id) ? "Hide" : "Show"}
+                        </button>
+                      </p>
+                    )}
+
+                    <div className="no-print mt-4 flex flex-wrap items-center gap-3">
+                      {balanceFor === row.id ? (
+                        <span className="flex items-center gap-2">
+                          <span className="block w-32">
+                            <input
+                              className="field"
+                              type="number"
+                              inputMode="numeric"
+                              value={balanceDraft}
+                              onChange={(e) => setBalanceDraft(e.target.value)}
+                              aria-label={`Points balance for ${row.brand}`}
+                            />
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={busy}
+                            onClick={() => saveBalance(row)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => setBalanceFor(null)}
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
+                          onClick={() => {
+                            setBalanceFor(row.id);
+                            setBalanceDraft(
+                              row.points_balance === null ||
+                                row.points_balance === undefined
+                                ? ""
+                                : String(row.points_balance),
+                            );
+                          }}
+                        >
+                          {points ? "Update balance" : "Add a balance"}
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2"
+                        className="text-xs font-semibold text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal"
                         onClick={() =>
-                          setShown((set) => {
-                            const next = new Set(set);
-                            if (next.has(row.id)) next.delete(row.id);
-                            else next.add(row.id);
-                            return next;
-                          })
+                          setForm({ id: row.id, values: toForm(row) })
                         }
                       >
-                        {shown.has(row.id) ? "Hide" : "Show"}
+                        Edit
                       </button>
-                    </p>
-                  )}
-
-                  <div className="no-print mt-4 flex flex-wrap items-center gap-3">
-                    {balanceFor === row.id ? (
-                      <span className="flex items-center gap-2">
-                        <span className="block w-32">
-                          <input
-                            className="field"
-                            type="number"
-                            inputMode="numeric"
-                            value={balanceDraft}
-                            onChange={(e) => setBalanceDraft(e.target.value)}
-                            aria-label={`Points balance for ${row.brand}`}
-                          />
-                        </span>
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          disabled={busy}
-                          onClick={() => saveBalance(row)}
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => setBalanceFor(null)}
-                        >
-                          Cancel
-                        </button>
-                      </span>
-                    ) : (
                       <button
                         type="button"
-                        className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                        onClick={() => {
-                          setBalanceFor(row.id);
-                          setBalanceDraft(
-                            row.points_balance === null ||
-                              row.points_balance === undefined
-                              ? ""
-                              : String(row.points_balance),
-                          );
-                        }}
+                        className="ml-auto text-xs font-semibold text-rose"
+                        disabled={busy}
+                        onClick={() => remove(row)}
                       >
-                        {points ? "Update balance" : "Add a balance"}
+                        Remove
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal"
-                      onClick={() =>
-                        setForm({ id: row.id, values: toForm(row) })
-                      }
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="ml-auto text-xs font-semibold text-rose"
-                      disabled={busy}
-                      onClick={() => remove(row)}
-                    >
-                      Remove
-                    </button>
+                    </div>
                   </div>
                 </article>
               );
@@ -854,6 +896,48 @@ export default function RewardsBoard({
         and correct anything that looks wrong.
       </p>
     </div>
+  );
+}
+
+// The top of a program card: the brand, whose it is, and the balance -- and, when
+// there is anything behind it, the press that opens the rest.
+//
+// It is a button rather than a disclosure because the whole header should be the
+// target and not just the disc: on a phone the disc is a 32px mark at the far
+// right of a row whose left half is the thing you were aiming at. Two things
+// inside the card already open on their own -- Show on a member number, and the
+// balance field -- so neither may be nested in here, which is why the header is
+// its own button above the body rather than the card being one big control.
+//
+// fixed is for the moment a search has forced every card open. The rest of the
+// card is showing the words that were matched, so a press that shut it again
+// would take away the answer; the header goes back to being plain text and the
+// disc disappears rather than sitting there inert.
+function HeaderShell({ open, fixed, onToggle, label, children }) {
+  const inside = (
+    <>
+      <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
+        {children}
+      </div>
+      {fixed ? null : <ChevronDisc open={open} />}
+    </>
+  );
+  const pad = `flex w-full items-start gap-3 px-4 pt-4 sm:px-5 sm:pt-5 ${
+    open ? "pb-1" : "pb-4 sm:pb-5"
+  }`;
+
+  if (fixed) return <div className={pad}>{inside}</div>;
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={label}
+      className={`${pad} text-left`}
+    >
+      {inside}
+    </button>
   );
 }
 

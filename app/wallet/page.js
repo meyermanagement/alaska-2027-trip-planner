@@ -10,6 +10,7 @@ import ClearedTips from "@/components/ClearedTips";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
 import RewardsBoard from "./RewardsBoard";
 import DeclinedOffers from "./DeclinedOffers";
+import WalletTabs from "./WalletTabs";
 
 export const metadata = { title: "Wallet · Alyeska" };
 
@@ -160,16 +161,34 @@ export default async function RewardsPage() {
               : "Nothing saved here yet, which is fine — ask for a look anyway. With an empty Wallet Aly answers the beginner's question instead: which travel card to open first, why that one, what the bonus is today and what it costs to keep, read off the issuer's own page rather than remembered."
           }
         />
-        <RewardsBoard
-          familyId={familyId}
-          travelers={travelers || []}
-          programs={programs || []}
-          unreadable={Boolean(programsError)}
+        {/* The live advice stays above the tabs, because it is the answer to the
+            question people open this screen with, and a tab strip over the top of
+            it would put a press between them and it. Everything below the strip
+            is either what you hold or what you have already dealt with, which is
+            a real fork and worth two doors.
+
+            historyCount counts only the refusals, which are read on the server
+            here. The cleared tips are fetched by the browser the first time the
+            tab is opened, so counting them would mean a second read of pro_tips
+            on every load of a screen most people never take that turning on. A
+            number that is sometimes short is better than a read nobody uses. */}
+        <WalletTabs
+          historyCount={declinedOffers.length}
+          cards={
+            <RewardsBoard
+              familyId={familyId}
+              travelers={travelers || []}
+              programs={programs || []}
+              unreadable={Boolean(programsError)}
+            />
+          }
+          history={
+            <div className="space-y-8">
+              <DeclinedOffers offers={declinedOffers} bare />
+              <ClearedTips wallet bare />
+            </div>
+          }
         />
-        <DeclinedOffers offers={declinedOffers} />
-        {/* What the Wallet has already told you and you have already dealt with,
-            kept where it was said rather than on the Reminders screen. */}
-        <ClearedTips wallet />
         {/* Said once, at the bottom, rather than on every card. A welcome offer
             is a moving target and the only page that is authoritative about it is
             the issuer's own. */}
