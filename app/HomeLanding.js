@@ -313,8 +313,8 @@ export default function HomeLanding() {
           body="Every task is dated against your actual departure, not left on a list to be remembered: the passport that expires too soon, the hold on the mail, the bag that has to be packed the night before. The packing list is built from who is going and what the place is like, and the things nobody remembers are already on it."
           media={
             <Shot
-              src="/landing/before.jpg"
-              alt="Packed bags and a rain shell by a front door before dawn"
+              src="/landing/packing.jpg"
+              alt="An open case half packed on a bed in morning light, a sun hat on the lid and a child's backpack beside it"
               className="aspect-[4/3] lg:aspect-[5/4]"
             />
           }
