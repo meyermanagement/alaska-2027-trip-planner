@@ -269,21 +269,7 @@ export default function HomeLanding() {
           takes off you, said once, with the thing itself beside it. */}
       <div className="mx-auto w-full max-w-[74rem] px-5 pt-2 sm:px-8">
         <Scene
-          label="Before you go"
-          title="The week before stops being a scramble."
-          body="Every task is dated against your actual departure, not left on a list to be remembered: the passport that expires too soon, the hold on the mail, the bag that has to be packed the night before. The packing list is built from who is going and what the place is like, and the things nobody remembers are already on it."
-          media={
-            <Shot
-              src="/landing/before.jpg"
-              alt="Packed bags and a rain shell by a front door before dawn"
-              className="aspect-[4/3] lg:aspect-[5/4]"
-            />
-          }
-        />
-
-        <Scene
           label="Building the trip"
-          flip
           title="One draft, instead of forty tabs."
           body="Say roughly where and when. Aly hands back ordered days built around how early your family starts, how far they will walk, what they eat and who needs an afternoon off. Nothing is booked and nothing is final: you argue with the draft, and she rewrites it."
           media={
@@ -317,6 +303,20 @@ export default function HomeLanding() {
                 booked.
               </p>
             </div>
+          }
+        />
+
+        <Scene
+          label="Before you go"
+          flip
+          title="The week before stops being a scramble."
+          body="Every task is dated against your actual departure, not left on a list to be remembered: the passport that expires too soon, the hold on the mail, the bag that has to be packed the night before. The packing list is built from who is going and what the place is like, and the things nobody remembers are already on it."
+          media={
+            <Shot
+              src="/landing/before.jpg"
+              alt="Packed bags and a rain shell by a front door before dawn"
+              className="aspect-[4/3] lg:aspect-[5/4]"
+            />
           }
         />
 
