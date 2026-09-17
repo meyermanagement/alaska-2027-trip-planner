@@ -8431,3 +8431,128 @@ html[data-skin="sodium"] .arc-pill.kid::before {
     );
   }
 }
+
+/* ------------------------------------------------------------------ ask demo
+   The conversation window on the front door. The card is a fixed-height
+   window with the transcript running past it, so the top of the exchange
+   fades out rather than being cut off by a hard edge, and the scrollbar is
+   hidden because the window follows itself and a bar sitting over a
+   photograph reads as a mistake. The window is still a real scroll
+   container: a reader can drag it back with a finger or a wheel. */
+.home-ask-window {
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  /* A browser leaves the last child's bottom margin out of the scrollable
+     area, so the follower chases a floor it can never reach and parks with the
+     final line half cut. Real padding gives it somewhere to land. */
+  padding-bottom: 0.9rem;
+}
+
+.home-ask-window[data-masked="true"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 2.25rem,
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 2.25rem,
+    #000 100%
+  );
+}
+
+.home-ask-window::-webkit-scrollbar {
+  display: none;
+}
+
+.home-ask-window > p:first-child {
+  margin-top: 0;
+}
+
+/* The caret that sits at the end of the question being typed. It is a block
+   rather than a line because a line over a photograph disappears. */
+.home-ask-caret {
+  display: inline-block;
+  width: 0.5ch;
+  height: 1em;
+  margin-left: 0.08em;
+  vertical-align: -0.12em;
+  background: rgba(246, 243, 236, 0.85);
+  animation: home-ask-blink 1.05s steps(1, end) infinite;
+}
+
+@keyframes home-ask-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The pause before she starts. Three dots, because that is what everybody
+   already reads as somebody composing a reply. */
+.home-ask-think {
+  display: flex;
+  gap: 0.28rem;
+  margin-top: 0.7rem;
+}
+
+.home-ask-think span {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: rgba(246, 243, 236, 0.55);
+  animation: home-ask-pulse 1.2s ease-in-out infinite;
+}
+
+.home-ask-think span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.home-ask-think span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes home-ask-pulse {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-0.12rem);
+  }
+}
+
+/* The things to bring read as a list, so each one gets a mark. */
+.home-ask-item {
+  position: relative;
+  padding-left: 0.95rem;
+}
+
+.home-ask-item::before {
+  content: "";
+  position: absolute;
+  left: 0.05rem;
+  top: 0.62em;
+  width: 0.28rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: rgba(246, 243, 236, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-ask-caret,
+  .home-ask-think span {
+    animation: none;
+  }
+  .home-ask-caret {
+    opacity: 0;
+  }
+}

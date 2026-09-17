@@ -1,0 +1,309 @@
+"use client";
+
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { HERO_CONVERSATION } from "@/lib/home/heroConversation";
+
+/**
+ * The conversation on the front door, played rather than printed.
+ *
+ * A static answer card said the true thing -- that Aly answers out of your own
+ * trip -- but it said it the way a screenshot does, and a screenshot of a chat
+ * is indistinguishable from a paragraph of marketing copy. Watching the words
+ * arrive is the whole argument: a person who has used any assistant knows the
+ * difference between a reply that was written for them and a reply that was
+ * written for everybody, and the only way to show it is to let them read it
+ * being written.
+ *
+ * Three constraints shaped this.
+ *
+ * A crawler and a reader with no JavaScript must get the copy. So the first
+ * render -- the one the server produces and the one that survives with scripts
+ * off -- is the entire exchange, plainly visible, no animation attached. The
+ * player only takes over in a layout effect, which runs before the browser
+ * paints, so nobody sees the finished transcript flash past before it rewinds.
+ *
+ * Nobody may be trapped watching it. The card is a window with the transcript
+ * running past it, and it follows the writing down at a walking pace rather
+ * than jumping, but the window is a real scroll container: a reader can put a
+ * finger on it and go back, and doing so takes the follower off their back
+ * until they let go at the bottom again.
+ *
+ * Motion is a preference, not a given. Anybody who has asked their system for
+ * less of it is handed the finished transcript, scrollable, with no typing, no
+ * thinking pause and no follower.
+ */
+
+const CHAR_MS = 26; // questions, typed
+const WORD_MS = 42; // answers, written
+const ITEM_MS = 26; // list items, a little quicker
+const THINK_MS = 620; // the pause before she starts
+const BEAT_MS = 260; // between paragraphs
+const TURN_MS = 1500; // between one exchange and the next
+
+/** The exchange flattened into the order the blocks are written in. */
+function buildBlocks() {
+  const blocks = [];
+  for (const turn of HERO_CONVERSATION) {
+    blocks.push({ kind: "stamp", turn: turn.id, text: turn.stamp });
+    blocks.push({ kind: "question", turn: turn.id, text: turn.question });
+    blocks.push({ kind: "think", turn: turn.id, text: "" });
+    for (const paragraph of turn.answer) {
+      blocks.push({ kind: "answer", turn: turn.id, text: paragraph });
+    }
+    if (turn.checklist) {
+      blocks.push({
+        kind: "checklistTitle",
+        turn: turn.id,
+        text: turn.checklist.title,
+      });
+      for (const item of turn.checklist.items) {
+        blocks.push({ kind: "checklistItem", turn: turn.id, text: item });
+      }
+    }
+    if (turn.tail) {
+      blocks.push({ kind: "tail", turn: turn.id, text: turn.tail });
+    }
+  }
+  return blocks;
+}
+
+const BLOCKS = buildBlocks();
+
+/** How a block is uncovered: by letter, by word, or all at once. */
+function unitsOf(block) {
+  if (block.kind === "question") {
+    return { list: Array.from(block.text), step: CHAR_MS, join: "" };
+  }
+  if (block.kind === "answer" || block.kind === "tail") {
+    return { list: block.text.split(" "), step: WORD_MS, join: " " };
+  }
+  if (block.kind === "checklistItem") {
+    return { list: block.text.split(" "), step: ITEM_MS, join: " " };
+  }
+  return { list: [block.text], step: 0, join: "" };
+}
+
+function partial(block, shown) {
+  const { list, join } = unitsOf(block);
+  return list.slice(0, shown).join(join);
+}
+
+export default function AskDemo() {
+  // Starts false so the server render, and a browser with scripts off, is the
+  // finished transcript rather than an empty box.
+  const [playing, setPlaying] = useState(false);
+  const [at, setAt] = useState(0); // which block is being written
+  const [shown, setShown] = useState(0); // how much of it is written
+  const [done, setDone] = useState(false);
+  // The top of the window only fades once there is something above it. Fading
+  // it from the start put the first line of the exchange behind a gradient.
+  const [masked, setMasked] = useState(false);
+
+  const scrollRef = useRef(null);
+  const followRef = useRef(true);
+  const mineRef = useRef(0);
+  const rafRef = useRef(0);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const reduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    )?.matches;
+    if (reduced) return;
+    setPlaying(true);
+  }, []);
+
+  // The writer. One timer at a time, rescheduled as each unit lands, so a
+  // component that unmounts mid-sentence leaves nothing running.
+  useEffect(() => {
+    if (!playing || done) return undefined;
+    const block = BLOCKS[at];
+    if (!block) {
+      setDone(true);
+      return undefined;
+    }
+    const { list, step } = unitsOf(block);
+
+    if (block.kind === "think") {
+      const t = setTimeout(() => {
+        setAt((n) => n + 1);
+        setShown(0);
+      }, THINK_MS);
+      return () => clearTimeout(t);
+    }
+
+    if (shown >= list.length) {
+      const gap = BLOCKS[at + 1]?.kind === "stamp" ? TURN_MS : BEAT_MS;
+      const t = setTimeout(() => {
+        setAt((n) => n + 1);
+        setShown(0);
+      }, gap);
+      return () => clearTimeout(t);
+    }
+
+    const t = setTimeout(() => setShown((n) => n + 1), step || 1);
+    return () => clearTimeout(t);
+  }, [playing, done, at, shown]);
+
+  // The follower. Eases the window down toward the newest line instead of
+  // snapping. Our own scrolling fires scroll events too, so the handler has to
+  // tell a reader's wheel from the follower's own nudge: the follower records
+  // the value it just wrote, and any scrollTop that does not match it came
+  // from a person. Without that, the first 0.35px the follower moved looked
+  // like a reader scrolling up and it stood down permanently.
+  useEffect(() => {
+    if (!playing) return undefined;
+    const el = scrollRef.current;
+    if (!el) return undefined;
+
+    const tick = () => {
+      const node = scrollRef.current;
+      if (node && followRef.current) {
+        const target = node.scrollHeight - node.clientHeight;
+        const gap = target - node.scrollTop;
+        if (gap > 0.5) {
+          const next = node.scrollTop + Math.max(0.4, gap * 0.055);
+          mineRef.current = next;
+          node.scrollTop = next;
+        }
+      }
+      if (node) {
+        setMasked(node.scrollTop > 4);
+      }
+      rafRef.current = window.requestAnimationFrame(tick);
+    };
+    rafRef.current = window.requestAnimationFrame(tick);
+
+    const onScroll = () => {
+      const node = scrollRef.current;
+      if (!node) return;
+      if (Math.abs(node.scrollTop - mineRef.current) < 2) return;
+      const atBottom =
+        node.scrollHeight - node.clientHeight - node.scrollTop < 28;
+      followRef.current = atBottom;
+      mineRef.current = node.scrollTop;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      window.cancelAnimationFrame(rafRef.current);
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [playing]);
+
+  const visible = playing ? BLOCKS.slice(0, at + 1) : BLOCKS;
+
+  return (
+    <div
+      className="rounded-[var(--radius-card)] p-5"
+      style={{
+        background: "rgba(14,21,27,0.62)",
+        border: "1px solid rgba(246,243,236,0.18)",
+        backdropFilter: "blur(10px)",
+      }}
+    >
+      <div
+        ref={scrollRef}
+        className="home-ask-window"
+        data-masked={masked ? "true" : "false"}
+        aria-live="off"
+        style={{
+          maxHeight: playing ? "22rem" : "none",
+          overflowY: playing ? "auto" : "visible",
+        }}
+      >
+        {visible.map((block, i) => {
+          const live = playing && i === at;
+          const text = live ? partial(block, shown) : block.text;
+          const key = `${block.turn}-${block.kind}-${i}`;
+
+          if (block.kind === "think") {
+            return live ? (
+              <p key={key} className="home-ask-think" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </p>
+            ) : null;
+          }
+
+          if (block.kind === "stamp") {
+            return (
+              <p
+                key={key}
+                className="mt-5 text-[12px] font-semibold uppercase tracking-[0.14em] first:mt-0"
+                style={{ color: "rgba(246,243,236,0.58)" }}
+              >
+                {text}
+              </p>
+            );
+          }
+
+          if (block.kind === "question") {
+            return (
+              <p
+                key={key}
+                className="mt-2 text-[15px] font-semibold"
+                style={{ color: "rgba(246,243,236,0.98)" }}
+              >
+                &ldquo;{text}
+                {live ? <span className="home-ask-caret" /> : null}
+                {live ? "" : "\u201d"}
+              </p>
+            );
+          }
+
+          if (block.kind === "checklistTitle") {
+            return (
+              <p
+                key={key}
+                className="mt-4 text-[12px] font-semibold uppercase tracking-[0.14em]"
+                style={{ color: "rgba(246,243,236,0.58)" }}
+              >
+                {text}
+              </p>
+            );
+          }
+
+          if (block.kind === "checklistItem") {
+            return (
+              <p
+                key={key}
+                className="home-ask-item mt-2 text-[14px] leading-relaxed"
+                style={{ color: "rgba(246,243,236,0.9)" }}
+              >
+                {text}
+              </p>
+            );
+          }
+
+          return (
+            <p
+              key={key}
+              className="mt-2.5 text-[14px] leading-relaxed"
+              style={{
+                color:
+                  block.kind === "tail"
+                    ? "rgba(246,243,236,0.72)"
+                    : "rgba(246,243,236,0.9)",
+              }}
+            >
+              {text}
+            </p>
+          );
+        })}
+      </div>
+
+      <p
+        className="mt-4 border-t pt-3 text-[12px]"
+        style={{
+          borderColor: "rgba(246,243,236,0.16)",
+          color: "rgba(246,243,236,0.58)",
+        }}
+      >
+        An example, played out. A real answer is built from your own trip, your
+        own travelers and your own wallet.
+      </p>
+    </div>
+  );
+}

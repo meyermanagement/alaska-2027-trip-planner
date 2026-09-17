@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AlyeskaMark from "@/components/AlyeskaMark";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
+import AskDemo from "@/components/home/AskDemo";
 import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
 import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
 
@@ -24,7 +25,7 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  * the draft, the day itself, the day that changed, the money, the morning email
  * -- each one a photograph or a piece of the actual product, arriving as you
  * reach it. The argument underneath every scene is the same argument, and it is
- * the only one worth making to somebody who has planned a family trip: somebody
+ * the only one worth making to somebody who has planned a trip: someone
  * has your back, before you go and while you are there.
  *
  * Four rules it keeps.
@@ -185,13 +186,13 @@ export default function HomeLanding() {
                 className="ma-in text-[12px] font-semibold uppercase tracking-[0.16em]"
                 style={{ color: "rgba(246,243,236,0.7)" }}
               >
-                Family travel planning
+                Your personal travel assistant
               </p>
               <h1
                 className="ma-in mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
                 style={{ animationDelay: "80ms" }}
               >
-                Somebody has your back.
+                Someone has your back.
                 <br />
                 Before you go, and while you are there.
               </h1>
@@ -202,11 +203,11 @@ export default function HomeLanding() {
                   color: "rgba(246,243,236,0.92)",
                 }}
               >
-                Alyeska is a travel planner for a household, with an assistant
-                called Aly. Tell her roughly where and when, and she builds the
-                days around the people actually going. Then on the trip she
-                answers from the day you are living. She books nothing, sells
-                nothing, and changes nothing without asking.
+                Alyeska plans your trips and stays with you on them. Tell Aly
+                roughly where and when, and she builds the days around whoever
+                is actually going. Then on the trip she answers from the day you
+                are living. She books nothing, sells nothing, and changes
+                nothing without asking.
               </p>
               <div
                 className="ma-in mt-7 flex flex-wrap items-center gap-3"
@@ -241,56 +242,11 @@ export default function HomeLanding() {
               </p>
             </div>
 
-            {/* The answer. It is uncovered bottom-edge first, the way a line of
-                writing appears, and it is labeled an example so nobody mistakes
-                a demonstration for a claim about a real restaurant. */}
-            <div
-              className="ma-write rounded-[var(--radius-card)] p-5"
-              style={{
-                animationDelay: "620ms",
-                background: "rgba(14,21,27,0.62)",
-                border: "1px solid rgba(246,243,236,0.18)",
-                backdropFilter: "blur(10px)",
-              }}
-            >
-              <p
-                className="text-[12px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "rgba(246,243,236,0.58)" }}
-              >
-                Maui &middot; Tuesday, 4:40 pm
-              </p>
-              <p className="mt-2.5 text-[15px] font-semibold">
-                &ldquo;Where should we eat tonight?&rdquo;
-              </p>
-              <div
-                className="mt-3 space-y-2.5 text-[14px] leading-relaxed"
-                style={{ color: "rgba(246,243,236,0.9)" }}
-              >
-                <p>
-                  Somewhere close &mdash; you are back from the road at six and
-                  Veda has been in the sun all day.
-                </p>
-                <p>
-                  A fish counter eight minutes from the condo, tables outside,
-                  no reservation needed. Veda eats the tacos, and they cook
-                  without shellfish in the same pan, which matters for Steph.
-                </p>
-                <p>
-                  Pay with the Sapphire: it is 3x on dining, and you have $140
-                  of credit left this year.
-                </p>
-              </div>
-              <p
-                className="mt-4 border-t pt-3 text-[12px]"
-                style={{
-                  borderColor: "rgba(246,243,236,0.16)",
-                  color: "rgba(246,243,236,0.58)",
-                }}
-              >
-                An example. A real answer is built from your own trip, your own
-                travelers and your own wallet.
-              </p>
-            </div>
+            {/* The conversation, played. What it has to prove is not that
+                Aly replies, but that the reply could only have been written
+                for the person reading it: their evening, their allergy, their
+                card, and then tomorrow's boat with what to carry onto it. */}
+            <AskDemo />
           </div>
         </div>
       </section>
@@ -342,7 +298,7 @@ export default function HomeLanding() {
                 <Row
                   left="Day 3 &middot; Nothing planned"
                   right="Beach"
-                  sub="Because day two is long and Veda is nine"
+                  sub="Because day two is long and Mia is nine"
                   last
                 />
               </div>
@@ -388,7 +344,7 @@ export default function HomeLanding() {
               </div>
               <p className="mt-4 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
                 <span className="font-semibold">Aly:</span> Rain about two, gone
-                by four. Veda&rsquo;s shell is in the day bag.
+                by four. Mia&rsquo;s shell is in the day bag.
               </p>
             </div>
           }
