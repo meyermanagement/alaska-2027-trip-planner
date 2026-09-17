@@ -27,6 +27,21 @@ import { ALY_DESCRIPTORS } from "@/lib/aly/descriptors";
  * With nothing running -- the server render, a reader with no JavaScript, or
  * anybody who asked their system for less motion -- every word is lit and the
  * line is just the list, which is how the invitation prints it.
+ *
+ * One word in front of the four does not move and never dims: travel. The first
+ * screen had stopped saying what any of this was about. The header is a mark and
+ * a name, the headline promises that Alyeska has your back without saying at
+ * what, and the subject did not turn up until the word "trips" in the fourth
+ * block of text -- by which point somebody who arrived cold has already decided
+ * whether to keep reading. This line is the first text on the page and its whole
+ * job is saying what Aly is, so it is the right place to say what she is for.
+ *
+ * It is a fixed word rather than a fifth rotating one on purpose. The point of
+ * the sweep is refusing to choose among the four; travel is not a fifth candidate
+ * competing with them, it qualifies all four at once, so it has to stay lit while
+ * the light moves behind it. Being outside the rotation also means it survives
+ * the fallback above: a reader with reduced motion or no JavaScript still gets
+ * the subject, not just the list of roles.
  */
 
 const HOLD_MS = 2100;
@@ -60,18 +75,23 @@ export default function RotatingWord() {
 
   return (
     <span className="home-rotor-line">
+      {/* Outside the map, and lit unconditionally: this word is the subject, not
+          a candidate for the role the four below are arguing about. */}
+      <span className="home-rotor-word" data-on="true">
+        Travel
+      </span>
       {ALY_DESCRIPTORS.map((word, i) => (
         // The space is rendered between the spans rather than added as a
         // margin, because two inline elements with no whitespace between them
         // give the browser nowhere to break the line, and on a narrow phone the
         // last word then runs off the edge of the screen.
         <span key={word}>
-          {i > 0 ? " " : null}
+          {" "}
           <span
             className="home-rotor-word"
             data-on={i === lit || !rotating ? "true" : "false"}
           >
-            {i === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word}
+            {word}
             {i < ALY_DESCRIPTORS.length - 1 ? "," : "\u2026"}
           </span>
         </span>

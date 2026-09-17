@@ -273,7 +273,7 @@ export default function HomeLanding() {
                   color: "rgba(246,243,236,0.92)",
                 }}
               >
-                Alyeska plans your trips and stays with you on them. Tell Aly
+                Aly plans your trips and stays with you on them. Tell her
                 roughly where and when, and she builds the days around whoever
                 is actually going. Then on the trip she answers from the day you
                 are living. She books nothing, sells nothing, and changes
