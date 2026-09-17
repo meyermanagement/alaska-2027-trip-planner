@@ -11,7 +11,7 @@ markup that produced its shipped file:
 
 | Source                  | Ships as                           | Colors        |
 | ----------------------- | ---------------------------------- | ------------- |
-| `favicon.svg`           | `app/icon.svg`                     | Field Journal |
+| `favicon.svg`           | `app/icon.svg`, `app/favicon.ico`  | Midnight      |
 | `app-icon.svg`          | `public/alyeska-icon.png`          | Field Journal |
 | `app-icon-maskable.svg` | `public/alyeska-icon-maskable.png` | Field Journal |
 | `apple-touch-icon.svg`  | `app/apple-icon.png`               | Field Journal |
@@ -23,6 +23,13 @@ the menu dial, the sign-in screen, the opening screen and Aly's panel header.
 Field Journal is the light default skin, so the tiles are sand with a hairline
 edge; the email mark is Daybreak, because `lib/email/palette.js` sets every
 message in that skin and the mark sits on its pale card with no tile at all.
+
+The browser tab takes the square format the phone icon uses, with the
+sixteen graduations moved out onto the tile's own edges rather than standing
+around a circle inside it. It ships twice: as the SVG a modern browser reads,
+and as an `.ico` with sixteen, thirty-two and forty-eight pixel frames, because
+some browsers ask for that file by name and will keep showing whatever they
+cached there otherwise.
 
 The PNGs are these files rasterized at their declared size, transparent where
 the source has no tile. Any renderer that honors `linearGradient` and
