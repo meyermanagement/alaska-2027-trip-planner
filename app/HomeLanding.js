@@ -24,11 +24,11 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  * travel in the format of a terms page.
  *
  * So this one shows instead. It is one long scroll of scenes -- the draft, the
- * week before, the day itself, the day that changed, the money -- each one a
- * photograph or a piece of the actual product, arriving as you reach it. The
- * argument underneath every scene is the same argument, and it is the only one
- * worth making to somebody who has planned a trip: Alyeska
- * has your back, before you go and while you are there.
+ * week before, the day itself, the day that changed, the money, the things that
+ * have to be done by a date -- each one a photograph or a piece of the actual
+ * product, arriving as you reach it. The argument underneath every scene is the
+ * same argument, and it is the only one worth making to somebody who has
+ * planned a trip: Alyeska has your back, before you go and while you are there.
  *
  * Four rules it keeps.
  *
@@ -265,7 +265,7 @@ export default function HomeLanding() {
       </div>
 
       {/* --------------------------------------------------------------- scenes
-          Five of them, in the order a trip happens. Each one is the stress it
+          Six of them, in the order a trip happens. Each one is the stress it
           takes off you, said once, with the thing itself beside it. */}
       <div className="mx-auto w-full max-w-[74rem] px-5 pt-2 sm:px-8">
         <Scene
@@ -401,6 +401,20 @@ export default function HomeLanding() {
                 numbers are yours.
               </p>
             </div>
+          }
+        />
+
+        <Scene
+          label="Reminders"
+          flip
+          title="Told in time to do something about it."
+          body="The things that have to happen before a trip are counted back from your own departure, not read off a generic checklist. A passport is raised months before the date on it becomes a problem, and anything due tomorrow is said the day before, while there is still an evening to do it in."
+          media={
+            <Shot
+              src="/landing/morning.jpg"
+              alt="Snorkel masks, a hat and a towel on dark sand at sunrise"
+              className="aspect-[4/3]"
+            />
           }
         />
       </div>
