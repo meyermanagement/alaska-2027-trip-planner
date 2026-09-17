@@ -6,6 +6,7 @@ import PriorityMeter from "@/components/PriorityMeter";
 import LastMinuteTasks from "@/components/LastMinuteTasks";
 import FilterBar from "@/components/FilterBar";
 import AddToCalendar from "@/components/AddToCalendar";
+import TaskEdit from "@/components/TaskEdit";
 import { eventFromTask } from "@/lib/calendar";
 import {
   PRIORITY_LABELS,
@@ -176,8 +177,7 @@ export default function Tasks({
     });
   }
 
-  async function saveEdit(e) {
-    e.preventDefault();
+  async function saveEdit() {
     if (!editDraft.title.trim()) return;
     await supabase
       .from("predeparture_tasks")
@@ -426,92 +426,14 @@ export default function Tasks({
                     key={task.id}
                     className="border-b border-sand/80 bg-teal/5 px-4 py-3 last:border-0"
                   >
-                    <form onSubmit={saveEdit} className="space-y-2">
-                      <input
-                        className="field"
-                        placeholder="Reminder"
-                        value={editDraft.title}
-                        onChange={(e) =>
-                          setEditDraft({ ...editDraft, title: e.target.value })
-                        }
-                        required
-                      />
-                      <textarea
-                        className="field"
-                        rows={2}
-                        placeholder="Detail"
-                        value={editDraft.detail}
-                        onChange={(e) =>
-                          setEditDraft({ ...editDraft, detail: e.target.value })
-                        }
-                      />
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <WhenField
-                          idPrefix={`edit-${task.id}`}
-                          timing={editDraft.timing}
-                          due={editDraft.due_date}
-                          onTiming={(value) =>
-                            setEditDraft({
-                              ...editDraft,
-                              timing: value,
-                              due_date:
-                                value === ON_A_DATE ? editDraft.due_date : "",
-                            })
-                          }
-                          onDue={(value) =>
-                            setEditDraft({ ...editDraft, due_date: value })
-                          }
-                        />
-                        <select
-                          className="field"
-                          value={editDraft.assignee}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              assignee: e.target.value,
-                            })
-                          }
-                        >
-                          {people.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                          {!people.includes(editDraft.assignee) && (
-                            <option value={editDraft.assignee}>
-                              {editDraft.assignee}
-                            </option>
-                          )}
-                        </select>
-                        <select
-                          className="field"
-                          value={editDraft.priority}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              priority: e.target.value,
-                            })
-                          }
-                          aria-label="Priority"
-                        >
-                          {PRIORITY_ORDER.map((p) => (
-                            <option key={p} value={p}>
-                              {PRIORITY_LABELS[p]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="btn btn-primary">Save</button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+                    <TaskEdit
+                      idPrefix={`edit-${task.id}`}
+                      draft={editDraft}
+                      onDraft={setEditDraft}
+                      people={people}
+                      onSubmit={() => saveEdit()}
+                      onCancel={() => setEditingId(null)}
+                    />
                   </li>
                 ) : (
                   <li

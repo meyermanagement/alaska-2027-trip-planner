@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import FilterBar from "@/components/FilterBar";
 import PriorityMeter from "@/components/PriorityMeter";
 import AddToCalendar from "@/components/AddToCalendar";
+import TaskEdit from "@/components/TaskEdit";
 import { eventFromTask } from "@/lib/calendar";
 import {
   PRIORITY_LABELS,
@@ -15,12 +16,7 @@ import {
   assigneeColor,
   formatShortDay,
 } from "@/lib/format";
-import {
-  DueChip,
-  ON_A_DATE,
-  WhenField,
-  whenColumns,
-} from "@/components/TaskWhen";
+import { DueChip, ON_A_DATE, whenColumns } from "@/components/TaskWhen";
 import {
   DUE_BUCKETS,
   DUE_FILTERS,
@@ -50,6 +46,11 @@ export default function Reminders({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [due, setDue] = useState("all");
+  // Which trip you are asking about. The all-trips page and a trip's own tab
+  // were answering the same question on two surfaces, so this page now holds
+  // the scope instead of the address: Every trip is where it opens, and naming
+  // one narrows the same list to it rather than sending you somewhere else.
+  const [scope, setScope] = useState("");
   const [priority, setPriority] = useState("all");
   // A box, because this page gathers every trip's tasks: past thirty rows the
   // fastest way to the one you came for is its own words, not a chip.
@@ -90,6 +91,7 @@ export default function Reminders({
     if (!matchesDueFilter(row.bucket, f.due)) return false;
     if (f.priority !== "all" && (row.task.priority || "normal") !== f.priority)
       return false;
+    if (f.scope && row.trip?.id !== f.scope) return false;
     if (f.find.trim()) {
       const words = f.find.trim().toLowerCase();
       const hay = [row.task.title, row.trip?.name, row.task.assignee]
@@ -101,7 +103,20 @@ export default function Reminders({
     return true;
   }
 
-  const answers = { due, priority, find };
+  // The trips that actually have something outstanding, in the order they
+  // happen. A trip with nothing left on it does not earn a chip.
+  const trips = useMemo(() => {
+    const seen = new Map();
+    for (const row of rows) {
+      if (row.trip?.id && !seen.has(row.trip.id))
+        seen.set(row.trip.id, row.trip);
+    }
+    return [...seen.values()].sort((a, b) =>
+      String(a.start_date || "").localeCompare(String(b.start_date || "")),
+    );
+  }, [rows]);
+
+  const answers = { due, priority, find, scope };
   const shown = rows.filter((row) => keeps(row, answers));
 
   // What a chip would show if pressed, with the other answers left alone.
@@ -217,8 +232,35 @@ export default function Reminders({
           setFind("");
           setDue("all");
           setPriority("all");
+          setScope("");
         }}
         groups={[
+          ...(trips.length > 1
+            ? [
+                {
+                  id: "scope",
+                  legend: "Trip",
+                  value: scope,
+                  // Every trip is a resting value, not an answer: a list that
+                  // opens on everything has not been narrowed, and saying so
+                  // keeps the Clear link and the More count honest.
+                  resting: "",
+                  onChange: setScope,
+                  options: [
+                    {
+                      id: "",
+                      label: "Every trip",
+                      count: countIf({ scope: "" }),
+                    },
+                    ...trips.map((trip) => ({
+                      id: trip.id,
+                      label: trip.name,
+                      count: countIf({ scope: trip.id }),
+                    })),
+                  ],
+                },
+              ]
+            : []),
           {
             id: "due",
             legend: "When",
@@ -351,116 +393,18 @@ export default function Reminders({
                   </div>
 
                   {editingId === row.task.id && draft && (
-                    <form
-                      className="no-print mt-3 space-y-2 rounded-xl border border-[var(--line)] bg-sand/40 p-3"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        saveEdit(row);
+                    <TaskEdit
+                      compact
+                      idPrefix={`rem-${row.task.id}`}
+                      draft={draft}
+                      onDraft={setDraft}
+                      people={assigneesByTrip[row.trip.id] || ["Shared"]}
+                      onSubmit={() => saveEdit(row)}
+                      onCancel={() => {
+                        setEditingId(null);
+                        setDraft(null);
                       }}
-                    >
-                      <input
-                        className="field"
-                        value={draft.title}
-                        aria-label="What the reminder says"
-                        placeholder="What the reminder says"
-                        onChange={(e) =>
-                          setDraft({ ...draft, title: e.target.value })
-                        }
-                        required
-                      />
-                      <textarea
-                        className="field"
-                        rows={2}
-                        value={draft.detail}
-                        aria-label="Note"
-                        placeholder="Anything worth remembering with it — a number, a link, what it is for"
-                        onChange={(e) =>
-                          setDraft({ ...draft, detail: e.target.value })
-                        }
-                      />
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)_minmax(0,0.85fr)_auto]">
-                        <div
-                          className={`grid gap-2 ${
-                            draft.timing === ON_A_DATE ? "sm:grid-cols-2" : ""
-                          }`}
-                        >
-                          <WhenField
-                            idPrefix={`rem-${row.task.id}`}
-                            timing={draft.timing}
-                            due={draft.due_date}
-                            onTiming={(value) =>
-                              setDraft({
-                                ...draft,
-                                timing: value,
-                                due_date:
-                                  value === ON_A_DATE ? draft.due_date : "",
-                              })
-                            }
-                            onDue={(value) =>
-                              setDraft({ ...draft, due_date: value })
-                            }
-                          />
-                        </div>
-                        <select
-                          className="field"
-                          value={draft.assignee}
-                          aria-label="Who it is down to"
-                          onChange={(e) =>
-                            setDraft({ ...draft, assignee: e.target.value })
-                          }
-                        >
-                          {(assigneesByTrip[row.trip.id] || ["Shared"]).map(
-                            (name) => (
-                              <option key={name} value={name}>
-                                {name}
-                              </option>
-                            ),
-                          )}
-                          {/* Somebody who is no longer on the roster is still who
-                            this is down to, and dropping them silently would be
-                            a reassignment nobody asked for. */}
-                          {!(assigneesByTrip[row.trip.id] || []).includes(
-                            draft.assignee,
-                          ) && (
-                            <option value={draft.assignee}>
-                              {draft.assignee}
-                            </option>
-                          )}
-                        </select>
-                        <select
-                          className="field"
-                          value={draft.priority}
-                          aria-label="Priority"
-                          onChange={(e) =>
-                            setDraft({ ...draft, priority: e.target.value })
-                          }
-                        >
-                          {PRIORITY_ORDER.map((p) => (
-                            <option key={p} value={p}>
-                              {PRIORITY_LABELS[p]}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="submit"
-                            className="btn btn-primary px-3 py-1.5 text-xs"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingId(null);
-                              setDraft(null);
-                            }}
-                            className="btn btn-ghost px-3 py-1.5 text-xs"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </form>
+                    />
                   )}
                 </li>
               ))}
