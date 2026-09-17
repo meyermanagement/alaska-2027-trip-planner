@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { aboutMeFromParts, splitAboutMe } from "@/lib/travelers/profile";
 import AboutSections from "@/components/AboutSections";
 import AlyIntro from "@/components/AlyIntro";
+import PageHeader from "@/components/PageHeader";
 import DictationHint from "@/components/DictationHint";
 import { patchRun, readRun } from "@/lib/practice/session";
 
@@ -188,13 +189,11 @@ export default function AboutYouForm({
           lead="Five short questions about you, not about a trip. Skip any that do not come easily."
         />
       ) : (
-        <>
-          <h1 className="font-display text-3xl font-semibold">About you</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            Five short questions about you, not about a trip. Skip any that do
-            not come easily.
-          </p>
-        </>
+        <PageHeader
+          title="About you"
+          subtitle="Five short questions about you, not about a trip. Skip any that do not come easily."
+          className="mb-0"
+        />
       )}
 
       {secondary && (

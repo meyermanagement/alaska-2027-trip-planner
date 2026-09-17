@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
@@ -101,19 +102,25 @@ export default async function SomedayPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <h1 className="mb-1 font-display text-3xl font-semibold">
-          Bucket list
-        </h1>
-        <p className="mb-6 max-w-2xl text-sm text-ink-soft">
-          Places you want to go, and the months you could actually go in. Most
-          cheap flight emails are about somewhere you are not going: a deal
-          newsletter you signed up to, like {FARE_NEWSLETTERS[0]}, an airline
-          sale, a price alert you set. Forward them to your household address
-          and Aly keeps only the fares leaving from your airports for a place on
-          this list in a month that suits you, then says here whether the price
-          is worth it.{" "}
-          <ForwardFaresLink>Here is how to point them at her</ForwardFaresLink>.
-        </p>
+        <PageHeader
+          title="Bucket list"
+          count={(places || []).length || undefined}
+          subtitle={
+            <>
+              Places you want to go, and the months you could actually go in.
+              Most cheap flight emails are about somewhere you are not going: a
+              deal newsletter you signed up to, like {FARE_NEWSLETTERS[0]}, an
+              airline sale, a price alert you set. Forward them to your
+              household address and Aly keeps only the fares leaving from your
+              airports for a place on this list in a month that suits you, then
+              says here whether the price is worth it.{" "}
+              <ForwardFaresLink>
+                Here is how to point them at her
+              </ForwardFaresLink>
+              .
+            </>
+          }
+        />
 
         {fares.some((deal) => deal.status === "open") ? (
           <div className="mb-8">

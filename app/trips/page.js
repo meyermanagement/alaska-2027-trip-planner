@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import {
   homeToday,
   isCurrentTrip,
@@ -89,15 +90,13 @@ export default async function TripsPage({ searchParams }) {
       {/* No askHref: the button opens the drawer here, in general context. */}
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            {/* The heading used to say "Our trips" over a single list. The
-                three groups below are each named now, so the page keeps the
-                plain name and "Upcoming trips" labels the list it belongs to. */}
-            <h1 className="font-display text-3xl font-semibold">Trips</h1>
-          </div>
-          {!access?.can.isSecondary && <NewTripButton />}
-        </div>
+        {/* The heading used to say "Our trips" over a single list. The three
+            groups below are each named now, so the page keeps the plain name
+            and "Upcoming trips" labels the list it belongs to. */}
+        <PageHeader
+          title="Trips"
+          action={!access?.can.isSecondary ? <NewTripButton /> : null}
+        />
 
         {/* Keyed on the group, so each of the menu's three trip rows resets the
             boundary and shows the skeleton on its way in. */}

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import Preferences from "./Preferences";
 
@@ -62,9 +63,7 @@ export default async function PreferencesPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <h1 className="mb-6 font-display text-3xl font-semibold">
-          Travel preferences
-        </h1>
+        <PageHeader title="Travel preferences" />
 
         <Preferences
           familyId={familyId}

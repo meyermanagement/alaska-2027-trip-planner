@@ -1,3 +1,4 @@
+import PageHeader from "@/components/PageHeader";
 import {
   NOT_USED,
   SURVEY_SECTIONS,
@@ -314,19 +315,25 @@ export default function SurveySheets({ sheets = [], keyMissing = false }) {
 
   return (
     <main className="screen px-5 pb-16 pt-7">
-      <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-soft">
-        <a href="/admin" className="hover:text-teal">
-          Admin
-        </a>
-      </p>
-      <h1 className="font-display mt-1 text-3xl font-semibold">Beta survey</h1>
-      <p className="mt-2 max-w-prose text-sm text-ink-soft">
-        {keyMissing
-          ? "This deployment has no service-role key set, so nothing can be read."
-          : started.length
-            ? `${started.length} ${started.length === 1 ? "sheet" : "sheets"} with something in ${started.length === 1 ? "it" : "them"}, ${sent} sent. Testers can change any answer at any time, so a sheet is never final.`
-            : "Nobody has answered anything yet. The survey sits under More for anybody on a beta code."}
-      </p>
+      <PageHeader
+        above={
+          <a
+            href="/admin"
+            className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-soft hover:text-teal"
+          >
+            Admin
+          </a>
+        }
+        title="Beta survey"
+        subtitle={
+          keyMissing
+            ? "This deployment has no service-role key set, so nothing can be read."
+            : started.length
+              ? `${started.length} ${started.length === 1 ? "sheet" : "sheets"} with something in ${started.length === 1 ? "it" : "them"}, ${sent} sent. Testers can change any answer at any time, so a sheet is never final.`
+              : "Nobody has answered anything yet. The survey sits under More for anybody on a beta code."
+        }
+        className="mb-5"
+      />
 
       {started.length ? (
         <>

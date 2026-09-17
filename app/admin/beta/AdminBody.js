@@ -1,3 +1,4 @@
+import PageHeader from "@/components/PageHeader";
 import { saidPlainly } from "@/lib/usage/metrics";
 import CodeDesk from "./CodeDesk";
 
@@ -76,16 +77,19 @@ export default function AdminBody({
 
   return (
     <main className="screen px-5 pb-16 pt-7">
-      <p className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-soft">
-        <a href="/admin" className="hover:text-teal">
-          Admin
-        </a>
-      </p>
-      <h1 className="font-display mt-1 text-3xl font-semibold">Beta desk</h1>
-      <p className="mt-2 max-w-prose text-sm text-ink-soft">
-        Invites, and what happens after somebody opens one. Activity covers the
-        last {windowDays} days.
-      </p>
+      <PageHeader
+        above={
+          <a
+            href="/admin"
+            className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-soft hover:text-teal"
+          >
+            Admin
+          </a>
+        }
+        title="Beta desk"
+        subtitle={`Invites, and what happens after somebody opens one. Activity covers the last ${windowDays} days.`}
+        className="mb-5"
+      />
 
       {keyMissing && (
         <p className="card mt-5 p-4 text-sm">

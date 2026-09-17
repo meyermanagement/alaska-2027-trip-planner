@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import Reminders from "@/components/Reminders";
 import { isPastTrip } from "@/lib/format";
@@ -101,9 +102,11 @@ export default async function RemindersPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <div className="mb-5">
-          <h1 className="font-display text-3xl font-semibold">Reminders</h1>
-        </div>
+        {/* The badge counts what is on the screen -- every open reminder across
+            every trip that has not happened yet. Not dueCount, which is the
+            smaller "would be emailed this morning" number and would read, next
+            to the word Reminders, as though the rest were not there. */}
+        <PageHeader title="Reminders" count={tasks.length} />
         {/* The two panels about how the app reaches you sit together, above the
             list: the morning email's own line, then the notifications that carry
             the things which cannot wait for it. Deadline alerts used to be last

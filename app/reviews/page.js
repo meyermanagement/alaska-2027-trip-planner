@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
 import HowRatingsWork from "@/components/HowRatingsWork";
@@ -164,19 +165,12 @@ export default async function ReviewsPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <div className="mb-6 space-y-3">
-          <div>
-            <h1 className="font-display text-3xl font-semibold">
-              Past reviews
-            </h1>
-            <p className="mt-1 text-sm text-ink-soft">
-              What the family thought of the places they stayed, the things they
-              did and the meals they ate. Aly reads these when it suggests
-              somewhere new.
-            </p>
-          </div>
+        <PageHeader
+          title="Past reviews"
+          subtitle="What the family thought of the places they stayed, the things they did and the meals they ate. Aly reads these when it suggests somewhere new."
+        >
           <HowRatingsWork />
-        </div>
+        </PageHeader>
 
         {shownTrips.length === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">

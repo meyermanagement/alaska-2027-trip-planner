@@ -1,3 +1,4 @@
+import PageHeader from "@/components/PageHeader";
 /**
  * The list itself, kept apart from the gate in page.js so it can be drawn in
  * isolation while it is being worked on. It reads nothing: the gate is the whole
@@ -44,12 +45,10 @@ const ROWS = [
 export default function AdminHub() {
   return (
     <main className="screen px-5 pb-16 pt-7">
-      <h1 className="font-display text-3xl font-semibold">Admin</h1>
-      <p className="mt-2 max-w-prose text-sm text-ink-soft">
-        The screens that are about the app rather than about a trip. Nobody else
-        can open this page, or any of the ones on it apart from the row that
-        says otherwise.
-      </p>
+      <PageHeader
+        title="Admin"
+        subtitle="The screens that are about the app rather than about a trip. Nobody else can open this page, or any of the ones on it apart from the row that says otherwise."
+      />
 
       <ul className="mt-7 space-y-3">
         {ROWS.map((row) => (

@@ -1,5 +1,6 @@
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import SkinPicker from "@/components/SkinPicker";
 import BetaConsentControls from "@/components/BetaConsentControls";
 import TextSizePicker from "@/components/TextSizePicker";
@@ -40,9 +41,9 @@ export default function SettingsBody({
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <h1 className="font-display text-3xl font-semibold">Settings</h1>
+        <PageHeader title="Settings" />
 
-        <div className="mt-6 space-y-10">
+        <div className="space-y-10">
           <SkinPicker skin={skin} />
 
           <TextSizePicker size={textSize} />

@@ -10,6 +10,7 @@ import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
 import { stampSaid } from "@/lib/format";
 import ClearedInbox from "@/components/ClearedInbox";
+import PageHeader from "@/components/PageHeader";
 import InboxMessageBody from "@/components/InboxMessageBody";
 import { readVerification } from "@/lib/inbox/verification";
 
@@ -252,14 +253,11 @@ export default function InboxScreen({
 
   return (
     <div>
-      <h1 className="font-display text-3xl font-semibold tracking-[0.02em] text-ink">
-        Inbox
-      </h1>
-      <p className="mt-2 text-sm text-ink-soft">
-        Forward booking confirmations to the address below and Aly will file
-        them onto the right trip. Airline confirmations, hotel bookings, the
-        rental car -- any one of them, from any address.
-      </p>
+      <PageHeader
+        title="Inbox"
+        subtitle="Forward booking confirmations to the address below and Aly will file them onto the right trip. Airline confirmations, hotel bookings, the rental car -- any one of them, from any address."
+        className="mb-4"
+      />
       {/*
        * Said here because the sentence above promises something that is switched
        * off. Turning Aly off stops the reading, which is the point of the switch;

@@ -1,5 +1,6 @@
 "use client";
 
+import PageHeader from "@/components/PageHeader";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -119,15 +120,24 @@ export default function IssueLog({ issues = [], build = "" }) {
 
   return (
     <main className="screen px-5 pb-16 pt-7">
-      <a href="/admin" className="text-sm text-teal underline">
-        Back to Admin
-      </a>
-      <h1 className="mt-3 font-display text-3xl font-semibold">Issue log</h1>
-      <p className="mt-2 max-w-prose text-sm text-ink-soft">
-        {issues.length
-          ? `${issues.length} ${issues.length === 1 ? "report" : "reports"}, ${waiting} not looked at yet. Every one has a name you can copy into a message.`
-          : "Nothing yet. Reports arrive from the flag inside the app, and faults record themselves."}
-      </p>
+      <PageHeader
+        above={
+          <a
+            href="/admin"
+            className="text-xs font-semibold uppercase tracking-[0.09em] text-ink-soft hover:text-teal"
+          >
+            Admin
+          </a>
+        }
+        title="Issue log"
+        count={issues.length || undefined}
+        subtitle={
+          issues.length
+            ? `${waiting} not looked at yet. Every one has a name you can copy into a message.`
+            : "Nothing yet. Reports arrive from the flag inside the app, and faults record themselves."
+        }
+        className="mb-5"
+      />
 
       <div className="card mt-5 p-4">
         <div className="flex flex-wrap gap-1.5">

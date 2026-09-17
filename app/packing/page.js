@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { templateScope } from "@/lib/packing/propagate";
@@ -215,14 +216,10 @@ export default async function PackingTemplatesPage() {
       <TopBar />
       <main className="screen px-5 pb-28 pt-7">
         <TripPackingLinks trips={upcoming} />
-        <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">
-            Packing templates
-          </h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Change a list here and it applies to the next trip you create.
-          </p>
-        </div>
+        <PageHeader
+          title="Packing templates"
+          subtitle="Change a list here and it applies to the next trip you create."
+        />
         <PackingScreen
           travelers={(travelers || [])
             .filter((t) => t.is_person)

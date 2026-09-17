@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import ProTips from "@/components/ProTips";
 import ClearedTips from "@/components/ClearedTips";
@@ -110,33 +111,25 @@ export default async function RewardsPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <div className="mb-6 sm:flex sm:items-start sm:justify-between sm:gap-6">
-          <div>
-            <h1 className="font-display text-3xl font-semibold">Wallet</h1>
-            <p className="mt-1 text-sm text-ink-soft">
-              Every program the family belongs to, what the balances are, and
-              what each credit card earns. Aly reads all of it when she plans,
-              so she can say when a stay is worth paying for with points and
-              which card to put a booking on.
-            </p>
-          </div>
-          {/* Passport numbers, Global Entry, licenses and the membership numbers
-              themselves are kept on each person rather than here, and this is
-              the screen people come to looking for them. Phrased as the question
-              they arrived with rather than as a place name, because somebody who
-              already knew documents lived on Family would not be standing here.
+        {/* Passport numbers, Global Entry, licenses and the membership numbers
+            themselves are kept on each person rather than here, and this is the
+            screen people come to looking for them. Phrased as the question they
+            arrived with rather than as a place name, because somebody who
+            already knew documents lived on Family would not be standing here.
 
-              It used to carry a count of the documents on file. A question and a
-              number answer two different things, and the number needed a whole
-              extra read of traveler_documents to say something nobody was asking
-              on this screen, so both are gone. */}
-          <Link
-            href="/family"
-            className="btn btn-ghost mt-4 w-full shrink-0 sm:mt-1 sm:w-auto"
-          >
-            Looking for travel documents?
-          </Link>
-        </div>
+            It used to carry a count of the documents on file. A question and a
+            number answer two different things, and the number needed a whole
+            extra read of traveler_documents to say something nobody was asking
+            on this screen, so both are gone. */}
+        <PageHeader
+          title="Wallet"
+          subtitle="Every program the family belongs to, what the balances are, and what each credit card earns. Aly reads all of it when she plans, so she can say when a stay is worth paying for with points and which card to put a booking on."
+          action={
+            <Link href="/family" className="btn btn-ghost w-full sm:w-auto">
+              Looking for travel documents?
+            </Link>
+          }
+        />
         {/* autoLook: the Wallet is the one screen whose whole job is noticing
             things nobody asked about -- a credit going unused, points about to
             lapse, a fee coming round -- so opening it runs the look, the way

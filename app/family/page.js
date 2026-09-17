@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
+import PageHeader from "@/components/PageHeader";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
@@ -167,12 +168,10 @@ export default async function PeoplePage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <div className="mb-6">
-          <h1 className="font-display text-3xl font-semibold">Family</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Everyone who travels, and every animal that does or does not — with
-            the documents kept in one place.
-          </p>
+        <PageHeader
+          title="Family"
+          subtitle="Everyone who travels, and every animal that does or does not — with the documents kept in one place."
+        >
           <HouseholdName familyId={familyId} name={household?.name || ""} />
           <HouseholdHome
             familyId={familyId}
@@ -197,7 +196,7 @@ export default async function PeoplePage() {
             address={inboxAddressFor(household?.inbox_local_part)}
             note="Forward flight, hotel and rental confirmations to"
           />
-        </div>
+        </PageHeader>
         <InterviewLauncher
           progress={interviewProgress(
             {
