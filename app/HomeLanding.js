@@ -278,37 +278,56 @@ export default function HomeLanding() {
       <div className="mx-auto w-full max-w-[74rem] px-5 pt-2 sm:px-8">
         <Scene
           label="Building the trip"
-          title="One draft, instead of forty tabs."
-          body="Say roughly where and when. Aly hands back ordered days built around how early your family starts, how far they will walk, what they eat and who needs an afternoon off. Nothing is booked and nothing is final: you argue with the draft, and she rewrites it."
+          title="Suggestions that already know how you travel."
+          body="Say it in a sentence. What comes back is built around how your travelers actually travel — how early they start, how far they will walk, what they will not eat — against the figure you would like the trip to cost and the cards and credits already in your wallet. And when something she finds does not match what you have told her, she says so before you book it rather than after — the cheaper fare that lands at six in the morning, the week that puts the trip well over your number."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
                 <p className="font-display text-[17px] font-semibold">
-                  Maui &middot; seven days
+                  A new trip
                 </p>
-                <p className="text-[13px] text-ink-soft">Draft</p>
+                <p className="text-[13px] text-ink-soft">Nothing saved yet</p>
               </div>
-              <div className="mt-4 space-y-3">
-                <Row
-                  left="Day 1 &middot; Land, and stop moving"
-                  right="Kahului 1:15 pm"
-                  sub="Groceries on the way, nothing booked after five"
-                />
-                <Row
-                  left="Day 2 &middot; The road, early"
-                  right="Out by 7:00"
-                  sub="Ahead of the traffic, back before the afternoon rain"
-                />
-                <Row
-                  left="Day 3 &middot; Nothing planned"
-                  right="Beach"
-                  sub="Because day two is long and Mia is nine"
-                  last
-                />
+
+              {/* The box as the builder actually presents it: one sentence, in
+                  the words somebody would say, and the line underneath that
+                  tells them how much of a trip they just described. */}
+              <p className="mt-4 rounded-xl border border-[var(--line)] bg-sand/50 p-3 text-[14px] leading-relaxed">
+                Maui for a week in March, a condo with a kitchen near the water,
+                and we would like to keep the whole thing around $6,000.
+              </p>
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
+                That already covers where, when, where you stay and budget. Aly
+                will ask about the other three.
+              </p>
+
+              <div className="mt-4 border-t border-[var(--line)] pt-3">
+                <p className="text-[13px] font-semibold">
+                  What she flagged before you asked
+                </p>
+                <div className="mt-2.5 space-y-3">
+                  <Row
+                    left="The cheaper fare lands at 6:10 am"
+                    right="Saves $240"
+                    sub="Dani does not do overnights, and Mia is nine"
+                  />
+                  <Row
+                    left="$6,000 is tight that week"
+                    right="Spring break"
+                    sub="A week either side is the same trip for less"
+                  />
+                  <Row
+                    left="$300 of airline credit unused"
+                    right="Expires in May"
+                    sub="It covers most of a bag and a seat change"
+                    last
+                  />
+                </div>
               </div>
+
               <p className="mt-4 border-t border-[var(--line)] pt-3 text-[13px] text-ink-soft">
-                Built from your travelers, your dates and what you already
-                booked.
+                Built from how your travelers travel, the number you gave her,
+                and what is already in your wallet.
               </p>
             </div>
           }
