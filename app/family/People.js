@@ -14,7 +14,7 @@ import { uploadDocumentFile, deleteDocumentFile } from "@/lib/documents/upload";
 import { headlineFor } from "@/lib/tips/warnings";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { syncPackingForTraveler } from "@/lib/packing/roster";
+import { tripPath } from "@/lib/trips/route";
 import { ageToday } from "@/lib/travelers/ages";
 import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
@@ -109,11 +109,9 @@ export default function People({
   // animal, or at the add form.
   const shown = controlled ? travelers.filter((t) => t.id === only) : travelers;
   const [revealed, setRevealed] = useState({});
-  const [rosterBusy, setRosterBusy] = useState(null);
-  // What the trip's packing list did about the tap, kept per trip so the line
-  // appears under the trip it is about.
-  const [rosterNote, setRosterNote] = useState({});
-  const [editingTripsFor, setEditingTripsFor] = useState(null);
+  // Which person's trips are being shown. A card, not an editor: who is on a
+  // trip is decided on the trip, so these rows only ever read out and link.
+  const [showingTripsFor, setShowingTripsFor] = useState(null);
   const [inviteBusy, setInviteBusy] = useState(null);
   const [inviteNote, setInviteNote] = useState(null);
   const [removeBusy, setRemoveBusy] = useState(null);
@@ -139,8 +137,7 @@ export default function People({
 
   const [levelBusy, setLevelBusy] = useState(null);
   const [levelNote, setLevelNote] = useState(null);
-  // Local copy so a tapped trip chip reacts immediately.
-  const [roster, setRoster] = useState(rosters);
+  const roster = rosters;
 
   const docsFor = (id) => documents.filter((d) => d.traveler_id === id);
 
@@ -159,42 +156,6 @@ export default function People({
 
   const tripIdsFor = (travelerId) =>
     roster.filter((r) => r.traveler_id === travelerId).map((r) => r.trip_id);
-
-  async function toggleTrip(travelerId, tripId, nowOn) {
-    setRosterBusy(tripId);
-    setRosterNote((prev) => ({ ...prev, [tripId]: "" }));
-    setRoster((prev) =>
-      nowOn
-        ? [...prev, { trip_id: tripId, traveler_id: travelerId }]
-        : prev.filter(
-            (r) => !(r.trip_id === tripId && r.traveler_id === travelerId),
-          ),
-    );
-    if (nowOn) {
-      await supabase
-        .from("trip_travelers")
-        .insert({ trip_id: tripId, traveler_id: travelerId });
-    } else {
-      await supabase
-        .from("trip_travelers")
-        .delete()
-        .eq("trip_id", tripId)
-        .eq("traveler_id", travelerId);
-    }
-    // Same rule as the trip header: their own lines from the base list arrive
-    // when they do and leave when they do, and anything already packed or
-    // written on stays.
-    const sync = await syncPackingForTraveler({
-      supabase,
-      tripId,
-      familyId,
-      person: travelers.find((t) => t.id === travelerId),
-      going: nowOn,
-    });
-    setRosterNote((prev) => ({ ...prev, [tripId]: sync.message || "" }));
-    setRosterBusy(null);
-    router.refresh();
-  }
 
   // Anything expiring in the next year, so it is impossible to miss.
   // Both amber panels used to list the whole family, which made them read as
@@ -624,12 +585,14 @@ export default function People({
                     type="button"
                     className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
                     onClick={() =>
-                      setEditingTripsFor(
-                        editingTripsFor === person.id ? null : person.id,
+                      setShowingTripsFor(
+                        showingTripsFor === person.id ? null : person.id,
                       )
                     }
                   >
-                    {editingTripsFor === person.id ? "Done" : "Trips"}
+                    {showingTripsFor === person.id
+                      ? "Hide trips"
+                      : "Their trips"}
                   </button>
                 )}
                 <button
@@ -668,79 +631,84 @@ export default function People({
               />
             )}
 
-            {editingTripsFor === person.id && (
+            {showingTripsFor === person.id && (
               <div className="no-print mt-3 space-y-3 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
-                <p className="text-xs text-ink-soft">
-                  Check every trip {person.name} is on. Their packing list
-                  follows this.
-                </p>
-                {[
-                  ["Coming up", upcomingTrips],
-                  ["Still just an idea", draftTrips],
-                  ["Already done", pastTrips],
-                ].map(([heading, list]) =>
-                  list.length === 0 ? null : (
-                    <div key={heading}>
-                      <p className="section-label">{heading}</p>
-                      <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-[var(--line)] bg-white">
-                        {list.map((trip) => {
-                          const on = tripIdsFor(person.id).includes(trip.id);
-                          return (
-                            <li key={trip.id}>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  toggleTrip(person.id, trip.id, !on)
-                                }
-                                disabled={rosterBusy === trip.id}
-                                aria-pressed={on}
-                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-sand/60 disabled:opacity-50"
-                              >
-                                <span
-                                  aria-hidden="true"
-                                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${
-                                    on
-                                      ? "border-teal bg-teal text-on-accent"
-                                      : "border-[var(--line)] bg-white text-transparent"
-                                  }`}
+                {(() => {
+                  const mine = new Set(tripIdsFor(person.id));
+                  const groups = [
+                    ["Coming up", upcomingTrips],
+                    ["Still just an idea", draftTrips],
+                    ["Already done", pastTrips],
+                  ]
+                    .map(([heading, list]) => [
+                      heading,
+                      list.filter((trip) => mine.has(trip.id)),
+                    ])
+                    .filter(([, list]) => list.length > 0);
+                  if (groups.length === 0) {
+                    return (
+                      <p className="text-xs text-ink-soft">
+                        {person.name} is not on any trip yet. Open the trip and
+                        add them under Who is going, and their packing list
+                        follows.
+                      </p>
+                    );
+                  }
+                  return (
+                    <>
+                      {/* Read out, never set. Who is going is a fact about the
+                          trip, not about the person: it decides that trip's
+                          packing list, its budget split and who its reminders
+                          are addressed to, so it is decided in one place, on the
+                          trip, and every other screen links there. */}
+                      <p className="text-xs text-ink-soft">
+                        Whether {person.name} is going is set on the trip
+                        itself, under Who is going.
+                      </p>
+                      {groups.map(([heading, list]) => (
+                        <div key={heading}>
+                          <p className="section-label">{heading}</p>
+                          <ul className="mt-1 divide-y divide-sand-deep overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+                            {list.map((trip) => (
+                              <li key={trip.id}>
+                                <Link
+                                  href={tripPath(trip)}
+                                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-sand/60"
                                 >
-                                  ✓
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm font-semibold text-ink">
-                                    {trip.cover_emoji && (
-                                      <span
-                                        aria-hidden="true"
-                                        className="mr-1.5"
-                                      >
-                                        {trip.cover_emoji}
-                                      </span>
-                                    )}
-                                    {trip.name}
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-semibold text-ink">
+                                      {trip.cover_emoji && (
+                                        <span
+                                          aria-hidden="true"
+                                          className="mr-1.5"
+                                        >
+                                          {trip.cover_emoji}
+                                        </span>
+                                      )}
+                                      {trip.name}
+                                    </span>
+                                    <span className="block text-xs text-ink-soft">
+                                      {formatRange(
+                                        trip.start_date,
+                                        trip.end_date,
+                                      )}
+                                    </span>
                                   </span>
-                                  <span className="block text-xs text-ink-soft">
-                                    {formatRange(
-                                      trip.start_date,
-                                      trip.end_date,
-                                    )}
+                                  <span
+                                    aria-hidden="true"
+                                    className="shrink-0 text-ink-soft"
+                                  >
+                                    &rsaquo;
                                   </span>
-                                </span>
-                              </button>
-                              {rosterNote[trip.id] ? (
-                                <p
-                                  aria-live="polite"
-                                  className="px-3 pb-2.5 text-xs text-ink-soft"
-                                >
-                                  {rosterNote[trip.id]}
-                                </p>
-                              ) : null}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ),
-                )}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
