@@ -23,11 +23,11 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  * is a specification is a front door that argues you should feel better about
  * travel in the format of a terms page.
  *
- * So this one shows instead. It is one long scroll of scenes -- the week before,
- * the draft, the day itself, the day that changed, the money, the morning email
- * -- each one a photograph or a piece of the actual product, arriving as you
- * reach it. The argument underneath every scene is the same argument, and it is
- * the only one worth making to somebody who has planned a trip: Alyeska
+ * So this one shows instead. It is one long scroll of scenes -- the draft, the
+ * week before, the day itself, the day that changed, the money -- each one a
+ * photograph or a piece of the actual product, arriving as you reach it. The
+ * argument underneath every scene is the same argument, and it is the only one
+ * worth making to somebody who has planned a trip: Alyeska
  * has your back, before you go and while you are there.
  *
  * Four rules it keeps.
@@ -265,7 +265,7 @@ export default function HomeLanding() {
       </div>
 
       {/* --------------------------------------------------------------- scenes
-          Six of them, in the order a trip happens. Each one is the stress it
+          Five of them, in the order a trip happens. Each one is the stress it
           takes off you, said once, with the thing itself beside it. */}
       <div className="mx-auto w-full max-w-[74rem] px-5 pt-2 sm:px-8">
         <Scene
@@ -401,20 +401,6 @@ export default function HomeLanding() {
                 numbers are yours.
               </p>
             </div>
-          }
-        />
-
-        <Scene
-          label="The morning email"
-          flip
-          title="One short email, every morning."
-          body="What is happening today, what you need on you for it, and anything that has to be done before tomorrow. Before the trip it is the countdown; on the trip it is the day. It is the only thing this app sends you unasked."
-          media={
-            <Shot
-              src="/landing/morning.jpg"
-              alt="Snorkel masks, a hat and a towel on dark sand at sunrise"
-              className="aspect-[4/3]"
-            />
           }
         />
       </div>
