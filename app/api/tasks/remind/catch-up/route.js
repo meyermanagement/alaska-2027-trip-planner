@@ -62,7 +62,7 @@ export async function POST(request) {
   const today = homeToday();
   const { data: runs } = await supabase
     .from("reminder_runs")
-    .select("ran_for, source")
+    .select("ran_for, source, error, family_id")
     .eq("ran_for", today);
 
   if (!shouldCatchUp({ runs: runs || [], today, hour: homeHour(), familyId })) {

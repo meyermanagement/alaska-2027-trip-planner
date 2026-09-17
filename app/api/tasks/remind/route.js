@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendDueTodayReminders } from "@/lib/email/sendReminders";
 import { siteOrigin } from "@/lib/email/sendInvite";
-import { runRecord } from "@/lib/tasks/runs";
+import { runRecord, runRecordsFor } from "@/lib/tasks/runs";
 import { runRetentionPurges } from "@/lib/retention/purge";
 import { retryOpenDeletions } from "@/lib/account/retryDeletions";
 import { homeToday } from "@/lib/format";
@@ -180,17 +180,21 @@ export async function POST(request) {
 async function recordRun({ supabase, outcome, source, familyId = null }) {
   if (!supabase) return;
   try {
-    let family = familyId;
-    if (!family) {
-      // The cron has no visitor to ask, so it takes the household from the work
-      // it just considered. One family today; the column is nullable so a run
-      // that found nothing at all is still recorded.
-      const { data } = await supabase.from("families").select("id").limit(1);
-      family = data?.[0]?.id || null;
-    }
-    await supabase
-      .from("reminder_runs")
-      .insert(runRecord({ outcome, familyId: family, source }));
+    // A run told which household it was for -- the test button, pressed by a
+    // person -- is written as one row for that household. The cron was not told,
+    // so it writes one row per household it actually looked at, taken from the
+    // run itself.
+    //
+    // It used to guess instead, with the first row of the families table, and the
+    // guess was fine until there were two households and then silently wrong. An
+    // unfinished test account was enough: every scheduled run got filed under it,
+    // the real household could no longer see its own mornings in a ledger it is
+    // only allowed to read its own rows of, and the rescue that reads that ledger
+    // lost its footing.
+    const rows = familyId
+      ? [runRecord({ outcome, familyId, source })]
+      : runRecordsFor({ outcome, source });
+    if (rows.length) await supabase.from("reminder_runs").insert(rows);
   } catch {
     // Deliberately silent. See above.
   }
