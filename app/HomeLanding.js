@@ -364,8 +364,8 @@ export default function HomeLanding() {
 
         <Scene
           label="While you are there"
-          title="It opens on the day you are living, not on day one."
-          body="What is next, how far away it is, what the weather does tonight, and what is still in the bag. No scrolling back through a plan you wrote four months ago to work out where you are supposed to be."
+          title="The whole day, and everything you booked for it, on one screen."
+          body="It opens on the day you are living, not on day one. Underneath each thing is the booking itself — the confirmation number, the check-in time, the address to hand a driver — so nobody is hunting through an inbox on hotel wifi for a code they forwarded in March. Aly reads those confirmations in whatever language they arrive in and pulls out the part that would have caught you: cash only, thirty minutes early, ID at the desk. And the day has its own bag, so what you carry today is a short list, not the whole suitcase."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -380,7 +380,7 @@ export default function HomeLanding() {
                 <Row
                   left="Snorkel, Mākena"
                   right="8:20 am"
-                  sub="Booked &middot; 12 min drive"
+                  sub="Conf. MKN4‑8821 &middot; check in 7:50 &middot; 12 min drive"
                 />
                 <Row
                   left="Lunch, back at the condo"
@@ -394,9 +394,24 @@ export default function HomeLanding() {
                   last
                 />
               </div>
-              <p className="mt-4 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
-                <span className="font-semibold">Aly:</span> Rain about two, gone
-                by four. Mia&rsquo;s shell is in the day bag.
+
+              {/* The day's own bag, which is the part people expect least: a
+                  short list for today rather than the whole packing list. */}
+              <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-[13px] font-semibold">In the bag today</p>
+                  <p className="text-[12px] text-ink-soft">3 of 4</p>
+                </div>
+                <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
+                  Reef-safe sunscreen &middot; Mia&rsquo;s shell &middot; the
+                  printed voucher &middot; cash for the deposit
+                </p>
+              </div>
+
+              <p className="mt-3 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
+                <span className="font-semibold">Aly:</span> The boat&rsquo;s
+                voucher wants the balance in cash and a photo ID at the desk, so
+                both are in today&rsquo;s bag. Rain about two, gone by four.
               </p>
             </div>
           }
