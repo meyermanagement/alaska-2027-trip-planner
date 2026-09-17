@@ -294,7 +294,7 @@ export default function HomeLanding() {
         <Scene
           label="Building the trip"
           title="Suggestions that already know how you travel."
-          body="Say it in a sentence. What comes back is built around how your travelers actually travel — how early they start, how far they will walk, what they will not eat — against the figure you would like the trip to cost and the cards and credits already in your wallet. And when something she finds does not match what you have told her, she says so before you book it rather than after — the cheaper fare that lands at six in the morning, the week that puts the trip well over your number."
+          body="Say it in a sentence. You do not have to know where you are staying or which flight to take — that is the part Aly suggests, built around how your travelers actually travel: how early they start, how far they will walk, what they will not eat, against the figure you would like the trip to cost and the credits already in your wallet. And when something she finds does not match what you have told her, she says so before you book it rather than after — the cheaper fare that lands at six in the morning, the week that is spring break everywhere and puts the whole thing over your number."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -308,31 +308,30 @@ export default function HomeLanding() {
                   the words somebody would say, and the line underneath that
                   tells them how much of a trip they just described. */}
               <p className="mt-4 rounded-xl border border-[var(--line)] bg-sand/50 p-3 text-[14px] leading-relaxed">
-                Maui for a week in March, a condo with a kitchen near the water,
-                and we would like to keep the whole thing around $6,000.
+                Maui for a week in March for about $6,000.
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-                That already covers where, when, where you stay and budget. Aly
-                will ask about the other three.
+                That already covers where, when and budget. Aly will ask about
+                the other four.
               </p>
 
               <div className="mt-4 border-t border-[var(--line)] pt-3">
                 <p className="text-[13px] font-semibold">
-                  What she flagged before you asked
+                  What she came back with
                 </p>
                 <div className="mt-2.5 space-y-3">
                   <Row
-                    left="The cheaper fare lands at 6:10 am"
-                    right="Saves $240"
+                    left="A two-bedroom condo in Kīhei"
+                    right="$1,880 the week"
+                    sub="You cook most nights, and it is a four-minute walk to the sand"
+                  />
+                  <Row
+                    left="The 10:40 am flight, not the 6:10"
+                    right="$240 more"
                     sub="Dani does not do overnights, and Mia is nine"
                   />
                   <Row
-                    left="$6,000 is tight that week"
-                    right="Spring break"
-                    sub="A week either side is the same trip for less"
-                  />
-                  <Row
-                    left="$300 of airline credit unused"
+                    left="$300 of airline credit against it"
                     right="Expires in May"
                     sub="It covers most of a bag and a seat change"
                     last
@@ -341,8 +340,8 @@ export default function HomeLanding() {
               </div>
 
               <p className="mt-4 border-t border-[var(--line)] pt-3 text-[13px] text-ink-soft">
-                Built from how your travelers travel, the number you gave her,
-                and what is already in your wallet.
+                Suggested from how your travelers travel, the number you gave
+                her, and what is already in your wallet.
               </p>
             </div>
           }
