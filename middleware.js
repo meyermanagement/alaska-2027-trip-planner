@@ -338,7 +338,11 @@ export const config = {
   // without naming it here the middleware answered the browser's fetch for it
   // with the login page -- and a redirect to HTML parsed as JSON is how every
   // card on every screen quietly lost its map.
+  // Video is excluded for the same reason: the hero film on the front door is a
+  // file in public/, and a redirect answered to a <video> request reads to the
+  // browser as a broken media file rather than as a login page, so the montage
+  // simply never started for anybody who was not signed in.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|data/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|data/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm)$).*)",
   ],
 };

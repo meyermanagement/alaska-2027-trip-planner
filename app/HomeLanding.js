@@ -2,6 +2,8 @@ import Link from "next/link";
 import AlyeskaMark from "@/components/AlyeskaMark";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import AskDemo from "@/components/home/AskDemo";
+import HeroFilm from "@/components/home/HeroFilm";
+import RotatingWord from "@/components/home/RotatingWord";
 import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
 import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
 
@@ -140,6 +142,7 @@ export default function HomeLanding() {
           is what makes them want the app. */}
       <section className="home-hero" data-ma-shown="">
         <div className="home-hero-shot" aria-hidden="true" />
+        <HeroFilm />
         <div className="home-hero-scrim" aria-hidden="true" />
 
         <div
@@ -184,9 +187,9 @@ export default function HomeLanding() {
             <div>
               <p
                 className="ma-in text-[12px] font-semibold uppercase tracking-[0.16em]"
-                style={{ color: "rgba(246,243,236,0.7)" }}
+                style={{ color: "#f6f3ec" }}
               >
-                Your personal travel assistant
+                <RotatingWord />
               </p>
               <h1
                 className="ma-in mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
