@@ -128,7 +128,20 @@ function Tip({ when, title, source }) {
     <div className="rounded-xl border border-[var(--line)] bg-sand/40 p-3">
       <p className="section-label text-[11px]">{when}</p>
       <p className="mt-1 text-[14px] font-semibold leading-snug">{title}</p>
-      <p className="mt-1 text-[12px] text-ink-soft">Source: {source}</p>
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] text-ink-soft">Source: {source}</p>
+        {/* The tip's own answer, drawn exactly as ProTips draws it: a ghost pill
+            reading Remind me, which turns the sentence into a dated task. It is
+            not a control here -- nothing on this page is -- but a picture of a
+            screen that shows a button the app does not have is the kind of claim
+            this page is supposed to stop making. */}
+        <span
+          aria-hidden="true"
+          className="ml-auto rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-soft"
+        >
+          Remind me
+        </span>
+      </div>
     </div>
   );
 }
@@ -496,8 +509,8 @@ export default function HomeLanding() {
         <Scene
           label="When it changes"
           flip
-          title="When the day changes, you are not the one who has to fix it."
-          body="Rain at two, a boat that cancelled, a road that closed. Aly moves what has to move, tells you what she wants to change and why, and waits for you to say yes. The rest of the family sees the same trip you do, so nobody is working from a screenshot."
+          title="The ones you can see coming, and the ones you cannot."
+          body="Some of it is visible days out: rain in the forecast for the afternoon you booked the boat, a connection too tight to make, two things on the same day in towns an hour apart. Aly says so while there is still time to do something about it. The rest arrives on the day — the cancellation, the closed road, the restaurant that is shut — and then what helps is that she already knows what you booked, what it cost, who it was for and what else was on that afternoon. So the question is what do we do instead, not where did I put the confirmation. Nothing on your trip moves until you say so, and everyone traveling sees the same plan you do."
           media={
             <Shot
               src="/landing/rain.jpg"
@@ -541,7 +554,7 @@ export default function HomeLanding() {
           label="Pro tips"
           flip
           title="The things you would only know if you had been before."
-          body="Short, specific things worth knowing about where you are going, dated to the day they matter: the permit that has to be bought before you fly, the stretch of road with no signal, the sunscreen that is against the law there. Every one of them says where it came from, so you can check it yourself instead of taking our word for it."
+          body="Short, specific things worth knowing about where you are going, dated to the day they matter: the permit that has to be bought before you fly, the stretch of road with no signal, the sunscreen that is against the law there. Every one of them says where it came from, so you can check it yourself instead of taking our word for it, and any one worth acting on becomes a dated reminder with one press."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">

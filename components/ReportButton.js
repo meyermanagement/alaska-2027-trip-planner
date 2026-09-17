@@ -50,8 +50,15 @@ import useSoftKeyboard from "./useSoftKeyboard";
  * The practice copy is listed for the same reason it exists at all: a rehearsal
  * has to show the screens a tester actually meets, and one carrying a control
  * the real gate does not have is not a rehearsal.
+ *
+ * The root is quiet for a different reason. Signed in it is a redirect to
+ * /trips, so the only person who ever sees it is a stranger, and the front door
+ * is the one screen where the product has to look finished. A red flag in the
+ * corner of a page whose whole job is to persuade says beta before the headline
+ * does. A tester who finds something wrong here can still say so from the screen
+ * they land on next.
  */
-const QUIET = ["/welcome/beta", "/interview-check/beta"];
+const QUIET = ["/", "/welcome/beta", "/interview-check/beta"];
 
 export default function ReportButton() {
   const pathname = usePathname() || "";
