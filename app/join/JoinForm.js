@@ -66,7 +66,11 @@ export default function JoinForm() {
             className="field font-mono uppercase"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="MEYER2027"
+            // Not a real code, and never again a real one. This placeholder
+            // used to read MEYER2027, which was the live invite code of the
+            // founder's own household -- shown to every signed-in account with
+            // no household, on the one screen built to accept a code.
+            placeholder="ABCD1234"
             required
           />
         </label>
