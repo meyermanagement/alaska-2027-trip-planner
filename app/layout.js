@@ -38,6 +38,33 @@ export const metadata = {
   // survives being read on one line.
   description:
     "Travel, Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
+  // The icons are declared here rather than dropped into app/ as icon.svg and
+  // favicon.ico, and they are named for the app rather than for the convention.
+  //
+  // Safari keeps a favicon database keyed on the icon's own address, and it is
+  // read before anything on the network is. /favicon.ico and /icon.svg are
+  // addresses it has held an answer for since the first time this site was ever
+  // opened, so replacing the bytes behind them changes nothing it will look at:
+  // it goes on serving whatever it filed, per page, which is why one screen can
+  // show one mark and the screen next to it another. Closing the tab does not
+  // clear it, and neither does closing Safari.
+  //
+  // These two addresses have never been asked for, so there is nothing filed
+  // under them and the only way to answer is to fetch. If the mark ever changes
+  // again, the file has to be renamed again -- rewriting it in place will look
+  // like it worked everywhere except the browsers that already know it.
+  //
+  // public/favicon.ico stays where it is, holding the same drawing, because a
+  // browser that ignores all of this and guesses at /favicon.ico should still
+  // get the right answer.
+  icons: {
+    icon: [
+      { url: "/alyeska-tab.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/alyeska-tab.ico", type: "image/x-icon", sizes: "48x48" },
+    ],
+    shortcut: "/alyeska-tab.ico",
+    apple: { url: "/alyeska-touch.png", sizes: "180x180", type: "image/png" },
+  },
 };
 
 export const viewport = {

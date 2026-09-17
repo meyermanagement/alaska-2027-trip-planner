@@ -9,13 +9,13 @@ painted once, in the colors of the skin they can never leave.
 The sources live here so the colors are recoverable, and each one is the exact
 markup that produced its shipped file:
 
-| Source                  | Ships as                           | Colors   |
-| ----------------------- | ---------------------------------- | -------- |
-| `favicon.svg`           | `app/icon.svg`, `app/favicon.ico`  | Midnight |
-| `app-icon.svg`          | `public/alyeska-icon.png`          | Midnight |
-| `app-icon-maskable.svg` | `public/alyeska-icon-maskable.png` | Midnight |
-| `apple-touch-icon.svg`  | `app/apple-icon.png`               | Midnight |
-| `email-mark.svg`        | `public/alyeska-mark.png`          | Daybreak |
+| Source                  | Ships as                                                                 | Colors   |
+| ----------------------- | ------------------------------------------------------------------------ | -------- |
+| `favicon.svg`           | `public/alyeska-tab.svg`, `public/alyeska-tab.ico`, `public/favicon.ico` | Midnight |
+| `app-icon.svg`          | `public/alyeska-icon.png`                                                | Midnight |
+| `app-icon-maskable.svg` | `public/alyeska-icon-maskable.png`                                       | Midnight |
+| `apple-touch-icon.svg`  | `public/alyeska-touch.png`                                               | Midnight |
+| `email-mark.svg`        | `public/alyeska-mark.png`                                                | Daybreak |
 
 The needle is teal at north falling through glacier to plum at the tails, with
 the north graduation in amber, which is the same aurora fill the app draws on
@@ -43,3 +43,22 @@ the source has no tile. Any renderer that honors `linearGradient` and
 `stroke-linecap` will do it -- there is no build step and nothing generates
 them on deploy, so if a color changes here, the PNGs have to be re-rendered and
 committed by hand. Emails already sent keep the mark they were sent with.
+
+## Why the tab files are not called favicon
+
+Safari keeps a favicon database keyed on the icon's own address, and reads it
+before it touches the network. `/favicon.ico` and `/icon.svg` are addresses it
+has held an answer for since the first time the site was opened, so rewriting
+the bytes behind them changes nothing it will look at -- it goes on serving what
+it filed, separately per page, so one screen shows one mark and the screen next
+to it another. Closing the tab does not clear it and neither does quitting
+Safari.
+
+So the tab files are named for the app and declared in `app/layout.js` under
+`metadata.icons`, rather than dropped into `app/` under the framework's
+conventional names. If the mark changes again, rename these files again.
+Rewriting them in place will look like it worked everywhere except the browsers
+that already know them, which includes yours.
+
+`public/favicon.ico` stays, holding the same drawing, for anything that ignores
+the declared links and guesses.
