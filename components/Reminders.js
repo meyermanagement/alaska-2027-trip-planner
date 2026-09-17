@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import ClearedTips from "@/components/ClearedTips";
 import Link from "next/link";
 import { PendingSpark } from "./LinkPending";
 import { useRouter } from "next/navigation";
@@ -428,7 +427,6 @@ export default function Reminders({
           </p>
         )}
       </div>
-      <ClearedTips />
     </section>
   );
 }

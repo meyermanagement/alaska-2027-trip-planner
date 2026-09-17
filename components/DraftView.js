@@ -119,6 +119,23 @@ export default function DraftView({
   // that says who is going has to move when somebody taps a name.
   const [going, setGoing] = useState(initialGoing);
   const [petLinks, setPetLinks] = useState(initialPetLinks);
+  // The same pair of jobs as the real trip screen: answer the tap here, then ask
+  // the server to draw again, because the contradictions this tap may have just
+  // created are worked out there.
+  const goingChanged = useCallback(
+    (next) => {
+      setGoing(next);
+      router.refresh();
+    },
+    [router],
+  );
+  const petLinksChanged = useCallback(
+    (next) => {
+      setPetLinks(next);
+      router.refresh();
+    },
+    [router],
+  );
 
   const progress = useMemo(() => basicsProgress(trip), [trip]);
   const next = useMemo(() => nextBasic(trip), [trip]);
@@ -294,9 +311,9 @@ export default function DraftView({
           people={travelers}
           pets={pets}
           going={going}
-          onGoingChange={setGoing}
+          onGoingChange={goingChanged}
           petLinks={petLinks}
-          onPetLinksChange={setPetLinks}
+          onPetLinksChange={petLinksChanged}
           packing={packing}
           readOnly={readOnly}
           draft

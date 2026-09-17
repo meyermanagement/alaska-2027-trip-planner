@@ -6,6 +6,7 @@ import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import ProTips from "@/components/ProTips";
+import ClearedTips from "@/components/ClearedTips";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
 import RewardsBoard from "./RewardsBoard";
 import DeclinedOffers from "./DeclinedOffers";
@@ -166,6 +167,9 @@ export default async function RewardsPage() {
           unreadable={Boolean(programsError)}
         />
         <DeclinedOffers offers={declinedOffers} />
+        {/* What the Wallet has already told you and you have already dealt with,
+            kept where it was said rather than on the Reminders screen. */}
+        <ClearedTips wallet />
         {/* Said once, at the bottom, rather than on every card. A welcome offer
             is a moving target and the only page that is authoritative about it is
             the issuer's own. */}

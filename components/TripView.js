@@ -28,6 +28,7 @@ import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
 import TripChanges from "./TripChanges";
+import ClearedTips from "./ClearedTips";
 import { lookSummary } from "@/lib/tips/run";
 import { lookedToday } from "@/lib/tips/tip";
 import { onTipResolved } from "@/lib/tips/cleared";
@@ -363,6 +364,31 @@ export default function TripView({
   // rather than on the Family tab: "is the dog coming to Curaçao" is a fact
   // about Curaçao, and answering it used to mean opening the dog.
   const [petLinks, setPetLinks] = useState(initialPetLinks);
+
+  // Who is on the trip is also what the contradictions are about, and those are
+  // worked out on the server on every draw. So the roster keeps its own state --
+  // the chips have to answer the tap immediately -- and then asks the server to
+  // draw the page again, because otherwise the one thing the tap most needed to
+  // cause cannot happen. Adding a horse to a trip with a sailing on it saved the
+  // horse, moved the packing list, and said nothing at all about the sailing
+  // until somebody happened to reload the page, which is exactly the load nobody
+  // does after they have just finished a thing.
+  const rosterChanged = useCallback(
+    (next, apply) => {
+      apply(next);
+      router.refresh();
+    },
+    [router],
+  );
+  const goingChanged = useCallback(
+    (next) => rosterChanged(next, setGoing),
+    [rosterChanged],
+  );
+  const petLinksChanged = useCallback(
+    (next) => rosterChanged(next, setPetLinks),
+    [rosterChanged],
+  );
+
   // The trip row itself can change under us: the database keeps the dates in
   // step with the itinerary, and anyone in the family can edit the details.
   const [info, setInfo] = useState(trip);
@@ -868,6 +894,11 @@ export default function TripView({
             onGo={setTab}
           />
         )}
+        {/* And what this trip has already been told and cleared, under the tips
+            it came from rather than at the foot of the Reminders screen, which
+            is where it used to be: a record of every trip's cleared advice on a
+            page about none of them. */}
+        {tab === "tips" && !readOnly && <ClearedTips tripId={trip.id} />}
         {tab === "overview" && (
           <>
             <TripOverview
@@ -875,9 +906,9 @@ export default function TripView({
               people={people}
               pets={pets}
               going={going}
-              onGoingChange={setGoing}
+              onGoingChange={goingChanged}
               petLinks={petLinks}
-              onPetLinksChange={setPetLinks}
+              onPetLinksChange={petLinksChanged}
               packing={packing}
               stats={stats}
               readOnly={readOnly}

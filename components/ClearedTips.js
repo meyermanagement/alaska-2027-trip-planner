@@ -1,28 +1,51 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
-import { WALLET_SCOPES } from "@/lib/tips/tip";
 import { announceTipResolved } from "@/lib/tips/cleared";
-import { tripPath } from "@/lib/trips/route";
 
 /**
  * The tips you have put away, kept where they can be found again.
  *
- * At the bottom of Reminders and shut by default, because that is what it is for:
- * a record rather than a screen. Nothing is fetched until it is opened, so the
- * list costs nothing on the days nobody wonders.
+ * Shut by default and under the advice it is a record of, because that is what
+ * it is for: a record rather than a screen. Nothing is fetched until it is
+ * opened, so the list costs nothing on the days nobody wonders.
  *
  * Worth keeping at all because clearing a tip is a judgement about a moment. "We
  * are not driving that road" is true until the itinerary changes; "we already have
  * a converter" is true until it is left in a drawer. Six months on, the list is
  * the only way to find out what the app stopped mentioning.
  *
+ * It sat at the bottom of Reminders until now, once, listing every tip the
+ * household had ever cleared with the trip named beside each line. Which put the
+ * one place you could look something up on the one screen it had nothing to do
+ * with, and made the list longer every month whether or not you were thinking
+ * about any of the trips in it. It now sits on the trip whose tips it holds, and
+ * in the Wallet for the Wallet's, so what it lists is always about the screen you
+ * are already reading.
+ *
  * It used to list only the tips pressed with Ignore, back when Clear and Ignore
  * were different buttons. They are one button now, and it lists everything put
  * away either way.
  */
-export default function ClearedTips() {
+
+// Where a cleared tip was cleared, in the words the app uses for those screens
+// elsewhere. Worth saying because a trip's record covers every tab: a line about
+// the ferry and a line about the suitcase read as the same kind of thing once
+// they are both in a list, and the difference is the only clue to where it will
+// reappear if you bring it back. "trip" says nothing, because a tip filed on the
+// trip itself came from the tab this list is sitting on.
+const CAME_FROM = {
+  item: "Itinerary",
+  packing: "Packing",
+  daypack: "Day packs",
+  offers: "Welcome offers",
+};
+
+export default function ClearedTips({
+  // Which record to show: one trip's, or the Wallet's. Exactly one of these.
+  tripId = null,
+  wallet = false,
+}) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -32,7 +55,8 @@ export default function ClearedTips() {
     setBusy(true);
     setProblem("");
     try {
-      const res = await fetch("/api/tips/cleared");
+      const query = wallet ? "wallet=1" : `trip=${encodeURIComponent(tripId)}`;
+      const res = await fetch(`/api/tips/cleared?${query}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "");
       setRows(json.tips || []);
@@ -40,7 +64,7 @@ export default function ClearedTips() {
       setProblem("Could not fetch those. Try opening it again.");
     }
     setBusy(false);
-  }, []);
+  }, [tripId, wallet]);
 
   const restore = useCallback(async (tip) => {
     setRows((prev) => (prev || []).filter((row) => row.id !== tip.id));
@@ -64,9 +88,11 @@ export default function ClearedTips() {
     }
   }, []);
 
+  if (!tripId && !wallet) return null;
+
   return (
     <details
-      className="no-print mt-10 border-t border-[var(--line)] pt-5"
+      className="no-print mt-8 border-t border-[var(--line)] pt-5"
       onToggle={(event) => {
         const isOpen = event.currentTarget.open;
         setOpen(isOpen);
@@ -88,8 +114,9 @@ export default function ClearedTips() {
         ) : null}
         {rows && !rows.length ? (
           <p className="text-sm leading-relaxed text-ink-soft">
-            Nothing cleared yet. Anything you clear ends up here, in case it
-            stops being wrong, and can be brought back.
+            {wallet
+              ? "Nothing cleared here yet. Anything you clear in the Wallet ends up here, in case it stops being wrong, and can be brought back."
+              : "Nothing cleared on this trip yet. Anything you clear — here, on the Itinerary, or on the packing list — ends up here, in case it stops being wrong, and can be brought back."}
           </p>
         ) : null}
         {rows && rows.length ? (
@@ -103,20 +130,10 @@ export default function ClearedTips() {
                   <h4 className="font-semibold leading-snug text-ink-soft">
                     {tip.title}
                   </h4>
-                  {WALLET_SCOPES.includes(tip.scope) ? (
-                    <Link
-                      href="/wallet"
-                      className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                    >
-                      {tip.about || "Wallet"}
-                    </Link>
-                  ) : tip.trips?.slug || tip.trips?.public_id ? (
-                    <Link
-                      href={tripPath(tip.trips)}
-                      className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal"
-                    >
-                      {tip.trips.name}
-                    </Link>
+                  {CAME_FROM[tip.scope] ? (
+                    <span className="text-2xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
+                      {CAME_FROM[tip.scope]}
+                    </span>
                   ) : null}
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-ink-faint">
