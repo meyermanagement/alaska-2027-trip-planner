@@ -28,6 +28,7 @@ import {
 import { SCOPES, sameSubject, sameWindowTitle } from "@/lib/tips/tip";
 import { taskFloorRows } from "@/lib/tasks/floor";
 import { applyPackingFloor } from "@/lib/packing/floor";
+import { circumstanceSnapshot } from "@/lib/trips/circumstances";
 
 export const runtime = "nodejs";
 // Longer than the platform's default because a grounded look genuinely takes
@@ -368,6 +369,10 @@ export async function POST(request) {
     { data: costs },
     { data: tripPolicies },
     { data: policyTravelers },
+    { data: pets },
+    { data: petLinks },
+    { data: limits },
+    { data: household },
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -429,6 +434,30 @@ export async function POST(request) {
     supabase
       .from("insurance_policy_travelers")
       .select("policy_id, traveler_id"),
+    // The last four reads are not for the brief. They are the circumstances this
+    // look is being run under -- the roster with its ages and aids, the animals
+    // coming and how they travel, what anybody cannot do, and where the family
+    // lives -- recorded on the trip at the end so a later page draw can say what
+    // has drifted since. Cheap, parallel, and the reason the trip screen does not
+    // have to ask a model whether anything has changed.
+    supabase
+      .from("pets")
+      .select("id, name, species, weight_lb, is_service_animal")
+      .eq("family_id", trip.family_id),
+    supabase
+      .from("trip_pets")
+      .select("pet_id, arrangement")
+      .eq("trip_id", tripId),
+    supabase
+      .from("household_facts")
+      .select("id, traveler_id, slot, body")
+      .eq("family_id", trip.family_id)
+      .eq("slot", "limits"),
+    supabase
+      .from("families")
+      .select("home_address")
+      .eq("id", trip.family_id)
+      .maybeSingle(),
   ]);
 
   const travelers = (going || []).map((row) => row.travelers).filter(Boolean);
@@ -749,6 +778,31 @@ export async function POST(request) {
   // returned an error above should not count as one -- the point of the gate
   // is "we successfully asked today", not "we tried today".
   await bumpLookedAt({ supabase, tripId });
+
+  // And record the household this look was run against. A normal look is the
+  // strongest possible answer to "has anything changed?", so it clears the
+  // changes band by itself and the reader never has to press two buttons to say
+  // the same thing. A failure here is silent on purpose: the tips above are
+  // saved and useful, and the worst case is a band that offers a look the family
+  // has effectively already had.
+  const { error: stampError } = await supabase
+    .from("trips")
+    .update({
+      circumstances: circumstanceSnapshot({
+        people: travelers,
+        going: travelers.map((person) => person.id),
+        pets: pets || [],
+        petLinks: petLinks || [],
+        facts: limits || [],
+        home: household?.home_address || null,
+      }),
+      circumstances_at: new Date().toISOString(),
+    })
+    .eq("id", tripId);
+  if (stampError)
+    console.log(
+      `[tips/refresh] circumstances NOT saved trip=${tripId}: ${stampError.message}`,
+    );
 
   return NextResponse.json({
     step: scope,

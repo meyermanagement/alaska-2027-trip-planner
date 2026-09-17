@@ -27,6 +27,7 @@ import Insurance from "./Insurance";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
+import TripChanges from "./TripChanges";
 import { lookSummary } from "@/lib/tips/run";
 import { lookedToday } from "@/lib/tips/tip";
 import { onTipResolved } from "@/lib/tips/cleared";
@@ -190,6 +191,13 @@ export default function TripView({
   // arrives with the page rather than after it. It sits under Overview, which is
   // the tab that answers what this trip is and how it is coming along.
   fares = null,
+  // Two things about the household this trip may no longer match, both worked out
+  // on the server on every draw and stored nowhere. `contradictions` is
+  // arithmetic -- a dog on a sailing that takes no dogs -- and cannot be waved
+  // off. `changes` is drift from the circumstances the trip was last planned
+  // against, and can be answered either by looking again or by saying it's fine.
+  contradictions = [],
+  changes = [],
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -721,6 +729,20 @@ export default function TripView({
           </div>
         )}
       </section>
+
+      {/* What the family has changed since this trip was planned, and what on it
+          cannot happen at all. Between the header and the tabs on purpose: it is
+          about the whole trip rather than any one tab, and a reader who has just
+          added a wheelchair on the Family tab should meet it before choosing
+          where to look. Nothing is drawn when nothing has drifted. */}
+      <TripChanges
+        contradictions={contradictions}
+        changes={changes}
+        tripId={trip.id}
+        readOnly={readOnly}
+        onGo={setTab}
+        onDone={() => router.refresh()}
+      />
 
       {/* Four doors, and a second row only where a door has more than one thing
           behind it. The bar can still scroll sideways -- a long trip name does

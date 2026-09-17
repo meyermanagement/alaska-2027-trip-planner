@@ -12,6 +12,11 @@ import { parseTripRef, tripRef, needsCanonical } from "@/lib/trips/route";
 import TripFares from "@/components/TripFares";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
+import {
+  circumstanceSnapshot,
+  changesBetween,
+} from "@/lib/trips/circumstances";
+import { tripContradictions } from "@/lib/trips/contradictions";
 
 // Finding the trip this URL is talking about.
 //
@@ -125,6 +130,7 @@ export default async function TripPage({ params, searchParams }) {
     dayPack,
     deals,
     household,
+    limits,
   ] = await Promise.all([
     supabase
       .from("itinerary_items")
@@ -162,7 +168,9 @@ export default async function TripPage({ params, searchParams }) {
       .order("created_at", { ascending: true }),
     supabase
       .from("travelers")
-      .select("id, name, color, is_person, sort_order")
+      .select(
+        "id, name, color, is_person, sort_order, date_of_birth, mobility_aids, accessibility_notes",
+      )
       .eq("family_id", trip.family_id)
       .order("sort_order", { ascending: true }),
     supabase
@@ -214,7 +222,9 @@ export default async function TripPage({ params, searchParams }) {
     // inside the dog's card on the Family tab.
     supabase
       .from("pets")
-      .select("id, name, species, color, weight_lb, travel_style, family_id")
+      .select(
+        "id, name, species, color, weight_lb, travel_style, family_id, is_service_animal, rabies_expiration, health_certificate_expiration",
+      )
       .eq("family_id", trip.family_id)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
@@ -254,9 +264,17 @@ export default async function TripPage({ params, searchParams }) {
     // can hand it over without a trip to /inbox first.
     supabase
       .from("families")
-      .select("inbox_local_part")
+      .select("inbox_local_part, home_address")
       .eq("id", trip.family_id)
       .maybeSingle(),
+    // What anybody on this trip cannot do, each row filed against one person or
+    // against the whole household. Read here because a limit added after the trip
+    // was planned is one of the things the trip has to notice.
+    supabase
+      .from("household_facts")
+      .select("id, traveler_id, slot, body")
+      .eq("family_id", trip.family_id)
+      .eq("slot", "limits"),
   ]);
 
   // A draft gets its own screen. The trip screen below is built to answer "what
@@ -293,6 +311,28 @@ export default async function TripPage({ params, searchParams }) {
       unbooked={flightsToBuy}
     />
   );
+
+  // What the family has changed since this trip was last planned, and what on it
+  // cannot be true at all. Both worked out here on every load rather than stored:
+  // the first is two sorted lists compared, the second is arithmetic on dates, and
+  // neither can go stale because neither is written down. A trip that has never
+  // been stamped has no assumption to have broken, so its drift list is empty.
+  const nowCircumstances = circumstanceSnapshot({
+    people: travelers.data || [],
+    going: (roster.data || []).map((r) => r.traveler_id),
+    pets: pets.data || [],
+    petLinks: petLinks.data || [],
+    facts: limits.data || [],
+    home: household.data?.home_address || null,
+  });
+  const drift = changesBetween(trip.circumstances, nowCircumstances);
+  const contradictions = tripContradictions({
+    trip,
+    itinerary: orderedItinerary,
+    pets: pets.data || [],
+    petLinks: petLinks.data || [],
+    today: todayISO(),
+  });
 
   if (isDraftTrip(trip)) {
     return (
@@ -344,6 +384,8 @@ export default async function TripPage({ params, searchParams }) {
         userId={user.id}
         userName={profile?.display_name || "Family member"}
         fares={faresPanel}
+        changes={drift}
+        contradictions={contradictions}
       />
     </>
   );
