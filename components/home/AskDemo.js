@@ -286,6 +286,31 @@ export default function AskDemo() {
         backdropFilter: "blur(10px)",
       }}
     >
+      {/* What this is, said before it plays rather than after. The line used to
+          sit under the transcript, which meant a reader watched an answer
+          arrive with no idea whether they were looking at a real session, a
+          recording of one, or a piece of copy -- and only found out once they
+          had finished reading. A caption at the foot of a thing that plays is a
+          caption most people never reach. */}
+      <div
+        className="mb-4 border-b pb-3"
+        style={{ borderColor: "rgba(246,243,236,0.16)" }}
+      >
+        <p
+          className="text-[11px] font-semibold uppercase tracking-[0.14em]"
+          style={{ color: "rgba(246,243,236,0.62)" }}
+        >
+          An example conversation
+        </p>
+        <p
+          className="mt-1.5 text-[12px] leading-relaxed"
+          style={{ color: "rgba(246,243,236,0.58)" }}
+        >
+          A real answer is built from your own trip, your own travelers and your
+          own wallet.
+        </p>
+      </div>
+
       <div
         ref={scrollRef}
         className="home-ask-window"
@@ -342,17 +367,6 @@ export default function AskDemo() {
           );
         })}
       </div>
-
-      <p
-        className="mt-4 border-t pt-3 text-[12px]"
-        style={{
-          borderColor: "rgba(246,243,236,0.16)",
-          color: "rgba(246,243,236,0.58)",
-        }}
-      >
-        An example, played out. A real answer is built from your own trip, your
-        own travelers and your own wallet.
-      </p>
     </div>
   );
 }
