@@ -8344,3 +8344,90 @@ html[data-skin="sodium"] .arc-pill.kid::before {
     0 0 0 3px color-mix(in srgb, var(--color-teal) 35%, transparent),
     0 1px 3px rgb(0 0 0 / 18%);
 }
+
+/* The front door's hero. One photograph of somewhere worth going, held behind a
+   scrim dark enough that light text on it clears contrast in every skin -- the
+   root is a public path, so middleware writes no skin cookie and a stranger
+   gets whatever the default is, which means the hero cannot borrow a single
+   color from the palette. Everything on it is explicit.
+
+   The photograph drifts and scales over half a minute, once, and never loops
+   back: a still image that is very slowly still moving reads as a place rather
+   than a wallpaper, and a loop that snaps back to its start is the one thing
+   that would give it away. Somebody who has asked for less movement gets it
+   parked at the middle of the drift. */
+.home-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: #0e161c;
+}
+
+.home-hero-shot {
+  position: absolute;
+  inset: -4%;
+  z-index: 0;
+  background-image: url("/landing/maui.jpg");
+  background-size: cover;
+  background-position: 58% 46%;
+  transform: scale(1.06);
+  animation: home-drift 34s cubic-bezier(0.33, 0, 0.2, 1) both;
+}
+
+@keyframes home-drift {
+  from {
+    transform: scale(1.12) translate3d(1.4%, -0.9%, 0);
+  }
+
+  to {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+/* Two gradients rather than one flat wash: the bottom-left corner carries the
+   headline and the answer card and has to go properly dark, while the top edge
+   only has to hold a lockup and a Sign in, so the middle of the frame is left
+   as close to the photograph as the text will allow. */
+.home-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      to top,
+      rgba(8, 14, 19, 0.94) 0%,
+      rgba(8, 14, 19, 0.82) 26%,
+      rgba(8, 14, 19, 0.34) 58%,
+      rgba(8, 14, 19, 0.44) 100%
+    ),
+    linear-gradient(
+      to right,
+      rgba(8, 14, 19, 0.62) 0%,
+      rgba(8, 14, 19, 0.18) 52%,
+      rgba(8, 14, 19, 0) 100%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-shot {
+    animation: none;
+    transform: scale(1.06);
+  }
+}
+
+/* On a phone the headline and the paragraph start near the top of the frame
+   rather than low in it, so the bottom-weighted scrim leaves them over the
+   brightest part of the photograph. Narrow screens get a flatter, darker wash
+   instead: the place is still legible behind it, and the words clear contrast
+   without having to be boxed. */
+@media (max-width: 767.98px) {
+  .home-hero-scrim {
+    background: linear-gradient(
+      to top,
+      rgba(8, 14, 19, 0.95) 0%,
+      rgba(8, 14, 19, 0.86) 42%,
+      rgba(8, 14, 19, 0.78) 78%,
+      rgba(8, 14, 19, 0.66) 100%
+    );
+  }
+}
