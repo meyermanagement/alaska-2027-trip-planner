@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { announceTipResolved } from "@/lib/tips/cleared";
+import { ChevronDisc } from "./ChevronDisc";
 
 /**
  * The tips you have put away, kept where they can be found again.
@@ -26,6 +27,13 @@ import { announceTipResolved } from "@/lib/tips/cleared";
  * It used to list only the tips pressed with Ignore, back when Clear and Ignore
  * were different buttons. They are one button now, and it lists everything put
  * away either way.
+ *
+ * Each line inside it is shut too, the way a live tip on the Tips tab is, and for
+ * a stronger version of the same reason: a record only grows, so a year in this
+ * is twenty paragraphs behind one summary rather than six. The title, the screen
+ * it was cleared on and the day it was cleared carry the row -- enough to find
+ * the one you came looking for -- and the advice itself, its reason and the
+ * button that brings it back are a tap further in.
  */
 
 // Where a cleared tip was cleared, in the words the app uses for those screens
@@ -40,6 +48,77 @@ const CAME_FROM = {
   daypack: "Day packs",
   offers: "Welcome offers",
 };
+
+// The day a tip was put away, which is most of what somebody is looking for when
+// they open this: a line cleared the week the itinerary changed means something
+// different from one cleared a year ago. Said on the row itself rather than in
+// the body, because with every row shut it is the only thing besides the title
+// that distinguishes them, and it is what the list is in order of.
+function clearedOn(value) {
+  if (!value) return "";
+  const when = new Date(value);
+  if (Number.isNaN(when.getTime())) return "";
+  return when.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// One cleared tip, shut. The same shape a live tip has on the Tips tab, for the
+// same reason: a tip is a paragraph, a reason and a button, and a record of
+// twenty of them opened all at once is a wall rather than a list. The title and
+// the two things that place it -- where it was cleared and when -- carry the
+// row, and the rest is a tap away.
+//
+// It is quieter than a live tip throughout, in the softer inks rather than the
+// body's own: these are the tips the household has already decided against, and
+// they should not compete with the advice above them for the same eye.
+function ClearedCard({ tip, onRestore }) {
+  const [open, setOpen] = useState(false);
+  const from = CAME_FROM[tip.scope];
+  const on = clearedOn(tip.resolved_at);
+  const said = [from, on].filter(Boolean).join(" · ");
+
+  return (
+    <li className="rounded-xl border border-[var(--line)] bg-white/60">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 p-4 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          {said ? (
+            <span className="block text-2xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
+              {said}
+            </span>
+          ) : null}
+          <span className="mt-1.5 block font-semibold leading-snug text-ink-soft">
+            {tip.title}
+          </span>
+        </span>
+        <ChevronDisc open={open} quiet />
+      </button>
+
+      <div className={open ? "px-4 pb-4" : "hidden px-4 pb-4 print:block"}>
+        <p className="text-sm leading-relaxed text-ink-faint">{tip.body}</p>
+        {tip.because ? (
+          <p className="mt-2 border-l-2 border-[var(--line)] pl-3 text-sm leading-relaxed text-ink-faint">
+            Why you: {tip.because}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onRestore(tip)}
+          className="btn btn-ghost no-print mt-3 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.06em]"
+        >
+          Bring it back
+        </button>
+      </div>
+    </li>
+  );
+}
 
 export default function ClearedTips({
   // Which record to show: one trip's, or the Wallet's. Exactly one of these.
@@ -122,31 +201,7 @@ export default function ClearedTips({
         {rows && rows.length ? (
           <ul className="space-y-3">
             {rows.map((tip) => (
-              <li
-                key={tip.id}
-                className="rounded-xl border border-[var(--line)] bg-white/60 p-4"
-              >
-                <div className="flex flex-wrap items-baseline gap-x-2">
-                  <h4 className="font-semibold leading-snug text-ink-soft">
-                    {tip.title}
-                  </h4>
-                  {CAME_FROM[tip.scope] ? (
-                    <span className="text-2xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-                      {CAME_FROM[tip.scope]}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-sm leading-relaxed text-ink-faint">
-                  {tip.body}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => restore(tip)}
-                  className="btn btn-ghost mt-3 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.06em]"
-                >
-                  Bring it back
-                </button>
-              </li>
+              <ClearedCard key={tip.id} tip={tip} onRestore={restore} />
             ))}
           </ul>
         ) : null}

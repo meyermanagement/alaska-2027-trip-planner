@@ -8,6 +8,7 @@ import { lookOpening, lookSummary, runLook } from "@/lib/tips/run";
 import { formatFullDay } from "@/lib/format";
 import { offerDate, offerHost } from "@/lib/rewards-offers";
 import { Spinner } from "./LinkPending";
+import { ChevronDisc } from "./ChevronDisc";
 import { BinocularsIcon } from "./Icons";
 import { mayWrite } from "@/lib/travelers/allowed";
 import { SECONDARY } from "@/lib/travelers/access";
@@ -493,10 +494,9 @@ const TONES = {
 // first tap; what a screen holds is not obvious if the top of it is filled.
 //
 // Because nothing is open on arrival, the chevron has to carry the whole
-// invitation. A bare 16px stroke in the body's own gray reads as punctuation, so
-// it sits in a tinted disc in the accent color: the same shape the day-pack band
-// and the menu dial use for something that opens, at a size the eye finds while
-// scanning past the titles.
+// invitation, which is what ChevronDisc is: a tinted disc in the accent color,
+// shared with the record of cleared tips under this list so the two kinds of tip
+// cannot end up opening differently.
 //
 // The body is in the tree either way and hidden with a class rather than
 // unmounted, so printing a trip prints every tip in full.
@@ -526,22 +526,7 @@ function TipCard({ tip, today, offer, onResolve, onTask }) {
             {tip.title}
           </span>
         </span>
-        <span
-          aria-hidden="true"
-          className={`no-print grid size-8 shrink-0 place-items-center rounded-full border border-teal/30 bg-teal-soft text-teal transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        >
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M4 6.5L8 10.5L12 6.5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
+        <ChevronDisc open={open} />
       </button>
 
       <div className={open ? "px-4 pb-4" : "hidden px-4 pb-4 print:block"}>
