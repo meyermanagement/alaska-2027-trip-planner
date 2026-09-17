@@ -166,9 +166,17 @@ export default function HomeLanding() {
                   bezelColor="rgba(246,243,236,0.5)"
                 />
               </span>
-              <p className="aly-word font-display text-[21px]">
+              {/* A step up from the 21px the wordmark wears inside the app.
+                  This is the only place a stranger meets the name, and the
+                  headline under it is 48px, so at 21px the lockup read as
+                  furniture above the real thing. The rule grows with it:
+                  it is meant to sit under the word, not under part of it. */}
+              <p className="aly-word font-display text-[24px] sm:text-[26px]">
                 Alyeska
-                <span className="aly-word-rule" />
+                <span
+                  className="aly-word-rule"
+                  style={{ width: "3rem", marginTop: "0.45rem" }}
+                />
               </p>
             </div>
             <Link
