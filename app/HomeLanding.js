@@ -133,6 +133,36 @@ function Tip({ when, title, source }) {
   );
 }
 
+/**
+ * One stage of the run-up: when it is due, what it is, and why it is dated
+ * there. The rail down the left is what makes five rows read as one stretch of
+ * time rather than five unrelated errands.
+ */
+function Stage({ when, on, title, sub, last }) {
+  return (
+    <div className="relative pl-5">
+      <span
+        aria-hidden="true"
+        className="absolute left-[3px] top-[7px] h-[7px] w-[7px] rounded-full bg-[var(--color-teal)]"
+      />
+      {last ? null : (
+        <span
+          aria-hidden="true"
+          className="absolute bottom-0 left-[6px] top-[16px] w-px bg-[var(--line)]"
+        />
+      )}
+      <div className={last ? "" : "pb-3.5"}>
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="section-label text-[11px]">{when}</p>
+          <p className="shrink-0 text-[12px] text-ink-soft">{on}</p>
+        </div>
+        <p className="mt-0.5 text-[14px] font-semibold leading-snug">{title}</p>
+        <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{sub}</p>
+      </div>
+    </div>
+  );
+}
+
 /** A row inside one of the product panels below. */
 function Row({ left, right, sub, last }) {
   return (
@@ -350,14 +380,61 @@ export default function HomeLanding() {
         <Scene
           label="Before you go"
           flip
-          title="The week before stops being a scramble."
-          body="Every task is dated against your actual departure, not left on a list to be remembered: the passport that expires too soon, the hold on the mail, the bag that has to be packed the night before. The packing list is built from who is going and what the place is like, and the things nobody remembers are already on it."
+          title="From the day you book to the morning you leave."
+          body="The work does not start the week before, and neither does Alyeska. Every task is dated against your actual departure and arrives when you can act on it — the car held before the prices climb, the boat booked while there are still seats, the mail stopped, the bag packed the night before, the drive timed on the morning itself. Nothing sits on a list you reread every Sunday. The packing list is built from who is going and what the place is like, and the things nobody remembers are already on it."
           media={
-            <Shot
-              src="/landing/packing.jpg"
-              alt="An open case half packed on a bed in morning light, a sun hat on the lid and a child's backpack beside it"
-              className="aspect-[4/3] lg:aspect-[5/4]"
-            />
+            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
+              <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
+                <img
+                  src="/landing/packing.jpg"
+                  alt="An open case half packed on a bed in morning light, a sun hat on the lid and a child's backpack beside it"
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-[132px] w-full object-cover"
+                />
+              </div>
+
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="font-display text-[17px] font-semibold">
+                  Maui, in March
+                </p>
+                <p className="text-[13px] text-ink-soft">You leave March 14</p>
+              </div>
+
+              <div className="mt-4">
+                <Stage
+                  when="Book now"
+                  on="Jan 6"
+                  title="Hold the condo and the car"
+                  sub="Both climb over the new year"
+                />
+                <Stage
+                  when="A month out"
+                  on="Feb 12"
+                  title="Book the morning snorkel boat"
+                  sub="The early one goes first, and Mia is nine"
+                />
+                <Stage
+                  when="Week before"
+                  on="Mar 7"
+                  title="Stop the mail, tell the neighbor"
+                  sub="Seven days of post in the box otherwise"
+                />
+                <Stage
+                  when="Day before"
+                  on="Mar 13"
+                  title="Pack from the list, chargers last"
+                  sub="Built from who is going and what Maui is like"
+                />
+                <Stage
+                  when="Travel day"
+                  on="Mar 14"
+                  title="Leave by 8:05 for the 10:40 flight"
+                  sub="Timed from your door, not from the city"
+                  last
+                />
+              </div>
+            </div>
           }
         />
 
