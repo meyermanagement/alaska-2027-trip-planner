@@ -535,6 +535,37 @@ let lifted = false;
 // short opening ends up playing the arrival a second later.
 let pick = null;
 
+/**
+ * The moment this document's opening started, in the same units performance.now()
+ * speaks.
+ *
+ * Both openings are CSS keyframes on markup that is in the first frame of HTML,
+ * so they begin when the browser first paints the veil -- not when the navigation
+ * started, and not when this component hydrated. The script under the veil markup
+ * in app/layout.js stamps that frame onto window.__alyBoot, which is the one place
+ * in the document no re-render can reach.
+ *
+ * Three fallbacks, in descending order of how well they answer the question. The
+ * browser's own first-paint entry is as good as the stamp and survives a script
+ * that did not run. Then the navigation, which is what this used to use and is
+ * wrong by however long the document took to paint. Zero is not among them: a
+ * clock that never started is a veil that never lifts.
+ */
+function paintAnchor() {
+  const stamped = window.__alyBoot?.painted;
+  if (typeof stamped === "number") return stamped;
+  try {
+    const paint = performance.getEntriesByType("paint");
+    const first = paint.find(
+      (entry) => entry.name === "first-contentful-paint",
+    );
+    if (first) return first.startTime;
+  } catch {
+    // No paint timing on this browser. The navigation it is.
+  }
+  return 0;
+}
+
 export default function BootVeil() {
   const [gone, setGone] = useState(lifted);
   const veil = useRef(null);
@@ -665,7 +696,21 @@ export default function BootVeil() {
       leave = setTimeout(() => setGone(true), REMOVE_MS);
     };
 
-    const cap = setTimeout(lift, quick ? QUICK_CAP_MS : CAP_MS);
+    // The longest the veil may stay up, measured from the same moment the hold
+    // is: the frame the opening was painted in. It used to be measured from this
+    // effect, which runs at hydration -- later than the paint, and later by an
+    // unknown amount -- so on a slow hydration the cap could fall after the
+    // stylesheet's own fail-safe, which is anchored to the paint because CSS
+    // animation delays always are. The veil would then fade out without anything
+    // setting data-booted, leaving the element in the document with nothing left
+    // to take it away. Both clocks now start together, and the ordering the two
+    // constants were chosen for holds again.
+    const paintedAt = paintAnchor();
+    const capIn = Math.max(
+      0,
+      (quick ? QUICK_CAP_MS : CAP_MS) - (performance.now() - paintedAt),
+    );
+    const cap = setTimeout(lift, capIn);
 
     // Two frames after mount is the earliest the browser has actually painted
     // what hydration produced, and the fonts matter because lifting onto text
@@ -679,10 +724,19 @@ export default function BootVeil() {
 
     let wait = null;
     ready.then(() => {
-      // performance.now() is milliseconds since the navigation started, which
-      // is the moment the family pressed the icon -- the only anchor worth
-      // measuring the hold from.
-      const left = Math.max(0, hold - performance.now());
+      // The hold is measured from the moment the opening actually started, not
+      // from the moment the navigation did.
+      //
+      // Both openings are CSS keyframes on markup that is in the first frame of
+      // HTML, so they begin when the browser first paints the veil. This used to
+      // subtract performance.now() -- milliseconds since the navigation -- which
+      // charged the animation for everything the document spent getting to that
+      // paint. On a sign-in that took a second to arrive, the arrival's tagline
+      // turn was cut short by a second: three words at 1.9s each, and the third
+      // one never came. The needle's settle was clipped the same way.
+      //
+      // paintAnchor() above is where that moment comes from.
+      const left = Math.max(0, hold - (performance.now() - paintAnchor()));
       wait = setTimeout(lift, left);
     });
 

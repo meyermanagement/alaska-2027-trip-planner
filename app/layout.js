@@ -209,11 +209,26 @@ if(!paint())document.addEventListener("DOMContentLoaded",paint);
 // the arrival gets on screen. This observer is plain script written before the
 // first paint, so there is no moment it is not watching. It stops the first time
 // it sees the veil has lifted, and gives up after twelve seconds regardless.
+//
+// It also writes down the moment the opening actually started, which is the one
+// number components/BootVeil.js cannot work out for itself. Both openings are
+// CSS keyframes on markup that is in the first frame of HTML, so they begin when
+// the browser first paints the veil -- and the hold that decides when to lift
+// used to be measured from performance.now(), which counts from the navigation.
+// Everything the document spent getting to that first paint was therefore
+// subtracted from the animation somebody watched: on a sign-in that took a
+// second to paint, the tagline's third word never arrived and the needle's
+// settle was clipped with it. A frame callback from here is the closest honest
+// anchor -- it runs immediately before the paint that starts the keyframes, and
+// it is on the window, which is the one place in this document no re-render can
+// reach.
 const pinBoot = `(function(){try{
 var d=document.documentElement;
 var mode=d.dataset.boot==="quick"?"quick":"full",route=d.dataset.route||"1";
-var pin={mode:mode,route:route};
+var pin={mode:mode,route:route,painted:null};
 window.__alyBoot=pin;
+if(typeof requestAnimationFrame==="function")
+requestAnimationFrame(function(){if(pin.painted===null)pin.painted=performance.now();});
 var mo=null;
 var fix=function(){
 if(d.dataset.booted){if(mo)mo.disconnect();return;}
