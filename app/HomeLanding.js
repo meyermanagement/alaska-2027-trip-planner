@@ -717,9 +717,25 @@ export default function HomeLanding() {
       <footer className="mx-auto w-full max-w-[74rem] px-5 sm:px-8">
         <div className="border-t border-[var(--line)] py-8">
           <p className="text-[13px] leading-relaxed text-ink-soft">
-            Alyeska is a household travel planner by CRM Elite Cohort. Written
-            to be read without an account: the policy, the terms, the promises,
-            the way to reach us, and where to report a security finding.
+            {/* No pitch and no operator credit in the footer, on purpose.
+
+                The operator is named where it is enforceable: the controller on
+                /privacy and the counterparty on /beta-terms, both linked
+                directly below and both versioned, so renaming it forces every
+                tester to consent again. A credit here would add no obligation
+                those pages do not already carry.
+
+                The descriptor went too. By the time somebody has scrolled this
+                far the page has said what this is in the eyebrow, the headline
+                and the hero paragraph, so a one-line pitch above the legal
+                shelf was repeating an argument that already landed. It also
+                avoided having to settle whether Alyeska and Aly are two things
+                or one name at two lengths -- a sentence naming both as actor and
+                instrument reads as her working with herself, and that question
+                is not the footer's to answer. */}
+            Written to be read without an account: the policy, the terms, the
+            promises, the way to reach us, and where to report a security
+            finding.
           </p>
           <nav className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
             <Link href="/pledge" className="underline">
