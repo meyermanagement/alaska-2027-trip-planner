@@ -9,13 +9,22 @@ painted once, in the colors of the skin they can never leave.
 The sources live here so the colors are recoverable, and each one is the exact
 markup that produced its shipped file:
 
-| Source                  | Ships as                                                                 | Colors   |
-| ----------------------- | ------------------------------------------------------------------------ | -------- |
-| `favicon.svg`           | `public/alyeska-tab.svg`, `public/alyeska-tab.ico`, `public/favicon.ico` | Midnight |
-| `app-icon.svg`          | `public/alyeska-icon.png`                                                | Midnight |
-| `app-icon-maskable.svg` | `public/alyeska-icon-maskable.png`                                       | Midnight |
-| `apple-touch-icon.svg`  | `public/alyeska-touch.png`                                               | Midnight |
-| `email-mark.svg`        | `public/alyeska-mark.png`                                                | Daybreak |
+| Source                  | Ships as                                                                               | Colors   |
+| ----------------------- | -------------------------------------------------------------------------------------- | -------- |
+| `favicon.svg`           | `public/alyeska-tab-<hash>.svg`, `public/alyeska-tab-<hash>.ico`, `public/favicon.ico` | Midnight |
+| `app-icon.svg`          | `public/alyeska-icon.png`                                                              | Midnight |
+| `app-icon-maskable.svg` | `public/alyeska-icon-maskable.png`                                                     | Midnight |
+| `apple-touch-icon.svg`  | `public/alyeska-touch.png`                                                             | Midnight |
+| `email-mark.svg`        | `public/alyeska-mark.png`                                                              | Daybreak |
+
+The two tab files carry the first six characters of their own SHA-256 in the
+filename, currently `80b12e` and `02a365`. That is deliberate and load-bearing:
+Safari files an icon under its address in a database it reads before the network,
+so rewriting the bytes behind a name it already knows changes nothing it will
+look at, on any page it has already filed. Redraw the favicon and you must
+rehash, rename both files and change the two `icons` lines in `app/layout.js`.
+`public/favicon.ico` keeps its conventional name on purpose, for anything that
+guesses rather than reads the tags.
 
 The needle is teal at north falling through glacier to plum at the tails, with
 the north graduation in amber, which is the same aurora fill the app draws on
