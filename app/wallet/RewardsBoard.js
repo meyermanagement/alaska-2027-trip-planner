@@ -10,7 +10,8 @@ import {
   catalogByKind,
   catalogEntry,
 } from "@/lib/rewards-catalog";
-import { ASK_ALY_EVENT, BubbleIcon } from "@/components/AskAlyTrigger";
+import { BubbleIcon } from "@/components/AskAlyTrigger";
+import PayAsk, { PAY_ASK_EVENT } from "./PayAsk";
 import { ChevronDisc } from "@/components/ChevronDisc";
 import {
   CREDIT_PERIODS,
@@ -41,24 +42,6 @@ const SPENDS = [
 ];
 
 /** The filter value meaning "the ones nobody in particular holds". */
-
-/**
- * The question this screen exists to answer, written out so nobody has to type
- * it. It is seeded rather than sent: the last line is the part only the person
- * asking knows, and Aly cannot guess what is about to be booked. Everything
- * before it is the reasoning we want applied every time -- which card, which
- * credit, points against cash, and whether the way you book changes the answer.
- */
-function payAskRequest() {
-  return [
-    "Using our Wallet, work out the best way to pay for and book this.",
-    "Say which card it should go on and why, whether any statement credit we hold covers part of it,",
-    "and whether paying with points or miles from one of our programs beats paying cash.",
-    "If it matters how we book it -- direct with the airline, hotel or line, through a card portal, through an agency --",
-    "say which way earns or saves the most.",
-    "\n\nWhat I am booking: ",
-  ].join(" ");
-}
 
 const BLANK = {
   kind: "credit_card",
@@ -270,12 +253,12 @@ export default function RewardsBoard({
     [rows, travelers],
   );
 
+  // The button opens a box rather than the chat, because the one thing this
+  // screen cannot guess is what is about to be bought -- and the reasoning it
+  // used to paste into the chat for the person now lives in the prompt for this
+  // screen, where the rest of it already was.
   function askHowToPay() {
-    window.dispatchEvent(
-      new CustomEvent(ASK_ALY_EVENT, {
-        detail: { seed: payAskRequest(), autoSend: false, focus: "rewards" },
-      }),
-    );
+    window.dispatchEvent(new CustomEvent(PAY_ASK_EVENT));
   }
 
   const payWith = useMemo(() => {
@@ -351,6 +334,7 @@ export default function RewardsBoard({
 
   return (
     <div className="space-y-8">
+      <PayAsk />
       {/* Shut on arrival, and first on the screen, directly under Pro tips.
           Advice belongs with advice: this panel and the tips above it are the two
           things here the app worked out rather than the family typed in, so they
