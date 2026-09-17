@@ -140,6 +140,25 @@ const TRIP_ROWS = [
     sub: "Trips already taken",
     Icon: CameraIcon,
   },
+  {
+    // The reusable lists, in with the trips rather than under a checklist. A
+    // packing template is not work that is due -- it is a thing you keep and
+    // spend again, which is what every other row in this group is.
+    href: "/packing",
+    label: "Packing",
+    sub: "The lists every trip starts from",
+    Icon: ShirtIcon,
+  },
+  {
+    // Forwarded bookings, fare alerts and policies, waiting to be put on a trip.
+    // In this group because every one of them is about a trip -- filing a
+    // confirmation is how a trip gets the half of itself the family booked
+    // somewhere else.
+    href: "/inbox",
+    label: "Inbox",
+    sub: "Bookings, fares and policies",
+    Icon: InboxIcon,
+  },
 ];
 
 // What the drafts row says under its name. The number belongs in the subtitle as
@@ -156,56 +175,15 @@ function draftsSub(n) {
 const GROUPS_BASE = [
   {
     key: "journal",
-    label: "Travel Journal",
-    sub: "Where you've been and where you want to go next",
+    label: "Trips",
+    sub: "Where you have been, where you are going, what you pack",
     Icon: JournalIcon,
     kids: TRIP_ROWS,
   },
   {
-    key: "checklist",
-    label: "Travel Checklist",
-    sub: "What to pack and what to do before you go",
-    Icon: ChecklistIcon,
-    // The one number in this menu worth interrupting somebody for lives on
-    // Reminders, one level down -- so while the group is shut it shows on the
-    // group. A count nobody can see until they open the right door is not a
-    // count.
-    badge: true,
-    kids: [
-      {
-        href: "/packing",
-        label: "Packing",
-        sub: "The lists every trip starts from",
-        Icon: ShirtIcon,
-      },
-      {
-        href: "/reminders",
-        label: "Reminders",
-        sub: "Everything due before you leave",
-        Icon: BellIcon,
-        badge: true,
-      },
-      {
-        // Forwarded booking confirmations land here to be sorted onto
-        // the right trip. Sits under Checklist because filing an incoming
-        // confirmation is the same shape of work as packing and reminders:
-        // it is what has to be dealt with before you go.
-        //
-        // The line names all three kinds of mail the address takes. Saying
-        // confirmations alone described the first thing it was built for and
-        // hid the two nobody would think to try: fare alerts read against the
-        // bucket list, and a policy read for what it actually covers.
-        href: "/inbox",
-        label: "Inbox",
-        sub: "Bookings, fares and policies",
-        Icon: InboxIcon,
-      },
-    ],
-  },
-  {
     key: "file",
-    label: "Travel File",
-    sub: "How you and your family travel",
+    label: "Your file",
+    sub: "The people, the preferences and the points Aly plans against",
     Icon: FolderIcon,
     kids: [
       {
@@ -239,6 +217,20 @@ const GROUPS_BASE = [
     ],
   },
 ];
+
+// The second of the four doors, and the only one that is not a filing cabinet:
+// what needs you. It used to be a drawer called Travel Checklist holding three
+// unrelated rooms -- lists you reuse, work that is due, and mail that has
+// arrived. The lists and the mail are things about a trip, so they moved in with
+// the trips; what was left is a single question with a single answer, which is a
+// door and not a drawer.
+const NOW_ROW = {
+  href: "/now",
+  label: "Now",
+  sub: "What needs you",
+  Icon: BellIcon,
+  badge: true,
+};
 
 const SETTINGS = {
   href: "/settings",
@@ -322,7 +314,11 @@ const ADMIN_ROW = {
 // draws: those three plus the More group (Settings, Our Pledge, Contact Us)
 // pinned to the bottom of the column. Kept as a computed constant rather
 // than mutating GROUPS_BASE so the two sets can never drift.
-const GROUPS = [...GROUPS_BASE, MORE_GROUP];
+// Level one, in reading order: the trips, what needs you about them, the file
+// Aly plans against, and the housekeeping. Now is a plain row rather than a
+// group because it opens nothing -- everything it has to say is on the screen at
+// the other end.
+const GROUPS = [GROUPS_BASE[0], NOW_ROW, GROUPS_BASE[1], MORE_GROUP];
 
 // The same menu with one extra door in the More drawer, for people in the beta.
 // Built rather than mutated, for the same reason GROUPS is: a row added to a
@@ -367,9 +363,9 @@ const SECONDARY_ROWS = [
     Icon: SuitcaseIcon,
   },
   {
-    href: "/reminders",
-    label: "Reminders",
-    sub: "Everything due before you leave",
+    href: "/now",
+    label: "Now",
+    sub: "What needs you before you leave",
     Icon: BellIcon,
     badge: true,
   },
@@ -525,12 +521,12 @@ export default function NavTabs({
   // once ran off the top of the screen. It opens on the group holding the screen
   // you are on, so the menu answers "where am I" before you touch anything.
   const holding = groups.find((g) =>
-    g.kids.some((k) => onScreen(k.href, pathname)),
+    (g.kids || []).some((k) => onScreen(k.href, pathname)),
   );
   const [group, setGroup] = useState(holding ? holding.key : null);
   useEffect(() => {
     const held = GROUPS_EVERY.find((g) =>
-      g.kids.some((k) => onScreen(k.href, pathname)),
+      (g.kids || []).some((k) => onScreen(k.href, pathname)),
     );
     setGroup(held ? held.key : null);
   }, [pathname]);
@@ -826,6 +822,31 @@ export default function NavTabs({
     }
   } else {
     for (const g of groups) {
+      // Now is a door, not a drawer: one row, no band, no second row under it.
+      if (!g.kids) {
+        pushRow(
+          {
+            kind: "link",
+            key: g.href,
+            ...g,
+            active: onScreen(g.href, pathname),
+            // The one number in this menu worth interrupting somebody for. It
+            // follows the same rule the group bands do -- it is shown while the
+            // screen it counts is not the screen you are on.
+            countElsewhere: !onScreen(g.href, pathname),
+            marked: setupMarks.has(g.href),
+            band: true,
+          },
+          {
+            key: g.href,
+            kind: "link",
+            label: g.label || "",
+            sub: g.sub || "",
+            here: currentPathKey === g.href,
+          },
+        );
+        continue;
+      }
       pushRow(
         {
           kind: "group",
@@ -1138,7 +1159,11 @@ export default function NavTabs({
         }
 
         const active = row.active;
-        const count = row.badge ? attention : 0;
+        // Same rule as the group bands and a trip's tabs: a count sits on the
+        // door while the thing it counts is not what you are looking at, and
+        // comes off once you are standing on it. Rows inside a group have no
+        // countElsewhere of their own, so they keep the old behavior.
+        const count = row.badge && (row.countElsewhere ?? true) ? attention : 0;
         const Icon = row.Icon;
         return (
           <Link
@@ -1184,7 +1209,13 @@ export default function NavTabs({
               // Its place in the stagger, counted from the plate.
               "--arc-i": row.i,
             }}
-            className={`arc-pill ${row.kid ? "kid " : ""}${active ? "on" : ""}`}
+            // A level-one row that happens to be a link, rather than a band that
+            // opens, still belongs to level one: it wears the band's flat icon
+            // instead of a child's filled disc, so all four doors read as the
+            // same rank. band is the class that turns the disc off.
+            className={`arc-pill ${row.kid ? "kid " : row.band ? "group " : ""}${
+              active ? "on" : ""
+            }`}
           >
             <span className="arc-disc">
               <PendingSwap
@@ -1593,7 +1624,7 @@ export default function NavTabs({
                 is hiding. Hidden while the menu is open -- the pill around
                 the compass would put the badge on top of the search
                 field. */}
-              {attention > 0 && !isActive("/reminders") && !open && (
+              {attention > 0 && !isActive("/now") && !open && (
                 <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-2xs font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
                   {attention}
                   <span className="sr-only"> reminders needing attention</span>

@@ -77,7 +77,7 @@ export async function POST() {
       payload: {
         title: "Alyeska can reach this phone",
         body: "This is the channel deadlines will arrive on: a fare on its last day, or an offer about to close.",
-        url: "/reminders",
+        url: "/now",
         tag: "alyeska-test",
       },
     });
