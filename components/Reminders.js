@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PendingSpark } from "./LinkPending";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import FilterChips from "@/components/FilterChips";
+import FilterBar from "@/components/FilterBar";
 import PriorityMeter from "@/components/PriorityMeter";
 import AddToCalendar from "@/components/AddToCalendar";
 import { eventFromTask } from "@/lib/calendar";
@@ -51,6 +51,9 @@ export default function Reminders({
   const router = useRouter();
   const [due, setDue] = useState("all");
   const [priority, setPriority] = useState("all");
+  // A box, because this page gathers every trip's tasks: past thirty rows the
+  // fastest way to the one you came for is its own words, not a chip.
+  const [find, setFind] = useState("");
   // Ticking something off should feel instant, so the row leaves the list the
   // moment it is clicked rather than waiting for the round trip and refresh.
   const [justDone, setJustDone] = useState([]);
@@ -81,11 +84,30 @@ export default function Reminders({
     [tasks, today, justDone, edits],
   );
 
-  const shown = rows.filter(
-    (row) =>
-      matchesDueFilter(row.bucket, due) &&
-      (priority === "all" || (row.task.priority || "normal") === priority),
-  );
+  // One place that decides whether a row survives, so the numbers on the chips
+  // and the list beneath them cannot disagree.
+  function keeps(row, f) {
+    if (!matchesDueFilter(row.bucket, f.due)) return false;
+    if (f.priority !== "all" && (row.task.priority || "normal") !== f.priority)
+      return false;
+    if (f.find.trim()) {
+      const words = f.find.trim().toLowerCase();
+      const hay = [row.task.title, row.trip?.name, row.task.assignee]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(words)) return false;
+    }
+    return true;
+  }
+
+  const answers = { due, priority, find };
+  const shown = rows.filter((row) => keeps(row, answers));
+
+  // What a chip would show if pressed, with the other answers left alone.
+  function countIf(over) {
+    return rows.filter((row) => keeps(row, { ...answers, ...over })).length;
+  }
 
   const groups = DUE_BUCKETS.map((bucket) => [
     bucket,
@@ -178,35 +200,61 @@ export default function Reminders({
         )}
       </p>
 
-      <div className="no-print mb-5 flex flex-col gap-2.5">
-        <FilterChips
-          legend="When"
-          options={DUE_FILTERS}
-          value={due}
-          onChange={setDue}
-        />
-        <FilterChips
-          legend="Priority"
-          options={[
-            { id: "all", label: "All" },
-            ...PRIORITY_ORDER.map((p) => ({
-              id: p,
-              label: PRIORITY_LABELS[p],
-              // The same bars the rows carry, so the chip and the thing it
-              // filters for are recognisably each other.
-              icon: (
-                <PriorityMeter
-                  task={{ priority: p }}
-                  className="mt-0"
-                  invert={priority === p}
-                />
-              ),
+      {/* The same bar as every other list in the app: the tally said once at the
+          top, a count on every chip, and the chip with nothing behind it held in
+          place and dimmed rather than removed -- a chip that vanishes when the
+          last overdue task is ticked off moves the row under your thumb. */}
+      <FilterBar
+        className="no-print mb-5"
+        search={{
+          value: find,
+          onChange: setFind,
+          placeholder: "Search these reminders",
+          label: "Search these reminders",
+        }}
+        tally={{ shown: shown.length, total: rows.length, noun: "reminder" }}
+        onClear={() => {
+          setFind("");
+          setDue("all");
+          setPriority("all");
+        }}
+        groups={[
+          {
+            id: "due",
+            legend: "When",
+            value: due === "all" ? "" : due,
+            onChange: (id) => setDue(id || "all"),
+            options: DUE_FILTERS.map((one) => ({
+              id: one.id === "all" ? "" : one.id,
+              label: one.label,
+              count: countIf({ due: one.id }),
             })),
-          ]}
-          value={priority}
-          onChange={setPriority}
-        />
-      </div>
+          },
+          {
+            id: "priority",
+            legend: "Priority",
+            value: priority === "all" ? "" : priority,
+            onChange: (id) => setPriority(id || "all"),
+            options: [
+              { id: "", label: "All", count: countIf({ priority: "all" }) },
+              ...PRIORITY_ORDER.map((p) => ({
+                id: p,
+                label: PRIORITY_LABELS[p],
+                count: countIf({ priority: p }),
+                // The same bars the rows carry, so the chip and the thing it
+                // filters for are recognisably each other.
+                icon: (
+                  <PriorityMeter
+                    task={{ priority: p }}
+                    className="mt-0"
+                    invert={priority === p}
+                  />
+                ),
+              })),
+            ],
+          },
+        ]}
+      />
 
       <div className="space-y-4">
         {groups.map(([bucket, list]) => (

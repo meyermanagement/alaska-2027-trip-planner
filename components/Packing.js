@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { assigneeColor, formatFullDay } from "@/lib/format";
 import { oneOrShared } from "@/lib/people";
 import { matchesQuery } from "@/lib/packing/find";
+import FilterBar from "@/components/FilterBar";
 import {
   strandedGroups,
   strandedWords,
@@ -321,26 +322,41 @@ export default function Packing({
     return list.sort((a, b) => a.localeCompare(b));
   }, [items]);
 
-  const visible = items.filter((i) => {
+  // One place that decides whether a line survives the filters, so the counts on
+  // the chips and the list under them can never disagree.
+  function keeps(i, f) {
     // An exact name, now that an item belongs to one person or to everybody. The
     // loose match this replaces existed to catch names like "Steph & Veda", which
     // the app no longer writes and no longer keeps.
     if (
-      who !== "all" &&
-      (i.assignee || "").trim().toLowerCase() !== who.toLowerCase()
+      f.who !== "all" &&
+      (i.assignee || "").trim().toLowerCase() !== f.who.toLowerCase()
     )
       return false;
-    if (hidePacked && i.is_packed) return false;
-    if (onlyAhead && i.last_minute) return false;
-    if (onlyCategory !== "all" && (i.category || "General") !== onlyCategory)
+    if (f.hidePacked && i.is_packed) return false;
+    if (f.onlyAhead && i.last_minute) return false;
+    if (
+      f.onlyCategory !== "all" &&
+      (i.category || "General") !== f.onlyCategory
+    )
       return false;
     // The heading and the person are searched along with the name, so "toilet"
     // finds the bag as well as the heading it sits under, and "veda" gathers
     // her things without touching the pills.
-    if (!matchesQuery(find, i.item, i.category, i.assignee, i.notes))
+    if (!matchesQuery(f.find, i.item, i.category, i.assignee, i.notes))
       return false;
     return true;
-  });
+  }
+
+  const answers = { who, hidePacked, onlyAhead, onlyCategory, find };
+  const visible = items.filter((i) => keeps(i, answers));
+
+  // What a chip would show if you pressed it, with every other answer left
+  // where it is. A count taken against the whole list instead would promise
+  // rows that the person filter is already hiding.
+  function countIf(over) {
+    return items.filter((i) => keeps(i, { ...answers, ...over })).length;
+  }
 
   // Offered only when the filter would change what is on screen: a list with
   // nothing marked would hide nothing, and a list where everything is marked would
@@ -351,6 +367,76 @@ export default function Packing({
     () => items.some((i) => i.last_minute) && items.some((i) => !i.last_minute),
     [items],
   );
+
+  // The three questions the bar asks, in the order they get asked. Whose things,
+  // then which heading, then the two about the state of the list -- which are
+  // rarer and live behind More.
+  const filterGroups = [];
+
+  if (!readOnly) {
+    // A pill for a person is a choice with one answer when the list is already
+    // one person's: a secondary traveler sees only their own lines.
+    filterGroups.push({
+      id: "who",
+      legend: "Whose",
+      value: who === "all" ? "" : who,
+      onChange: (id) => setWho(id || "all"),
+      options: [
+        { id: "", label: "Everyone", count: countIf({ who: "all" }) },
+        ...filterNames.map((p) => ({
+          id: p,
+          label: p,
+          count: countIf({ who: p }),
+        })),
+      ],
+    });
+  }
+
+  if (categories.length > 1) {
+    filterGroups.push({
+      id: "category",
+      legend: "Group",
+      value: onlyCategory === "all" ? "" : onlyCategory,
+      onChange: (id) => setOnlyCategory(id || "all"),
+      options: [
+        { id: "", label: "All", count: countIf({ onlyCategory: "all" }) },
+        ...categories.map((c) => ({
+          id: c,
+          label: c,
+          count: countIf({ onlyCategory: c }),
+        })),
+      ],
+    });
+  }
+
+  // The two questions about the state of the list rather than about whose it is.
+  // Both are asked on some evenings and not most, so they fold away.
+  const state = [];
+  if (canSplitAhead)
+    state.push({
+      id: "ahead",
+      label: "Can pack ahead",
+      count: countIf({ onlyAhead: true }),
+    });
+  state.push({
+    id: "unpacked",
+    label: "Not packed yet",
+    count: countIf({ hidePacked: true }),
+  });
+  filterGroups.push({
+    id: "state",
+    legend: "Show",
+    drawer: true,
+    multi: true,
+    value: [onlyAhead ? "ahead" : null, hidePacked ? "unpacked" : null].filter(
+      Boolean,
+    ),
+    onChange: (ids) => {
+      setOnlyAhead(ids.includes("ahead"));
+      setHidePacked(ids.includes("unpacked"));
+    },
+    options: state,
+  });
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -1747,114 +1833,36 @@ export default function Packing({
         </div>
       </div>
 
-      {/* Two ways of looking, above the pills that were already here. The box
-          answers "is this already on the list", which on a hundred and eleven
-          lines is the question the list is worst at; the category picker answers
-          "what is under Toiletries", which used to mean scrolling past
-          everything that was not. Both only appear once the list is long enough
-          for either to be worth a row of screen -- a search box over eight
-          items is furniture. */}
-      {items.length >= 12 && (
-        <div className="no-print mb-3 grid gap-2 sm:grid-cols-[1fr_13rem] sm:items-center">
-          <div className="relative min-w-0">
-            <input
-              type="text"
-              className="field pr-16"
-              placeholder="Search this list"
-              aria-label="Search this packing list"
-              value={find}
-              onChange={(e) => setFind(e.target.value)}
-            />
-            {find && (
-              <button
-                type="button"
-                onClick={() => setFind("")}
-                className="absolute inset-y-0 right-2 my-auto h-6 rounded-md px-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft hover:bg-sand hover:text-ink"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          {categories.length > 1 && (
-            <select
-              className="field"
-              aria-label="Show one category only"
-              value={onlyCategory}
-              onChange={(e) => setOnlyCategory(e.target.value)}
-            >
-              <option value="all">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
+      {/* One bar, where there used to be four mechanisms: a native dropdown for
+          the category, solid pills for the person, a pale-teal toggle for the
+          things that cannot be packed yet, and a right-floated checkbox for
+          what was already in the bag. None of the four looked like the others
+          and none of them said what was behind it, so every one of them had to
+          be pressed to find out -- and pressing one is how you lose your place
+          on a hundred and eleven lines.
 
-      <div className="no-print mb-4 flex flex-wrap items-center gap-2">
-        {/* Filtering by person is a choice with one answer when the list is
-            already one person's: a secondary traveler is shown only the lines
-            assigned to them, so the pills would all do the same thing. Hide
-            packed stays, because that one is about the list, not about who. */}
-        {!readOnly && (
-          <>
-            <button
-              onClick={() => setWho("all")}
-              className={`chip border ${
-                who === "all"
-                  ? "border-teal bg-teal text-on-accent"
-                  : "border-[var(--line)] bg-white text-ink-soft"
-              }`}
-            >
-              Everyone
-            </button>
-            {filterNames.map((p) => (
-              <button
-                key={p}
-                onClick={() => setWho(p)}
-                className={`chip border ${
-                  who === p
-                    ? "border-teal bg-teal text-on-accent"
-                    : "border-[var(--line)] bg-white text-ink-soft"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </>
-        )}
-        {canSplitAhead && (
-          <button
-            onClick={() => setOnlyAhead((on) => !on)}
-            aria-pressed={onlyAhead}
-            // Pressed in pale teal rather than solid. Not amber, because amber is
-            // what the rows this pill hides are wearing and it would say the
-            // opposite of what pressing it does -- and not the solid teal the
-            // people wear either: on a phone this wraps onto the line under
-            // Everyone, and two solid teal chips one above the other read as two
-            // people chosen rather than a person and a toggle.
-            title={`Hide the ${LAST_MINUTE_LABEL.toLowerCase()} things, which cannot go in a bag yet`}
-            className={`chip border ${
-              onlyAhead
-                ? "border-teal bg-teal-soft text-teal"
-                : "border-[var(--line)] bg-white text-ink-soft"
-            }`}
-          >
-            Can pack ahead
-          </button>
-        )}
-        <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-ink-soft">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-teal"
-            checked={hidePacked}
-            onChange={(e) => setHidePacked(e.target.checked)}
-          />
-          Hide packed
-        </label>
-      </div>
+          It appears at twelve items. Below that a search box and a row of
+          counts is furniture over a list you can read in one look. */}
+      {items.length >= 12 && (
+        <FilterBar
+          className="no-print mb-4"
+          search={{
+            value: find,
+            onChange: setFind,
+            placeholder: "Search this list",
+            label: "Search this packing list",
+          }}
+          tally={{ shown: visible.length, total: items.length, noun: "item" }}
+          onClear={() => {
+            setFind("");
+            setWho("all");
+            setOnlyCategory("all");
+            setOnlyAhead(false);
+            setHidePacked(false);
+          }}
+          groups={filterGroups}
+        />
+      )}
 
       <div className="space-y-4">
         {/* One list, in its categories, with the things that cannot go in a bag

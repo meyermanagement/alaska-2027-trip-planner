@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import PriorityMeter from "@/components/PriorityMeter";
 import LastMinuteTasks from "@/components/LastMinuteTasks";
-import FilterChips from "@/components/FilterChips";
+import FilterBar from "@/components/FilterBar";
 import AddToCalendar from "@/components/AddToCalendar";
 import { eventFromTask } from "@/lib/calendar";
 import {
@@ -91,6 +91,26 @@ export default function Tasks({
     const word = dueWording(task.due_date, today);
     return word?.late || word?.soon ? 0 : 1;
   };
+
+  // One place that decides whether a task survives the filters, so the counts on
+  // the chips and the groups beneath them cannot disagree.
+  const keeps = (t, f) => {
+    if (f.hideDone && t.is_done) return false;
+    if (f.priority !== "all" && priorityOf(t) !== f.priority) return false;
+    return true;
+  };
+
+  const shownCount = items.filter((t) =>
+    keeps(t, { hideDone, priority }),
+  ).length;
+
+  const restingCount = items.filter((t) =>
+    keeps(t, { hideDone, priority: "all" }),
+  ).length;
+
+  // What a chip would show if pressed, with the other answer left alone.
+  const countIf = (over) =>
+    items.filter((t) => keeps(t, { hideDone, priority, ...over })).length;
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -250,15 +270,6 @@ export default function Tasks({
               title={trip?.name ? `${trip.name} reminders` : "Trip reminders"}
             />
           )}
-          <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-teal"
-              checked={hideDone}
-              onChange={(e) => setHideDone(e.target.checked)}
-            />
-            Hide completed
-          </label>
         </div>
       </div>
 
@@ -339,28 +350,63 @@ export default function Tasks({
         </form>
       )}
 
-      <div className="no-print mb-3 px-1">
-        <FilterChips
-          legend="Priority"
-          value={priority}
-          onChange={setPriority}
-          options={[
-            { id: "all", label: "All" },
-            // High first, the way the list itself is ordered.
-            ...PRIORITY_ORDER.map((p) => ({
-              id: p,
-              label: PRIORITY_LABELS[p],
-              icon: (
-                <PriorityMeter
-                  task={{ priority: p }}
-                  className="mt-0"
-                  invert={priority === p}
-                />
-              ),
-            })),
-          ]}
-        />
-      </div>
+      {/* The same bar the packing list and the reminders page use. Hide completed
+          used to be a checkbox floated to the right of the heading, three feet
+          from the priority chips that do the same kind of work; it is a chip in
+          the drawer now, and it says how many rows it would leave behind. */}
+      <FilterBar
+        className="no-print mb-3"
+        // The total counts what the list holds at rest, so a screen nobody has
+        // filtered says "5 tasks" rather than "5 of 6" and leaves you hunting
+        // for a sixth that completed weeks ago.
+        tally={{ shown: shownCount, total: restingCount, noun: "task" }}
+        onClear={() => {
+          setPriority("all");
+          setHideDone(true);
+        }}
+        groups={[
+          {
+            id: "priority",
+            legend: "Priority",
+            value: priority === "all" ? "" : priority,
+            onChange: (id) => setPriority(id || "all"),
+            options: [
+              { id: "", label: "All", count: countIf({ priority: "all" }) },
+              // High first, the way the list itself is ordered.
+              ...PRIORITY_ORDER.map((p) => ({
+                id: p,
+                label: PRIORITY_LABELS[p],
+                count: countIf({ priority: p }),
+                icon: (
+                  <PriorityMeter
+                    task={{ priority: p }}
+                    className="mt-0"
+                    invert={priority === p}
+                  />
+                ),
+              })),
+            ],
+          },
+          {
+            id: "state",
+            legend: "Show",
+            drawer: true,
+            multi: true,
+            // Phrased as a thing you add rather than a thing you hide, so the
+            // list's resting state is no chips pressed and the drawer does not
+            // wear a mark on a screen nobody has filtered.
+            value: hideDone ? [] : ["done"],
+            onChange: (ids) => setHideDone(!ids.includes("done")),
+            options: [
+              {
+                id: "done",
+                label: "Completed too",
+                count: countIf({ hideDone: false }),
+              },
+            ],
+          },
+        ]}
+      />
 
       <div className="space-y-4">
         {grouped.map(([timing, rows]) => (

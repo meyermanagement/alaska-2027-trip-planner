@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import FilterBar from "@/components/FilterBar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -13,9 +14,7 @@ import {
   SORTS,
   browsePlaces,
   defaultGroupBy,
-  tripFilterAsList,
   tripOptions,
-  tripYears,
 } from "@/lib/reviews/browse";
 
 // Only the kinds this page keeps a record of. Re-filing a place as a flight
@@ -93,7 +92,6 @@ export default function PlaceList({ groups, trips }) {
     () => tripOptions({ items, trips: trips || [] }),
     [items, trips],
   );
-  const asList = tripFilterAsList((trips || []).length);
 
   async function save(id, patch) {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
@@ -129,121 +127,79 @@ export default function PlaceList({ groups, trips }) {
     return null;
   }
 
-  const filtered =
-    Boolean(query.trim()) || unjudgedOnly || tripFilter !== "all";
-
   return (
     <div>
-      <div className="no-print mb-4 space-y-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="min-w-[12rem] flex-1">
-            <span className="sr-only">Search these places</span>
-            <input
-              type="search"
-              className="field"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search a name, a town, or something we wrote"
-            />
-          </label>
-          {asList && (
-            <label className="min-w-[10rem] flex-1 sm:max-w-[16rem]">
-              <span className="sr-only">Which trip</span>
-              <select
-                className="field"
-                value={tripFilter}
-                onChange={(e) => setTripFilter(e.target.value)}
-              >
-                <option value="all">All {options.length} trips</option>
-                {tripYears(options).map((year) => (
-                  <optgroup
-                    key={year.year || "_none"}
-                    label={year.year || "No dates"}
-                  >
-                    {year.trips.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} · {t.count}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <FilterChip
-            active={unjudgedOnly}
-            onClick={() => setUnjudgedOnly((on) => !on)}
-          >
-            {unjudgedOnly ? "✓ " : ""}Nothing said yet · {view.tally.unjudged}
-          </FilterChip>
-          <span
-            className="mx-1 hidden h-5 w-px bg-sand-deep sm:block"
-            aria-hidden="true"
-          />
-          <span className="text-xs font-semibold text-ink-soft">Group</span>
-          {GROUPINGS.map((g) => (
-            <FilterChip
-              key={g.value}
-              active={by === g.value}
-              onClick={() => setBy(g.value)}
-            >
-              {g.label}
-            </FilterChip>
-          ))}
-          <label className="ml-auto flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-ink-soft">Sort</span>
-            <select
-              className="rounded-full border border-[var(--line)] bg-white px-2.5 py-1 text-base font-semibold text-ink-soft"
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-            >
-              {SORTS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        {!asList && (trips || []).length > 1 && (
-          <div className="flex flex-wrap gap-1.5">
-            <FilterChip
-              active={tripFilter === "all"}
-              onClick={() => setTripFilter("all")}
-            >
-              All trips
-            </FilterChip>
-            {options.map((t) => (
-              <FilterChip
-                key={t.id}
-                active={tripFilter === t.id}
-                onClick={() => setTripFilter(t.id)}
-              >
-                {t.name}
-              </FilterChip>
-            ))}
-          </div>
-        )}
-
-        <p className="text-xs text-ink-soft">
-          {filtered
-            ? `${view.shown} of ${view.total} places`
-            : `${view.total} ${view.total === 1 ? "place" : "places"} from ${
-                options.length
-              } ${options.length === 1 ? "trip" : "trips"}`}
-          {view.shown > 0 && (
-            <>
-              {" · "}
-              {view.tally.judged} rated or written up
-              {view.tally.unjudged > 0 && `, ${view.tally.unjudged} not yet`}
-            </>
-          )}
-        </p>
-      </div>
+      {/* The same bar as the packing list and the reminders page. Four controls
+          in three grammars used to live here -- a box, a dropdown of trips, two
+          runs of chips and a second dropdown floated to the right -- with the
+          tally in a separate line of small print underneath. It is one bar now,
+          with the tally beside the box and a count on every chip. Which trip is
+          the question asked most often, so it stays out front; how the page is
+          grouped and ordered is asked once and then left alone, so both fold
+          into More. */}
+      <FilterBar
+        className="no-print mb-4"
+        search={{
+          value: query,
+          onChange: setQuery,
+          placeholder: "Search a name, a town, or something we wrote",
+          label: "Search these places",
+        }}
+        tally={{ shown: view.shown, total: view.total, noun: "place" }}
+        onClear={() => {
+          setQuery("");
+          setTripFilter("all");
+          setUnjudgedOnly(false);
+        }}
+        groups={[
+          {
+            id: "trip",
+            legend: "Trip",
+            value: tripFilter === "all" ? "" : tripFilter,
+            onChange: (id) => setTripFilter(id || "all"),
+            options: [
+              { id: "", label: "All trips", count: items.length },
+              ...options.map((t) => ({
+                id: t.id,
+                label: t.name,
+                count: t.count,
+              })),
+            ],
+          },
+          {
+            id: "unjudged",
+            legend: "Show",
+            multi: true,
+            value: unjudgedOnly ? ["unjudged"] : [],
+            onChange: (ids) => setUnjudgedOnly(ids.includes("unjudged")),
+            options: [
+              {
+                id: "unjudged",
+                label: "Nothing said yet",
+                count: view.tally.unjudged,
+              },
+            ],
+          },
+          {
+            id: "by",
+            legend: "Group",
+            drawer: true,
+            resting: defaultGroupBy((trips || []).length),
+            value: by,
+            onChange: (value) => setBy(value || by),
+            options: GROUPINGS.map((g) => ({ id: g.value, label: g.label })),
+          },
+          {
+            id: "sort",
+            legend: "Order",
+            drawer: true,
+            resting: "recent",
+            value: sort,
+            onChange: (value) => setSort(value || sort),
+            options: SORTS.map((one) => ({ id: one.value, label: one.label })),
+          },
+        ]}
+      />
 
       {view.sections.length === 0 && (
         <p className="card p-5 text-sm text-ink-soft">
@@ -347,22 +303,6 @@ export default function PlaceList({ groups, trips }) {
         })}
       </div>
     </div>
-  );
-}
-
-function FilterChip({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-        active
-          ? "border-teal bg-teal text-on-accent"
-          : "border-[var(--line)] bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
