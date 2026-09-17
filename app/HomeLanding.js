@@ -510,7 +510,7 @@ export default function HomeLanding() {
           label="When it changes"
           flip
           title="The ones you can see coming, and the ones you cannot."
-          body="Some of it is visible days out: rain in the forecast for the afternoon you booked the boat, a connection too tight to make, two things on the same day in towns an hour apart. Aly says so while there is still time to do something about it. The rest arrives on the day — the cancellation, the closed road, the restaurant that is shut — and then what helps is that she already knows what you booked, what it cost, who it was for and what else was on that afternoon. So the question is what do we do instead, not where did I put the confirmation. Nothing on your trip moves until you say so, and everyone traveling sees the same plan you do."
+          body="Some of it you can see coming: rain forecast for the afternoon you booked the boat, a connection too tight to make, two things booked in towns an hour apart. Aly tells you while there is still time to move something. The rest lands on the day, and then it helps that every booking, price and plan for that afternoon is already in one place. Nothing changes until you say so."
           media={
             <Shot
               src="/landing/rain.jpg"
