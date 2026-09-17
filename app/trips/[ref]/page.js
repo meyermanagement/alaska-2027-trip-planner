@@ -7,7 +7,7 @@ import TopBar from "@/components/TopBar";
 import DraftView from "@/components/DraftView";
 import TripView from "@/components/TripView";
 import { todayISO } from "@/lib/reminders";
-import { isDraftTrip } from "@/lib/format";
+import { isDraftTrip, isPastTrip } from "@/lib/format";
 import { parseTripRef, tripRef, needsCanonical } from "@/lib/trips/route";
 import TripFares from "@/components/TripFares";
 import { inboxAddressFor } from "@/lib/inbox/address";
@@ -325,14 +325,26 @@ export default async function TripPage({ params, searchParams }) {
     facts: limits.data || [],
     home: household.data?.home_address || null,
   });
-  const drift = changesBetween(trip.circumstances, nowCircumstances);
-  const contradictions = tripContradictions({
-    trip,
-    itinerary: orderedItinerary,
-    pets: pets.data || [],
-    petLinks: petLinks.data || [],
-    today: todayISO(),
-  });
+  // Nothing on a trip the family already took can be changed by any of this, and
+  // offering a look would file advice about a week that is over. The
+  // contradictions do their own past check inside the rule; the drift list has no
+  // dates of its own to check, so it is guarded here.
+  const over = isPastTrip(trip, todayISO());
+  const drift = over
+    ? []
+    : changesBetween(trip.circumstances, nowCircumstances);
+  // The rule has its own date check, but "past" here is the wider idea: a trip
+  // somebody marked complete or archived is over whether or not its dates have
+  // come round, and an archived trip is not a place to shout about paperwork.
+  const contradictions = over
+    ? []
+    : tripContradictions({
+        trip,
+        itinerary: orderedItinerary,
+        pets: pets.data || [],
+        petLinks: petLinks.data || [],
+        today: todayISO(),
+      });
 
   if (isDraftTrip(trip)) {
     return (
@@ -351,6 +363,7 @@ export default async function TripPage({ params, searchParams }) {
           readOnly={access?.can?.isSecondary === true}
           today={todayISO()}
           fares={faresPanel}
+          contradictions={contradictions}
         />
       </>
     );

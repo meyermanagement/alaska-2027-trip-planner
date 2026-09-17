@@ -19,6 +19,7 @@ import AskAlyDrawer from "./AskAlyDrawer";
 import PromoteDraft, { PROMOTE_DRAFT_EVENT } from "./PromoteDraft";
 import TripRoster from "./TripRoster";
 import BasicAnswer from "./BasicAnswer";
+import TripChanges from "./TripChanges";
 
 /**
  * A draft, shown as the thing it actually is.
@@ -56,6 +57,13 @@ export default function DraftView({
   // alert can still change: nothing is booked, so a cheap week is worth knowing
   // about before the dates harden.
   fares = null,
+  // Things on this draft that cannot both be true -- an animal on a sailing, a
+  // certificate that expires before the return leg. Worked out on the server and
+  // handed down. A draft gets these and not the changes band: there is no
+  // fingerprint on a trip nobody has looked at yet, so there is no drift to
+  // report, but the arithmetic is as true here as on a booked trip and this is
+  // the cheaper moment to hear it.
+  contradictions = [],
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -294,6 +302,14 @@ export default function DraftView({
           draft
         />
       </header>
+
+      {/* Right under the header, above the seven questions, because it may change
+          the answer to one of them. Draws nothing when nothing contradicts. */}
+      {contradictions.length > 0 && (
+        <div className="mt-5">
+          <TripChanges contradictions={contradictions} tripId={trip?.id} />
+        </div>
+      )}
 
       {/* The six. This is the screen's subject, not a sidebar. */}
       <section className="mt-7">
