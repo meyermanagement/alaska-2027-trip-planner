@@ -2,7 +2,7 @@ import PageHeader from "@/components/PageHeader";
 /**
  * The list itself, kept apart from the gate in page.js so it can be drawn in
  * isolation while it is being worked on. It reads nothing: the gate is the whole
- * of the thinking, and this is the six doors.
+ * of the thinking, and this is the seven doors.
  */
 // Where each row goes, what it is for, and whether it is yours alone. The two
 // that are not are marked, because a list that implies everything on it is
@@ -23,6 +23,11 @@ const ROWS = [
     href: "/admin/survey",
     label: "Beta survey",
     sub: "The sheets testers have written, and the price in the middle of them",
+  },
+  {
+    href: "/admin/usage",
+    label: "Usage",
+    sub: "What the app spent on Gemini, and which part of it did the spending",
   },
   {
     href: "/admin/opening",
