@@ -4,7 +4,7 @@ import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import AskDemo from "@/components/home/AskDemo";
 import HeroFilm from "@/components/home/HeroFilm";
 import RotatingWord from "@/components/home/RotatingWord";
-import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
+import { ALY_INDEX } from "@/lib/home/alyIndex";
 import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
 
 /**
@@ -32,11 +32,12 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  *
  * Four rules it keeps.
  *
- *   The claims still come from the product. The eight things Aly looks after are
- *   read from lib/welcome/alyAbilities.js and the promises are the pledge's own
- *   words from lib/pledge.js, exactly as before. A marketing page written
- *   separately from the product is a page that drifts, and the first place it
- *   drifts is into a promise nobody implemented.
+ *   The claims still come from the product. The index of what Aly looks after is
+ *   read from lib/home/alyIndex.js, where every line is annotated with the code
+ *   that implements it, and the promises are the pledge's own words from
+ *   lib/pledge.js. A marketing page written separately from the product is a
+ *   page that drifts, and the first place it drifts is into a promise nobody
+ *   implemented.
  *
  *   The copy is server-rendered text. The motion is added by two thin client
  *   wrappers in components/home/Reveal.js that arm the ma- system and observe
@@ -590,24 +591,36 @@ export default function HomeLanding() {
       </div>
 
       {/* ------------------------------------------------------------ abilities
-          Eight headings and nothing else. The full argument for each one is the
-          Meet Aly screen, which needs a session; this is the index, read from
-          the same file so it cannot promise something the product dropped. */}
+          Names and nothing else, grouped under five verbs. This is the widest
+          view of the product on the page: the six scenes above argue their own
+          cases at length, so a chip here earns its place by naming something
+          they do not say. It reads from lib/home/alyIndex.js, which is its own
+          file rather than the Meet Aly list, because that list is eight claims
+          Aly has to be able to answer for live and this one is an index. */}
       <Reveal
         as="section"
         className="mx-auto w-full max-w-[74rem] px-5 sm:px-8"
       >
         <div className="border-t border-[var(--line)] py-14">
           <p className="section-label ma-in">Everything Aly looks after</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {ALY_ABILITIES.map((ability, i) => (
-              <span
-                key={ability.key}
-                className="ma-chip rounded-full border border-[var(--line)] px-3.5 py-1.5 text-[14px] font-medium"
-                style={{ animationDelay: `${i * 45}ms` }}
-              >
-                {ability.heading}
-              </span>
+          <div className="mt-6 flex flex-col gap-7">
+            {ALY_INDEX.map((group, gi) => (
+              <div key={group.key}>
+                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.09em] opacity-70">
+                  {group.heading}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {group.items.map((item, i) => (
+                    <span
+                      key={item}
+                      className="ma-chip rounded-full border border-[var(--line)] px-3.5 py-1.5 text-[14px] font-medium"
+                      style={{ animationDelay: `${gi * 90 + i * 45}ms` }}
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
