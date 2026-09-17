@@ -374,6 +374,7 @@ export async function POST(req) {
   // than an empty card, because there is no longer a second answer to carry the
   // screen on its own.
   const withRes = await generate({
+    feature: "interview.proof",
     system: generic ? genericSystem : withSystem,
     messages: [{ role: "user", text: prompt }],
     tools: [],
@@ -412,6 +413,7 @@ export async function POST(req) {
       ? `This is what we know about the family:\n${captured}\n\nPlan A was written for a day in ${destination} by someone who knew none of that:\n${rows}\n\nPlan B answered the same question knowing everything above, and each of its rows carries the reason it was chosen:\n${recommended}\n\nFor each label, what is the difference between the two, and which of the family's own answers accounts for it?`
       : `This is what we know about the family:\n${captured}\n\nThese choices were made for a day in ${destination} by someone who knew none of that:\n${rows}\n\nFor each label, say what this family's own answers would change about the choice, and which answer changes it. Where a choice happens to suit them already, say so and say which answer it happens to match.`;
     const diffRes = await generate({
+      feature: "interview.compare",
       system: `You are Aly, a travel assistant. Answer in American English. No emoji, no preamble.\n\n${COMPARE_SHAPE}`,
       messages: [{ role: "user", text: ask }],
       tools: [],

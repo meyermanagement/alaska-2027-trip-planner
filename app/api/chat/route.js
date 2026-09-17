@@ -392,6 +392,7 @@ export async function POST(request) {
   const gaveMs = firstBy - Date.now();
   try {
     result = await generate({
+      feature: "chat.answer",
       system,
       messages,
       tools,
@@ -409,6 +410,7 @@ export async function POST(request) {
     if (rescueBy) {
       try {
         result = await generate({
+          feature: "chat.rescue",
           system,
           messages,
           tools,
@@ -496,6 +498,7 @@ export async function POST(request) {
     }
     try {
       const second = await generate({
+        feature: "chat.recall",
         system: `${system}\n\n${recallSection(found, recallAsk)}`,
         messages,
         tools: tools.filter((tool) => tool.name !== "recall_lessons"),
@@ -542,6 +545,7 @@ export async function POST(request) {
     const againBy = clock(lookUp ? EXTRA_TURN_MS : REWORD_TURN_MS);
     try {
       const again = await generate({
+        feature: "chat.retry",
         system,
         messages,
         tools,
@@ -620,6 +624,7 @@ export async function POST(request) {
     const wordsBy = clock(lookAgain ? EXTRA_TURN_MS : REWORD_TURN_MS);
     try {
       const words = await generate({
+        feature: "chat.reasons",
         system: [
           system,
           // What she proposed, handed back to her. The confirmation cards'
@@ -701,6 +706,7 @@ export async function POST(request) {
     const betterBy = clock(REWORD_TURN_MS);
     try {
       const better = await generate({
+        feature: "chat.words",
         system: [system, writeTheWords(said, shortlistAll)].join("\n\n"),
         messages,
         // No tool at all, which is the whole point of this turn and was the bug
@@ -760,6 +766,7 @@ export async function POST(request) {
     const cardsBy = clock(REWORD_TURN_MS);
     try {
       const carded = await generate({
+        feature: "chat.cards",
         system: [system, showThePlaces(said, result.text)].join("\n\n"),
         messages,
         tools: tools.filter((tool) => tool.name === "show_places"),

@@ -132,6 +132,7 @@ ${INSIDE_THE_PLACE}
 ${DAY_BAND_RULE}`;
 
   const res = await generate({
+    feature: "interview.followup",
     system,
     messages: [{ role: "user", text: question }],
     tools: [],

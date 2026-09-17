@@ -121,6 +121,7 @@ export async function POST(request) {
 
   try {
     const result = await callModel({
+      feature: "nav.search",
       system: SYSTEM,
       messages: [
         { role: "user", text: briefFor({ query, menu, currentPath }) },

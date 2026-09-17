@@ -47,6 +47,7 @@ export async function POST(req) {
 
   try {
     const result = await generate({
+      feature: "welcome.ability",
       system: ABILITY_SYSTEM,
       messages: [{ role: "user", text: prompt }],
       tools: [],
