@@ -49,6 +49,22 @@ const PUBLIC_PATHS = [
   "/deleted",
 ];
 
+// The root, and only the root, matched exactly.
+//
+// It cannot go in the list above: those are matched with startsWith, and "/"
+// is the prefix of every path in the app, so one entry there would open the
+// whole thing to anybody. It has to be its own exact comparison, which is what
+// this list is for.
+//
+// Why it is open at all: alyeska.app is where somebody who has never heard of
+// this app arrives, and until September 16, 2026 the only thing it ever showed
+// them was a sign-in form. Google's brand verification refused the consent
+// screen for precisely that -- a home page behind a login that does not say what
+// the app is for -- and a store reviewer asks the same question. The page itself
+// decides what to show: signed in, it hops to /trips as it always did; signed
+// out, it explains the app. See app/page.js.
+const PUBLIC_EXACT = ["/"];
+
 // The nightly reminder run arrives with no session at all — a scheduler is not a
 // person — so it has to get past the redirect below. It is not open: the route
 // itself demands the shared secret Vercel signs the request with, and refuses to
@@ -167,6 +183,7 @@ export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
+    PUBLIC_EXACT.includes(pathname) ||
     MACHINE_PATHS.includes(pathname) ||
     MACHINE_PREFIXES.some((p) => pathname.startsWith(p));
 
