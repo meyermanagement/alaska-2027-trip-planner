@@ -11,6 +11,17 @@
 // would be a trap -- somebody dismisses a card in a hurry in March and the app
 // silently never mentions it again. Ask again puts the row back to open, and the
 // next look treats it as a live question.
+//
+// The tip that carried the terms moves with the offer, and it moves here rather
+// than in the browser. It used to be cleared by the same press, which filed one
+// decision in two places -- the offer under the refusals with its terms and its
+// date, the sentence under the cleared tips as though somebody had merely read
+// it. A tip whose offer is refused becomes 'declined': gone from the live list,
+// absent from the cleared record, still in the table so the next look does not
+// say the same thing again. Ask again puts it back to active alongside the offer,
+// and taking the card clears it, because then it really has been read and acted
+// on. Doing all of it in one route is what stops the two rows disagreeing when a
+// browser is closed between the two writes.
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -58,7 +69,7 @@ export async function POST(request, { params }) {
         : { status, decided_on: today, decided_note: note },
     )
     .eq("id", id)
-    .select("id, card_name, status")
+    .select("id, card_name, status, tip_id")
     .maybeSingle();
 
   if (error) {
@@ -66,6 +77,24 @@ export async function POST(request, { params }) {
   }
   if (!offer) {
     return NextResponse.json({ error: "That offer is gone." }, { status: 404 });
+  }
+
+  // Not fatal if it fails. The refusal is the fact worth keeping, and a tip left
+  // on the live list is a sentence read twice rather than a decision lost.
+  if (offer.tip_id) {
+    const { error: tipError } = await supabase
+      .from("pro_tips")
+      .update(
+        status === "open"
+          ? { status: "active", resolved_at: null }
+          : {
+              status: status === "taken" ? "cleared" : "declined",
+              resolved_at: new Date().toISOString(),
+            },
+      )
+      .eq("id", offer.tip_id);
+    if (tipError)
+      console.error("[offers] tip status", offer.tip_id, tipError.message);
   }
 
   return NextResponse.json({ offer });

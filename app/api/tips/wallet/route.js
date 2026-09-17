@@ -254,7 +254,24 @@ export async function POST(request) {
         fresh.push(ledgerRow({ offer, familyId, tipId: row.id, today }));
         continue;
       }
-      if (prior.status === "declined" || prior.status === "taken") continue;
+      // Already answered on exactly these terms. The tip has just been written,
+      // so it would otherwise sit on the board carrying a decision the family
+      // made months ago, with no button on it -- an offer is answered with "Not
+      // this card", and that button needs a live offer behind it. So the new tip
+      // inherits the old answer and never appears.
+      if (prior.status === "declined" || prior.status === "taken") {
+        const { error: settledError } = await supabase
+          .from("pro_tips")
+          .update({
+            status: prior.status === "taken" ? "cleared" : "declined",
+            resolved_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        if (settledError)
+          console.error("[tips/wallet] settled tip", settledError.message);
+        added = Math.max(0, added - 1);
+        continue;
+      }
       const { error: touchError } = await supabase
         .from("card_offers")
         .update({

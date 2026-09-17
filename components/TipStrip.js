@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { tipWhen, WALLET_SCOPES } from "@/lib/tips/tip";
+import { OFFER_SCOPE, tipWhen, WALLET_SCOPES } from "@/lib/tips/tip";
 import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { tripPath } from "@/lib/trips/route";
 
@@ -124,13 +124,20 @@ export default function TipStrip({ tips = [], today }) {
                     Remind me
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => resolve(tip, "cleared")}
-                  className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-soft hover:text-teal"
-                >
-                  Clear
-                </button>
+                {/* Everything but a card offer. The terms are not up here and
+                    neither is the refusal button, so the only thing Clear could
+                    write is "read" -- which would file the offer's own sentence
+                    under the cleared tips while the offer itself sat open in the
+                    Wallet. The link above goes to where the decision is made. */}
+                {tip.scope === OFFER_SCOPE ? null : (
+                  <button
+                    type="button"
+                    onClick={() => resolve(tip, "cleared")}
+                    className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-soft hover:text-teal"
+                  >
+                    Clear
+                  </button>
+                )}
               </p>
             </div>
           );

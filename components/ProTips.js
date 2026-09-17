@@ -198,6 +198,44 @@ export default function ProTips({
     }
   }, []);
 
+  // "Not this card." One write, to the offer, and the route moves the tip that
+  // carried the terms along with it. Deliberately not resolve() above: that
+  // writes 'cleared', which is the sentence being read, and a refusal is a
+  // different fact about the family that belongs on the offers side of the
+  // record. Returns whether it stuck, so the button can come back if it did not.
+  const refuse = useCallback(
+    async (tip, offer) => {
+      setProblem("");
+      setGone((prev) => ({ ...prev, [tip.id]: "declined" }));
+      announceTipResolved(tip.id, "declined");
+      try {
+        const res = await fetch(`/api/offers/${offer.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "declined" }),
+        });
+        if (!res.ok) throw new Error();
+        // So the refusal appears under History, and its count on the tab, without
+        // waiting for the next visit.
+        router.refresh();
+        return true;
+      } catch {
+        // Put the card back. A refusal that was never filed and a card that
+        // vanished anyway is the worst of both: the reader believes the app has
+        // been told, and the next look offers the same terms again.
+        setGone((prev) => {
+          const next = { ...prev };
+          delete next[tip.id];
+          return next;
+        });
+        announceTipResolved(tip.id, null);
+        setProblem("That did not save. The card is still here — try again.");
+        return false;
+      }
+    },
+    [router],
+  );
+
   // One press, several questions. The loop lives in lib/tips/run.js because Aly
   // drives the same one when she decides to go and look herself.
   // "Remind me about this." A tip and a task promise different things: a tip is
@@ -463,6 +501,7 @@ export default function ProTips({
               today={today}
               offer={offerByTip.get(tip.id) || null}
               onResolve={readOnly ? null : resolve}
+              onRefuse={readOnly ? null : refuse}
               onTask={readOnly || !tip.trip_id ? null : makeTask}
             />
           ))}
@@ -500,7 +539,7 @@ const TONES = {
 //
 // The body is in the tree either way and hidden with a class rather than
 // unmounted, so printing a trip prints every tip in full.
-function TipCard({ tip, today, offer, onResolve, onTask }) {
+function TipCard({ tip, today, offer, onResolve, onRefuse, onTask }) {
   const [open, setOpen] = useState(false);
   const [refusing, setRefusing] = useState(false);
   const when = tipWhen(tip, today);
@@ -576,7 +615,7 @@ function TipCard({ tip, today, offer, onResolve, onTask }) {
             . Check the issuer&rsquo;s own application page before you apply.
           </p>
         ) : null}
-        {onResolve || onTask ? (
+        {onTask || (offer ? onRefuse : onResolve) ? (
           <div className="no-print mt-3 flex flex-wrap gap-2">
             {onTask ? (
               <button
@@ -587,7 +626,14 @@ function TipCard({ tip, today, offer, onResolve, onTask }) {
                 Remind me
               </button>
             ) : null}
-            {onResolve ? (
+            {/* No Clear on an offer. Clear says "I have read this", which is not
+                a thing anybody wants recorded about a card they were shown --
+                the only two useful answers are opening it and not opening it on
+                these terms, and the second one has its own button below. Two
+                buttons that both make the card go away, filing the same decision
+                under two different headings, is how the Delta offer ended up in
+                the refusals and the cleared tips at once. */}
+            {onResolve && !offer ? (
               <button
                 type="button"
                 onClick={() => onResolve(tip, "cleared")}
@@ -596,28 +642,20 @@ function TipCard({ tip, today, offer, onResolve, onTask }) {
                 Clear
               </button>
             ) : null}
-            {offer && onResolve ? (
-              // Not the same button as Clear. Clear says "I have read this";
-              // this says "not on these terms", and the app remembers the terms
-              // so the same card does not come round again unless the bonus goes
-              // up, the spending goes down or the fee does.
+            {offer && onRefuse ? (
+              // The only answer this card takes. It says "not on these terms",
+              // and the app remembers the terms, so the same card does not come
+              // round again unless the bonus goes up, the spending goes down or
+              // the fee does. One press, one write: the route files the refusal
+              // against the terms and moves the tip with it, so nothing here has
+              // to clear the tip separately.
               <button
                 type="button"
                 disabled={refusing}
                 onClick={async () => {
                   setRefusing(true);
-                  try {
-                    await fetch(`/api/offers/${offer.id}`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ status: "declined" }),
-                    });
-                  } catch {
-                    // The tip still clears. A refusal the app failed to file is
-                    // worth less than leaving the reader staring at a card they
-                    // have already said no to.
-                  }
-                  onResolve(tip, "cleared");
+                  const ok = await onRefuse(tip, offer);
+                  if (!ok) setRefusing(false);
                 }}
                 className="btn btn-ghost px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-60"
               >
