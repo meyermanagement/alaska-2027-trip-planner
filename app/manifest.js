@@ -11,19 +11,20 @@
  * the app switches skins on its own once it boots -- but a white splash under a
  * dark icon is a seam you see every cold start, so they are the dark page.
  *
- * The icons are the sign-in dial: a slate disc with the sixteen graduations and
- * the needle in Midnight Aurora's four accents, standing on a tile in that
- * skin's plate color so the disc has something to be a disc against. This is
- * the one place the mark cannot follow the skin, because a file on a home
- * screen is painted once. The tiles are square-cornered on purpose -- every
- * launcher masks the square itself, and rounding it here too leaves a dark
- * fringe outside the mask. Two of them, because a launcher does
- * two different things with an icon -- one shown as given, and one edge-to-edge
- * maskable copy with the instrument pulled in to radius 12.3 of the 32-unit box
- * so nothing that means anything crosses the circle a launcher may crop to.
- * They are drawn from the same tick paths and the same 0.72 needle scale as
- * components/AlyeskaMark.js, so the home screen and the sign-in screen are the
- * same instrument at two sizes.
+ * The icons are the needle in Midnight Aurora's four accents on a tile in that
+ * skin's plate color, with the sixteen graduations run out to the edges of the
+ * tile rather than standing around a circle inside it. Each mark follows its
+ * own bearing until it reaches the boundary of the square, so the four on the
+ * diagonals sit further out than the cardinals do. This is the one place the
+ * mark cannot follow the skin, because a file on a home screen is painted
+ * once. The tiles are square-cornered on purpose -- every launcher masks the
+ * square itself, and rounding it here too leaves a dark fringe outside the
+ * mask. Two of them, because a launcher does two different things with an icon
+ * -- one shown as given, and one maskable copy with the whole instrument
+ * scaled until the far tip of a diagonal mark lands at radius 12.3 of the
+ * 32-unit box, so nothing that means anything crosses the circle a launcher
+ * may crop to. The browser tab and the iOS touch icon are the same drawing at
+ * their own sizes, so every file the app ships agrees with the tab.
  */
 export default function manifest() {
   return {
