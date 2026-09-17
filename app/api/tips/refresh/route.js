@@ -121,6 +121,8 @@ async function writeHouseTips({
   travelers,
   policies,
   insuredByPolicy,
+  pets,
+  petLinks,
   scope,
   existing,
 }) {
@@ -137,6 +139,12 @@ async function writeHouseTips({
     // The insurance rule reads these two and nothing else reads them at all.
     policies: policies || [],
     insuredByPolicy: insuredByPolicy || new Map(),
+    // Both were already read further down this route to work out what had
+    // drifted since the last look. The lodging rule needs the arrangement as
+    // much as the animal: whether a hotel takes a dog is only a question for a
+    // family whose dog is actually going.
+    pets: pets || [],
+    petLinks: petLinks || [],
   }).filter((tip) => tip.scope === scope);
   let housed = 0;
   if (house.length) {
@@ -586,6 +594,8 @@ export async function POST(request) {
       travelers,
       policies,
       insuredByPolicy,
+      pets,
+      petLinks,
       scope,
       existing,
     });
@@ -637,6 +647,8 @@ export async function POST(request) {
     travelers,
     policies,
     insuredByPolicy,
+    pets,
+    petLinks,
     scope,
     existing,
   });
