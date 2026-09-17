@@ -254,13 +254,20 @@ export default function HomeLanding() {
         </div>
       </section>
 
+      {/* The film has to stop somewhere, and a hard horizontal edge between two
+          darks that are close but not identical reads as a mistake rather than
+          an ending. So the hero fades into the page ink over its last stretch,
+          and then this band says out loud that the film is over and the
+          explanation has started. It is also where See how it works lands, so
+          the button arrives at a heading instead of the middle of a scene. */}
+      <div className="home-seam" id="how">
+        <p>How it works</p>
+      </div>
+
       {/* --------------------------------------------------------------- scenes
           Six of them, in the order a trip happens. Each one is the stress it
           takes off you, said once, with the thing itself beside it. */}
-      <div
-        id="how"
-        className="mx-auto w-full max-w-[74rem] scroll-mt-6 px-5 sm:px-8"
-      >
+      <div className="mx-auto w-full max-w-[74rem] px-5 pt-2 sm:px-8">
         <Scene
           label="Before you go"
           title="The week before stops being a scramble."
@@ -527,7 +534,7 @@ export default function HomeLanding() {
       <footer className="mx-auto w-full max-w-[74rem] px-5 sm:px-8">
         <div className="border-t border-[var(--line)] py-8">
           <p className="text-[13px] leading-relaxed text-ink-soft">
-            Alyeska is a household travel planner by Meyer Management. Written
+            Alyeska is a household travel planner by CRM Elite Cohort. Written
             to be read without an account: the policy, the terms, the promises,
             the way to reach us, and where to report a security finding.
           </p>
