@@ -294,11 +294,11 @@ export default function HomeLanding() {
                   color: "rgba(246,243,236,0.92)",
                 }}
               >
-                Aly plans your trips and stays with you on them. Tell her
-                roughly where and when, and she builds the days around whoever
-                is actually going. Then on the trip she answers from the day you
-                are living. She books nothing, sells nothing, and changes
-                nothing without asking.
+                Finally, one place to plan your trip, keep it all together, and
+                get help along the way. From “where should we go?” to “what do we
+                need tomorrow?”, Aly brings your itinerary, bookings, packing,
+                and budget together with advice that fits you. Less to juggle.
+                More to enjoy.
               </p>
               <div
                 className="ma-in mt-7 flex flex-wrap items-center gap-3"
