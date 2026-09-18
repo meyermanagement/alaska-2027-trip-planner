@@ -32,6 +32,23 @@ import { HERO_CONVERSATION } from "@/lib/home/heroConversation";
  * less of it is handed the finished transcript, scrollable, with no typing, no
  * thinking pause and no follower.
  *
+ * It has to wait its turn. The headline, the buttons and the beta line arrive
+ * over the first half second, and a card that starts writing in the same
+ * breath pulls the eye off the sentence that explains what is being looked at.
+ * So the player takes the card over before the first paint, as it always did,
+ * but it takes it over holding still: the first question is drawn in full and
+ * nothing answers it. Writing begins once the card has been in view for a beat
+ * and a further breath has passed, which on a laptop is the moment the hero
+ * settles, and on a phone is the moment the reader scrolls down to it rather
+ * than several seconds before they ever see it. The first question is never
+ * typed, because it is the thing they are given to read while they wait; every
+ * question after it is.
+ *
+ * The rests inside the run are long enough to be rests. A paragraph lands and
+ * there is half a second before the next one starts, and a whole exchange ends
+ * and there are four seconds before the next question is asked, which is the
+ * difference between a script continuing and a person coming back.
+ *
  * It is also shaped like a conversation rather than a document. The first
  * version set the question in bold and the reply in plain text, both flush
  * left in one column, which read as a heading followed by a paragraph -- a
@@ -48,8 +65,11 @@ const CHAR_MS = 26; // questions, typed
 const WORD_MS = 42; // answers, written
 const ITEM_MS = 26; // list items, a little quicker
 const THINK_MS = 620; // the pause before she starts
-const BEAT_MS = 260; // between paragraphs
-const TURN_MS = 1500; // between one exchange and the next
+const BEAT_MS = 520; // between paragraphs
+const TURN_MS = 4000; // between one exchange and the next
+const SEEN_MS = 500; // in view this long before anything is allowed to move
+const SEEN_PX = 160; // and this much of the card actually on screen
+const LEAD_MS = 2600; // then the first question sits there, unanswered
 
 /** The exchange flattened into the order the blocks are written in. */
 function buildBlocks() {
@@ -80,6 +100,9 @@ function buildBlocks() {
 
 const BLOCKS = buildBlocks();
 
+/** Where the player waits: the first question drawn, the answer not started. */
+const LEAD_AT = BLOCKS.findIndex((b) => b.kind === "think");
+
 /** How a block is uncovered: by letter, by word, or all at once. */
 function unitsOf(block) {
   if (block.kind === "question") {
@@ -103,13 +126,18 @@ export default function AskDemo() {
   // Starts false so the server render, and a browser with scripts off, is the
   // finished transcript rather than an empty box.
   const [playing, setPlaying] = useState(false);
-  const [at, setAt] = useState(0); // which block is being written
+  // Armed and waiting is not the same as writing. The player takes the card
+  // over before the first paint so the finished transcript never flashes, but
+  // it holds still until the reader has had the card in front of them.
+  const [started, setStarted] = useState(false);
+  const [at, setAt] = useState(LEAD_AT); // which block is being written
   const [shown, setShown] = useState(0); // how much of it is written
   const [done, setDone] = useState(false);
   // The top of the window only fades once there is something above it. Fading
   // it from the start put the first line of the exchange behind a gradient.
   const [masked, setMasked] = useState(false);
 
+  const cardRef = useRef(null);
   const scrollRef = useRef(null);
   const followRef = useRef(true);
   const mineRef = useRef(0);
@@ -124,10 +152,59 @@ export default function AskDemo() {
     setPlaying(true);
   }, []);
 
+  // The starter. Nothing moves until the card has been on screen for a beat,
+  // which on a laptop is the moment the hero settles and on a phone is the
+  // moment the reader scrolls down to it rather than several seconds earlier.
+  // Then the first question sits there unanswered for a breath, so the page
+  // can be read before anything competes with it.
+  useEffect(() => {
+    if (!playing || started) return undefined;
+    let lead = 0;
+    let beat = 0;
+    const begin = () => {
+      if (lead) return;
+      lead = setTimeout(() => setStarted(true), LEAD_MS);
+    };
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      beat = setTimeout(begin, SEEN_MS);
+      return () => {
+        clearTimeout(beat);
+        clearTimeout(lead);
+      };
+    }
+    const watcher = new IntersectionObserver(
+      (entries) => {
+        // A sliver at the bottom edge is not the reader looking at it. The
+        // card while it waits is about two hundred pixels tall, and a phone
+        // that shows seventy of them below the buttons has not shown it yet.
+        const seen = entries.some(
+          (e) =>
+            e.isIntersecting &&
+            e.intersectionRect.height >=
+              Math.min(SEEN_PX, e.boundingClientRect.height),
+        );
+        if (seen && !beat) {
+          beat = setTimeout(begin, SEEN_MS);
+        } else if (!seen && !lead) {
+          clearTimeout(beat);
+          beat = 0;
+        }
+      },
+      { threshold: [0, 0.2, 0.4, 0.6, 0.8, 1] },
+    );
+    watcher.observe(node);
+    return () => {
+      watcher.disconnect();
+      clearTimeout(beat);
+      clearTimeout(lead);
+    };
+  }, [playing, started]);
+
   // The writer. One timer at a time, rescheduled as each unit lands, so a
   // component that unmounts mid-sentence leaves nothing running.
   useEffect(() => {
-    if (!playing || done) return undefined;
+    if (!playing || !started || done) return undefined;
     const block = BLOCKS[at];
     if (!block) {
       setDone(true);
@@ -154,7 +231,7 @@ export default function AskDemo() {
 
     const t = setTimeout(() => setShown((n) => n + 1), step || 1);
     return () => clearTimeout(t);
-  }, [playing, done, at, shown]);
+  }, [playing, started, done, at, shown]);
 
   // The follower. Eases the window down toward the newest line instead of
   // snapping. Our own scrolling fires scroll events too, so the handler has to
@@ -163,7 +240,7 @@ export default function AskDemo() {
   // from a person. Without that, the first 0.35px the follower moved looked
   // like a reader scrolling up and it stood down permanently.
   useEffect(() => {
-    if (!playing) return undefined;
+    if (!playing || !started) return undefined;
     const el = scrollRef.current;
     if (!el) return undefined;
 
@@ -200,7 +277,7 @@ export default function AskDemo() {
       window.cancelAnimationFrame(rafRef.current);
       el.removeEventListener("scroll", onScroll);
     };
-  }, [playing]);
+  }, [playing, started]);
 
   const visible = playing ? BLOCKS.slice(0, at + 1) : BLOCKS;
 
@@ -233,7 +310,7 @@ export default function AskDemo() {
 
   /** One paragraph of Aly's reply, drawn inside her bubble. */
   const replyPart = ({ block, index }) => {
-    const live = playing && index === at;
+    const live = playing && started && index === at;
     const text = live ? partial(block, shown) : block.text;
     const key = `${block.turn}-${block.kind}-${index}`;
 
@@ -279,6 +356,7 @@ export default function AskDemo() {
 
   return (
     <div
+      ref={cardRef}
       className="rounded-[var(--radius-card)] p-5"
       style={{
         background: "rgba(14,21,27,0.62)",
@@ -337,7 +415,7 @@ export default function AskDemo() {
 
           const block = entry.block;
           const i = entry.index;
-          const live = playing && i === at;
+          const live = playing && started && i === at;
           const text = live ? partial(block, shown) : block.text;
           const key = `${block.turn}-${block.kind}-${i}`;
 
