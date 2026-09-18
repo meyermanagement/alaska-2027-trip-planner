@@ -10,8 +10,8 @@ export const metadata = { title: "Meet Aly \u00b7 Alyeska" };
  * The Meet Aly intro, mounted for the practice hub.
  *
  * The Meet Aly component itself never reads the primary's file. It says what
- * Aly looks after, and the live answer behind each of those lines comes from a
- * demo endpoint working off a stand-in family. So nothing
+ * Aly looks after, and the prepared answers live alongside those sections.
+ * No personal data or model request is needed. So nothing
  * about this screen needs to be forked for practice; only the continue
  * button changes destination, so it takes the primary back to the
  * practice hub rather than onward to the family form.

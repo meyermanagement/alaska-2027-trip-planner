@@ -9,11 +9,8 @@ export const metadata = { title: "Meet Aly \u00b7 Alyeska" };
 /**
  * The first screen a brand-new primary sees, before the family form.
  *
- * Introduces Aly in her own voice, shows a live side-by-side demonstration
- * of the one thing she does that a search box cannot -- give different
- * answers to different families -- and offers a small "ask her something
- * else" box that runs the same demonstration on the primary's own
- * question, live, against two stand-in families.
+ * Introduces Aly in her own voice, with section questions that reveal
+ * prepared answers locally. No model request is needed for the introduction.
  *
  * The auth callback routes an empty household here instead of straight to
  * /welcome; the button on this screen takes the primary onward to /welcome

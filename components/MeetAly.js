@@ -5,6 +5,7 @@ import { Needle, RING_LEN, BEZEL } from "@/components/CompassLoader";
 import { useBooted, useRevealed } from "@/components/reveal";
 import PledgeLink from "@/components/PledgeLink";
 import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
+import { playPreparedReply } from "@/lib/welcome/preparedReply";
 
 /**
  * Meet Aly -- the first screen a brand-new primary sees.
@@ -16,7 +17,7 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
  *      boxes. Eight bordered cards read as a wall and get skipped; eight lines
  *      inside one bordered panel read as a list of jobs. Every line carries the
  *      question a family actually has about it, and tapping the question has
- *      Aly answer it live, before this family has an account or a trip.
+ *      Aly's prepared answer appear, without a model or network request.
  *   3. The promise -- the company line, and who stays in charge -- immediately
  *      above the button in. Said last on purpose: the same words at the top of
  *      the screen would be a slogan somebody has to take on trust, and after
@@ -55,8 +56,7 @@ import { ALY_ABILITIES } from "@/lib/welcome/alyAbilities";
  * invisible blocks waiting for an observer that will never come. And a browser
  * with no IntersectionObserver is treated as already-revealed rather than
  * never-revealed. All of the movement is off under prefers-reduced-motion; the
- * needle beside Thinking, which is the one piece of movement carrying
- * information rather than delight, keeps its own slower treatment there.
+ * prepared answers appear immediately when reduced motion is preferred.
  *
  * ---- Copy ---------------------------------------------------------------
  *
@@ -146,7 +146,7 @@ function BuildingMark() {
   );
 }
 
-/** The needle, spinning, for the one wait on this screen that is a real wait. */
+/** A brief reply cue before the prepared answer starts appearing. */
 function ThinkingMark() {
   return (
     <span className="compass-spin inline-flex" aria-hidden="true">
@@ -169,17 +169,43 @@ function ThinkingMark() {
  * The answer is bordered on its left rather than boxed, because it is Aly
  * speaking in reply to the line above it and not a new panel of content.
  */
-function AbilityQuestion({ ability, state, onAsk, delay }) {
-  const open = Boolean(state?.open);
+function AbilityQuestion({ ability, delay }) {
+  const [open, setOpen] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [complete, setComplete] = useState(false);
+
+  useEffect(() => {
+    if (!open || complete) return;
+    return playPreparedReply(
+      ability.answer,
+      (text, finished) => {
+        setAnswer(text);
+        if (finished) setComplete(true);
+      },
+      {
+        reducedMotion: window.matchMedia?.("(prefers-reduced-motion: reduce)")
+          ?.matches,
+      },
+    );
+  }, [open, complete, ability.answer]);
+
+  function toggle() {
+    if (open) {
+      // Closing early cancels the reveal. Reopening never makes you wait again.
+      setAnswer(ability.answer);
+      setComplete(true);
+    }
+    setOpen(!open);
+  }
+
   return (
     <>
       <button
         type="button"
-        onClick={() => onAsk(ability)}
+        onClick={toggle}
         aria-expanded={open}
         aria-controls={`ability-${ability.key}`}
-        disabled={state?.busy}
-        className={`ma-in mt-2 inline-flex min-h-11 max-w-full items-center rounded-lg border px-2.5 py-1 text-left text-xs leading-snug text-teal transition-colors duration-200 disabled:opacity-60 ${
+        className={`ma-in mt-2 inline-flex min-h-11 max-w-full items-center rounded-lg border px-2.5 py-1 text-left text-xs leading-snug text-teal transition-colors duration-200 ${
           open
             ? "border-teal/50 bg-teal-soft/60"
             : "border-teal/25 bg-white hover:border-teal/60 hover:bg-teal-soft/40"
@@ -188,29 +214,36 @@ function AbilityQuestion({ ability, state, onAsk, delay }) {
       >
         {ability.ask}
       </button>
-      {/* The turning needle rather than the three dots: this is the one wait
-          left on the screen and it is a real one, so it gets the mark the rest
-          of the app uses for work actually happening. */}
-      <div id={`ability-${ability.key}`} hidden={!open} aria-live="polite">
-      {open && state?.busy && (
-        <p role="status" className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
-          <ThinkingMark />
-          Aly is thinking
-        </p>
-      )}
-      {open && state?.answer && (
-        <p className="ma-write mt-2 border-l-2 border-teal/30 pl-3 text-sm leading-relaxed text-ink">
-          {state.answer}
-        </p>
-      )}
-      {open && state?.error && (
-        <div className="mt-2 text-xs text-terra-deep" role="alert">
-          <p>{state.error}</p>
-          <button type="button" onClick={() => onAsk(ability, true)} className="mt-1 min-h-11 text-teal underline">
-            Try again
-          </button>
-        </div>
-      )}
+      <div
+        id={`ability-${ability.key}`}
+        hidden={!open}
+        aria-live="polite"
+        aria-busy={open && !complete}
+      >
+        {open && !answer && (
+          <p
+            aria-hidden="true"
+            className="mt-2 flex items-center gap-2 text-xs text-ink-faint"
+          >
+            <ThinkingMark />
+            Aly is replying
+          </p>
+        )}
+        {open && answer && (
+          <p
+            aria-hidden="true"
+            className="mt-2 border-l-2 border-teal/30 pl-3 text-sm leading-relaxed text-ink"
+          >
+            {answer}
+            {!complete && (
+              <span className="ml-0.5 inline-block h-3 w-px bg-teal" />
+            )}
+          </p>
+        )}
+        {/* Announce once, not every two words as the visual reply appears. */}
+        <span className="sr-only">
+          {open && complete ? ability.answer : ""}
+        </span>
       </div>
     </>
   );
@@ -222,10 +255,6 @@ export default function MeetAly({
   practice = false,
 }) {
   const [armed, setArmed] = useState(false);
-  // One entry per line the family has poked at, keyed by ability. Answers are
-  // kept once fetched, so tapping a line shut and open again is instant and
-  // does not ask the model the same question twice.
-  const [topics, setTopics] = useState({});
 
   // Only once JavaScript is running does the CSS get permission to hide
   // anything. Before this, and forever in a browser with scripting off, the
@@ -240,52 +269,6 @@ export default function MeetAly({
   const [heroRef, heroShown] = useRevealed("0px");
   const [abilitiesRef, abilitiesShown] = useRevealed();
   const [footRef, footShown] = useRevealed();
-
-  /**
-   * A line in "What I look after", tapped. The first tap asks Aly the
-   * question that line carries; a second folds her answer away; a third opens
-   * the answer we already have rather than asking for it twice.
-   */
-  async function askAbility(a, retry = false) {
-    const held = topics[a.key];
-    if (held?.busy) return;
-    if (held?.open && !retry) {
-      setTopics((t) => ({ ...t, [a.key]: { ...held, open: false } }));
-      return;
-    }
-    if (held?.answer) {
-      setTopics((t) => ({ ...t, [a.key]: { ...held, open: true } }));
-      return;
-    }
-    setTopics((t) => ({ ...t, [a.key]: { open: true, busy: true } }));
-    try {
-      const res = await fetch("/api/welcome/meet-aly-ability", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key: a.key }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.answer) {
-        setTopics((t) => ({
-          ...t,
-          [a.key]: {
-            open: true,
-            error: "I could not load that answer. Try again when you are ready.",
-          },
-        }));
-        return;
-      }
-      setTopics((t) => ({
-        ...t,
-        [a.key]: { open: true, answer: data.answer },
-      }));
-    } catch {
-      setTopics((t) => ({
-        ...t,
-        [a.key]: { open: true, error: "I could not connect. Check your connection and try again." },
-      }));
-    }
-  }
 
   return (
     <div className="space-y-10" {...(armed ? { "data-ma-armed": "1" } : {})}>
@@ -366,7 +349,7 @@ export default function MeetAly({
 
           Every line is also a question. Under each one sits the thing a person
           actually wants to know about it, and tapping that asks Aly the
-          question and she answers it right there, live, before this family has
+          question and a prepared reply appears right there, before this family has
           an account or a trip. Eight claims a stranger can interrogate is a
           different thing from eight claims a stranger has to take on faith,
           and it is most of the difference between reading about somebody and
@@ -429,12 +412,7 @@ export default function MeetAly({
                     </li>
                   ))}
                 </ul>
-                <AbilityQuestion
-                  ability={a}
-                  state={topics[a.key]}
-                  onAsk={askAbility}
-                  delay={at + 0.34}
-                />
+                <AbilityQuestion ability={a} delay={at + 0.34} />
               </article>
             );
           })}
