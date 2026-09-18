@@ -103,8 +103,8 @@ export default function DocumentPicker({
       </label>
       <p className="text-[11px] leading-snug text-ink-soft">
         Take a photo or pick a PDF. Aly reads the number and expiry off the scan
-        and fills the fields below, and the file itself stays cached on the
-        phone so it opens at the desk with no signal.
+        and fills the fields below, and the file itself is kept in your
+        household's private storage, reachable only through a short-lived link.
       </p>
       {/* Named here, not only on the consent screen where the permission was
           given. This is the screen where somebody is choosing to hand over a
