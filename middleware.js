@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { whoIs } from "@/lib/supabase/who";
 import {
+  ARRIVE_COOKIE,
   DEFAULT_SKIN,
   SKIN_COOKIE,
   SKIN_COOKIE_MAX_AGE,
@@ -196,6 +197,26 @@ export async function middleware(request) {
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
+  }
+
+  // The front door gets the full opening -- the compass drawing itself and
+  // swinging on to north, the wordmark, the tagline -- on every load, not only
+  // the one right after signing in. A stranger arriving here has never seen the
+  // app before, so this is their arrival whether they typed the address, followed
+  // a link, or hit refresh. app/page.js decides signed-in visitors get bounced to
+  // /trips before this ever renders, so a family opening a bookmark never sees it.
+  //
+  // Spends the same cookie the sign-in redirects use (see lib/auth/arrive.js),
+  // so app/layout.js needs no separate rule to honor it. Set unconditionally
+  // rather than only when a cookie is missing: a refresh of "/" is exactly the
+  // case this exists for.
+  if (!user && pathname === "/") {
+    response.cookies.set({
+      name: ARRIVE_COOKIE,
+      value: "1",
+      path: "/",
+      sameSite: "lax",
+    });
   }
 
   // Asked once per session and then read from the cookie, so this costs one
