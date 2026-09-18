@@ -96,7 +96,7 @@ function Shot({ src, alt, className = "" }) {
  * now, set a size up from body copy and in full ink rather than soft, because
  * a single sentence carrying a whole section should not look like a caption.
  */
-function Scene({ label, title, body, media, flip }) {
+function Scene({ label, title, body, note, media, flip }) {
   return (
     <Reveal
       as="section"
@@ -121,6 +121,18 @@ function Scene({ label, title, body, media, flip }) {
           >
             {body}
           </p>
+          {/* A second line, only where cutting the paragraph took a specific
+              with it that the card beside it cannot show. Soft ink and back
+              down at body size, so it reads as the footnote to the line above
+              rather than as a second claim of equal weight. */}
+          {note ? (
+            <p
+              className="ma-in mt-2.5 max-w-[30rem] text-[14px] leading-relaxed text-ink-soft sm:text-[15px]"
+              style={{ animationDelay: "170ms" }}
+            >
+              {note}
+            </p>
+          ) : null}
         </div>
         <div>{media}</div>
       </div>
@@ -405,6 +417,7 @@ export default function HomeLanding() {
           flip
           title="From the day you book to the morning you leave."
           body="Every task dated against your real departure, arriving the week you can act on it."
+          note="You never start the packing list from nothing. The things nobody remembers are on it before you open the case."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
@@ -534,6 +547,7 @@ export default function HomeLanding() {
           label="The money"
           title="What it has cost, and which card to hand over."
           body="Every price against the number you meant to spend, and which card to hand over at dinner."
+          note="She reads your insurance policy and the coverage your card already gives you, so you know what you have before you buy it again."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -601,10 +615,11 @@ export default function HomeLanding() {
 
       {/* ------------------------------------------------------------ abilities
           Names and nothing else, grouped under five verbs. This is the widest
-          view of the product on the page, and since the six scenes above were
-          cut to a line each it is also where the specifics now live: reading a
-          confirmation in another language, the insurance policy, the packing
-          list building itself from who is going. It reads from lib/home/alyIndex.js, which is its own
+          view of the product on the page. Since the six scenes above were cut
+          to a line each it is also where most of the specifics now live; the
+          insurance policy and the packing list earned a second line on their
+          own scenes, but reading a confirmation in another language is named
+          only here. It reads from lib/home/alyIndex.js, which is its own
           file rather than the Meet Aly list, because that list is eight claims
           Aly has to be able to answer for live and this one is an index. */}
       <Reveal
