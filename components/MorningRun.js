@@ -64,17 +64,16 @@ export default function MorningRun({ runs, today, dueCount = 0, hour }) {
         // same words, the mailer is the problem and the scheduler is innocent.
         <p className="mt-1 text-ink-soft">
           {test.ok
-            ? `A test email was sent successfully at ${clockAt(test.ranAt)}, so the mailer itself works — this is the scheduled job, not the email.`
+            ? `Your test email was sent at ${clockAt(test.ranAt)}, but the automatic reminder needs attention.`
             : test.nothing
-              ? `The last test found nothing of yours due, so it proved nothing either way.`
-              : `The last test was refused too: ${test.error}`}
+              ? "The last test had no reminders to send, so email delivery has not been checked yet."
+              : `The test email also failed: ${test.error}`}
         </p>
       )}
       {status.state === MISSING && <MorningCatchUp />}
       {!calm && (
         <p className="mt-1 text-ink-soft">
-          You can send yourself a copy from the Family tab to see whether the
-          email works at all.
+          Open your profile on Family &amp; pets to send yourself a test email.
         </p>
       )}
     </section>

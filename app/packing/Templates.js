@@ -516,15 +516,15 @@ export default function Templates({
           trips={tripsByTemplate[template.id]}
           empty={
             template.is_base
-              ? "You have no upcoming trips, so there is nothing for this list to reach yet. Every trip you create starts from it."
-              : "No upcoming trip uses this add-on. Say a trip is this kind of trip on its own Packing tab, and this list will start reaching it."
+              ? "No planned trips use this list yet. New trips start with these everyday essentials."
+              : "No planned trips use this add-on yet. Select it on a trip's Packing tab to include these items."
           }
         />
         {mine.length === 0 && (
           <p className="mt-2 text-sm text-ink-soft">
             {template.is_base
-              ? "This list is empty, so new trips start with nothing packed. Add what the family always takes and every trip from here on begins with it."
-              : "This add-on is empty. Put the gear here that only suits one kind of trip \u2014 cold-weather layers, snorkeling kit \u2014 and keep the base list to what travels everywhere."}
+              ? "Start with the essentials you take on every trip. New trips will use this list as a starting point."
+              : "Add gear for this kind of trip, like cold-weather layers or snorkel gear. Keep everyday essentials on your base list."}
           </p>
         )}
         <div className="no-print mt-3">
@@ -533,12 +533,11 @@ export default function Templates({
             onClick={proposeItems}
             className="btn btn-primary px-4 py-1.5 text-sm"
           >
-            Propose items automatically
+            Ask Aly for packing ideas
           </button>
           <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
-            Aly reads what is on this list already and suggests what is missing.
-            Each suggestion comes with a tick of its own, so you can take some
-            and leave the rest.
+            Aly checks the list and suggests anything missing. Choose the items
+            you want before adding them.
           </p>
         </div>
 

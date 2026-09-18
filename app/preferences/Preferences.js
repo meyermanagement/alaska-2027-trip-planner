@@ -537,7 +537,8 @@ export default function Preferences({
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-ink-soft">
               Each person's About you answers and favorite travel memories help
-              Aly understand what they enjoy. Use their own words where possible.
+              Aly understand what they enjoy. Use their own words where
+              possible.
             </p>
           </div>
           <div className="space-y-3">
@@ -582,7 +583,7 @@ export default function Preferences({
                       aria-hidden="true"
                     />
                     <span className="whitespace-nowrap text-xs font-semibold text-ink-soft">
-                      {hasAbout ? "About written" : "No About yet"}
+                      {hasAbout ? "About you added" : "About you not added yet"}
                     </span>
                   </button>
                   {open && (
@@ -666,10 +667,8 @@ export default function Preferences({
               How we like to travel
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-              Anything worth remembering when we plan the next one — how we get
-              around, what we will and will not sleep in, what a night is worth
-              to us. Write it however you like. Aly reads these when she
-              suggests things. Press one to change or delete it.
+              Save the details Aly should remember, from favorite hotels to
+              must-have comforts. Open a preference to change or delete it.
             </p>
           </div>
           <div className="no-print flex flex-wrap gap-2">
@@ -730,8 +729,8 @@ export default function Preferences({
         {asking && (
           <p className="no-print mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3 text-sm text-ink-soft">
             {asking === "ideas"
-              ? "Aly is drafting the decisions any trip needs an answer to, skipping anything already saved here. This takes a few seconds."
-              : "Aly is reading your trips, your reviews and what is already saved here, looking for the decisions she keeps having to guess at. This takes a few seconds."}
+              ? "Aly is suggesting travel preferences you might want to add."
+              : "Aly is checking your trips, reviews, and saved preferences for details that would help her plan."}
           </p>
         )}
 
@@ -741,12 +740,12 @@ export default function Preferences({
               <span className="section-label">Aly&apos;s suggestions</span>
               <p className="mt-1 text-sm text-ink-soft">
                 {ideas.length === 0
-                  ? "Nothing to add — everything Aly would want to know is already written down here."
+                  ? "No new suggestions right now. You can still add a preference of your own."
                   : askedFor === "ideas"
-                    ? "The decisions any trip needs an answer to, drafted the ordinary way rather than picked out of your record. Change each one to what is actually true of you, or turn it down. Nothing is saved until you press Save."
+                    ? "These are starting points, not things Aly knows about you. Edit or skip each one. Nothing is added until you select Save."
                     : starter
-                      ? "There is not much saved about you yet, so these are not things Aly spotted — they are the decisions every trip needs an answer to, drafted the ordinary way. Change any of them to what is actually true of you, or turn them down. Nothing is saved until you press Save."
-                      : "Drafts, in your words, from what Aly already knows about you. Nothing is saved until you press Save, and you can change the wording first."}
+                      ? "Aly is still getting to know you, so these are general ideas. Edit them to fit you or skip them. Nothing is added until you select Save."
+                      : "Suggestions based on what you have shared. Check the wording and make any changes before selecting Save."}
               </p>
             </div>
             {ideas.map((idea) => (
@@ -792,7 +791,7 @@ export default function Preferences({
               />
             </label>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="section-label">Whose</span>
+              <span className="section-label">Traveler</span>
               <Chip on={!whose} onClick={() => setWhose("")}>
                 Everyone · {prefs.length}
               </Chip>
@@ -808,9 +807,9 @@ export default function Preferences({
             </div>
             {(topicChips.length > 1 || topicKey) && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="section-label">About</span>
+                <span className="section-label">Topic</span>
                 <Chip on={!topicKey} onClick={() => setTopicKey("")}>
-                  Anything
+                  All topics
                 </Chip>
                 {topicChips.map((row) => (
                   <Chip
@@ -919,9 +918,9 @@ export default function Preferences({
           </div>
         ) : shown.length === 0 ? (
           <p className="mt-4 rounded-xl border border-dashed border-[var(--line)] p-4 text-sm text-ink-soft">
-            Nothing saved under that. {prefs.length}{" "}
-            {prefs.length === 1 ? "preference" : "preferences"} in all — clear
-            the filters above to see them.
+            {prefs.length === 0
+              ? "No preferences saved yet. Add one above to help Aly get to know you."
+              : "No preferences match these filters. Clear the filters to see everything you have saved."}
           </p>
         ) : (
           <div className="mt-4 space-y-6">

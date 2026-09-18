@@ -80,8 +80,8 @@ export default function SkinPicker({ skin: saved }) {
     <section>
       <h2 className="font-display text-xl font-semibold">Your look</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Five looks, and the one you pick is yours alone — everyone else in the
-        family keeps whichever they chose, on every device you sign in on.
+        Pick the look that feels like you. It follows you across your devices
+        without changing anyone else&rsquo;s theme.
       </p>
 
       {/* Two across on a tablet and three on a desktop, because five cards do
@@ -143,7 +143,7 @@ export default function SkinPicker({ skin: saved }) {
 
       {chosen !== DEFAULT_SKIN ? (
         <p className="mt-3 text-xs text-ink-faint">
-          Printed pages stay on cream paper whichever look you are wearing.
+          Printed pages use the same light layout, whatever theme you choose.
         </p>
       ) : null}
     </section>

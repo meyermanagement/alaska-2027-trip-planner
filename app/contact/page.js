@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { midOnboarding } from "@/lib/auth/landing";
@@ -44,9 +45,7 @@ export default async function ContactPage() {
         <p className="section-label">The way to reach us</p>
         <h1 className="mt-1 font-display text-3xl font-semibold">Contact us</h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-          Tell us what went right, what went wrong, what did not do what you
-          expected, or what you wish the app did but does not. Every message
-          lands in a real inbox and gets read.{" "}
+          {SCREEN_INTROS.contact}{" "}
           {user
             ? "We reply to the address you are signed in with."
             : "We reply to the address you write from."}
@@ -86,9 +85,8 @@ export default async function ContactPage() {
         </p>
 
         <p className="mt-8 text-xs text-ink-soft">
-          If the app is broken -- a screen will not open, a save will not save,
-          a sign-in will not sign in -- writing here is fine, but a screenshot
-          in the same message helps every time.
+          Reporting a problem? A screenshot and a quick note about what you
+          expected will help us look into it.
         </p>
       </main>
     </>

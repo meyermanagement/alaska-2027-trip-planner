@@ -4,6 +4,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import Preferences from "./Preferences";
 
@@ -63,7 +64,10 @@ export default async function PreferencesPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <PageHeader title="Travel preferences" />
+        <PageHeader
+          title="Travel preferences"
+          subtitle={SCREEN_INTROS.preferences}
+        />
 
         <Preferences
           familyId={familyId}

@@ -197,7 +197,7 @@ function DraftProgress({ trip }) {
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <span>
-          {answered} of {total} sketched in
+          {answered} of {total} basics added
         </span>
         {!complete && next && (
           <span className="font-normal text-ink-faint">
@@ -450,9 +450,9 @@ export default function TripBoard({
   const shelf = past.filter((t) => !isArchivedTrip(t));
 
   const tabs = [
-    { id: "upcoming", label: "Upcoming", count: upcoming.length },
+    { id: "upcoming", label: "Planned", count: upcoming.length },
     { id: "drafts", label: "Drafts", count: drafts.length },
-    { id: "past", label: "Past", count: shelf.length },
+    { id: "past", label: "Trip log", count: shelf.length },
   ];
 
   if (switching) {
@@ -494,7 +494,7 @@ export default function TripBoard({
               role="tab"
               aria-selected={on}
               onClick={() => show(t.id)}
-              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
+              className={`whitespace-nowrap rounded-full px-2 py-1.5 text-sm font-semibold transition sm:px-3.5 ${
                 on
                   ? "bg-teal text-on-accent shadow-sm"
                   : "text-ink-soft hover:text-ink"
@@ -517,7 +517,7 @@ export default function TripBoard({
         <Section
           id="upcoming"
           view={view}
-          title="Upcoming trips"
+          title="Planned trips"
           count={upcoming.length}
           /* Where to send bookings, under this group's heading and above its
              first card. It belongs to Upcoming and nowhere else: a family
@@ -539,8 +539,8 @@ export default function TripBoard({
           ) : (
             <p className="card p-5 text-sm text-ink-soft">
               {current.length > 0
-                ? "Nothing after this one yet. The trip you are on is above — start the next one whenever you are ready."
-                : "No trips coming up. Start one whenever you are ready — or sketch an idea in Drafts and move it here once it is settled."}
+                ? "Enjoy this adventure. Your current trip is above, and the next one can wait until you are ready."
+                : "No trips coming up yet. Start a new trip, or open a draft and move it here when you are ready."}
             </p>
           )}
         </Section>
@@ -548,8 +548,8 @@ export default function TripBoard({
         <Section
           id="drafts"
           view={view}
-          title="Draft trips"
-          blurb="Ideas being worked out. Nothing here is on the family calendar until you move it to Upcoming."
+          title="Trip drafts"
+          blurb="A little room to dream. Work out the details here, then move your draft to Planned trips when you are ready. Drafts stay off the family calendar."
           count={drafts.length}
         >
           {drafts.length > 0 ? (
@@ -560,10 +560,9 @@ export default function TripBoard({
             </div>
           ) : (
             <p className="card p-5 text-sm text-ink-soft">
-              Nothing sketched out yet. Press “Start a new trip”, say what you
-              have in mind, and Aly will build it with you — a place, roughly
-              when, and whatever else you feel like telling her. It stays here
-              until you move it across.
+              Your next adventure can start with one idea. Select “Start a new
+              trip” and tell Aly what you have in mind. It stays a draft until
+              you move it to Planned trips.
             </p>
           )}
         </Section>
@@ -571,8 +570,8 @@ export default function TripBoard({
         <Section
           id="past"
           view={view}
-          title="Past trips"
-          blurb="Kept for the record — itineraries, packing lists and notes are all still here."
+          title="Trip log"
+          blurb="The trips may be over, but the good ideas stay. Revisit your itineraries, packing lists, and notes."
           count={shelf.length}
         >
           {shelf.length > 0 ? (
@@ -610,9 +609,8 @@ export default function TripBoard({
                 </span>
               </summary>
               <p className="mt-2 text-sm text-ink-soft">
-                Put away, and still counted. These trips keep teaching Aly what
-                the family likes and still seed the packing lists of the trips
-                to come.
+                Out of the way, not forgotten. Aly can still use these trips to
+                learn your preferences and help with future packing lists.
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {archived.map((trip) => (

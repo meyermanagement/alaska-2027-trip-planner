@@ -66,12 +66,12 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
   return (
     <section aria-label="Tips on the other tabs" className="card mb-5 p-5">
       <h3 className="text-xs font-bold uppercase tracking-[0.09em] text-ink-soft">
-        Elsewhere on this trip
+        Tips on other tabs
       </h3>
       {summary.places.length ? (
         <>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-            {justNow ? "That look also filed " : "There are "}
+            {justNow ? "Aly also added " : "There are "}
             {summary.places
               // "2 on the Itinerary" is shorter than "2 tips on the Itinerary"
               // and worse: the noun is what makes the number mean anything, and
@@ -100,8 +100,8 @@ function ElsewhereTips({ landed, counts, everLooked, onGo }) {
       ) : (
         <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
           {everLooked
-            ? "Nothing on the Itinerary or Packing tabs at the moment. A look covers your next few bookings and your packing list as well as the trip itself, so anything worth saying about those will land there."
-            : "A look covers your next few bookings and your packing list too — press Check for pro tips at the top of this trip. Whatever it finds about those lands on the Itinerary and Packing tabs, and this will say how much went where."}
+            ? "No tips on the Itinerary or Packing tabs right now. When Aly finds advice for your plans or packing list, it appears on those tabs."
+            : "Select Check for pro tips at the top of this trip. Advice for your plans and packing list appears on the Itinerary and Packing tabs."}
         </p>
       )}
     </section>

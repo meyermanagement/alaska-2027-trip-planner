@@ -52,9 +52,9 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0 }) {
   if (nothing) {
     return (
       <p className="mt-4 max-w-prose text-sm text-ink-soft">
-        Nothing is late, nothing on a trip contradicts anything else, and no
-        mail is waiting to be filed. Everything still to come is in the list
-        below.
+        A little breathing room. No reminders are due today or overdue, no trip
+        conflicts are flagged, and your inbox is caught up. Upcoming reminders
+        are below.
       </p>
     );
   }
@@ -62,7 +62,7 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0 }) {
   return (
     <>
       {pressing.length ? (
-        <Band tone="hot" title="Needs you today" count={pressing.length}>
+        <Band tone="hot" title="Needs attention today" count={pressing.length}>
           {pressing.map((item) => (
             <Row
               key={item.id}
@@ -76,7 +76,7 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0 }) {
       ) : null}
 
       {clashes.length ? (
-        <Band tone="warm" title="Does not add up" count={clashes.length}>
+        <Band tone="warm" title="Trip details to check" count={clashes.length}>
           {clashes.map((item) => (
             <Row
               key={item.id}
@@ -89,15 +89,15 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0 }) {
       ) : null}
 
       {waiting ? (
-        <Band title="Arrived, not filed yet" count={waiting}>
+        <Band title="Inbox to review" count={waiting}>
           <Row
             href="/inbox"
             lead={
               waiting === 1
-                ? "One message is waiting to be put on a trip"
-                : `${waiting} messages are waiting to be put on a trip`
+                ? "One message is ready to review"
+                : `${waiting} messages are ready to review`
             }
-            body="Bookings, fare alerts and policies forwarded to your trips address."
+            body="Review forwarded bookings, flight deals, and insurance policies."
           />
         </Band>
       ) : null}

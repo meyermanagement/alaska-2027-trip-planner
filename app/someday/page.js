@@ -4,13 +4,13 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
 import Deals from "@/components/Deals";
 import ForwardFares from "@/components/ForwardFares";
 import ForwardFaresLink from "@/components/ForwardFaresLink";
-import { FARE_NEWSLETTERS } from "@/lib/deals/senders";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
@@ -107,17 +107,8 @@ export default async function SomedayPage() {
           count={(places || []).length || undefined}
           subtitle={
             <>
-              Places you want to go, and the months you could actually go in.
-              Most cheap flight emails are about somewhere you are not going: a
-              deal newsletter you signed up to, like {FARE_NEWSLETTERS[0]}, an
-              airline sale, a price alert you set. Forward them to your
-              household address and Aly keeps only the fares leaving from your
-              airports for a place on this list in a month that suits you, then
-              says here whether the price is worth it.{" "}
-              <ForwardFaresLink>
-                Here is how to point them at her
-              </ForwardFaresLink>
-              .
+              {SCREEN_INTROS.bucketList}{" "}
+              <ForwardFaresLink>How to forward flight deals</ForwardFaresLink>.
             </>
           }
         />

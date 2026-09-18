@@ -4,6 +4,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import PlaceList from "./PlaceList";
 import HowRatingsWork from "@/components/HowRatingsWork";
@@ -165,23 +166,19 @@ export default async function ReviewsPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <PageHeader
-          title="Past reviews"
-          subtitle="What the family thought of the places they stayed, the things they did and the meals they ate. Aly reads these when it suggests somewhere new."
-        >
+        <PageHeader title="Past reviews" subtitle={SCREEN_INTROS.reviews}>
           <HowRatingsWork />
         </PageHeader>
 
         {shownTrips.length === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">
-            Nothing here yet. Rate a hotel, an excursion or a restaurant on a
-            trip once it has happened and it will show up here, and everything
-            from a finished trip arrives on this page by itself.
+            No reviews yet. Rate a stay, activity, or meal after you try it.
+            Places from finished trips also appear here, ready for your review.
           </p>
         ) : total === 0 ? (
           <p className="card p-5 text-sm text-ink-soft">
-            No stays, excursions or restaurants were saved on our finished trips
-            yet.
+            No stays, activities, or restaurants are saved on your finished
+            trips yet.
           </p>
         ) : (
           <PlaceList groups={groups} trips={shownTrips} />

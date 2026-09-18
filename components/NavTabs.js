@@ -111,14 +111,14 @@ const TRIP_ROWS = [
     // that is the order the ideas happen in -- a place you want to go becomes a
     // draft, not the other way round.
     href: "/someday",
-    label: "Bucket List",
+    label: "Bucket list",
     sub: "Places you want to go",
     Icon: BucketIcon,
   },
   {
     href: "/trips?view=drafts",
     view: "drafts",
-    label: "Trip Drafts",
+    label: "Trip drafts",
     sub: "Nothing in progress",
     Icon: PencilIcon,
     // Carries the count of unfinished drafts, the way Reminders carries the
@@ -129,14 +129,14 @@ const TRIP_ROWS = [
   {
     href: "/trips?view=upcoming",
     view: "upcoming",
-    label: "Planned Trips",
-    sub: "Booked and coming up",
+    label: "Planned trips",
+    sub: "Your upcoming trips",
     Icon: SuitcaseIcon,
   },
   {
     href: "/trips?view=past",
     view: "past",
-    label: "Trip Log",
+    label: "Trip log",
     sub: "Trips already taken",
     Icon: CameraIcon,
   },
@@ -146,7 +146,7 @@ const TRIP_ROWS = [
     // spend again, which is what every other row in this group is.
     href: "/packing",
     label: "Packing",
-    sub: "The lists every trip starts from",
+    sub: "Reusable packing lists",
     Icon: ShirtIcon,
   },
   {
@@ -168,7 +168,7 @@ function draftsSub(n) {
   // Short on purpose: the labeled rail is 20.5rem wide and truncates a subtitle
   // longer than about twenty characters, and a count that reads "2 trips still
   // being worked ..." has lost the only word that mattered.
-  if (n > 0) return `${n} being worked out`;
+  if (n > 0) return `${n} in progress`;
   return "Nothing in progress";
 }
 
@@ -176,14 +176,14 @@ const GROUPS_BASE = [
   {
     key: "journal",
     label: "Trips",
-    sub: "Where you have been, where you are going, what you pack",
+    sub: "Plans, memories, and packing",
     Icon: JournalIcon,
     kids: TRIP_ROWS,
   },
   {
     key: "file",
     label: "Your file",
-    sub: "The people, the preferences and the points Aly plans against",
+    sub: "People, preferences, and rewards",
     Icon: FolderIcon,
     kids: [
       {
@@ -195,13 +195,13 @@ const GROUPS_BASE = [
       {
         href: "/reviews",
         label: "Past reviews",
-        sub: "What you thought of it",
+        sub: "Places you have tried",
         Icon: ReviewIcon,
       },
       {
         href: "/family",
         label: "Family & pets",
-        sub: "People and animals",
+        sub: "Profiles and travel documents",
         Icon: PeopleIcon,
       },
       {
@@ -227,7 +227,7 @@ const GROUPS_BASE = [
 const NOW_ROW = {
   href: "/now",
   label: "Now",
-  sub: "What needs you",
+  sub: "Reminders and updates",
   Icon: BellIcon,
   badge: true,
 };
@@ -235,7 +235,7 @@ const NOW_ROW = {
 const SETTINGS = {
   href: "/settings",
   label: "Settings",
-  sub: "About you, your look, sign-in",
+  sub: "Appearance and account",
   Icon: GearIcon,
 };
 
@@ -270,8 +270,8 @@ const MORE_GROUP = {
     },
     {
       href: "/contact",
-      label: "Contact Us",
-      sub: "Questions, or anything you want to tell us",
+      label: "Contact us",
+      sub: "Questions and feedback",
       Icon: MailIcon,
     },
     // Below the two rooms a family visits and above the housekeeping door,
@@ -294,8 +294,8 @@ const MORE_GROUP = {
 // last door in the drawer.
 const SURVEY_ROW = {
   href: "/survey",
-  label: "Beta Survey",
-  sub: "How the app is working for you, saved as you go",
+  label: "Beta survey",
+  sub: "Help shape Alyeska",
   Icon: SurveyIcon,
 };
 

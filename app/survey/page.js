@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { isTesterAccount } from "@/lib/beta/tester";
@@ -49,9 +50,7 @@ export default async function SurveyPage() {
           Beta survey
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-          Answer what you have an opinion about and leave the rest. Every box
-          saves itself, so you can close this and come back after your next trip
-          and change your mind about any of it — including the price.
+          {SCREEN_INTROS.survey}
         </p>
 
         <div className="mt-7">

@@ -4,6 +4,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import HouseholdName from "./HouseholdName";
 import HouseholdHome from "./HouseholdHome";
@@ -168,10 +169,7 @@ export default async function PeoplePage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <PageHeader
-          title="Family"
-          subtitle="Everyone who travels, and every animal that does or does not — with the documents kept in one place."
-        >
+        <PageHeader title="Family & pets" subtitle={SCREEN_INTROS.family}>
           <HouseholdName familyId={familyId} name={household?.name || ""} />
           <HouseholdHome
             familyId={familyId}

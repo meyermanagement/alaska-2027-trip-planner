@@ -173,7 +173,7 @@ export default function PropagatePanel() {
     >
       <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-1">
         <h2 className="font-display text-lg font-semibold text-ink">
-          Push these lists onto upcoming trips
+          Update packing lists on planned trips
         </h2>
         <span className="text-sm text-ink-soft">
           Editing a template does not change trips you already have
@@ -183,10 +183,9 @@ export default function PropagatePanel() {
         </span>
       </summary>
       <p className="mt-2 text-sm text-ink-soft">
-        A trip&rsquo;s packing list is a copy taken when the trip was built.
-        This looks at every trip that has not started yet and tells you exactly
-        what it would change before it changes anything. Then you choose how
-        much of it to do &mdash; one item, one trip, or all of it.
+        Each trip has its own copy of your packing lists. Preview updates for
+        trips that have not started, then choose which changes to apply. Nothing
+        changes until you approve it.
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

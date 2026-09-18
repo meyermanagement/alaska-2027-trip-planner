@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import DictationHint from "@/components/DictationHint";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import {
   LOG_ASKS,
   LOG_EXAMPLES,
@@ -49,9 +50,7 @@ export default function LogTripStart() {
         Log a trip you have already taken
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        For the record, and for the next trip. Tell it however you remember it —
-        Aly writes it up as a finished trip, keeps the packing list you actually
-        used, and reads your notes back when you plan something similar.
+        {SCREEN_INTROS.logTrip}
       </p>
 
       {LOG_ASKS.map((ask) => (
@@ -116,8 +115,8 @@ export default function LogTripStart() {
           Rough is enough
         </p>
         <p className="mt-1 text-xs text-ink-soft">
-          Any of these is a trip worth logging. They are here to show how little
-          you need — nothing to press, just write your own in the first box.
+          A few sentences are enough. Use these examples for inspiration, then
+          tell your own story in the first box.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {LOG_EXAMPLES.map((example) => (
@@ -135,9 +134,8 @@ export default function LogTripStart() {
           the builder and somebody arriving here from the Trips page will assume
           the app is about to start planning at them. */}
       <p className="mt-9 border-t border-[var(--line)] pt-5 text-xs leading-relaxed text-ink-soft">
-        A logged trip lands in Past trips. Nothing about it goes on the family
-        calendar, nothing gets a countdown, and Aly will not suggest anything to
-        book — it is a record, not a plan.
+        Saved trips appear in your Trip log. They do not add calendar events,
+        countdowns, or booking suggestions. This is a memory, not a new plan.
       </p>
     </>
   );

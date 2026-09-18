@@ -1,6 +1,7 @@
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import SkinPicker from "@/components/SkinPicker";
 import BetaConsentControls from "@/components/BetaConsentControls";
 import TextSizePicker from "@/components/TextSizePicker";
@@ -41,7 +42,7 @@ export default function SettingsBody({
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <PageHeader title="Settings" />
+        <PageHeader title="Settings" subtitle={SCREEN_INTROS.settings} />
 
         <div className="space-y-10">
           <SkinPicker skin={skin} />
@@ -92,7 +93,7 @@ export default function SettingsBody({
               {mine?.name && (
                 <div className="flex flex-wrap gap-x-2">
                   <dt className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                    On the trips as
+                    Traveler name
                   </dt>
                   <dd className="min-w-0 flex-1">{mine.name}</dd>
                 </div>
@@ -103,7 +104,7 @@ export default function SettingsBody({
               method="post"
               className="no-print mt-4"
             >
-              <button className="btn btn-ghost text-sm">Log out</button>
+              <button className="btn btn-ghost text-sm">Sign out</button>
             </form>
           </section>
 

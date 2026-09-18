@@ -65,6 +65,10 @@ export default function Notes({ items, tripId, userId, userName, onChange }) {
 
   return (
     <section>
+      <p className="mb-4 text-sm text-ink-soft">
+        Keep the useful little details together: decisions, links, and ideas you
+        want your travel group to remember.
+      </p>
       <form onSubmit={add} className="card no-print mb-5 space-y-3 p-4">
         <input
           className="field"
@@ -75,7 +79,7 @@ export default function Notes({ items, tripId, userId, userName, onChange }) {
         <textarea
           className="field"
           rows={3}
-          placeholder="Share something with the family — a decision, a reminder, a link…"
+          placeholder="A great lunch spot, a useful link, or a decision to remember…"
           value={body}
           onChange={(e) => setBody(e.target.value)}
         />

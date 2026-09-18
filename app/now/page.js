@@ -4,6 +4,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import Reminders from "@/components/Reminders";
 import MorningRun from "@/components/MorningRun";
@@ -187,7 +188,11 @@ export default async function NowPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <PageHeader title="Now" count={tasks.length} />
+        <PageHeader
+          title="Now"
+          count={tasks.length}
+          subtitle={SCREEN_INTROS.now}
+        />
         <NowBands
           pressing={pressing}
           clashes={clashes}

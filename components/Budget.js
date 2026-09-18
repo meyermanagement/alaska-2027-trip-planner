@@ -186,29 +186,32 @@ function Headline({
     <div className="card p-4 sm:p-5">
       <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
         <Figure
-          label={past ? "You wanted to spend" : "You would like to spend"}
+          label="Your budget"
           value={budget.target === null ? "—" : money(budget.target)}
           quiet={budget.target === null}
         />
         <Figure
-          label={past ? "It came to" : "Priced so far"}
+          label={past ? "Total recorded" : "Total so far"}
           value={budget.expected ? money(budget.expected) : "—"}
           quiet={!budget.expected}
           big
         />
         <Figure
-          label="Final figures"
+          label="Actual costs recorded"
           value={budget.actual ? money(budget.actual) : "—"}
           quiet={!budget.actual}
         />
       </div>
 
-      <p className="mt-3 text-sm text-ink-soft">{budgetSentence(budget)}</p>
+      <p className="mt-3 text-sm text-ink-soft">
+        {budget.lines.length === 0
+          ? "Add costs to see how this trip compares with your budget."
+          : budgetSentence(budget)}
+      </p>
       {budget.unpriced > 0 && (
         <p className="mt-1 text-sm text-ink-faint">
-          {budget.unpriced} thing{budget.unpriced === 1 ? "" : "s"} on this trip
-          still {budget.unpriced === 1 ? "carries" : "carry"} no figure, so the
-          total is lower than the trip will be.
+          {budget.unpriced} {budget.unpriced === 1 ? "item has" : "items have"}{" "}
+          no price yet, so this total is incomplete.
         </p>
       )}
 
@@ -228,9 +231,8 @@ function Headline({
           </button>
           {pricing && (
             <p className="mt-2 text-sm text-ink-soft">
-              Looking each one up for these dates and this party. Up to a minute
-              — the figures appear as estimates, and every one says what it was
-              priced as.
+              Aly is checking prices for your dates and travelers. This may take
+              a minute. Results will be labeled as estimates.
             </p>
           )}
         </div>
@@ -241,7 +243,7 @@ function Headline({
         <p className="mt-2 text-sm text-ink-soft">
           {priced.applied === 0
             ? priced.message ||
-              "Nothing here could be priced honestly, so nothing was filled in."
+              "Aly could not find reliable estimates, so the prices were left blank."
             : `Priced ${priced.applied} of ${priced.blank}, adding ${money(
                 priced.added,
               )}.${
@@ -571,9 +573,9 @@ function AddCost({ tripId, supabase, onChange, past }) {
   return (
     <form onSubmit={add} className="card no-print space-y-3 p-4">
       <p className="text-sm text-ink-soft">
-        For money that is not an event on a day — groceries, gas, checked bags,
-        souvenirs, boarding the animals. Anything on the itinerary already has
-        its own two boxes above.
+        Add costs that are not on your itinerary, like groceries, gas, checked
+        bags, souvenirs, or pet care. Costs for itinerary items are listed
+        above.
       </p>
       <input
         className="field"
@@ -583,7 +585,7 @@ function AddCost({ tripId, supabase, onChange, past }) {
       />
       <div className="flex flex-wrap gap-3">
         <label className="min-w-40 flex-1">
-          <span className="block text-xs text-ink-faint">Part of the trip</span>
+          <span className="block text-xs text-ink-faint">Category</span>
           <select
             className="field"
             value={category}
@@ -645,8 +647,8 @@ function Empty({ past }) {
     <div className="card p-5">
       <p className="text-sm text-ink-soft">
         {past
-          ? "Nothing on this trip carries a figure. Put what you paid against the days and the totals will fill in."
-          : "The budget fills itself in as the trip does: every flight, hotel, dinner and tour on the itinerary gets two boxes here — what you think it will cost, and what it came to."}
+          ? "No costs recorded yet. Add what you paid for your trip to see the totals."
+          : "Start with the plans, then add the prices. Track estimated and actual costs for flights, stays, meals, and activities here."}
       </p>
       <button
         type="button"

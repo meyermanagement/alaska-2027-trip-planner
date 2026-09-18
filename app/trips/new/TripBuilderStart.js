@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import DictationHint from "@/components/DictationHint";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import {
   BASICS,
   TRIP_IDEA_EXAMPLES,
@@ -116,9 +117,7 @@ export default function TripBuilderStart({
         What trip are you thinking about?
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        Say it however it is in your head — a place, a rough time of year, the
-        one thing you want to do. Aly asks about whatever is missing, and you do
-        not need dates.
+        {SCREEN_INTROS.newTrip}
       </p>
 
       {/* The drafts this family already has, above the box rather than beside
@@ -131,12 +130,11 @@ export default function TripBuilderStart({
         <div className="mt-5 rounded-2xl border border-amber/40 bg-sand-deep/25 p-4">
           <p className="text-sm font-semibold">
             {drafts.length === 1
-              ? "You already have a trip being worked out"
-              : `You already have ${drafts.length} trips being worked out`}
+              ? "You have a trip draft in progress"
+              : `You have ${drafts.length} trip drafts in progress`}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-            If this is one of them, carry on with it instead of starting again —
-            everything you have already told Aly is on it.
+            Planning one of these? Open it to pick up where you left off.
           </p>
           <ul className="mt-3 grid grid-cols-1 gap-2">
             {drafts.map((draft) => (
@@ -168,7 +166,7 @@ export default function TripBuilderStart({
                       row that tells you whether it is the trip you came to
                       carry on with. */}
                   <span className="ml-auto shrink-0 text-xs font-semibold text-teal">
-                    <span className="hidden sm:inline">Carry on</span>
+                    <span className="hidden sm:inline">Continue planning</span>
                     <svg
                       className="inline h-4 w-4 sm:hidden"
                       viewBox="0 0 20 20"
@@ -200,10 +198,8 @@ export default function TripBuilderStart({
             Started from {fromPlace} on your bucket list
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-            Everything you had already said about it is in the box. Add whatever
-            the list never had room for — how you would get there, where you
-            would sleep, what it can cost — and then start. Your bucket list
-            stays as it is.
+            Your saved ideas are in the box below. Add anything else you have in
+            mind, then start planning. This will not change your bucket list.
           </p>
         </div>
       ) : null}

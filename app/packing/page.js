@@ -4,6 +4,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { templateScope } from "@/lib/packing/propagate";
@@ -218,7 +219,7 @@ export default async function PackingTemplatesPage() {
         <TripPackingLinks trips={upcoming} />
         <PageHeader
           title="Packing templates"
-          subtitle="Change a list here and it applies to the next trip you create."
+          subtitle={SCREEN_INTROS.packing}
         />
         <PackingScreen
           travelers={(travelers || [])

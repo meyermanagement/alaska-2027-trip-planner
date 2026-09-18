@@ -650,9 +650,9 @@ export default function SomedayList({
       </div>
 
       <div className="mt-3">
-        <p className="section-label">Months you could actually go</p>
+        <p className="section-label">When could you go?</p>
         <p className="mt-1 text-sm text-ink-soft">
-          Nothing ticked means any month.
+          Choose any months that work. Leave them all unselected for any month.
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {MONTHS.map((name, index) => {
@@ -699,7 +699,7 @@ export default function SomedayList({
        * clears it, which is the only way back to unranked once one is set.
        */}
       <div className="mt-3">
-        <p className="section-label">How much you want it</p>
+        <p className="section-label">How high is this on your list?</p>
         <p className="mt-1 text-sm text-ink-soft">
           Leave it blank if you have not decided.
         </p>
@@ -727,9 +727,10 @@ export default function SomedayList({
 
       {travelers.length ? (
         <div className="mt-3">
-          <p className="section-label">Who it is for</p>
+          <p className="section-label">Who would go?</p>
           <p className="mt-1 text-sm text-ink-soft">
-            Nobody ticked means the whole household.
+            Choose travelers, or leave everyone unselected for the whole
+            household.
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {travelers.map((person) => {
@@ -802,9 +803,8 @@ export default function SomedayList({
             Nothing on the list yet
           </h2>
           <p className="mt-1 max-w-xl text-sm text-ink-soft">
-            A place and the months you could go is enough for Aly to know a fare
-            worth mentioning from one that is merely cheap. Without a list she
-            is guessing at what you want.
+            What is the trip you keep talking about? Add a place to start. You
+            can choose travel months now or leave them flexible.
           </p>
         </div>
       ) : null}

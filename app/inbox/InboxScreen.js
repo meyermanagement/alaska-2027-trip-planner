@@ -11,6 +11,7 @@ import { tripPath } from "@/lib/trips/route";
 import { stampSaid } from "@/lib/format";
 import ClearedInbox from "@/components/ClearedInbox";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import InboxMessageBody from "@/components/InboxMessageBody";
 import { readVerification } from "@/lib/inbox/verification";
 
@@ -64,7 +65,9 @@ export default function InboxScreen({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        window.alert(body.error || "We could not clear that. Try again.");
+        window.alert(
+          body.error || "We could not dismiss that notice. Try again.",
+        );
         return;
       }
       router.refresh();
@@ -255,7 +258,7 @@ export default function InboxScreen({
     <div>
       <PageHeader
         title="Inbox"
-        subtitle="Forward booking confirmations to the address below and Aly will file them onto the right trip. Airline confirmations, hotel bookings, the rental car -- any one of them, from any address."
+        subtitle={SCREEN_INTROS.inbox}
         className="mb-4"
       />
       {/*
@@ -287,19 +290,16 @@ export default function InboxScreen({
        * the two jobs nobody would guess an inbox screen was offering.
        */}
       <p className="mt-2 text-sm text-ink-soft">
-        It takes more than bookings. Most cheap flight emails are about
-        somewhere you are not going: a deal newsletter you signed up to, like{" "}
-        {FARE_NEWSLETTERS[0]}, an airline sale, a price alert you set. Forward
-        them and she keeps only the fares that fit a place on your bucket list
-        or a trip whose flights are still to buy, with the sender credited so
-        you can check the price yourself. Send a travel insurance policy and she
-        reads out what it covers, who is named on it and what it leaves open.
+        Aly adds matching bookings to your trips, checks flight deals from
+        newsletters like {FARE_NEWSLETTERS[0]} against your plans, and
+        summarizes insurance coverage. Deals keep their original source so you
+        can check the price before booking.
       </p>
 
       <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--line)] bg-sand p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="text-xs uppercase tracking-[0.08em] text-ink-faint">
-            The family address
+            Your forwarding address
           </div>
           <div className="mt-1 truncate font-mono text-base text-ink">
             {address}
@@ -310,7 +310,7 @@ export default function InboxScreen({
           onClick={copyAddress}
           className="shrink-0 rounded-xl border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-ink transition hover:border-teal hover:text-teal"
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? "Copied" : "Copy address"}
         </button>
       </div>
 
@@ -320,7 +320,7 @@ export default function InboxScreen({
             <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-ink">
               Just filed by Aly
             </h2>
-            <span className="text-xs text-ink-faint">Undo good for a day</span>
+            <span className="text-xs text-ink-faint">Undo within 24 hours</span>
           </div>
           <ul className="mt-3 space-y-2">
             {autoFiled.map((m) => {
@@ -371,10 +371,10 @@ export default function InboxScreen({
                       {isClearing ? (
                         <>
                           <Spinner className="h-3.5 w-3.5" />
-                          <span>{"Clearing\u2026"}</span>
+                          <span>{"Dismissing\u2026"}</span>
                         </>
                       ) : (
-                        "Clear"
+                        "Dismiss"
                       )}
                     </button>
                     <button
@@ -403,8 +403,8 @@ export default function InboxScreen({
       {messages.length === 0 ? (
         autoFiled.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-dashed border-[var(--line)] bg-white/60 p-8 text-center text-sm text-ink-soft">
-            Nothing in the inbox. Anything forwarded to the address above will
-            show up here within about a minute.
+            Your inbox is clear. Forward a travel email to the address above to
+            get started. New messages may take a minute to appear.
           </p>
         ) : null
       ) : (

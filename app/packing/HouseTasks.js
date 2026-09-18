@@ -116,17 +116,15 @@ export default function HouseTasks({ tasks: initial = [], people = [] }) {
           Leaving the house
         </h2>
         <p className="mt-1 text-sm text-ink-soft">
-          The things you do to the house on the way out, rather than the things
-          that go in the bags. Every new trip gets this list on its pre-travel
-          checklist, dated against that trip&rsquo;s own departure.
+          Get the house ready while you get ready to go. These tasks become
+          reminders on new trips, with due dates based on your departure.
         </p>
       </div>
 
       {tasks.length === 0 ? (
         <p className="p-4 text-sm text-ink-soft">
-          Nothing here yet. Take the bins out, leave the dishwasher open, arm
-          the alarm &mdash; the things you would kick yourself for forgetting
-          from a hundred miles away.
+          Nothing here yet. Add the little things that make leaving easier, like
+          taking out the trash, watering plants, or setting the alarm.
         </p>
       ) : (
         <ul>

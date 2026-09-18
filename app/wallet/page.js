@@ -5,6 +5,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import ProTips from "@/components/ProTips";
 import ClearedTips from "@/components/ClearedTips";
@@ -123,7 +124,7 @@ export default async function RewardsPage() {
             on this screen, so both are gone. */}
         <PageHeader
           title="Wallet"
-          subtitle="Every program the family belongs to, what the balances are, and what each credit card earns. Aly reads all of it when she plans, so she can say when a stay is worth paying for with points and which card to put a booking on."
+          subtitle={SCREEN_INTROS.wallet}
           action={
             <Link href="/family" className="btn btn-ghost w-full sm:w-auto">
               Looking for travel documents?

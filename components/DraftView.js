@@ -196,7 +196,7 @@ export default function DraftView({
             <span aria-hidden="true">✎</span> Draft
           </span>
           <span className="text-xs text-ink-soft">
-            An idea being worked out. Nothing here is on the family calendar.
+            A plan in progress. Drafts stay off the family calendar.
           </span>
         </div>
 
@@ -205,7 +205,7 @@ export default function DraftView({
         </h1>
 
         <p className="mt-1.5 text-sm text-ink-soft">
-          {trip?.destination || "Where is still undecided"}
+          {trip?.destination || "Destination not decided yet"}
         </p>
 
         {/* When, said the way the family said it. A range they never settled is
@@ -249,7 +249,7 @@ export default function DraftView({
         <div className="mt-5">
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
-              {progress.answered} of {progress.total} sketched in
+              {progress.answered} of {progress.total} basics added
             </p>
             {!progress.complete && (
               <p className="text-xs text-ink-soft">
@@ -330,12 +330,10 @@ export default function DraftView({
 
       {/* The six. This is the screen's subject, not a sidebar. */}
       <section className="mt-7">
-        <h2 className="font-display text-xl font-semibold">
-          What this trip is made of
-        </h2>
+        <h2 className="font-display text-xl font-semibold">The trip basics</h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Seven rough answers make a trip. Press one and Aly will work it out
-          with you — details come later.
+          Start with what you know. Choose any question and Aly will help you
+          work through it. You can fill in the rest later.
         </p>
 
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -417,7 +415,7 @@ export default function DraftView({
       {suggestions.length > 0 && (
         <section className="mt-8">
           <h2 className="font-display text-xl font-semibold">
-            Ideas from here
+            Ideas to explore
           </h2>
           <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
             {suggestions.map((s) => (
@@ -446,7 +444,7 @@ export default function DraftView({
       <section className="mt-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-display text-xl font-semibold">
-            How the days look
+            Your days so far
           </h2>
           <button
             type="button"
@@ -465,9 +463,8 @@ export default function DraftView({
 
         {days.length === 0 ? (
           <p className="mt-3 rounded-2xl border-2 border-dashed border-[var(--line-strong)] bg-sand/40 p-5 text-sm leading-relaxed text-ink-soft">
-            Nothing on the days yet. That is normal for a draft — once there is
-            a place and roughly a when, Aly can put a shape to it in one go, and
-            then it is yours to argue with.
+            The days are still wide open. Once you have a place and a rough time
+            in mind, ask Aly to sketch a plan you can make your own.
           </p>
         ) : (
           <ol className="mt-3 space-y-2.5">
@@ -581,11 +578,9 @@ export default function DraftView({
           </ul>
         )}
         <p className="mt-3 text-xs leading-relaxed text-ink-soft">
-          Once this moves to Upcoming trips it gets the full trip screen — the
-          day-by-day with times and confirmations, the packing list you can
-          check off, and the pre-trip checklist. The packing list waits for that
-          on purpose: while the dates and the destination are still moving,
-          anything worked out now would only be worked out again.
+          Move this draft to Planned trips to use the full itinerary, packing
+          list, and reminders. You can build the packing list then, once you
+          know where and when you are going.
         </p>
 
         {/* The end of the screen is where somebody decides the draft is
@@ -608,7 +603,7 @@ export default function DraftView({
             }
             className="no-print btn btn-primary mt-4 w-full text-sm sm:w-auto"
           >
-            Move to Upcoming trips
+            Move to Planned trips
           </button>
         )}
       </section>

@@ -215,7 +215,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
     const today = new Date().toISOString().slice(0, 10);
     if (trip.end_date < today) {
       setProblem(
-        "Those dates have already gone by, so it would land in Past trips. Change the dates first.",
+        "Those dates are in the past, so this trip would go straight to your Trip log. Update the dates first.",
       );
       return;
     }
@@ -301,7 +301,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
       setWasChosen(new Set(chosen));
     }
 
-    stage("Moving it into Upcoming trips…");
+    stage("Moving to Planned trips…");
     const patch = { status: "planning" };
     const { error } = await supabase
       .from("trips")
@@ -404,7 +404,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
             onClick={begin}
             className="text-xs font-semibold text-teal underline decoration-teal/30 underline-offset-2 hover:decoration-teal disabled:opacity-60"
           >
-            Move to Upcoming trips
+            Move to Planned trips
           </button>
         )}
 
@@ -551,7 +551,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
               >
                 {busy ||
                   (hasList
-                    ? "Move to Upcoming trips"
+                    ? "Move to Planned trips"
                     : "Move and build the list")}
               </button>
               {!hasList && (

@@ -31,23 +31,20 @@ export default function ForwardFares({ address, trip = null }) {
     >
       <summary className="cursor-pointer list-none text-sm font-semibold text-ink-soft transition hover:text-teal">
         {trip
-          ? "Getting cheap flight emails? Have them checked against this trip"
-          : "Getting cheap flight emails? Have Aly keep the ones that are about you"}
+          ? "How to find flight deals for this trip"
+          : "How to forward flight deals to Aly"}
       </summary>
 
       <div className="mt-3 max-w-2xl space-y-3 text-sm leading-relaxed text-ink-soft">
         <p>
-          Forward a deal newsletter like{" "}
-          {FARE_NEWSLETTERS.slice(0, 3).join(", ")}, an airline sale, or a price
-          alert you set, to your household address, and Aly reads every fare in
-          it. She keeps the ones that leave from an airport you fly from and
-          land somewhere you are actually going{" "}
+          Forward newsletters like {FARE_NEWSLETTERS.slice(0, 3).join(", ")},
+          airline sales, or price alerts. Aly checks them against your airports
+          and travel plans, including{" "}
           {trip
-            ? `\u2014 ${trip.name} among them, while its flights are still to buy \u2014`
-            : "\u2014 a place on your bucket list, or a trip you are already planning \u2014"}{" "}
-          and drops the rest without bothering you. What she keeps shows up here
-          with the newsletter credited, so you can check the price yourself
-          before spending anything.
+            ? `${trip.name} while you still need flights`
+            : "your bucket list and trips that still need flights"}
+          . Matching deals appear with their original source so you can check
+          the price before booking.
         </p>
 
         <InboxAddressChip
@@ -94,8 +91,8 @@ export default function ForwardFares({ address, trip = null }) {
 
         <p className="text-ink-faint">
           {trip
-            ? "This trip already has dates and a party, which is what a fare gets judged against, so anything forwarded from now on can be measured the moment it arrives."
-            : "Worth doing once your bucket list has a few places on it with the months ticked. The months and the airports you fly from are what a fare gets judged against, and until a place has them a forwarded alert has nothing to match."}
+            ? "Keep this trip's dates and travelers up to date so Aly can check which deals fit."
+            : "Add places to your bucket list and set your departure airports on Family & pets. Choose travel months to narrow the matches, or leave them open for any month."}
         </p>
       </div>
     </details>

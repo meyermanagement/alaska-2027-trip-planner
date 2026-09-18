@@ -66,8 +66,8 @@ export default function TextSizePicker({ size: saved }) {
     <section>
       <h2 className="font-display text-xl font-semibold">Text size</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Every word in the app, a step smaller or a step larger. Yours alone, on
-        every device you sign in on.
+        Choose a comfortable reading size. This setting follows you across your
+        devices and only changes your view.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -118,8 +118,8 @@ export default function TextSizePicker({ size: saved }) {
 
       {chosen === TEXT_SIZES[TEXT_SIZES.length - 1].id ? (
         <p className="mt-3 text-xs text-ink-faint">
-          If you need the words bigger than this, your browser&rsquo;s own zoom
-          goes further and moves everything else with them.
+          Want it bigger still? Use your browser&rsquo;s zoom to enlarge the
+          whole page.
         </p>
       ) : null}
     </section>

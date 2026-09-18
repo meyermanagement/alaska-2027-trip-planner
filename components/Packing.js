@@ -1680,15 +1680,15 @@ export default function Packing({
               })}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-              Every trip starts from the base list; add-ons stack on top.
-              Changes here stay on this trip — {templatesLink} to change what
-              future trips start with.
+              Your base list holds everyday essentials. Add-ons include gear for
+              this kind of trip. Changes here apply only to this trip. Use{" "}
+              {templatesLink} to update lists for future trips.
             </p>
             {!everChosen && (
               <p className="mt-1.5 text-xs text-ink-soft">
-                Nobody has said which apply, so this is a guess from the lines
-                the trip already carries. Tap the ones that do — or tap one on
-                and off again to record that none of them do.
+                These add-ons were suggested from your trip details, not chosen
+                by you yet. Select the ones that fit. To confirm that none fit,
+                select one and then deselect it.
               </p>
             )}
             {addOnNote && (
@@ -1890,7 +1890,7 @@ export default function Packing({
             </p>
             <p className="mt-1 text-sm text-ink-soft">
               {items.length} {items.length === 1 ? "item" : "items"} on the
-              list, hidden by what is set above.
+              list, hidden by your filters.
             </p>
             <button
               type="button"
@@ -1942,7 +1942,9 @@ export default function Packing({
             the same emptiness is worse than either. */}
         {grouped.length === 0 && !find && onlyCategory === "all" && (
           <p className="card p-6 text-center text-sm text-ink-soft">
-            Nothing left in this view. Nice work.
+            {items.length === 0
+              ? "No packing items yet. Your next adventure starts with a list."
+              : "No items in this view. Adjust the filters to see the rest of your list."}
           </p>
         )}
 

@@ -473,10 +473,9 @@ export default function Insurance({ trip, people = [], going = [], readOnly }) {
       <section className="card p-4 sm:p-5">
         <h2 className="text-base font-semibold text-ink">Insurance</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-          The policy that matters when the trip goes wrong: what it pays for,
-          who it names, and the number to call. Open a document once while you
-          have signal and it opens again without any — the file is kept on the
-          phone, so a clinic desk can be shown the plan with the wifi off.
+          Keep your coverage, covered travelers, and emergency contacts close at
+          hand. Use Save on a document to download a copy before you travel,
+          then check that you can open it without internet access.
         </p>
         {inboxAddress && (
           <InboxAddressChip

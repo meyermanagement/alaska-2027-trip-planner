@@ -6,6 +6,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
 import PageHeader from "@/components/PageHeader";
+import { SCREEN_INTROS } from "@/lib/screenCopy";
 import {
   homeToday,
   isCurrentTrip,
@@ -95,6 +96,7 @@ export default async function TripsPage({ searchParams }) {
             and "Upcoming trips" labels the list it belongs to. */}
         <PageHeader
           title="Trips"
+          subtitle={SCREEN_INTROS.trips}
           action={!access?.can.isSecondary ? <NewTripButton /> : null}
         />
 
