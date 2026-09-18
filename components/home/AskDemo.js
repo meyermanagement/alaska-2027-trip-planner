@@ -42,7 +42,9 @@ import { HERO_CONVERSATION } from "@/lib/home/heroConversation";
  * settles, and on a phone is the moment the reader scrolls down to it rather
  * than several seconds before they ever see it. The first question is never
  * typed, because it is the thing they are given to read while they wait; every
- * question after it is.
+ * question after it is. The thinking dots are up for the whole of that wait,
+ * because a question with nothing under it reads as a page that failed rather
+ * than as an answer on its way.
  *
  * The rests inside the run are long enough to be rests. A paragraph lands and
  * there is half a second before the next one starts, and a whole exchange ends
@@ -543,8 +545,14 @@ export default function AskDemo() {
           const text = live ? partial(block, shown) : block.text;
           const key = `${block.turn}-${block.kind}-${i}`;
 
+          // The dots come up as soon as the question is on screen, not when
+          // the answer starts. The player holds the first question unanswered
+          // for a couple of seconds so the headline can be read first, and in
+          // that gap the card used to sit dead: a question, and nothing under
+          // it, which reads as broken rather than as waiting. Now it reads the
+          // way a phone reads while somebody is typing back.
           if (block.kind === "think") {
-            return live ? (
+            return playing && i === at ? (
               <p key={key} className="home-ask-think" aria-hidden="true">
                 <span />
                 <span />
