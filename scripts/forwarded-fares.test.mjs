@@ -95,6 +95,18 @@ test("tracking links cannot consume the inbox budget ahead of a later origin", (
   assert.ok(input.includes("Christmas markets"));
 });
 
+test("forwarded provider Markdown retains headings, airline and all route rows", () => {
+  const forwarded = email.replaceAll("*Departure Cities*", "****Departure Cities****")
+    .replaceAll("*How to Book*", "****How to Book****")
+    .replaceAll("*Chicago", "****Chicago")
+    .replace("Flying Scandinavian Airlines (SAS)", "**Flying Scandinavian Airlines (SAS)**")
+    .replace("(Full availability: Nov - Apr — Varies by city)", "**(Full availability: Nov - Apr — Varies by city)**");
+  const result = newsletterFares(forwarded, airports);
+  assert.equal(result.complete, true);
+  assert.equal(result.fares.length, 16);
+  assert.equal(result.fares[0].airline, "Scandinavian Airlines");
+});
+
 test("unrecognized, mixed-currency and non-table messages use the fallback", () => {
   assert.equal(newsletterFares("Flights to Europe from $400", airports).complete, false);
   assert.equal(newsletterFares(email.replace("Brussels (BRU) - $401", "Brussels (BRU) - CAD $401"), airports).complete, false);
@@ -121,6 +133,13 @@ test("specific city wins over continent; closed targets stay excluded", () => {
   assert.equal(somedayFor(fare, [{ ...markets, status: "done" }]), null);
   assert.equal(somedayFor({ ...fare, travel_months: [] }, [markets])?.id, "markets");
   assert.equal(matchHousehold(fare, { ...world, someday: [{ ...markets, watch: false }] }).ok, false);
+});
+
+test("the right season outranks a more specific city wanted in another season", () => {
+  const copenhagen = { ...fare, destination: "Copenhagen", destination_code: "CPH" };
+  const summer = { ...markets, id: "summer", place: "Copenhagen, Denmark", months: [5, 6, 7, 8] };
+  assert.equal(somedayFor(copenhagen, [summer, markets]).id, "markets");
+  assert.equal(somedayFor({ ...copenhagen, travel_months: [6] }, [summer, markets]).id, "summer");
 });
 
 test("regional matches explain gateway relevance without guaranteeing event dates", () => {
