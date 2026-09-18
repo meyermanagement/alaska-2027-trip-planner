@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { whenBootVeilHidden } from "@/lib/boot/ready";
 
 /**
  * The two hooks behind the ma- motion system in app/globals.css.
@@ -28,40 +29,16 @@ import { useEffect, useRef, useState } from "react";
  * speaking, all of it behind a splash, and the veil lifts onto a settled
  * screen. An introduction nobody can see is not an introduction.
  *
- * The veil announces itself by setting data-booted on <html>, so that is what
- * this watches. Three ways out, because a screen must never be stuck waiting:
- * the flag may already be set by the time this mounts on a warm navigation,
- * there may be no veil in the document at all, and the stylesheet lifts the
- * veil on its own at eight seconds if the veil's own component never ran.
+ * data-booted starts the fade; it does not mean the page is clear yet.
+ * Wait for the veil to be hidden or removed, including when this hook mounts
+ * mid-fade. The same check honors the stylesheet's reduced-motion fade and
+ * CSS-only failsafe without racing either with a separate fixed timer.
  */
 export function useBooted() {
   const [booted, setBooted] = useState(false);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (root.dataset.booted || !document.getElementById("boot-veil")) {
-      setBooted(true);
-      return;
-    }
-    // A beat after the flag, not on it: the veil takes 420ms to fade, and the
-    // compass drawing itself through a dissolving splash is the one part of the
-    // sequence worth waiting a fifth of a second for a clear page to show.
-    let settle = null;
-    const done = () => {
-      mo.disconnect();
-      clearTimeout(failsafe);
-      settle = setTimeout(() => setBooted(true), 240);
-    };
-    const mo = new MutationObserver(() => {
-      if (root.dataset.booted) done();
-    });
-    mo.observe(root, { attributes: true, attributeFilter: ["data-booted"] });
-    const failsafe = setTimeout(done, 8200);
-    return () => {
-      mo.disconnect();
-      clearTimeout(failsafe);
-      if (settle) clearTimeout(settle);
-    };
+    return whenBootVeilHidden(() => setBooted(true));
   }, []);
 
   return booted;

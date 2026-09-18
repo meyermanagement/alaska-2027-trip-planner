@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { HERO_CONVERSATION } from "@/lib/home/heroConversation";
+import { useBooted } from "@/components/reveal";
 
 /**
  * The conversation on the front door, played rather than printed.
@@ -257,6 +258,7 @@ function PackCard({ pack }) {
 }
 
 export default function AskDemo() {
+  const booted = useBooted();
   // Starts false so the server render, and a browser with scripts off, is the
   // finished transcript rather than an empty box.
   const [playing, setPlaying] = useState(false);
@@ -292,7 +294,7 @@ export default function AskDemo() {
   // Then the first question sits there unanswered for a breath, so the page
   // can be read before anything competes with it.
   useEffect(() => {
-    if (!playing || started) return undefined;
+    if (!booted || !playing || started) return undefined;
     let lead = 0;
     let beat = 0;
     const begin = () => {
@@ -320,9 +322,11 @@ export default function AskDemo() {
         );
         if (seen && !beat) {
           beat = setTimeout(begin, SEEN_MS);
-        } else if (!seen && !lead) {
+        } else if (!seen) {
           clearTimeout(beat);
+          clearTimeout(lead);
           beat = 0;
+          lead = 0;
         }
       },
       { threshold: [0, 0.2, 0.4, 0.6, 0.8, 1] },
@@ -333,7 +337,7 @@ export default function AskDemo() {
       clearTimeout(beat);
       clearTimeout(lead);
     };
-  }, [playing, started]);
+  }, [booted, playing, started]);
 
   // The writer. One timer at a time, rescheduled as each unit lands, so a
   // component that unmounts mid-sentence leaves nothing running.
