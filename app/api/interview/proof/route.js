@@ -8,6 +8,7 @@ import {
   standInPrefsLines,
 } from "@/lib/practice/standIn";
 import { familyLines, preferencesLines } from "@/lib/interview/proofContext";
+import { PROOF_EVIDENCE_RULE } from "@/lib/interview/proofEvidence";
 import {
   PLACE_AND_CONFLICT,
   INSIDE_THE_PLACE,
@@ -375,7 +376,7 @@ export async function POST(req) {
   // screen on its own.
   const withRes = await generate({
     feature: "interview.proof",
-    system: generic ? genericSystem : withSystem,
+    system: `${generic ? genericSystem : withSystem}\n\n${PROOF_EVIDENCE_RULE}`,
     messages: [{ role: "user", text: prompt }],
     tools: [],
     grounded: false,
@@ -414,7 +415,7 @@ export async function POST(req) {
       : `This is what we know about the family:\n${captured}\n\nThese choices were made for a day in ${destination} by someone who knew none of that:\n${rows}\n\nFor each label, say what this family's own answers would change about the choice, and which answer changes it. Where a choice happens to suit them already, say so and say which answer it happens to match.`;
     const diffRes = await generate({
       feature: "interview.compare",
-      system: `You are Aly, a travel assistant. Answer in American English. No emoji, no preamble.\n\n${COMPARE_SHAPE}`,
+      system: `You are Aly, a travel assistant. Answer in American English. No emoji, no preamble.\n\n${COMPARE_SHAPE}\n\n${PROOF_EVIDENCE_RULE}`,
       messages: [{ role: "user", text: ask }],
       tools: [],
       grounded: false,

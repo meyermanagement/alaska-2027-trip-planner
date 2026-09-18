@@ -52,7 +52,7 @@ const BEAT = {
 export default function AlyIntro({
   headline = "Now tell me who I am planning for.",
   eyebrow = "Welcome",
-  lead = "Three quick things and I can be useful straight away.",
+  lead = "Start with your name. Add your home, other travelers, and animals if you like; you can fill in the rest later.",
   does = [],
 }) {
   const [armed, setArmed] = useState(false);

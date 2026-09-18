@@ -105,16 +105,12 @@ export default async function WelcomeNextStepsPage() {
            who only wanted to see what was left. */
           nextHref={returning ? "/trips" : "/trips/new"}
           continueLabel={
-            revisit
-              ? returning
-                ? "Back to my trips"
-                : "Build my first trip"
-              : undefined
+            returning ? "Go to my trips" : "Build my first trip"
           }
-          eyebrow={revisit ? "Finishing setting up" : undefined}
+          eyebrow={revisit ? "Your setup checklist" : undefined}
           intro={
             revisit
-              ? "Anything still without a tick is worth doing when you have a minute. Each one makes my answers fit your family better."
+              ? "Choose a card to open that part of the app. These steps are optional; a checkmark means you have started that step or do not need it."
               : undefined
           }
           done={setup?.done || []}

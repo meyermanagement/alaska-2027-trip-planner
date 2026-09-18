@@ -27,6 +27,7 @@ export default function HomePicker({
   // wanted, so it must not be anybody's real address.
   placeholder = "1234 Example St, Springfield, MO",
   className = "",
+  id,
 }) {
   // Does the browser expose location at all, and has the family already given
   // permission for it once. Read on mount so the button and the quiet auto-fill
@@ -140,7 +141,7 @@ export default function HomePicker({
         onPick={handlePick}
         placeholder={placeholder}
         offerHome={false}
-        inputProps={{ maxLength: 160, autoComplete: "off" }}
+        inputProps={{ id, maxLength: 160, autoComplete: "off" }}
       />
       {canAsk && (
         <button

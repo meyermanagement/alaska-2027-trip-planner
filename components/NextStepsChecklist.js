@@ -6,6 +6,7 @@ import { Housing, Needle } from "@/components/CompassLoader";
 import InboxAddressChip from "@/components/InboxAddressChip";
 import { useBooted, useRevealed } from "@/components/reveal";
 import { SETUP_ITEM_HREF } from "@/lib/setup/items";
+import { NEXT_STEPS as ITEMS, waitingSentence } from "@/lib/welcome/copy";
 
 /**
  * The shown-once informational screen after the welcome walkthrough. Five
@@ -92,66 +93,6 @@ const BEAT = {
   rowStepMax: 2,
 };
 
-const ITEMS = [
-  {
-    key: "install",
-    title: "Put me on your Home Screen, then turn notifications on",
-    // The exact taps, because this is the row somebody gives up on. "Install
-    // the app" is not a thing an iPhone offers by that name anywhere.
-    lead: "On an iPhone: tap the share button in Safari, then Add to Home Screen. Open me from the new icon, then turn notifications on from Reminders.",
-    points: [
-      "An iPhone will not offer notifications at all until I am on the Home Screen. Apple's rule, not mine.",
-      "Then I can tap you on the shoulder about a fare that has to be bought today, instead of waiting for tomorrow morning's email",
-      "I open full screen from your own icon, with no address bar in the way",
-    ],
-  },
-  {
-    key: "others",
-    title: "Tell me about everyone else",
-    lead: "Open Family, tap a person, and fill in their About you and their favorite moments.",
-    points: [
-      "The same five questions you just answered, on each person's card",
-      "Favorite moments sit on the same person: a trip they loved, and why",
-      "Until they are answered I plan around you and guess at the rest",
-    ],
-  },
-  {
-    key: "wallet",
-    title: "Fill in your Wallet",
-    lead: "Passports, cards, loyalty numbers, insurance.",
-    points: [
-      "Booking forms stop being a hunt for numbers you cannot find",
-      "I warn you about a passport expiry before it costs a trip",
-      "I name the card to book on, and when points beat paying cash",
-    ],
-  },
-  {
-    key: "forwarding",
-    title: "Forward your trip confirmations to me",
-    lead: "This address is mine. Save it to your contacts now.",
-    // Shown only if the address somehow is not ready. Every family gets one
-    // from a trigger on insert, so this should not appear -- but "This address
-    // is mine" with no address under it would be worse than the general
-    // sentence, so the general sentence stays available.
-    leadWithoutAddress:
-      "Every family gets its own Alyeska address, on the Family screen.",
-    points: [
-      "Forward a hotel, flight, tour or car and I put it on the right trip",
-      "When something changes I re-file it myself, with no dates or numbers for you to re-type",
-      "It is the one thing that makes the rest of this automatic",
-    ],
-  },
-  {
-    key: "past",
-    title: "Add trips you have already taken",
-    lead: "A rough list is enough. Dates and places, nothing more.",
-    points: [
-      "A restaurant you loved becomes a real answer from me somewhere similar",
-      "A hotel you did not becomes a chain I steer you around",
-    ],
-  },
-];
-
 function CompassMark({ delay }) {
   // Same Housing + Needle the loader and boot splash use, so the checklist
   // mark reads as the same instrument -- not a lookalike drawn from scratch.
@@ -209,29 +150,6 @@ function DoneMark() {
 // the app cannot back up. A row that says "fill in their About you and their
 // favorite moments" to a family who wrote a paragraph for everybody looks like
 // work being ignored, when what is actually missing is the other half.
-function waitingSentence(waiting) {
-  if (!waiting) return "";
-  const list = (names) =>
-    names.length < 3
-      ? names.join(" and ")
-      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  const clauses = [];
-  const about = waiting.about || [];
-  const moments = waiting.moments || [];
-  if (about.length) {
-    clauses.push(
-      `${list(about)} ${about.length > 1 ? "have" : "has"} nothing in About you yet`,
-    );
-  }
-  if (moments.length) {
-    clauses.push(
-      `${list(moments)} ${moments.length > 1 ? "have" : "has"} About you filled in and ${moments.length > 1 ? "still need" : "still needs"} a favorite moment`,
-    );
-  }
-  if (!clauses.length) return "";
-  return `${clauses.join(". ")}.`;
-}
-
 function NextStepRow({
   item,
   inboxAddress,
@@ -273,18 +191,18 @@ function NextStepRow({
         <Link
           href={to}
           aria-label={item.title}
-          className="absolute inset-0 z-10 rounded-2xl"
+            className="absolute inset-0 z-10 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal"
         />
       )}
       {done ? <DoneMark /> : <CompassMark delay={base + BEAT.needle} />}
       <div className="min-w-0">
-        {done && <span className="sr-only">Done. </span>}
         <p
           className="ma-in font-display text-lg font-semibold text-ink"
           style={{ animationDelay: `${base + BEAT.title}s` }}
         >
           {item.title}
         </p>
+        {done && <p className="text-xs font-medium text-teal">Already started or not needed</p>}
         <p
           className="ma-in mt-0.5 text-sm leading-relaxed text-ink"
           style={{ animationDelay: `${base + BEAT.lead}s` }}
@@ -351,9 +269,9 @@ export default function NextStepsChecklist({
   // before it ends. On every arrival after that they are the fastest route to
   // the thing being asked for.
   linked = false,
-  continueLabel = "Take me to the trip builder",
+  continueLabel = "Build my first trip",
   headline = "Five things worth doing next",
-  intro = "None of it is required to keep going. Each one makes my answers fit your family better.",
+  intro = "These are optional. Start your trip now, or come back to this checklist from the menu whenever you are ready.",
   eyebrow = "Welcome to Alyeska",
 }) {
   const [armed, setArmed] = useState(false);

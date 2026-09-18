@@ -177,7 +177,9 @@ function AbilityQuestion({ ability, state, onAsk, delay }) {
         type="button"
         onClick={() => onAsk(ability)}
         aria-expanded={open}
-        className={`ma-in mt-2 inline-flex max-w-full items-center rounded-lg border px-2.5 py-1 text-left text-xs leading-snug text-teal transition-colors duration-200 ${
+        aria-controls={`ability-${ability.key}`}
+        disabled={state?.busy}
+        className={`ma-in mt-2 inline-flex min-h-11 max-w-full items-center rounded-lg border px-2.5 py-1 text-left text-xs leading-snug text-teal transition-colors duration-200 disabled:opacity-60 ${
           open
             ? "border-teal/50 bg-teal-soft/60"
             : "border-teal/25 bg-white hover:border-teal/60 hover:bg-teal-soft/40"
@@ -189,8 +191,9 @@ function AbilityQuestion({ ability, state, onAsk, delay }) {
       {/* The turning needle rather than the three dots: this is the one wait
           left on the screen and it is a real one, so it gets the mark the rest
           of the app uses for work actually happening. */}
+      <div id={`ability-${ability.key}`} hidden={!open} aria-live="polite">
       {open && state?.busy && (
-        <p className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
+        <p role="status" className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
           <ThinkingMark />
           Aly is thinking
         </p>
@@ -201,15 +204,21 @@ function AbilityQuestion({ ability, state, onAsk, delay }) {
         </p>
       )}
       {open && state?.error && (
-        <p className="mt-2 text-xs text-terra-deep">{state.error}</p>
+        <div className="mt-2 text-xs text-terra-deep" role="alert">
+          <p>{state.error}</p>
+          <button type="button" onClick={() => onAsk(ability, true)} className="mt-1 min-h-11 text-teal underline">
+            Try again
+          </button>
+        </div>
       )}
+      </div>
     </>
   );
 }
 
 export default function MeetAly({
   onContinue,
-  continueLabel = "Take me in",
+  continueLabel = "Set up my travel profile",
   practice = false,
 }) {
   const [armed, setArmed] = useState(false);
@@ -237,10 +246,10 @@ export default function MeetAly({
    * question that line carries; a second folds her answer away; a third opens
    * the answer we already have rather than asking for it twice.
    */
-  async function askAbility(a) {
+  async function askAbility(a, retry = false) {
     const held = topics[a.key];
     if (held?.busy) return;
-    if (held?.open) {
+    if (held?.open && !retry) {
       setTopics((t) => ({ ...t, [a.key]: { ...held, open: false } }));
       return;
     }
@@ -261,7 +270,7 @@ export default function MeetAly({
           ...t,
           [a.key]: {
             open: true,
-            error: data?.error || "Aly did not reply this time.",
+            error: "I could not load that answer. Try again when you are ready.",
           },
         }));
         return;
@@ -273,7 +282,7 @@ export default function MeetAly({
     } catch {
       setTopics((t) => ({
         ...t,
-        [a.key]: { open: true, error: "That did not go through." },
+        [a.key]: { open: true, error: "I could not connect. Check your connection and try again." },
       }));
     }
   }
@@ -332,12 +341,12 @@ export default function MeetAly({
             <i />
           </span>
           {[
-            "I look after your family\u2019s travel \u2014 the trip itself, and everything around it.",
+            "I help you plan your trips and keep the details together.",
             // Ends on the word it is about. The line used to finish "and not a
             // generic traveler", which spent its last breath on somebody who is
             // not in the room, and made a claim about other software rather than
             // a promise to the person reading.
-            "I remember who you travel with, what you like, and what you skip, so every answer I give is meant for you.",
+            "Tell me what you enjoy, what you need, and who is going. I use that to make my suggestions fit you.",
           ].map((line, i) => (
             <p
               key={line}
@@ -476,8 +485,7 @@ export default function MeetAly({
           className="ma-in mt-1.5 text-sm leading-relaxed text-ink-soft"
           style={{ animationDelay: "0.12s" }}
         >
-          From the first idea to the last day home. Nothing changes unless you
-          say so.
+          I suggest the plan. You decide what to keep, change, and book.
         </p>
         <button
           type="button"
@@ -490,8 +498,7 @@ export default function MeetAly({
           className="ma-in mt-4 text-sm leading-relaxed text-ink-soft"
           style={{ animationDelay: "0.2s" }}
         >
-          What you tell me stays on your family&rsquo;s file, never sold. You
-          can read or delete any of it on the Family and Preferences pages.{" "}
+          Review and edit your travel details in Family and Preferences.{" "}
           <PledgeLink />.
         </p>
       </div>

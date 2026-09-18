@@ -18,6 +18,9 @@ import MeetAly from "@/components/MeetAly";
 export default function MeetAlyClient({ next = "/welcome" }) {
   const router = useRouter();
   return (
-    <MeetAly onContinue={() => router.push(next)} continueLabel="Take me in" />
+    <MeetAly
+      onContinue={() => router.push(next)}
+      continueLabel={next === "/welcome" ? "Set up my travel profile" : "Continue to About you"}
+    />
   );
 }

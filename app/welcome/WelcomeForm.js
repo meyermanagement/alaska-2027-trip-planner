@@ -93,6 +93,11 @@ export default function WelcomeForm({
   const canSave = primary.length > 0 && !busy;
 
   async function save() {
+    if (!canSave) return;
+    if (people.some((person) => !person.name.trim()) || pets.some((pet) => !pet.name.trim())) {
+      setError("Enter a name for each person and animal you added, or remove unused rows.");
+      return;
+    }
     setBusy(true);
     setError("");
     setPreview(null);
@@ -119,7 +124,7 @@ export default function WelcomeForm({
         .filter((r) => r.name.length > 0);
       if (cleanPeople.length === 0) {
         setBusy(false);
-        setError("At least one name.");
+        setError("Enter your name to continue.");
         return;
       }
       const cleanPets = pets
@@ -204,7 +209,7 @@ export default function WelcomeForm({
       .filter((r) => r.name.length > 0);
     if (clean.length === 0) {
       setBusy(false);
-      setError("At least one name.");
+      setError("Enter your name to continue.");
       return;
     }
     const rows = clean.map((r, idx) => ({
@@ -261,14 +266,19 @@ export default function WelcomeForm({
 
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="space-y-6">
+      <form
+        className="space-y-6"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+      >
         <section className="card p-4">
           <label className="section-label block" htmlFor="welcome-family-name">
-            What should we call this family?
+            What should we call your household? (optional)
           </label>
           <p className="mt-1 text-xs text-ink-soft">
-            What I will call you when I talk about your family. You can change
-            it later on the Family screen.
+            A name for your shared travel profile, even if it is just you.
           </p>
           <input
             id="welcome-family-name"
@@ -282,14 +292,16 @@ export default function WelcomeForm({
 
         <section className="card p-4">
           <label className="section-label block" htmlFor="welcome-home">
-            Where the family lives
+            Where do you live? (optional)
           </label>
           <p className="mt-1 text-xs text-ink-soft">
-            Start typing and pick from the list, so I can put a point on it. If
-            the list does not have it, whatever you type will still save.
+            Your city is enough to start. Choose a suggestion if one fits, or
+            keep what you type. This helps me plan travel from home.
           </p>
           <div className="mt-2">
             <HomePicker
+              id="welcome-home"
+              placeholder="City or home address"
               value={address}
               onChange={setAddress}
               onLocated={(place) => {
@@ -301,15 +313,11 @@ export default function WelcomeForm({
         </section>
 
         <section className="card p-4">
-          <p className="section-label">Who else is in the family</p>
+          <h2 className="section-label">Who are you planning for?</h2>
           <p className="mt-1 text-xs text-ink-soft">
-            The first row is you. Everyone else is added as a secondary
-            traveler: they can see trips they are on and check off their own
-            packing and tasks, and can be given a full login later. Date of
-            birth and gender are both optional -- I use them for the ordinary
-            things (age tells me a ten-year-old is on the trip, gender helps
-            with what to pack and who shares a room). You can add more people or
-            edit these later on the Family screen.
+            Start with yourself, then add anyone you regularly travel with.
+            Adding a person creates a profile, not a login. You can invite them
+            later from Family.
           </p>
           <div className="mt-3 space-y-4">
             {people.map((row, i) => (
@@ -318,20 +326,24 @@ export default function WelcomeForm({
                 key={i}
               >
                 <div className="flex items-center gap-2">
-                  <input
-                    className="field flex-1"
-                    value={row.name}
-                    onChange={(e) => setPerson(i, { name: e.target.value })}
-                    placeholder={i === 0 ? "Your name" : "Their name"}
-                    maxLength={60}
-                  />
+                  <label className="min-w-0 flex-1 text-xs font-semibold text-ink-soft">
+                    {i === 0 ? "Your name (required)" : "Their name"}
+                    <input
+                      className="field mt-1"
+                      required
+                      value={row.name}
+                      onChange={(e) => setPerson(i, { name: e.target.value })}
+                      placeholder={i === 0 ? "Your name" : "Their name"}
+                      maxLength={60}
+                    />
+                  </label>
                   {i > 0 && (
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
                       onClick={() => removePerson(i)}
                       disabled={busy}
-                      aria-label={`Remove person ${i + 1}`}
+                      aria-label={`Remove ${row.name || `person ${i + 1}`}`}
                     >
                       Remove
                     </button>
@@ -355,7 +367,7 @@ export default function WelcomeForm({
                       value={row.gender || ""}
                       onChange={(e) => setPerson(i, { gender: e.target.value })}
                     >
-                      <option value="">Not recorded</option>
+                      <option value="">Leave blank</option>
                       {GENDERS.map((g) => (
                         <option key={g.value} value={g.value}>
                           {g.label}
@@ -373,16 +385,14 @@ export default function WelcomeForm({
             onClick={addPerson}
             disabled={busy}
           >
-            {people.length === 1 ? "Add somebody else" : "Add another person"}
+            Add another person
           </button>
         </section>
 
         <section className="card p-4">
-          <p className="section-label">Animals in the family</p>
+          <h2 className="section-label">Any animals to plan around? (optional)</h2>
           <p className="mt-1 text-xs text-ink-soft">
-            Add one row per animal, with a name and what kind. Even the ones
-            that always stay home -- it tells me when to ask about a sitter and
-            when not to. You can add more later on the Family screen.
+            Include animals that travel with you or need care while you are away.
           </p>
           {pets.length > 0 && (
             <div className="mt-3 space-y-4">
@@ -392,25 +402,29 @@ export default function WelcomeForm({
                   key={i}
                 >
                   <div className="flex items-center gap-2">
-                    <input
-                      className="field flex-1"
-                      value={row.name}
-                      onChange={(e) => setPet(i, { name: e.target.value })}
-                      placeholder="Their name"
-                      maxLength={60}
-                    />
+                    <label className="min-w-0 flex-1 text-xs font-semibold text-ink-soft">
+                      Animal&apos;s name
+                      <input
+                        className="field mt-1"
+                        required
+                        value={row.name}
+                        onChange={(e) => setPet(i, { name: e.target.value })}
+                        placeholder="Their name"
+                        maxLength={60}
+                      />
+                    </label>
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
                       onClick={() => removePet(i)}
                       disabled={busy}
-                      aria-label={`Remove animal ${i + 1}`}
+                      aria-label={`Remove ${row.name || `animal ${i + 1}`}`}
                     >
                       Remove
                     </button>
                   </div>
                   <label className="block text-xs font-semibold text-ink-soft">
-                    What kind
+                    What kind of animal?
                     <select
                       className="field mt-1 text-base"
                       value={row.species}
@@ -439,12 +453,11 @@ export default function WelcomeForm({
 
         <div className="flex flex-wrap items-center gap-3">
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary"
             disabled={!canSave}
-            onClick={save}
           >
-            {busy ? "Saving…" : "Save and continue to About you"}
+            {busy ? "Saving…" : practice ? "Preview these details" : "Save and continue"}
           </button>
           {practice && (
             <a href="/interview-check" className="btn btn-ghost">
@@ -453,14 +466,15 @@ export default function WelcomeForm({
           )}
           {!practice && (
             <p className="text-xs text-ink-soft">
-              You can change or add more on the Family screen after this.
+              Next: About you. You can edit these details later in Family.
             </p>
           )}
         </div>
-        {error && <p className="text-sm text-rose">{error}</p>}
+        {error && <p role="alert" className="text-sm text-rose">{error}</p>}
         {preview && <WelcomePreview preview={preview} />}
-      </div>
+      </form>
       <AlyKnowsSidebar
+        practice={practice}
         familyName={name}
         address={address}
         located={located}
@@ -477,7 +491,7 @@ export default function WelcomeForm({
 function WelcomePreview({ preview }) {
   return (
     <div className="mt-4 rounded-2xl border border-teal/40 bg-teal-soft/40 p-4">
-      <p className="section-label text-teal">What would have been saved</p>
+      <p className="section-label text-teal">Practice preview</p>
 
       <div className="mt-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
@@ -503,7 +517,7 @@ function WelcomePreview({ preview }) {
           {preview.people.map((p, i) => (
             <li key={i}>
               {p.name}
-              {i === 0 ? " (primary)" : " (secondary)"}
+              {i === 0 ? " (you)" : " (no login yet)"}
               {p.dob ? ` — born ${p.dob}` : ""}
               {p.gender ? ` — ${p.gender}` : ""}
             </li>
@@ -529,7 +543,8 @@ function WelcomePreview({ preview }) {
       </div>
 
       <p className="mt-4 text-xs text-ink-soft">
-        Nothing was written. Your real family, people and animals are unchanged.
+        Kept for this practice run in this browser tab only. Your real family,
+        people, and animals are unchanged.
       </p>
 
       <div className="mt-4">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CompassLoader from "@/components/CompassLoader";
 import { useBooted, useRevealed } from "@/components/reveal";
 import { runToStandIn } from "@/lib/practice/session";
+import { proofSourceNote } from "@/lib/welcome/copy";
 
 /**
  * The client shell for the interview proof step.
@@ -91,7 +92,7 @@ function PlanRows({ rows, fallback, at = 0 }) {
         className="ma-in whitespace-pre-wrap text-sm leading-relaxed text-ink"
         style={{ animationDelay: `${at}s` }}
       >
-        {fallback || "(no answer)"}
+        {fallback || "No suggestions came back. Try another destination."}
       </p>
     );
   }
@@ -113,7 +114,7 @@ function PlanRows({ rows, fallback, at = 0 }) {
           </p>
           {row.why && (
             <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-              {row.why}
+              <span className="font-medium text-ink">Why this fits: </span>{row.why}
             </p>
           )}
         </li>
@@ -354,11 +355,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
   // exactly that: the plan on screen is what anybody gets before they answer
   // anything, which is the comparison this screen exists to make.
   const sourceNote =
-    demo && data && data.standInCustom === false
-      ? "Built from nothing, because this rehearsal has no answers typed in it yet."
-      : data?.preferenceCount
-        ? `Built from the ${data.preferenceCount} things you just told me.`
-        : "Built from what you have told me so far.";
+    proofSourceNote({ demo, data });
 
   useEffect(() => {
     let cancelled = false;
@@ -401,7 +398,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
     };
   }, [attempt, demo, destination]);
 
-  const headline = "Here is a day, planned around what you just told me.";
+  const headline = "See how your answers shape a day.";
 
   return (
     <div className="space-y-6" {...(armed ? { "data-ma-armed": "1" } : {})}>
@@ -414,7 +411,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           className="ma-fade section-label text-ink-soft"
           style={{ animationDelay: `${BEAT.eyebrow}s` }}
         >
-          Proof
+          {demo ? "Practice: your sample day" : "Your sample day"}
         </p>
         <h1 className="font-display text-3xl font-semibold leading-tight">
           {headline.split(" ").map((word, i) => (
@@ -441,10 +438,9 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
           className="ma-in text-base leading-relaxed text-ink-soft"
           style={{ animationDelay: `${BEAT.intro}s` }}
         >
-          Name a place and I will pick a meal, something to do, how you get
-          around, and where you stay, then pack for that day and tell you what
-          to watch out for &mdash; saying each time which of your own answers
-          made me choose it.
+          Choose a destination for a sample day: food, an activity, transport,
+          and somewhere to stay. I will explain the choices and suggest what
+          to pack. This does not create a trip or book anything.
         </p>
       </header>
 
@@ -465,6 +461,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               <button
                 key={option.destination}
                 type="button"
+                disabled={followBusy || genericBusy}
                 onClick={() => {
                   setPlace(option.destination);
                   setDestination(option.destination);
@@ -488,6 +485,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               the row only offers those five. */}
           <button
             type="button"
+            disabled={followBusy || genericBusy}
             onClick={() => {
               setPlace("");
               setDestination("");
@@ -515,7 +513,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             htmlFor="proof-place"
             className="block font-display text-lg text-ink"
           >
-            Where are you thinking of going?
+            Where would you like to try a sample day?
           </label>
           <div
             className="flex flex-wrap gap-2"
@@ -540,7 +538,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             id="proof-place"
             value={place}
             onChange={(e) => setPlace(e.target.value)}
-            placeholder="Or type anywhere else"
+            placeholder="Or enter a city or destination"
             maxLength={60}
             autoComplete="off"
             className="w-full rounded-xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
@@ -550,23 +548,22 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             disabled={!place.trim()}
             className="btn btn-primary px-4 py-2 text-sm disabled:opacity-50"
           >
-            Plan a day there
+            Show my sample day
           </button>
         </form>
       )}
 
       {loading && !data?.needsDestination && (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-teal">
-          <CompassLoader size={64} label="I am planning a day there." />
-          <p className="text-sm text-ink-soft">
-            Four choices, what to pack for them, and the reason for each. This
-            takes me a moment.
+          <CompassLoader size={64} label={destination ? `Planning a sample day in ${destination}.` : "Getting the destination choices ready."} />
+          <p role="status" className="text-sm text-ink-soft">
+            {destination ? "Putting the suggestions and their reasons together." : "Choose a place to see your answers put to work."}
           </p>
         </div>
       )}
 
       {error && !loading && (
-        <div className="rounded-2xl border border-terra-deep/50 bg-terra-soft/40 p-4 text-sm text-ink">
+        <div role="alert" className="rounded-2xl border border-terra-deep/50 bg-terra-soft/40 p-4 text-sm text-ink">
           {error}{" "}
           <button
             type="button"
@@ -593,7 +590,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                 className="ma-in text-2xs font-semibold uppercase tracking-[0.09em] text-teal"
                 style={{ animationDelay: `${BEAT.plan - 0.12}s` }}
               >
-                A day in {data.destination}
+                Sample day: {data.destination}
               </p>
               <p
                 className="ma-in mt-1 text-xs italic text-ink-soft"
@@ -612,9 +609,8 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                 whole job is showing what Aly can actually do. */}
             {data.packRows?.length > 0 && (
               <Extras
-                label="Pack for that day"
+                label="What to bring"
                 rows={data.packRows}
-                note="Each line says which part of the day needs it."
                 at={BEAT.pack}
               />
             )}
@@ -631,8 +627,9 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               className="ma-in text-xs italic text-ink-soft"
               style={{ animationDelay: `${BEAT.caveat}s` }}
             >
-              Ask me again and I will choose differently. What stays true is
-              that every choice comes from something you told me.
+              The reasons explain how your preferences or the destination shaped
+              each suggestion. Check current prices, opening hours, and availability
+              before booking.
             </p>
           </div>
 
@@ -658,7 +655,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                 htmlFor="proof-followup"
                 className="block font-display text-lg text-ink"
               >
-                Ask me anything about {data.destination} or about the day above.
+                What would you like to ask about this day?
               </label>
               <textarea
                 id="proof-followup"
@@ -678,7 +675,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                   {followBusy ? "Thinking\u2026" : "Ask Aly"}
                 </button>
                 {followError && (
-                  <p className="text-sm text-ink">{followError}</p>
+                  <p role="alert" className="text-sm text-ink">{followError}</p>
                 )}
               </div>
             </form>
@@ -705,14 +702,14 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
               className="btn btn-ghost px-4 py-2 text-sm disabled:opacity-60"
             >
               {genericBusy
-                ? "Asking without the interview\u2026"
+                ? "Creating a comparison\u2026"
                 : generic
-                  ? "Ask again without the interview"
-                  : "Answer without the interview"}
+                  ? "Refresh the comparison"
+                  : "Compare without my answers"}
             </button>
             <p className="text-xs text-ink-soft">
-              Internal reference. The same question with nothing known about the
-              family, for comparing against the answer above. Practice only.
+              Optional practice check: see the same destination without your
+              profile or interview answers.
             </p>
           </div>
 
@@ -733,11 +730,10 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             <article className="flex flex-col gap-2 rounded-2xl border border-sand-deep bg-sand-soft/60 p-4">
               <header>
                 <p className="section-label text-ink-soft">
-                  A day in {generic.destination}, knowing nothing
+                  Without your answers: {generic.destination}
                 </p>
                 <p className="mt-1 text-xs italic text-ink-soft">
-                  No family, no preferences, no ages. Not shown to anybody
-                  outside practice.
+                  General suggestions, without your profile or preferences.
                 </p>
               </header>
               <PlanRows
@@ -761,7 +757,7 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
                 <Extras
                   label="What the interview changed"
                   rows={generic.diffRows}
-                  note="One line per row of both plans: what the recommended answer chose instead, or that it kept the same choice for a different reason, and which of your answers accounts for it."
+                  note="Which choices changed, which stayed the same, and what your answers contributed."
                 />
               )}
             </article>
@@ -797,9 +793,9 @@ export default function ProofClient({ demo = false, backHref = null } = {}) {
             }
             router.push("/welcome/next-steps");
           }}
-          className="ma-cta btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
+          className="ma-cta btn btn-primary max-w-full px-4 py-2 text-sm"
         >
-          {demo ? "Take me to my trips" : "What to do next"}
+          {demo ? "Back to practice" : "Continue to optional next steps"}
         </button>
       </div>
     </div>

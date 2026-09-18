@@ -85,12 +85,12 @@ export default async function InterviewCheckPage() {
           <PracticeTile
             href="/interview-check/proof"
             title="Interview proof"
-            body="One real question about where the family is going, answered twice by the same model, once with the interview folded in and once without. Under the two plans there is a box for asking Aly about the place or about anything she suggested."
+            body="Choose a destination and see a sample day based on your practice answers, with reasons for each suggestion. Ask a follow-up or choose to compare it with a plan made without your answers."
           />
           <PracticeTile
             href="/interview-check/next-steps"
-            title="Four things worth doing next"
-            body="The last screen of the walk, straight after the interview proof. Purely informational -- answering About you and favorite moments for everybody else, the Wallet, forwarding trip confirmations, and adding past trips -- with a small compass mark orienting into place for each row. All four are the household owner's to do, which is why it sits on their path and not on an invited member's."
+            title="Five things worth doing next"
+            body="Optional setup after your sample day: install Alyeska, add other travelers' preferences, start your Wallet, forward an email, and record a past trip."
           />
         </div>
 
