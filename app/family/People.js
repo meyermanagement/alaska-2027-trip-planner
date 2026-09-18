@@ -492,9 +492,8 @@ export default function People({
           </span>{" "}
           Aly reads the number and expiry off the scan so you do not have to
           type them — that sends the file to {AI_PROVIDER}, and only while you
-          have document reading on — and every file you save stays cached on the
-          phone, so the scan opens at the check-in desk with no signal and the
-          app itself runs on the plane.
+          have document reading on — and the file stays in your household's
+          private storage, where Aly watches the expiry date for you.
         </p>
       </div>
 
@@ -815,8 +814,8 @@ export default function People({
                     document. Aly reads the number and expiry off the scan so
                     you do not have to type them, which sends the file to{" "}
                     {AI_PROVIDER} while document reading is on, and the file
-                    itself stays on the phone — openable at the check-in desk
-                    with no signal.
+                    itself is kept in your household's private storage, with the
+                    expiry date watched for you.
                   </p>
                 </div>
               )}
