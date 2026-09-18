@@ -378,8 +378,7 @@ export default function HomeLanding() {
                 Maui for a week in March for about $6,000.
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-                Aly asks who’s going and what you enjoy, then helps fill in the
-                details.
+                Aly uses what she knows about you to suggest the details.
               </p>
 
               <div className="mt-4 border-t border-[var(--line)] pt-3">
