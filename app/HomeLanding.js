@@ -83,9 +83,18 @@ function Shot({ src, alt, className = "" }) {
 }
 
 /**
- * One scene: a label, a headline, a paragraph, and something to look at. The
+ * One scene: a label, a headline, a single line, and the thing itself. The
  * photograph leads on even scenes and follows on odd ones, so the eye crosses
  * the page rather than running down one gutter.
+ *
+ * The line under the headline used to be a paragraph of eighty to a hundred
+ * words, and six of those on one page is more reading than anybody does
+ * standing at a front door. Worse, each paragraph argued the case that the
+ * card beside it was already making -- the credit expiring in May is named in
+ * the prose and shown in the panel a hand's width away -- so the reader was
+ * told a thing and then shown it, and the showing read as a repeat. One line
+ * now, set a size up from body copy and in full ink rather than soft, because
+ * a single sentence carrying a whole section should not look like a caption.
  */
 function Scene({ label, title, body, media, flip }) {
   return (
@@ -107,7 +116,7 @@ function Scene({ label, title, body, media, flip }) {
             {title}
           </h2>
           <p
-            className="ma-in mt-4 max-w-[34rem] text-[15px] leading-relaxed text-ink-soft sm:text-base"
+            className="ma-in mt-3.5 max-w-[30rem] text-[16px] leading-relaxed sm:text-[17px]"
             style={{ animationDelay: "120ms" }}
           >
             {body}
@@ -338,7 +347,7 @@ export default function HomeLanding() {
         <Scene
           label="Building the trip"
           title="Suggestions that already know how you travel."
-          body="Say it in a sentence. You do not have to know where you are staying or which flight to take — that is the part Aly suggests, built around how your travelers actually travel: how early they start, how far they will walk, what they will not eat, against the figure you would like the trip to cost and the credits already in your wallet. And when something she finds does not match what you have told her, she says so before you book it rather than after — the cheaper fare that lands at six in the morning, the week that is spring break everywhere and puts the whole thing over your number."
+          body="Describe it in a sentence. She suggests the rest around how your travelers actually travel and the number you meant to spend."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -395,7 +404,7 @@ export default function HomeLanding() {
           label="Before you go"
           flip
           title="From the day you book to the morning you leave."
-          body="The work does not start the week before, and neither does Alyeska. Every task is dated against your actual departure and arrives when you can act on it — the car held before the prices climb, the boat booked while there are still seats, the mail stopped, the bag packed the night before, the drive timed on the morning itself. Nothing sits on a list you reread every Sunday. The packing list is built from who is going and what the place is like, and the things nobody remembers are already on it."
+          body="Every task dated against your real departure, arriving the week you can act on it."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
@@ -455,7 +464,7 @@ export default function HomeLanding() {
         <Scene
           label="While you are there"
           title="The whole day, and everything you booked for it, on one screen."
-          body="It opens on the day you are living, not on day one. Underneath each thing is the booking itself — the confirmation number, the check-in time, the address to hand a driver — so nobody is hunting through an inbox on hotel wifi for a code they forwarded in March. Aly reads those confirmations in whatever language they arrive in and pulls out the part that would have caught you: cash only, thirty minutes early, ID at the desk. And everything you need for each day is kept on the day it is needed, so you are not standing at the door trying to remember what today takes."
+          body="It opens on the day you are living, with the confirmation number under each thing on it."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -511,7 +520,7 @@ export default function HomeLanding() {
           label="When it changes"
           flip
           title="The ones you can see coming, and the ones you cannot."
-          body="Some of it you can see coming: rain forecast for the afternoon you booked the boat, a connection too tight to make, two things booked in towns an hour apart. Aly tells you while there is still time to move something. The rest lands on the day, and then it helps that every booking, price and plan for that afternoon is already in one place. Ask what to do instead and she works it out with you on the spot, with the day rebuilt around whatever you decide. That is what having your back means."
+          body="She warns you about the ones you can see coming, and rebuilds the day around the ones you cannot."
           media={
             <Shot
               src="/landing/rain.jpg"
@@ -524,7 +533,7 @@ export default function HomeLanding() {
         <Scene
           label="The money"
           title="What it has cost, and which card to hand over."
-          body="Every price on the trip in one place, against the number you meant to spend. Your cards and points are in there too, so the answer to who pays for dinner is the card that earns the most on it and the credit you have not used yet. She reads your trip insurance policy too, and the coverage your card or reward program gives you when you booked through it, so you know what you already have before you buy it again."
+          body="Every price against the number you meant to spend, and which card to hand over at dinner."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -555,7 +564,7 @@ export default function HomeLanding() {
           label="Pro tips"
           flip
           title="The things you would only know if you had been before."
-          body="Short, specific things worth knowing about where you are going, dated to the day they matter: the permit that has to be bought before you fly, the stretch of road with no signal, the sunscreen that is against the law there. Every one of them says where it came from, so you can check it yourself instead of taking our word for it, and any one worth acting on becomes a dated reminder with one press."
+          body="The things you would only know if you had been before, dated to the day they matter, each saying where it came from."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -592,9 +601,10 @@ export default function HomeLanding() {
 
       {/* ------------------------------------------------------------ abilities
           Names and nothing else, grouped under five verbs. This is the widest
-          view of the product on the page: the six scenes above argue their own
-          cases at length, so a chip here earns its place by naming something
-          they do not say. It reads from lib/home/alyIndex.js, which is its own
+          view of the product on the page, and since the six scenes above were
+          cut to a line each it is also where the specifics now live: reading a
+          confirmation in another language, the insurance policy, the packing
+          list building itself from who is going. It reads from lib/home/alyIndex.js, which is its own
           file rather than the Meet Aly list, because that list is eight claims
           Aly has to be able to answer for live and this one is an index. */}
       <Reveal
