@@ -63,7 +63,7 @@ function prettyDocType(value) {
     case "passport":
       return "Passport";
     case "drivers_license":
-      return "Driver's licence";
+      return "Driver's license";
     case "national_id":
       return "National ID";
     case "visa":

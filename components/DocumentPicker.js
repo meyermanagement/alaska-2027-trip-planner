@@ -102,9 +102,8 @@ export default function DocumentPicker({
         />
       </label>
       <p className="text-[11px] leading-snug text-ink-soft">
-        Take a photo or pick a PDF. Aly reads the number and expiry off the scan
-        and fills the fields below, and the file itself is kept in your
-        household's private storage, reachable only through a short-lived link.
+        Choose a photo or PDF. Review the details Aly suggests before applying
+        them. The file and your changes are kept when you save the form.
       </p>
       {/* Named here, not only on the consent screen where the permission was
           given. This is the screen where somebody is choosing to hand over a
@@ -176,7 +175,8 @@ export default function DocumentPicker({
       )}
 
       <p className="text-xs text-ink-soft">
-        Photos or PDFs up to 25 MB. Only your family can open what you upload.
+        Photos or PDFs up to 25 MB. Saved files go into your household&apos;s
+        document storage.
       </p>
     </div>
   );

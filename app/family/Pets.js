@@ -16,6 +16,7 @@ import {
   petSexPhrase,
   speciesLabel,
   speciesProfile,
+  sterilizationLabel,
   travelStyleLabel,
   travelStylesFor,
   trimNumber,
@@ -191,7 +192,8 @@ export default function Pets({
       <div className="space-y-4">
         {!bare && rows.length === 0 && !adding && (
           <p className="text-sm text-ink-soft">
-            No animals added yet. Include anyone who travels with you or needs care at home.
+            No animals added yet. Include anyone who travels with you or needs
+            care at home.
           </p>
         )}
 
@@ -278,7 +280,9 @@ export default function Pets({
       <div className="no-print mt-4">
         {adding ? (
           <div className="card p-5">
-            <h3 className="font-display text-lg font-semibold">Add an animal</h3>
+            <h3 className="font-display text-lg font-semibold">
+              Add an animal
+            </h3>
             <PetForm
               pet={null}
               busy={busy === "new"}
@@ -371,52 +375,70 @@ export function PetForm({ pet, busy, onCancel, onSave }) {
     notes: pet?.notes || "",
   });
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const text = (value) =>
     String(value || "").trim() ? String(value).trim() : null;
 
   async function submit(e) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || saving) return;
     if (!form.name.trim()) {
       setError("Enter the animal's name.");
       return;
     }
     setError("");
     const weight = Number(String(form.weight_lb).trim());
-    const message = await onSave({
-      name: form.name.trim(),
-      species: form.species || "dog",
-      breed: text(form.breed),
-      sex: form.sex || null,
-      is_sterilized:
-        form.is_sterilized === "yes"
-          ? true
-          : form.is_sterilized === "no"
-            ? false
+    if (
+      String(form.weight_lb).trim() &&
+      (!Number.isFinite(weight) || weight <= 0)
+    ) {
+      setError("Enter a weight greater than zero, or leave it blank.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const message = await onSave({
+        name: form.name.trim(),
+        species: form.species || "dog",
+        breed: text(form.breed),
+        sex: form.sex || null,
+        is_sterilized:
+          form.is_sterilized === "yes"
+            ? true
+            : form.is_sterilized === "no"
+              ? false
+              : null,
+        date_of_birth: form.date_of_birth || null,
+        // Left null rather than zero when it is blank, so "we have not weighed
+        // her" and "she weighs nothing" stay different answers.
+        weight_lb:
+          String(form.weight_lb).trim() && Number.isFinite(weight) && weight > 0
+            ? weight
             : null,
-      date_of_birth: form.date_of_birth || null,
-      // Left null rather than zero when it is blank, so "we have not weighed
-      // her" and "she weighs nothing" stay different answers.
-      weight_lb:
-        String(form.weight_lb).trim() && Number.isFinite(weight) && weight > 0
-          ? weight
-          : null,
-      travel_style: form.travel_style || null,
-      carrier_size: text(form.carrier_size),
-      is_service_animal: form.is_service_animal === true,
-      microchip_number: text(form.microchip_number),
-      rabies_expiration: form.rabies_expiration || null,
-      health_certificate_expiration: form.health_certificate_expiration || null,
-      coggins_expiration: form.coggins_expiration || null,
-      vet_name: text(form.vet_name),
-      vet_phone: text(form.vet_phone),
-      medications: text(form.medications),
-      dietary_notes: text(form.dietary_notes),
-      temperament_notes: text(form.temperament_notes),
-      notes: text(form.notes),
-    });
-    if (message) setError(message);
+        travel_style: form.travel_style || null,
+        carrier_size: text(form.carrier_size),
+        is_service_animal: form.is_service_animal === true,
+        microchip_number: text(form.microchip_number),
+        rabies_expiration: form.rabies_expiration || null,
+        health_certificate_expiration:
+          form.health_certificate_expiration || null,
+        coggins_expiration: form.coggins_expiration || null,
+        vet_name: text(form.vet_name),
+        vet_phone: text(form.vet_phone),
+        medications: text(form.medications),
+        dietary_notes: text(form.dietary_notes),
+        temperament_notes: text(form.temperament_notes),
+        notes: text(form.notes),
+      });
+      if (message) setError(message);
+    } catch {
+      setError(
+        "This animal could not be saved. Your changes are still here. Try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   // Every question below that differs between a dog and a horse comes from here.
@@ -431,256 +453,281 @@ export function PetForm({ pet, busy, onCancel, onSave }) {
       onSubmit={submit}
       className="no-print mt-4 space-y-3 rounded-xl border border-teal/30 bg-teal-soft/40 p-3"
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-semibold">
-          {FAMILY_FORM_COPY.animalName} (required)
-          <input
-            required
-            maxLength={60}
-            className="field mt-1 text-base"
-            value={form.name}
-            onChange={set("name")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          {FAMILY_FORM_COPY.speciesLabel}
-          <select
-            className="field mt-1 text-base"
-            value={form.species}
-            onChange={set("species")}
-          >
-            {SPECIES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs font-semibold">
-          Breed (optional)
-          <input
-            className="field mt-1 text-base"
-            value={form.breed}
-            onChange={set("breed")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Sex (optional)
-          <select
-            className="field mt-1 text-base"
-            value={form.sex}
-            onChange={set("sex")}
-          >
-            <option value="">Not recorded</option>
-            {PET_SEXES.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {profile.askFixed && (
+      <fieldset disabled={busy || saving} className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-xs font-semibold">
-            {profile.fixedLabel} (optional)
+            {FAMILY_FORM_COPY.animalName} (required)
+            <input
+              required
+              maxLength={60}
+              className="field mt-1 text-base"
+              value={form.name}
+              onChange={set("name")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            {FAMILY_FORM_COPY.speciesLabel}
             <select
               className="field mt-1 text-base"
-              value={form.is_sterilized}
-              onChange={set("is_sterilized")}
+              value={form.species}
+              onChange={set("species")}
+            >
+              {SPECIES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs font-semibold">
+            Breed (optional)
+            <input
+              className="field mt-1 text-base"
+              value={form.breed}
+              onChange={set("breed")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Sex (optional)
+            <select
+              className="field mt-1 text-base"
+              value={form.sex}
+              onChange={set("sex")}
             >
               <option value="">Not recorded</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
+              {PET_SEXES.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.label}
+                </option>
+              ))}
             </select>
-            <span className="mt-1 block font-normal text-ink-soft">
-              {profile.fixedHint}
-            </span>
           </label>
-        )}
-        <label className="block text-xs font-semibold">
-          Date of birth (optional)
-          <input
-            type="date"
-            max={new Date().toISOString().slice(0, 10)}
-            className="field mt-1 text-base"
-            value={form.date_of_birth}
-            onChange={set("date_of_birth")}
-          />
-        </label>
-        {profile.askWeight && (
-          <label className="block text-xs font-semibold">
-            Weight in pounds (optional)
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              inputMode="decimal"
-              className="field mt-1 text-base"
-              value={form.weight_lb}
-              onChange={set("weight_lb")}
-            />
-            <span className="mt-1 block font-normal text-ink-soft">
-              {profile.weightHint}
-            </span>
-          </label>
-        )}
-        <label className="block text-xs font-semibold">
-          How they travel (optional)
-          <select
-            className="field mt-1 text-base"
-            value={form.travel_style}
-            onChange={set("travel_style")}
-          >
-            <option value="">Not sure yet</option>
-            {styles.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          {style && (
-            <span className="mt-1 block font-normal text-ink-soft">
-              {style.hint}
-            </span>
-          )}
-        </label>
-      </div>
-
-      {profile.serviceAnimal && (
-        <label className="flex items-start gap-2 rounded-lg border border-teal/25 bg-white/60 p-2.5 text-xs font-semibold">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={form.is_service_animal}
-            onChange={(e) =>
-              setForm({ ...form, is_service_animal: e.target.checked })
-            }
-          />
-          <span>
-            Trained service animal
-            <span className="mt-0.5 block font-normal text-ink-soft">
-              A different set of rules entirely: no pet fee, no weight limit, no
-              breed restriction, and allowed where pets are not. Airlines ask
-              for the Department of Transportation service animal form rather
-              than a pet booking. An emotional support animal is not this — US
-              airlines stopped treating those as service animals in 2021.
-              {form.species === "horse"
-                ? " Under the ADA only dogs and miniature horses count, which is why the question is here at all."
-                : ""}
-            </span>
-          </span>
-        </label>
-      )}
-
-      <div className="grid gap-3 border-t border-teal/30 pt-3 sm:grid-cols-2">
-        {profile.papers.map((key) => {
-          const paper = PAPERS[key];
-          if (!paper) return null;
-          return (
-            <label key={key} className="block text-xs font-semibold">
-              {paper.label} (optional)
-              <input
-                type="date"
+          {profile.askFixed && (
+            <label className="block text-xs font-semibold">
+              {sterilizationLabel(form.species, form.sex)} (optional)
+              <select
                 className="field mt-1 text-base"
-                value={form[paper.column]}
-                onChange={set(paper.column)}
-              />
-              {paper.hint && (
-                <span className="mt-1 block font-normal text-ink-soft">
-                  {paper.hint}
-                </span>
-              )}
+                value={form.is_sterilized}
+                onChange={set("is_sterilized")}
+              >
+                <option value="">Not recorded</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              <span className="mt-1 block font-normal text-ink-soft">
+                {profile.fixedHint}
+              </span>
             </label>
-          );
-        })}
-        {profile.carrier && (
+          )}
           <label className="block text-xs font-semibold">
-            {profile.carrier.label} (optional)
+            Date of birth (optional)
             <input
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
               className="field mt-1 text-base"
-              placeholder={profile.carrier.placeholder}
-              value={form.carrier_size}
-              onChange={set("carrier_size")}
+              value={form.date_of_birth}
+              onChange={set("date_of_birth")}
             />
           </label>
-        )}
-        <label className="block text-xs font-semibold">
-          Microchip number (optional)
-          <input
-            className="field mt-1 text-base"
-            value={form.microchip_number}
-            onChange={set("microchip_number")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Vet (optional)
-          <input
-            className="field mt-1 text-base"
-            value={form.vet_name}
-            onChange={set("vet_name")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Vet phone (optional)
-          <input
-            type="tel"
-            className="field mt-1 text-base"
-            value={form.vet_phone}
-            onChange={set("vet_phone")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Medication (optional)
-          <input
-            className="field mt-1 text-base"
-            value={form.medications}
-            onChange={set("medications")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Food (optional)
-          <input
-            className="field mt-1 text-base"
-            value={form.dietary_notes}
-            onChange={set("dietary_notes")}
-          />
-        </label>
-        <label className="block text-xs font-semibold sm:col-span-2">
-          Temperament (optional)
-          <input
-            className="field mt-1 text-base"
-            placeholder={profile.temperamentPlaceholder}
-            value={form.temperament_notes}
-            onChange={set("temperament_notes")}
-          />
-          <span className="mt-1 block font-normal text-ink-soft">
-            Worth writing down: it is what decides whether a long drive, a
-            rental with thin walls or a busy patio is a good idea.
-          </span>
-        </label>
-        <label className="block text-xs font-semibold sm:col-span-2">
-          Notes (optional)
-          <textarea
-            className="field mt-1 text-base"
-            rows={2}
-            value={form.notes}
-            onChange={set("notes")}
-          />
-        </label>
-      </div>
+          {profile.askWeight && (
+            <label className="block text-xs font-semibold">
+              Weight in pounds (optional)
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                inputMode="decimal"
+                className="field mt-1 text-base"
+                value={form.weight_lb}
+                onChange={set("weight_lb")}
+              />
+              <span className="mt-1 block font-normal text-ink-soft">
+                {profile.weightHint}
+              </span>
+            </label>
+          )}
+          <label className="block text-xs font-semibold">
+            How they travel (optional)
+            <select
+              className="field mt-1 text-base"
+              value={form.travel_style}
+              onChange={set("travel_style")}
+            >
+              <option value="">Not sure yet</option>
+              {form.travel_style && !style && (
+                <option value={form.travel_style}>
+                  Saved choice:{" "}
+                  {travelStyleLabel(form.travel_style) || form.travel_style}{" "}
+                  (review)
+                </option>
+              )}
+              {styles.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            {style && (
+              <span className="mt-1 block font-normal text-ink-soft">
+                {style.hint}
+              </span>
+            )}
+            {form.travel_style && !style && (
+              <span className="mt-1 block font-normal text-ink-soft">
+                This saved choice is not normally offered for this kind of
+                animal. Review it or choose another option. It will not be
+                removed automatically.
+              </span>
+            )}
+          </label>
+        </div>
 
-      {error && <p className="text-sm text-rose">{error}</p>}
+        {profile.serviceAnimal && (
+          <label className="flex items-start gap-2 rounded-lg border border-teal/25 bg-white/60 p-2.5 text-xs font-semibold">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form.is_service_animal}
+              onChange={(e) =>
+                setForm({ ...form, is_service_animal: e.target.checked })
+              }
+            />
+            <span>
+              Trained service animal
+              <span className="mt-0.5 block font-normal text-ink-soft">
+                Record trained service-animal status here. Confirm eligibility,
+                documentation, and travel requirements with the carrier and
+                destination before booking.
+              </span>
+            </span>
+          </label>
+        )}
+
+        <div className="grid gap-3 border-t border-teal/30 pt-3 sm:grid-cols-2">
+          <p className="section-label sm:col-span-2">
+            Travel documents and equipment
+          </p>
+          {profile.papers.map((key) => {
+            const paper = PAPERS[key];
+            if (!paper) return null;
+            return (
+              <label key={key} className="block text-xs font-semibold">
+                {paper.label} (optional)
+                <input
+                  type="date"
+                  className="field mt-1 text-base"
+                  value={form[paper.column]}
+                  onChange={set(paper.column)}
+                />
+                {paper.hint && (
+                  <span className="mt-1 block font-normal text-ink-soft">
+                    {paper.hint}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+          {profile.carrier && (
+            <label className="block text-xs font-semibold">
+              {profile.carrier.label} (optional)
+              <input
+                className="field mt-1 text-base"
+                placeholder={profile.carrier.placeholder}
+                value={form.carrier_size}
+                onChange={set("carrier_size")}
+              />
+            </label>
+          )}
+          <label className="block text-xs font-semibold">
+            Microchip number (optional)
+            <input
+              className="field mt-1 text-base"
+              value={form.microchip_number}
+              onChange={set("microchip_number")}
+            />
+          </label>
+        </div>
+        <div className="grid gap-3 border-t border-teal/30 pt-3 sm:grid-cols-2">
+          <p className="section-label sm:col-span-2">
+            Care while you&apos;re away
+          </p>
+          <label className="block text-xs font-semibold">
+            Veterinarian or clinic (optional)
+            <input
+              className="field mt-1 text-base"
+              value={form.vet_name}
+              onChange={set("vet_name")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Veterinarian phone (optional)
+            <input
+              type="tel"
+              className="field mt-1 text-base"
+              value={form.vet_phone}
+              onChange={set("vet_phone")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Medications and care instructions (optional)
+            <textarea
+              rows={2}
+              className="field mt-1 text-base"
+              value={form.medications}
+              onChange={set("medications")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Food and feeding routine (optional)
+            <textarea
+              rows={2}
+              className="field mt-1 text-base"
+              value={form.dietary_notes}
+              onChange={set("dietary_notes")}
+            />
+          </label>
+          <label className="block text-xs font-semibold sm:col-span-2">
+            Behavior and handling needs (optional)
+            <input
+              className="field mt-1 text-base"
+              placeholder={profile.temperamentPlaceholder}
+              value={form.temperament_notes}
+              onChange={set("temperament_notes")}
+            />
+            <span className="mt-1 block font-normal text-ink-soft">
+              What should a sitter, boarder, or travel companion know?
+            </span>
+          </label>
+          <label className="block text-xs font-semibold sm:col-span-2">
+            Other care notes (optional)
+            <textarea
+              className="field mt-1 text-base"
+              rows={2}
+              value={form.notes}
+              onChange={set("notes")}
+            />
+          </label>
+        </div>
+      </fieldset>
+
+      {error && (
+        <p role="alert" className="text-sm text-rose">
+          {error}
+        </p>
+      )}
 
       <div className="flex gap-2">
         <button
           type="submit"
           className="btn btn-primary text-sm"
-          disabled={busy || !form.name.trim()}
+          disabled={busy || saving || !form.name.trim()}
         >
-          {busy ? "Saving…" : "Save"}
+          {busy || saving ? "Saving…" : "Save animal"}
         </button>
         <button
           type="button"
           className="btn btn-ghost text-sm"
+          disabled={busy || saving}
           onClick={onCancel}
         >
           Cancel

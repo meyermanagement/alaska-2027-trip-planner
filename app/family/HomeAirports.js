@@ -78,6 +78,9 @@ export default function HomeAirports({
   const [nearby, setNearby] = useState([]);
   const [query, setQuery] = useState("");
   const [found, setFound] = useState([]);
+  const [searchStatus, setSearchStatus] = useState("idle");
+  const [nearbyStatus, setNearbyStatus] = useState("idle");
+  const [retry, setRetry] = useState(0);
   // What each row's two drive boxes currently say, keyed by row id as
   // { hours, mins } strings, so typing in one row does not re-render the others
   // and a blur can tell whether anything actually changed.
@@ -127,19 +130,26 @@ export default function HomeAirports({
     if (!open) return;
     if (!Number.isFinite(homeLat) || !Number.isFinite(homeLon)) return;
     let stop = false;
+    setNearbyStatus("loading");
+    setNearby([]);
     fetch(`/api/airports?near=${homeLat},${homeLon}&limit=6`)
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error("Airport lookup failed");
+        return res.json();
+      })
       .then((json) => {
-        if (!stop && json?.airports) setNearby(json.airports);
+        if (!stop) {
+          setNearby(json?.airports || []);
+          setNearbyStatus("ready");
+        }
       })
       .catch(() => {
-        // No suggestions is a quieter failure than a message about it. The
-        // search box below still works.
+        if (!stop) setNearbyStatus("error");
       });
     return () => {
       stop = true;
     };
-  }, [open, homeLat, homeLon]);
+  }, [open, homeLat, homeLon, retry]);
 
   // Typed search, debounced. Two characters is the floor the lookup itself
   // enforces, so anything shorter is not worth a request.
@@ -148,22 +158,56 @@ export default function HomeAirports({
     const q = query.trim();
     if (q.length < 2) {
       setFound([]);
+      setSearchStatus("idle");
       return;
     }
+    let stop = false;
+    const controller = new AbortController();
+    setFound([]);
+    setSearchStatus("loading");
     timer.current = setTimeout(() => {
       const near =
         Number.isFinite(homeLat) && Number.isFinite(homeLon)
           ? `&near=${homeLat},${homeLon}`
           : "";
-      fetch(`/api/airports?q=${encodeURIComponent(q)}${near}&limit=6`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((json) => setFound(json?.airports || []))
-        .catch(() => setFound([]));
+      fetch(`/api/airports?q=${encodeURIComponent(q)}${near}&limit=6`, {
+        signal: controller.signal,
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Airport lookup failed");
+          return res.json();
+        })
+        .then((json) => {
+          if (!stop) {
+            setFound(json?.airports || []);
+            setSearchStatus("ready");
+          }
+        })
+        .catch(() => {
+          if (!stop) setSearchStatus("error");
+        });
     }, 200);
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      stop = true;
+      controller.abort();
     };
-  }, [query, homeLat, homeLon]);
+  }, [query, homeLat, homeLon, retry]);
+
+  const hasDriveChanges = airports.some((row) => {
+    const draft = drafts[row.id];
+    return (
+      draft && driveFromParts(draft.hours, draft.mins) !== row.drive_minutes
+    );
+  });
+  useEffect(() => {
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    if (hasDriveChanges) window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasDriveChanges]);
 
   async function add(airport) {
     if (busy || held.has(airport.code)) return;
@@ -219,7 +263,7 @@ export default function HomeAirports({
   async function makePrimary(row) {
     if (busy) return;
     setBusy(row.id);
-    setDoing("Making it the home base");
+    setDoing("Setting main airport");
     setError("");
     const others = airports.filter((a) => a.is_primary && a.id !== row.id);
     for (const other of others) {
@@ -246,6 +290,7 @@ export default function HomeAirports({
   }
 
   async function saveDrive(row) {
+    if (busy) return;
     const draft = drafts[row.id];
     if (draft === undefined) return;
     const minutes = driveFromParts(draft.hours, draft.mins);
@@ -262,12 +307,13 @@ export default function HomeAirports({
       setError(dbError.message);
       return;
     }
-    setDrafts((was) => {
-      const next = { ...was };
-      delete next[row.id];
-      return next;
+    settle(() => {
+      setDrafts((was) => {
+        const next = { ...was };
+        delete next[row.id];
+        return next;
+      });
     });
-    settle();
   }
 
   const said = airportsSaid(airports);
@@ -277,13 +323,10 @@ export default function HomeAirports({
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-soft">
         {said ? (
           <span>
-            Flights are priced from{" "}
-            <span className="font-medium text-ink">{said}</span>.
+            Home airports: <span className="font-medium text-ink">{said}</span>.
           </span>
         ) : (
-          <span>
-            No home airports, so a fare has no origin to be judged against.
-          </span>
+          <span>Add the airports you usually fly from.</span>
         )}
         <button
           type="button"
@@ -293,7 +336,7 @@ export default function HomeAirports({
             setOpen(true);
           }}
         >
-          {said ? "Change" : "Add one"}
+          {said ? "Manage airports" : "Add airports"}
         </button>
       </div>
     );
@@ -302,13 +345,14 @@ export default function HomeAirports({
   const suggestions = (query.trim().length >= 2 ? found : nearby).filter(
     (airport) => !held.has(airport.code),
   );
+  const lookupStatus = query.trim().length >= 2 ? searchStatus : nearbyStatus;
 
   return (
     <div className="mt-3 rounded-xl border border-[var(--line)] bg-white p-3">
-      <p className="section-label">Airports the household flies from</p>
+      <p className="section-label">Which airports do you usually fly from?</p>
       <p className="mt-1 text-sm text-ink-soft">
-        Which airports a fare has to leave from to be worth anything, and the
-        drive time each one costs you.
+        Add your main airport and any alternatives you would consider. Drive
+        time is optional; save each change before closing.
       </p>
 
       {airports.length ? (
@@ -343,6 +387,7 @@ export default function HomeAirports({
                       inputMode="numeric"
                       value={driveBoxValue(drafts, row, box.part)}
                       maxLength={box.digits}
+                      disabled={Boolean(busy)}
                       onChange={(event) =>
                         setDrafts((was) => ({
                           ...was,
@@ -352,7 +397,6 @@ export default function HomeAirports({
                           },
                         }))
                       }
-                      onBlur={() => saveDrive(row)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
                           event.preventDefault();
@@ -364,6 +408,20 @@ export default function HomeAirports({
                   </label>
                 ))}
               </span>
+              {drafts[row.id] &&
+                driveFromParts(drafts[row.id].hours, drafts[row.id].mins) !==
+                  row.drive_minutes &&
+                busy !== row.id && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-xs"
+                    disabled={Boolean(busy)}
+                    onClick={() => saveDrive(row)}
+                    aria-label={`Save drive time to ${row.code}`}
+                  >
+                    Save drive time
+                  </button>
+                )}
               {busy === row.id ? (
                 <span className="flex shrink-0 items-center gap-1.5 text-sm text-ink-soft">
                   <Spinner className="h-4 w-4 text-teal" />
@@ -372,7 +430,7 @@ export default function HomeAirports({
               ) : (
                 <>
                   {row.is_primary ? (
-                    <span className="chip text-teal">Home base</span>
+                    <span className="chip text-teal">Main airport</span>
                   ) : (
                     <button
                       type="button"
@@ -380,7 +438,7 @@ export default function HomeAirports({
                       disabled={Boolean(busy)}
                       onClick={() => makePrimary(row)}
                     >
-                      Make it the home base
+                      Make main airport
                     </button>
                   )}
                   <button
@@ -399,8 +457,11 @@ export default function HomeAirports({
       ) : null}
 
       <div className="mt-3">
-        <label className="sr-only" htmlFor="airport-search">
-          Find an airport
+        <label
+          className="mb-1 block text-xs font-semibold"
+          htmlFor="airport-search"
+        >
+          Find an airport by city, name, or code
         </label>
         <input
           id="airport-search"
@@ -408,22 +469,38 @@ export default function HomeAirports({
           value={query}
           placeholder="STL, Kansas City, Chicago…"
           maxLength={40}
+          disabled={Boolean(busy)}
           onChange={(event) => setQuery(event.target.value)}
         />
-        {suggestions.length ? (
+        {lookupStatus === "error" ? (
+          <p role="alert" className="mt-2 text-sm text-rose">
+            Airports could not be loaded.{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => setRetry((value) => value + 1)}
+            >
+              Try again
+            </button>
+          </p>
+        ) : lookupStatus === "loading" ? (
+          <p role="status" className="mt-2 text-sm text-ink-soft">
+            Looking for airports…
+          </p>
+        ) : suggestions.length ? (
           <ul className="mt-2 flex flex-wrap gap-2">
             {suggestions.map((airport) => (
-              <li key={airport.code}>
+              <li key={airport.code} className="max-w-full">
                 <button
                   type="button"
-                  className={`btn btn-ghost inline-flex items-center gap-1.5 whitespace-nowrap text-sm ${
+                  className={`btn btn-ghost inline-flex max-w-full items-center gap-1.5 whitespace-normal text-left text-sm ${
                     busy === airport.code ? "border-teal/40 text-teal" : ""
                   }`}
                   // Pressed, not dimmed: the disabled attribute fades the whole
                   // pill including the ring turning inside it, which is the one
                   // part that has to stay legible. The press is refused in add
                   // instead.
-                  aria-disabled={busy === airport.code}
+                  aria-disabled={Boolean(busy)}
                   onClick={() => add(airport)}
                 >
                   {busy === airport.code ? (
@@ -457,21 +534,39 @@ export default function HomeAirports({
         ) : (
           <p className="mt-2 text-sm text-ink-soft">
             {query.trim().length >= 2
-              ? "Nothing by that name with scheduled flights and a three-letter code."
-              : Number.isFinite(homeLat)
-                ? "Looking for the ones near you…"
-                : "Save a home address above and the nearest ones get offered here."}
+              ? "No additional airports found. Try another city, name, or three-letter code."
+              : nearbyStatus === "ready"
+                ? "No additional nearby airports to suggest. Search to add another."
+                : "Type at least two characters to search. A saved home location also enables nearby suggestions."}
           </p>
         )}
       </div>
+      {suggestions.some((airport) => Number.isFinite(airport.miles)) && (
+        <p className="mt-2 text-xs text-ink-soft">
+          Nearby distances are straight-line estimates, not driving distances.
+        </p>
+      )}
 
-      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-sm text-rose">
+          {error}
+        </p>
+      ) : null}
 
       <div className="mt-3">
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => setOpen(false)}
+          disabled={Boolean(busy)}
+          onClick={() => {
+            if (
+              hasDriveChanges &&
+              !window.confirm("Close without saving your drive-time changes?")
+            )
+              return;
+            setDrafts({});
+            setOpen(false);
+          }}
         >
           Done
         </button>

@@ -81,7 +81,9 @@ export default function People({
   const [editingDoc, setEditingDoc] = useState(null); // document id
   const [editingPerson, setEditingPerson] = useState(null); // traveler id
   const [momentState, setMomentState] = useState({ dirty: false, busy: false });
-  useEffect(() => { onMomentStateChange?.(momentState); }, [momentState, onMomentStateChange]);
+  useEffect(() => {
+    onMomentStateChange?.(momentState);
+  }, [momentState, onMomentStateChange]);
   useEffect(() => {
     setMomentState({ dirty: false, busy: false });
   }, [editingPerson, only]);
@@ -580,7 +582,13 @@ export default function People({
                   className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
                   disabled={momentState.busy}
                   onClick={() => {
-                    if (momentState.dirty && !window.confirm("Close without saving your unfinished moment? Moments you already saved will be kept.")) return;
+                    if (
+                      momentState.dirty &&
+                      !window.confirm(
+                        "Close without saving your unfinished moment? Moments you already saved will be kept.",
+                      )
+                    )
+                      return;
                     setEditingPerson(
                       editingPerson === person.id ? null : person.id,
                     );
@@ -867,7 +875,7 @@ export default function People({
             onCancel={closeAdd}
             onSave={async (values) => {
               const out = await savePerson(null, values);
-              if (controlled) closeAdd();
+              if (controlled && !out) closeAdd();
               return out;
             }}
           />
@@ -984,7 +992,7 @@ function maskNumber(value) {
   return `•••• ${raw.slice(-4)}`;
 }
 
-function DocForm({ doc, onCancel, onSave }) {
+export function DocForm({ doc, onCancel, onSave }) {
   const [form, setForm] = useState({
     doc_type: doc?.doc_type || "passport",
     label: doc?.label || "",
@@ -1022,12 +1030,11 @@ function DocForm({ doc, onCancel, onSave }) {
   const readTokenRef = useRef(0);
   function handlePickerChange(next) {
     setAttach(next);
+    const token = ++readTokenRef.current;
     if (!next.file) {
       setExtract({ status: "idle", fields: null, error: "" });
       return;
     }
-    const token = readTokenRef.current + 1;
-    readTokenRef.current = token;
     setExtract({ status: "reading", fields: null, error: "" });
     readFileFields(next.file).then(
       (fields) => {
@@ -1061,22 +1068,30 @@ function DocForm({ doc, onCancel, onSave }) {
 
   async function submit(e) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
-    const message = await onSave({
-      doc_type: form.doc_type,
-      label: form.label.trim() || null,
-      number: form.number.trim() || null,
-      issuing_authority: form.issuing_authority.trim() || null,
-      issue_date: form.issue_date || null,
-      expiration_date: form.expiration_date || null,
-      notes: form.notes.trim() || null,
-      ...(doc ? { updated_at: new Date().toISOString() } : {}),
-      __file: attach.file,
-      __clearExisting: attach.clearExisting,
-    });
-    setBusy(false);
-    if (message) setError(message);
+    try {
+      const message = await onSave({
+        doc_type: form.doc_type,
+        label: form.label.trim() || null,
+        number: form.number.trim() || null,
+        issuing_authority: form.issuing_authority.trim() || null,
+        issue_date: form.issue_date || null,
+        expiration_date: form.expiration_date || null,
+        notes: form.notes.trim() || null,
+        ...(doc ? { updated_at: new Date().toISOString() } : {}),
+        __file: attach.file,
+        __clearExisting: attach.clearExisting,
+      });
+      if (message) setError(message);
+    } catch {
+      setError(
+        "This document could not be saved. Your changes are still here. Try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -1084,104 +1099,106 @@ function DocForm({ doc, onCancel, onSave }) {
       onSubmit={submit}
       className="no-print mt-3 space-y-3 rounded-xl border border-teal/30 bg-teal-soft/40 p-3"
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-semibold">
-          Type
-          <select
-            className="field mt-1 text-base"
-            value={form.doc_type}
-            onChange={set("doc_type")}
-          >
-            {DOC_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs font-semibold">
-          Label (optional)
-          <input
-            className="field mt-1 text-base"
-            placeholder="United MileagePlus, Missouri license…"
-            value={form.label}
-            onChange={set("label")}
+      <fieldset disabled={busy} className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-semibold">
+            Document type
+            <select
+              className="field mt-1 text-base"
+              value={form.doc_type}
+              onChange={set("doc_type")}
+            >
+              {DOC_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs font-semibold">
+            Name or nickname (optional)
+            <input
+              className="field mt-1 text-base"
+              placeholder="United MileagePlus, Missouri license…"
+              value={form.label}
+              onChange={set("label")}
+            />
+          </label>
+          <label className="block text-xs font-semibold sm:col-span-2">
+            Document or membership number (optional)
+            <input
+              className="field mt-1 font-mono text-base"
+              autoComplete="off"
+              value={form.number}
+              onChange={set("number")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Issued by (optional)
+            <input
+              className="field mt-1 text-base"
+              placeholder="United States, Missouri, CBP…"
+              value={form.issuing_authority}
+              onChange={set("issuing_authority")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Issued on (optional)
+            <input
+              type="date"
+              className="field mt-1 text-base"
+              value={form.issue_date}
+              onChange={set("issue_date")}
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Expires (optional)
+            <input
+              type="date"
+              className="field mt-1 text-base"
+              value={form.expiration_date}
+              onChange={set("expiration_date")}
+            />
+          </label>
+          <label className="block text-xs font-semibold sm:col-span-2">
+            Notes (optional)
+            <textarea
+              className="field mt-1 text-base"
+              rows={2}
+              placeholder="Where the physical copy lives, renewal appointment, anything else."
+              value={form.notes}
+              onChange={set("notes")}
+            />
+          </label>
+        </div>
+        <div className="space-y-2 rounded-xl border border-teal/20 bg-white/40 p-3">
+          <DocumentPicker
+            existing={
+              doc?.storage_path
+                ? {
+                    storage_path: doc.storage_path,
+                    mime_type: doc.mime_type,
+                    size_bytes: doc.size_bytes,
+                    original_filename: doc.original_filename,
+                  }
+                : null
+            }
+            onChange={handlePickerChange}
+            label="Attach a scan or photo (optional)"
           />
-        </label>
-        <label className="block text-xs font-semibold sm:col-span-2">
-          Number
-          <input
-            className="field mt-1 font-mono text-base"
-            autoComplete="off"
-            value={form.number}
-            onChange={set("number")}
+          <ExtractedFieldsStrip
+            status={extract.status}
+            fields={extract.fields}
+            error={extract.error}
+            form={form}
+            onApply={applyOne}
+            onApplyAll={applyAll}
+            onDismiss={dismissExtract}
           />
-        </label>
-        <label className="block text-xs font-semibold">
-          Issued by (optional)
-          <input
-            className="field mt-1 text-base"
-            placeholder="United States, Missouri, CBP…"
-            value={form.issuing_authority}
-            onChange={set("issuing_authority")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Issued on (optional)
-          <input
-            type="date"
-            className="field mt-1 text-base"
-            value={form.issue_date}
-            onChange={set("issue_date")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Expires (optional)
-          <input
-            type="date"
-            className="field mt-1 text-base"
-            value={form.expiration_date}
-            onChange={set("expiration_date")}
-          />
-        </label>
-        <label className="block text-xs font-semibold sm:col-span-2">
-          Notes (optional)
-          <textarea
-            className="field mt-1 text-base"
-            rows={2}
-            placeholder="Where the physical copy lives, renewal appointment, anything else."
-            value={form.notes}
-            onChange={set("notes")}
-          />
-        </label>
-      </div>
-      <div className="space-y-2 rounded-xl border border-teal/20 bg-white/40 p-3">
-        <DocumentPicker
-          existing={
-            doc?.storage_path
-              ? {
-                  storage_path: doc.storage_path,
-                  mime_type: doc.mime_type,
-                  size_bytes: doc.size_bytes,
-                  original_filename: doc.original_filename,
-                }
-              : null
-          }
-          onChange={handlePickerChange}
-          label="Attach a scan or photo (optional)"
-        />
-        <ExtractedFieldsStrip
-          status={extract.status}
-          fields={extract.fields}
-          error={extract.error}
-          form={form}
-          onApply={applyOne}
-          onApplyAll={applyAll}
-          onDismiss={dismissExtract}
-        />
-      </div>
+        </div>
+      </fieldset>
       {error && (
-        <p aria-live="polite" className="text-xs text-rose">
+        <p role="alert" className="text-xs text-rose">
           {error}
         </p>
       )}
@@ -1201,6 +1218,7 @@ function DocForm({ doc, onCancel, onSave }) {
         <button
           type="button"
           className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+          disabled={busy}
           onClick={onCancel}
         >
           Cancel
@@ -1281,7 +1299,7 @@ export function RemoveMemberRow({ person, isMe, busy, note, onRemove }) {
 
   return (
     <div className="no-print mt-2.5 border-t border-[var(--line)] pt-2.5">
-      <p className="section-label">Access to this household</p>
+      <p className="section-label">Sign-in access</p>
 
       {asking ? (
         <div className="mt-2 rounded-lg border border-rose/40 bg-rose/10 p-2.5">
@@ -1326,7 +1344,7 @@ export function RemoveMemberRow({ person, isMe, busy, note, onRemove }) {
               className="btn btn-ghost px-3 py-1 text-xs"
               onClick={() => setAsking(false)}
             >
-              Keep their access
+              {signedIn ? "Keep their access" : "Keep invitation"}
             </button>
           </div>
         </div>
@@ -1338,7 +1356,7 @@ export function RemoveMemberRow({ person, isMe, busy, note, onRemove }) {
             disabled={busy}
             onClick={() => setAsking(true)}
           >
-            {signedIn ? "Remove from household" : "Cancel the invitation"}
+            {signedIn ? "Remove sign-in access" : "Cancel the invitation"}
           </button>
           <p className="text-xs leading-relaxed text-ink-soft">
             {signedIn
@@ -1481,8 +1499,8 @@ export function AccessRow({
               {mine
                 ? " — that's you"
                 : person.access_level === SECONDARY
-                  ? " — signed in, and can check off their own things"
-                  : " — signed in and can make changes"}
+                  ? " · account connected; can check off their own things"
+                  : " · account connected; can make changes"}
             </p>
           ) : person.email ? (
             <p className="mt-0.5 text-sm text-ink-soft">
@@ -1496,7 +1514,7 @@ export function AccessRow({
             </p>
           ) : (
             <p className="mt-0.5 text-sm text-ink-soft">
-              No email saved, so {person.name} cannot sign in or make changes.
+              Add an email if {person.name} needs their own sign-in access.
             </p>
           )}
         </div>
@@ -1509,7 +1527,7 @@ export function AccessRow({
               disabled={busy}
               className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
             >
-              {busy ? "Sending…" : "Email myself a test copy"}
+              {busy ? "Sending…" : "Email me a sign-in link"}
             </button>
           </div>
         )}
@@ -1526,7 +1544,7 @@ export function AccessRow({
                 {busy
                   ? "Sending…"
                   : person.invited_at
-                    ? "Send it again"
+                    ? "Resend sign-in email"
                     : "Send sign-in email"}
               </button>
             ) : (
@@ -1552,8 +1570,12 @@ export function AccessRow({
               onChange={(e) => onReminders?.(e.target.checked)}
             />
             <span>
-              Email {isMe ? "me" : person.name.split(" ")[0]} on the morning
-              anything {isMe ? "I am" : "they are"} responsible for is due
+              Email due-date reminders to{" "}
+              {isMe ? "me" : person.name.split(" ")[0]}
+              <span className="block text-xs">
+                Morning reminders for {isMe ? "your" : "their"} assigned tasks
+                due today or tomorrow.
+              </span>
             </span>
           </label>
 
@@ -1564,7 +1586,7 @@ export function AccessRow({
               disabled={remindBusy}
               className="no-print btn btn-ghost shrink-0 px-3 py-1.5 text-xs"
             >
-              {remindBusy ? "Sending…" : "Send mine now"}
+              {remindBusy ? "Sending…" : "Send my reminders now"}
             </button>
           )}
         </div>
@@ -1572,6 +1594,7 @@ export function AccessRow({
 
       {note && (
         <p
+          role={note.ok ? "status" : "alert"}
           className={`mt-2 rounded-lg px-3 py-2 text-xs ${
             note.ok ? "bg-teal-soft text-teal" : "bg-rose/10 text-rose"
           }`}
@@ -1583,43 +1606,25 @@ export function AccessRow({
   );
 }
 
-// The three new facts, read back on the card so it is obvious they were saved
-// and obvious when they are missing. One line each rather than a table: they are
-// short, and a table of two filled cells and four empty ones looks broken.
-// The empty state for About me. Rendered in place of the paragraph when nobody
-// has written it yet, and shaped so a family reading down the card cannot miss
-// it: dashed border, rose tint, the header saying 'not yet written' out loud.
-//
-// The button routes by who is asking. On my own card the /about-you screen is
-// the right door: it is the paragraph, alone on a page, without the rest of the
-// Edit details form to walk past. On somebody else's card there is no way to
-// write for them in their voice, but a primary can help by opening Edit details
-// with the paragraph field already visible, and that is what the button does
-// -- the same control the 'Edit details' button opens, aimed at the box the
-// family came here to fill.
+// An optional invitation, not a warning about an incomplete profile.
 function MissingAboutMe({ person, isMe, onEdit }) {
   const name = (person?.name || "").trim();
   const possessive = name ? `${name}'s` : "their";
   const subject = name || "this person";
 
   return (
-    <div className="mt-3 rounded-xl border-2 border-dashed border-rose/50 bg-rose/5 p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-rose">
-        In {possessive} own words -- not yet written
-      </p>
+    <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+      <p className="section-label">About {isMe ? "you" : subject} (optional)</p>
       <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-        A paragraph in {possessive} own voice about what {isMe ? "you" : "they"}
-        {isMe ? " enjoy" : " enjoy"} and what {isMe ? "you" : "they"} would
-        rather skip. Aly reads this before she answers anything for{" "}
-        {isMe ? "you" : subject}, and without it every suggestion she makes is a
-        suggestion for nobody in particular.
+        Share what {isMe ? "you enjoy" : `${subject} enjoys`} and would rather
+        skip to help Aly personalize suggestions. You can add this later.
       </p>
       {isMe ? (
         <Link
           href="/about-you"
           className="btn btn-primary no-print mt-2.5 inline-flex text-xs"
         >
-          Write your paragraph
+          Tell Aly about you
         </Link>
       ) : (
         <button
@@ -1627,7 +1632,7 @@ function MissingAboutMe({ person, isMe, onEdit }) {
           className="btn btn-primary no-print mt-2.5 text-xs"
           onClick={onEdit}
         >
-          Write {possessive} paragraph
+          Add {possessive} preferences
         </button>
       )}
     </div>
@@ -1648,9 +1653,9 @@ function ProfileLines({ person }) {
       ? ["Gender", genderLabel(normalizeGender(person.gender))]
       : null,
     phone ? ["Phone", phone] : null,
-    aids.length ? ["Travels with", aids.join(", ")] : null,
+    aids.length ? ["Equipment and support", aids.join(", ")] : null,
     person?.accessibility_notes
-      ? ["Getting around", person.accessibility_notes]
+      ? ["Accessibility and support", person.accessibility_notes]
       : null,
     langs.length ? ["Speaks", langs.join(", ")] : null,
   ].filter(Boolean);
@@ -1670,7 +1675,14 @@ function ProfileLines({ person }) {
   );
 }
 
-export function PersonForm({ person, onCancel, onSave, homeLat, homeLon, onMomentStateChange }) {
+export function PersonForm({
+  person,
+  onCancel,
+  onSave,
+  homeLat,
+  homeLon,
+  onMomentStateChange,
+}) {
   const [form, setForm] = useState({
     name: person?.name || "",
     email: person?.email || "",
@@ -1706,10 +1718,14 @@ export function PersonForm({ person, onCancel, onSave, homeLat, homeLon, onMomen
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [momentState, setMomentState] = useState({ dirty: false, busy: false });
-  useEffect(() => { onMomentStateChange?.(momentState); }, [momentState, onMomentStateChange]);
-  const canLeaveMoments = () => !momentState.dirty || window.confirm(
-    "Leave your unfinished moment unsaved? Moments you already saved will be kept.",
-  );
+  useEffect(() => {
+    onMomentStateChange?.(momentState);
+  }, [momentState, onMomentStateChange]);
+  const canLeaveMoments = () =>
+    !momentState.dirty ||
+    window.confirm(
+      "Leave your unfinished moment unsaved? Moments you already saved will be kept.",
+    );
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   const toggleAid = (value) =>
@@ -1730,29 +1746,36 @@ export function PersonForm({ person, onCancel, onSave, homeLat, homeLon, onMomen
     if (!canLeaveMoments()) return;
     setBusy(true);
     setError("");
-    const message = await onSave({
-      name: form.name.trim(),
-      email: form.email.trim().toLowerCase() || null,
-      date_of_birth: form.date_of_birth || null,
-      // A term of their own is stored as typed. Choosing "another term" and
-      // typing nothing clears the field rather than storing the placeholder.
-      gender:
-        form.gender === OWN_TERM
-          ? normalizeGender(form.gender_own) || null
-          : form.gender || null,
-      notes: form.notes.trim() || null,
-      // One spelling per provider, so the roaming rule counts two people on
-      // T-Mobile as one carrier however each of them typed it.
-      phone_carrier: normalizeCarrier(form.phone_carrier),
-      phone_device: form.phone_device.trim() || null,
-      // Both lists are not-null columns, so an empty one is an empty array
-      // rather than a null — otherwise clearing the last box fails the write.
-      mobility_aids: cleanAids(form.mobility_aids),
-      accessibility_notes: form.accessibility_notes.trim() || null,
-      languages: parseLanguages(form.languages),
-      about_me: aboutMeFromParts(aboutParts) || null,
-    });
-    setBusy(false);
+    let message;
+    try {
+      message = await onSave({
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase() || null,
+        date_of_birth: form.date_of_birth || null,
+        // A term of their own is stored as typed. Choosing "another term" and
+        // typing nothing clears the field rather than storing the placeholder.
+        gender:
+          form.gender === OWN_TERM
+            ? normalizeGender(form.gender_own) || null
+            : form.gender || null,
+        notes: form.notes.trim() || null,
+        // One spelling per provider, so the roaming rule counts two people on
+        // T-Mobile as one carrier however each of them typed it.
+        phone_carrier: normalizeCarrier(form.phone_carrier),
+        phone_device: form.phone_device.trim() || null,
+        // Both lists are not-null columns, so an empty one is an empty array
+        // rather than a null — otherwise clearing the last box fails the write.
+        mobility_aids: cleanAids(form.mobility_aids),
+        accessibility_notes: form.accessibility_notes.trim() || null,
+        languages: parseLanguages(form.languages),
+        about_me: aboutMeFromParts(aboutParts) || null,
+      });
+    } catch {
+      message =
+        "This person could not be saved. Your changes are still here. Try again.";
+    } finally {
+      setBusy(false);
+    }
     if (message) {
       setError(message);
       return;
@@ -1782,197 +1805,201 @@ export function PersonForm({ person, onCancel, onSave, homeLat, homeLon, onMomen
       onSubmit={submit}
       className="no-print mt-3 space-y-3 rounded-xl border border-teal/30 bg-teal-soft/40 p-3"
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-semibold">
-          Their name (required)
-          <input
-            required
-            maxLength={60}
-            className="field mt-1 text-base"
-            value={form.name}
-            onChange={set("name")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Date of birth (optional)
-          <input
-            type="date"
-            max={new Date().toISOString().slice(0, 10)}
-            className="field mt-1 text-base"
-            value={form.date_of_birth}
-            onChange={set("date_of_birth")}
-          />
-        </label>
-        <label className="block text-xs font-semibold">
-          Gender (optional)
-          <select
-            className="field mt-1 text-base"
-            value={form.gender}
-            onChange={set("gender")}
-          >
-            <option value="">Leave blank</option>
-            {GENDERS.map((g) => (
-              <option key={g.value} value={g.value}>
-                {g.label}
-              </option>
-            ))}
-            <option value={OWN_TERM}>Another term…</option>
-          </select>
-          {form.gender === OWN_TERM && (
-            <input
-              className="field mt-2 text-base"
-              placeholder="In their own words"
-              aria-label="Gender in their own words"
-              value={form.gender_own}
-              onChange={set("gender_own")}
-              maxLength={40}
-            />
-          )}
-        </label>
-        <p className="text-xs text-ink-soft sm:col-span-2">
-          {FAMILY_FORM_COPY.genderHelp}
-        </p>
-        <label className="block text-xs font-semibold sm:col-span-2">
-          Email for signing in (optional)
-          <input
-            type="email"
-            className="field mt-1 text-base"
-            placeholder="name@gmail.com"
-            value={form.email}
-            onChange={set("email")}
-            autoComplete="off"
-            inputMode="email"
-          />
-          <span className="mt-1 block font-normal text-ink-soft">
-            Whoever owns this address can sign in with Google and edit the
-            packing lists and itineraries. Their changes get recorded under
-            their name.
-          </span>
-        </label>
-        <label className="block text-xs font-semibold sm:col-span-2">
-          Notes (optional)
-          <textarea
-            className="field mt-1 text-base"
-            rows={2}
-            placeholder="Seat preferences, dietary needs, anything worth remembering when booking."
-            value={form.notes}
-            onChange={set("notes")}
-          />
-        </label>
-      </div>
-
-      <div className="space-y-2 border-t border-teal/30 pt-3">
-        <p className="section-label">In their own words</p>
-        <p className="text-xs text-ink-soft">
-          Answer for {form.name.trim() || "this person"}, using their own words
-          where possible. Every question is optional.
-        </p>
-        <AboutSections
-          parts={aboutParts}
-          setParts={setAboutParts}
-          homeLat={homeLat}
-          homeLon={homeLon}
-          idPrefix={`person-about-${person?.id || "new"}`}
-          className="mt-1"
-        />
-      </div>
-
-      {person?.id && (
-        <div className="space-y-3 border-t border-teal/30 pt-3">
-          <MomentsEditor
-            key={person.id}
-            travelerId={person.id}
-            travelerName={form.name.trim() || person.name}
-            onStateChange={setMomentState}
-            disabled={busy}
-          />
-        </div>
-      )}
-
-      <div className="space-y-3 border-t border-teal/30 pt-3">
-        <p className="section-label">
-          What Aly needs to make the advice specific
-        </p>
+      <fieldset disabled={busy} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-xs font-semibold">
-            Cell phone provider (optional)
+            Their name (required)
             <input
+              required
+              maxLength={60}
               className="field mt-1 text-base"
-              placeholder="Verizon"
-              value={form.phone_carrier}
-              onChange={set("phone_carrier")}
-              autoComplete="off"
+              value={form.name}
+              onChange={set("name")}
             />
           </label>
           <label className="block text-xs font-semibold">
-            Phone or device (optional)
+            Date of birth (optional)
             <input
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
               className="field mt-1 text-base"
-              placeholder="iPhone 15 Pro"
-              value={form.phone_device}
-              onChange={set("phone_device")}
-              autoComplete="off"
+              value={form.date_of_birth}
+              onChange={set("date_of_birth")}
             />
           </label>
-          <p className="text-xs font-normal text-ink-soft sm:col-span-2">
-            The provider decides whether a day pass, a plan add-on, or an eSIM
-            is the right answer abroad, and the device decides whether an eSIM
-            is possible at all.
+          <label className="block text-xs font-semibold">
+            Gender (optional)
+            <select
+              className="field mt-1 text-base"
+              value={form.gender}
+              onChange={set("gender")}
+            >
+              <option value="">Leave blank</option>
+              {GENDERS.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
+                </option>
+              ))}
+              <option value={OWN_TERM}>Another term…</option>
+            </select>
+            {form.gender === OWN_TERM && (
+              <input
+                className="field mt-2 text-base"
+                placeholder="In their own words"
+                aria-label="Gender in their own words"
+                value={form.gender_own}
+                onChange={set("gender_own")}
+                maxLength={40}
+              />
+            )}
+          </label>
+          <p className="text-xs text-ink-soft sm:col-span-2">
+            {FAMILY_FORM_COPY.genderHelp}
           </p>
-        </div>
-
-        <fieldset>
-          <legend className="text-xs font-semibold">
-            Travels with (optional)
-          </legend>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {MOBILITY_AIDS.map((aid) => {
-              const on = form.mobility_aids.includes(aid.value);
-              return (
-                <button
-                  key={aid.value}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggleAid(aid.value)}
-                  className={`btn px-2.5 py-1 text-xs ${
-                    on ? "btn-primary" : "btn-ghost"
-                  }`}
-                >
-                  {aid.label}
-                </button>
-              );
-            })}
-          </div>
-          <label className="mt-2 block text-xs font-semibold">
-            Anything else about getting around (optional)
+          <label className="block text-xs font-semibold sm:col-span-2">
+            Email for signing in (optional)
+            <input
+              type="email"
+              className="field mt-1 text-base"
+              placeholder="name@gmail.com"
+              value={form.email}
+              onChange={set("email")}
+              autoComplete="off"
+              inputMode="email"
+            />
+            <span className="mt-1 block font-normal text-ink-soft">
+              Use this person&apos;s Google sign-in address. Their access level
+              controls what they can change. Saving an address does not send an
+              invitation.
+            </span>
+          </label>
+          <label className="block text-xs font-semibold sm:col-span-2">
+            Booking notes (optional)
             <textarea
               className="field mt-1 text-base"
               rows={2}
-              placeholder="Cannot manage long stairs; needs a seat near the front on tours."
-              value={form.accessibility_notes}
-              onChange={set("accessibility_notes")}
+              placeholder="Practical booking details, such as an aisle seat or a name that differs on tickets."
+              value={form.notes}
+              onChange={set("notes")}
             />
           </label>
-        </fieldset>
+        </div>
 
-        <label className="block text-xs font-semibold">
-          Languages spoken (optional)
-          <input
-            className="field mt-1 text-base"
-            placeholder="English, Spanish"
-            value={form.languages}
-            onChange={set("languages")}
-            autoComplete="off"
+        <div className="space-y-2 border-t border-teal/30 pt-3">
+          <p className="section-label">In their own words</p>
+          <p className="text-xs text-ink-soft">
+            Answer for {form.name.trim() || "this person"}, using their own
+            words where possible. Every question is optional.
+          </p>
+          <AboutSections
+            parts={aboutParts}
+            setParts={setAboutParts}
+            homeLat={homeLat}
+            homeLon={homeLon}
+            idPrefix={`person-about-${person?.id || "new"}`}
+            className="mt-1"
           />
-          <span className="mt-1 block font-normal text-ink-soft">
-            Separate them with commas. Used to pick the language a tour is given
-            in, and to work out which translation packs are worth downloading
-            before you lose the signal.
-          </span>
-        </label>
-      </div>
+        </div>
+
+        {person?.id && (
+          <div className="space-y-3 border-t border-teal/30 pt-3">
+            <MomentsEditor
+              key={person.id}
+              travelerId={person.id}
+              travelerName={form.name.trim() || person.name}
+              onStateChange={setMomentState}
+              disabled={busy}
+            />
+          </div>
+        )}
+
+        <div className="space-y-3 border-t border-teal/30 pt-3">
+          <p className="section-label">Travel details (optional)</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs font-semibold">
+              Mobile provider (optional)
+              <input
+                className="field mt-1 text-base"
+                placeholder="Verizon"
+                value={form.phone_carrier}
+                onChange={set("phone_carrier")}
+                autoComplete="off"
+              />
+            </label>
+            <label className="block text-xs font-semibold">
+              Phone model (optional)
+              <input
+                className="field mt-1 text-base"
+                placeholder="iPhone 15 Pro"
+                value={form.phone_device}
+                onChange={set("phone_device")}
+                autoComplete="off"
+              />
+            </label>
+            <p className="text-xs font-normal text-ink-soft sm:col-span-2">
+              Helps Aly compare roaming options. Confirm plan coverage and
+              device compatibility before buying.
+            </p>
+          </div>
+
+          <fieldset>
+            <legend className="text-xs font-semibold">
+              Travel equipment and support (optional)
+            </legend>
+            <p className="mt-1 text-xs text-ink-soft">
+              Select all that apply. Add any other needs below.
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {MOBILITY_AIDS.map((aid) => {
+                const on = form.mobility_aids.includes(aid.value);
+                return (
+                  <button
+                    key={aid.value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleAid(aid.value)}
+                    className={`btn px-2.5 py-1 text-xs ${
+                      on ? "btn-primary" : "btn-ghost"
+                    }`}
+                  >
+                    {aid.label}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="mt-2 block text-xs font-semibold">
+              Accessibility or support needs (optional)
+              <textarea
+                className="field mt-1 text-base"
+                rows={2}
+                placeholder="Cannot manage long stairs; needs a seat near the front on tours."
+                value={form.accessibility_notes}
+                onChange={set("accessibility_notes")}
+              />
+            </label>
+          </fieldset>
+
+          <label className="block text-xs font-semibold">
+            Languages spoken (optional)
+            <input
+              className="field mt-1 text-base"
+              placeholder="English, Spanish"
+              value={form.languages}
+              onChange={set("languages")}
+              autoComplete="off"
+            />
+            <span className="mt-1 block font-normal text-ink-soft">
+              Separate languages with commas. Helps Aly suggest suitable tours
+              and language support.
+            </span>
+          </label>
+        </div>
+      </fieldset>
       {error && (
-        <p role="alert" className="rounded-lg bg-rose/10 px-3 py-2 text-xs text-rose">
+        <p
+          role="alert"
+          className="rounded-lg bg-rose/10 px-3 py-2 text-xs text-rose"
+        >
           {error}
         </p>
       )}
@@ -1987,7 +2014,9 @@ export function PersonForm({ person, onCancel, onSave, homeLat, homeLon, onMomen
           type="button"
           className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
           disabled={busy || momentState.busy}
-          onClick={() => { if (canLeaveMoments()) onCancel(); }}
+          onClick={() => {
+            if (canLeaveMoments()) onCancel();
+          }}
         >
           Cancel
         </button>
