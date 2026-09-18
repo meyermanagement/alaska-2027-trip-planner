@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { FAMILY_FORM_COPY } from "@/lib/travelers/formCopy";
 
 /**
  * The household's name, and the only place in the app it can be changed.
@@ -29,11 +30,12 @@ export default function HouseholdName({ familyId, name }) {
   const [error, setError] = useState("");
 
   async function save() {
+    if (busy) return;
     const next = draft.trim().replace(/\s+/g, " ");
     if (!next) {
       // NOT NULL in the schema, so an empty save would be a database error shown
       // to somebody who only cleared a field. Say the actual rule instead.
-      setError("A household needs a name. It appears in the invite email.");
+      setError("Enter a household name, or cancel to keep the current one.");
       return;
     }
     if (next === saved) {
@@ -85,18 +87,18 @@ export default function HouseholdName({ familyId, name }) {
   return (
     <div className="mt-3 rounded-xl border border-[var(--line)] bg-white p-3">
       <label className="section-label block" htmlFor="household-name">
-        What this household is called
+        {FAMILY_FORM_COPY.householdLabel}
       </label>
       <p className="mt-1 text-sm text-ink-soft">
-        It appears under the Alyeska wordmark in the invite email, so somebody
-        who has never seen this app can tell the message is from you.
+        {FAMILY_FORM_COPY.householdHelp} It also appears on invitations.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <input
           id="household-name"
           className="field w-full sm:w-64"
           value={draft}
-          maxLength={80}
+          maxLength={FAMILY_FORM_COPY.householdNameLimit}
+          disabled={busy}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -129,7 +131,7 @@ export default function HouseholdName({ familyId, name }) {
           Cancel
         </button>
       </div>
-      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 text-sm text-rose">{error}</p> : null}
     </div>
   );
 }

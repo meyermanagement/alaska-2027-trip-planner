@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import MomentsEditor from "@/components/MomentsEditor";
+import { FAMILY_FORM_COPY, OWN_GENDER_TERM } from "@/lib/travelers/formCopy";
 import AboutSections from "@/components/AboutSections";
 import DocumentPicker from "@/components/DocumentPicker";
 import { AI_PROVIDER } from "@/lib/beta/agreement";
@@ -34,7 +35,7 @@ import {
 
 // The value the select uses for "a term of their own". Not a stored value: it
 // only ever means "show the box", and what gets saved is whatever is typed in it.
-const OWN_TERM = "__own__";
+const OWN_TERM = OWN_GENDER_TERM;
 import {
   DOC_TYPES,
   docType,
@@ -68,6 +69,7 @@ export default function People({
   homeLon = null,
   addOpen = false,
   onAddDone = null,
+  onMomentStateChange,
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -78,6 +80,11 @@ export default function People({
   const [addingFor, setAddingFor] = useState(null); // traveler id
   const [editingDoc, setEditingDoc] = useState(null); // document id
   const [editingPerson, setEditingPerson] = useState(null); // traveler id
+  const [momentState, setMomentState] = useState({ dirty: false, busy: false });
+  useEffect(() => { onMomentStateChange?.(momentState); }, [momentState, onMomentStateChange]);
+  useEffect(() => {
+    setMomentState({ dirty: false, busy: false });
+  }, [editingPerson, only]);
 
   // If Preferences (or anywhere else) links here with ?edit=<traveler id>, open
   // that person's editor and scroll to it. Once opened the query string is
@@ -571,11 +578,13 @@ export default function People({
                 <button
                   type="button"
                   className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
-                  onClick={() =>
+                  disabled={momentState.busy}
+                  onClick={() => {
+                    if (momentState.dirty && !window.confirm("Close without saving your unfinished moment? Moments you already saved will be kept.")) return;
                     setEditingPerson(
                       editingPerson === person.id ? null : person.id,
-                    )
-                  }
+                    );
+                  }}
                 >
                   Edit details
                 </button>
@@ -615,6 +624,7 @@ export default function People({
                 as having done nothing at all. */}
             {editingPerson === person.id && (
               <PersonForm
+                onMomentStateChange={setMomentState}
                 person={person}
                 homeLat={homeLat}
                 homeLon={homeLon}
@@ -850,7 +860,7 @@ export default function People({
 
       {addingPerson ? (
         <div className="card p-5">
-          <h2 className="font-display text-lg font-semibold">Add someone</h2>
+          <h2 className="font-display text-lg font-semibold">Add a person</h2>
           <PersonForm
             homeLat={homeLat}
             homeLon={homeLon}
@@ -869,7 +879,7 @@ export default function People({
             className="btn btn-ghost no-print"
             onClick={() => setAddingPerson(true)}
           >
-            Add someone
+            Add a person
           </button>
         )
       )}
@@ -1660,7 +1670,7 @@ function ProfileLines({ person }) {
   );
 }
 
-function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
+export function PersonForm({ person, onCancel, onSave, homeLat, homeLon, onMomentStateChange }) {
   const [form, setForm] = useState({
     name: person?.name || "",
     email: person?.email || "",
@@ -1695,6 +1705,11 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [momentState, setMomentState] = useState({ dirty: false, busy: false });
+  useEffect(() => { onMomentStateChange?.(momentState); }, [momentState, onMomentStateChange]);
+  const canLeaveMoments = () => !momentState.dirty || window.confirm(
+    "Leave your unfinished moment unsaved? Moments you already saved will be kept.",
+  );
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   const toggleAid = (value) =>
@@ -1707,7 +1722,12 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (busy || momentState.busy) return;
+    if (!form.name.trim()) {
+      setError("Enter this person's name.");
+      return;
+    }
+    if (!canLeaveMoments()) return;
     setBusy(true);
     setError("");
     const message = await onSave({
@@ -1764,8 +1784,10 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs font-semibold">
-          Name
+          Their name (required)
           <input
+            required
+            maxLength={60}
             className="field mt-1 text-base"
             value={form.name}
             onChange={set("name")}
@@ -1775,6 +1797,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           Date of birth (optional)
           <input
             type="date"
+            max={new Date().toISOString().slice(0, 10)}
             className="field mt-1 text-base"
             value={form.date_of_birth}
             onChange={set("date_of_birth")}
@@ -1787,7 +1810,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
             value={form.gender}
             onChange={set("gender")}
           >
-            <option value="">Not recorded</option>
+            <option value="">Leave blank</option>
             {GENDERS.map((g) => (
               <option key={g.value} value={g.value}>
                 {g.label}
@@ -1799,6 +1822,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
             <input
               className="field mt-2 text-base"
               placeholder="In their own words"
+              aria-label="Gender in their own words"
               value={form.gender_own}
               onChange={set("gender_own")}
               maxLength={40}
@@ -1806,10 +1830,7 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
           )}
         </label>
         <p className="text-xs text-ink-soft sm:col-span-2">
-          Gender helps Aly with the ordinary things — what to pack, who shares a
-          room, what a dress code means in practice. It is not what a passport
-          says: travel documents carry their own sex field, printed by whoever
-          issued them, and the app never fills that in from this.
+          {FAMILY_FORM_COPY.genderHelp}
         </p>
         <label className="block text-xs font-semibold sm:col-span-2">
           Email for signing in (optional)
@@ -1859,9 +1880,11 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
       {person?.id && (
         <div className="space-y-3 border-t border-teal/30 pt-3">
           <MomentsEditor
+            key={person.id}
             travelerId={person.id}
             travelerName={form.name.trim() || person.name}
-            help={`Small, real memories from ${form.name.trim() || person.name || "this person"}'s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes, so the truer they sound, the better the advice fits.`}
+            onStateChange={setMomentState}
+            disabled={busy}
           />
         </div>
       )}
@@ -1949,21 +1972,22 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
         </label>
       </div>
       {error && (
-        <p className="rounded-lg bg-rose/10 px-3 py-2 text-xs text-rose">
+        <p role="alert" className="rounded-lg bg-rose/10 px-3 py-2 text-xs text-rose">
           {error}
         </p>
       )}
       <div className="flex gap-2">
         <button
           className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
-          disabled={busy}
+          disabled={busy || momentState.busy}
         >
-          Save
+          {busy ? "Saving…" : "Save person"}
         </button>
         <button
           type="button"
           className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
-          onClick={onCancel}
+          disabled={busy || momentState.busy}
+          onClick={() => { if (canLeaveMoments()) onCancel(); }}
         >
           Cancel
         </button>

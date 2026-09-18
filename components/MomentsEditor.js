@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hasMomentDraft, MOMENTS_COPY } from "@/lib/travelers/formCopy";
 
 // A short editor for a person's favorite moments.
 //
@@ -74,7 +75,9 @@ export default function MomentsEditor({
   heading = "Favorite moments",
   // A short explainer read once at the top. Same story: different tone for
   // the two callers.
-  help = "Aly reads these before every answer she writes. A real moment in your own words is worth more than a tidy list of places.",
+  help = MOMENTS_COPY.editorHelp,
+  onStateChange,
+  disabled = false,
 }) {
   const [moments, setMoments] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -88,9 +91,30 @@ export default function MomentsEditor({
   const [newBody, setNewBody] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const [addError, setAddError] = useState("");
+  const [removingId, setRemovingId] = useState(null);
+  const [removeError, setRemoveError] = useState("");
+  const pending = addBusy || editBusy || Boolean(removingId);
+  const locked = disabled || pending;
+  const dirty = hasMomentDraft({
+    newBody, editingId, editingBody,
+    originalBody: moments.find((m) => m.id === editingId)?.body || "",
+  });
+  useEffect(() => {
+    onStateChange?.({ dirty, busy: pending });
+  }, [dirty, pending, onStateChange]);
+  useEffect(() => {
+    if (!dirty && !pending) return;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, pending]);
 
   const reload = useCallback(async () => {
     if (!travelerId) return;
+    setLoaded(false);
     setLoadError("");
     try {
       const res = await fetch(
@@ -116,6 +140,7 @@ export default function MomentsEditor({
   }, [reload]);
 
   async function addMoment() {
+    if (locked || !loaded || loadError) return;
     const body = newBody.trim();
     if (!body) return;
     setAddBusy(true);
@@ -141,9 +166,10 @@ export default function MomentsEditor({
   }
 
   async function saveEdit(id) {
+    if (locked) return;
     const body = editingBody.trim();
     if (!body) {
-      setEditError("A moment needs some words.");
+      setEditError("Write a moment before saving, or cancel this edit.");
       return;
     }
     setEditBusy(true);
@@ -172,10 +198,13 @@ export default function MomentsEditor({
   }
 
   async function removeMoment(id) {
+    if (locked) return;
     // A moment is a sentence somebody wrote about themselves. Confirming once
     // beats a silent delete of something warm.
     const ok = window.confirm("Remove this moment?");
     if (!ok) return;
+    setRemovingId(id);
+    setRemoveError("");
     try {
       const res = await fetch(`/api/moments?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -186,11 +215,14 @@ export default function MomentsEditor({
           setEditingId(null);
           setEditingBody("");
         }
+      } else {
+        const data = await res.json().catch(() => null);
+        setRemoveError(data?.error || "That moment could not be removed. Try again.");
       }
     } catch {
-      // A failed delete leaves the moment on screen; the next reload catches
-      // it. Silent-fail beats a modal telling the person their moment could
-      // not be removed for reasons.
+      setRemoveError("That moment could not be removed. Try again.");
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -200,18 +232,18 @@ export default function MomentsEditor({
       {help && <p className="text-xs text-ink-soft">{help}</p>}
 
       {loadError && (
-        <p className="rounded-lg border border-terra/40 bg-terra-soft/40 px-3 py-2 text-xs text-terra-deep">
+        <div role="alert" className="rounded-lg border border-terra/40 bg-terra-soft/40 px-3 py-2 text-xs text-terra-deep">
           {loadError}
-        </p>
+          <button type="button" onClick={reload} disabled={locked}
+            className="btn btn-ghost ml-2 min-h-11 text-xs">Try again</button>
+        </div>
       )}
+      {!loaded && <p role="status" className="text-xs text-ink-soft">Loading saved moments…</p>}
+      {removeError && <p role="alert" className="text-xs text-terra-deep">{removeError}</p>}
 
       {loaded && moments.length === 0 && !loadError && (
         <p className="rounded-lg border border-sand-deep bg-sand-soft/60 px-3 py-2 text-xs text-ink-soft">
-          Nothing here yet. Add a first moment below --{" "}
-          {travelerName
-            ? `something ${travelerName} would tell`
-            : "the kind of thing you would tell"}{" "}
-          a friend about at dinner.
+          {travelerName ? `No moments saved for ${travelerName} yet.` : "No moments saved yet."}
         </p>
       )}
 
@@ -227,20 +259,22 @@ export default function MomentsEditor({
                 {isEditing ? (
                   <div className="space-y-2">
                     <AutoGrowTextarea
+                      aria-label="Edit this favorite moment"
+                      disabled={locked}
                       value={editingBody}
                       onChange={(e) => setEditingBody(e.target.value)}
                     />
                     {editError && (
-                      <p className="text-xs text-terra-deep">{editError}</p>
+                      <p role="alert" className="text-xs text-terra-deep">{editError}</p>
                     )}
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => saveEdit(m.id)}
-                        disabled={editBusy || !editingBody.trim()}
-                        className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
+                        disabled={locked || !editingBody.trim()}
+                        className="btn btn-primary min-h-11 whitespace-nowrap px-3 py-1.5 text-xs"
                       >
-                        {editBusy ? "Saving..." : "Save"}
+                        {editBusy ? "Saving…" : "Save moment"}
                       </button>
                       <button
                         type="button"
@@ -249,8 +283,8 @@ export default function MomentsEditor({
                           setEditingBody("");
                           setEditError("");
                         }}
-                        disabled={editBusy}
-                        className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+                        disabled={locked}
+                        className="btn btn-ghost min-h-11 whitespace-nowrap px-3 py-1.5 text-xs"
                       >
                         Cancel
                       </button>
@@ -264,21 +298,23 @@ export default function MomentsEditor({
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
+                        disabled={locked || Boolean(editingId)}
                         onClick={() => {
                           setEditingId(m.id);
                           setEditingBody(m.body);
                           setEditError("");
                         }}
-                        className="btn btn-ghost whitespace-nowrap px-3 py-1 text-xs"
+                        className="btn btn-ghost min-h-11 whitespace-nowrap px-3 py-1 text-xs"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
+                        disabled={locked}
                         onClick={() => removeMoment(m.id)}
-                        className="btn btn-ghost whitespace-nowrap px-3 py-1 text-xs text-terra-deep"
+                        className="btn btn-ghost min-h-11 whitespace-nowrap px-3 py-1 text-xs text-terra-deep"
                       >
-                        Remove
+                        {removingId === m.id ? "Removing…" : "Remove"}
                       </button>
                     </div>
                   </div>
@@ -300,24 +336,26 @@ export default function MomentsEditor({
           buying nothing here in the first place. */}
       <div className="space-y-2 border-t border-sand-deep pt-3">
         <label className="block text-xs font-semibold">
-          Add a moment
+          {moments.length ? "Add another favorite moment" : "Add a favorite moment"}
           <AutoGrowTextarea
+            disabled={locked || !loaded || Boolean(loadError)}
             value={newBody}
             onChange={(e) => setNewBody(e.target.value)}
-            placeholder="e.g. a slow dinner on a terrace in Rome, the morning we found tide pools in Maine."
+            placeholder={MOMENTS_COPY.placeholder}
           />
         </label>
-        {addError && <p className="text-xs text-terra-deep">{addError}</p>}
+        {addError && <p role="alert" className="text-xs text-terra-deep">{addError}</p>}
         <div>
           <button
             type="button"
             onClick={addMoment}
-            disabled={addBusy || !newBody.trim()}
-            className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
+            disabled={locked || !loaded || Boolean(loadError) || !newBody.trim()}
+            className="btn btn-primary min-h-11 whitespace-nowrap px-3 py-1.5 text-xs"
           >
-            {addBusy ? "Saving..." : "Add"}
+            {addBusy ? "Saving…" : "Save new moment"}
           </button>
         </div>
+        <p className="text-xs text-ink-soft">Moments save separately from the other profile details.</p>
       </div>
     </div>
   );

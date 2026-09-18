@@ -1,4 +1,5 @@
 "use client";
+import { FAMILY_FORM_COPY } from "@/lib/travelers/formCopy";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -193,6 +194,7 @@ export default function HouseholdHome({
   }
 
   async function save() {
+    if (busy) return;
     const next = draft.trim().replace(/\s+/g, " ");
     setBusy(true);
     setError("");
@@ -287,13 +289,13 @@ export default function HouseholdHome({
             ) : saved.precise ? null : (
               <span className="text-ink-faint">
                 {" "}
-                &mdash; placed on the street rather than at the house
+                (approximate location)
               </span>
             )}
             .
           </span>
         ) : (
-          <span>No home address, so day one has nothing to leave from.</span>
+          <span>No home location added. A city is enough to start.</span>
         )}
         <button
           type="button"
@@ -304,7 +306,7 @@ export default function HouseholdHome({
             setOpen(true);
           }}
         >
-          {saved.address ? "Change" : "Add one"}
+          {saved.address ? "Change home" : "Add home"}
         </button>
       </div>
     );
@@ -313,12 +315,10 @@ export default function HouseholdHome({
   return (
     <div className="mt-3 rounded-xl border border-[var(--line)] bg-white p-3">
       <label className="section-label block" htmlFor="household-home">
-        Where the household leaves from
+        {FAMILY_FORM_COPY.homeLabel}
       </label>
       <p className="mt-1 text-sm text-ink-soft">
-        The starting point for the first thing on a trip, so the app can work
-        out what time to leave the house. Used whenever nobody has said where
-        they are, and never shown to anyone outside this household.
+        {FAMILY_FORM_COPY.homeHelp}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <div className="w-full sm:w-[30rem]">
@@ -331,9 +331,9 @@ export default function HouseholdHome({
               setPicked((was) => (was && was.value === next ? was : null));
             }}
             onPick={(place) => setPicked(place)}
-            placeholder="1234 Example Street, Springfield, MO 65801"
+            placeholder={FAMILY_FORM_COPY.homePlaceholder}
             className="field w-full"
-            inputProps={{ id: "household-home", maxLength: 160 }}
+            inputProps={{ id: "household-home", maxLength: 160, disabled: busy }}
             onEnter={save}
             onEscape={() => {
               setOpen(false);
@@ -347,7 +347,7 @@ export default function HouseholdHome({
           disabled={busy}
           onClick={save}
         >
-          {busy ? "Looking it up…" : "Save"}
+          {busy ? "Saving…" : "Save home"}
         </button>
         <button
           type="button"
@@ -371,17 +371,11 @@ export default function HouseholdHome({
           {finding ? "Asking this device…" : "Use where I am now"}
         </button>
       )}
-      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 text-sm text-rose">{error}</p> : null}
       {note ? <p className="mt-2 text-sm text-ink-soft">{note}</p> : null}
       <p className="mt-2 text-xs text-ink-faint">
-        Suggestions appear as you type, and choosing one keeps the exact point
-        it was found at. If this device has already been allowed to share its
-        location, the box fills itself in when you open it. If only the street
-        can be found &mdash; which happens on plenty of residential roads,
-        because the free map this app uses names streets far more completely
-        than it numbers doors &mdash; the point lands in the middle of the
-        block, and it says so. That is a few hundred feet out, which is nothing
-        on the drive to an airport.
+        Leave this blank and save to remove your home location. A city or street
+        match is approximate, so check the starting point before relying on a departure time.
       </p>
     </div>
   );

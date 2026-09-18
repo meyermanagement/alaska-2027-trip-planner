@@ -1,4 +1,5 @@
 "use client";
+import { FAMILY_FORM_COPY } from "@/lib/travelers/formCopy";
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -160,13 +161,9 @@ export default function Pets({
   return (
     <section className={bare ? "" : "mt-10"}>
       <div className={bare ? "hidden" : "mb-4"}>
-        <h2 className="font-display text-2xl font-semibold">Pets</h2>
+        <h2 className="font-display text-2xl font-semibold">Animals</h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Who else is in the family, and what happens to them when we go away.
-          The weight and the paperwork dates are the two that decide things: one
-          sets whether a flight is even possible, the other can stop a pet at a
-          counter. Whether one is coming is set on the trip itself, or just tell
-          Aly.
+          {FAMILY_FORM_COPY.animalsHelp} You can choose who comes on each trip.
         </p>
       </div>
 
@@ -194,8 +191,7 @@ export default function Pets({
       <div className="space-y-4">
         {!bare && rows.length === 0 && !adding && (
           <p className="text-sm text-ink-soft">
-            No pets yet. Add one and Aly will start taking them into account
-            when she looks for somewhere to stay.
+            No animals added yet. Include anyone who travels with you or needs care at home.
           </p>
         )}
 
@@ -282,7 +278,7 @@ export default function Pets({
       <div className="no-print mt-4">
         {adding ? (
           <div className="card p-5">
-            <h3 className="font-display text-lg font-semibold">Add a pet</h3>
+            <h3 className="font-display text-lg font-semibold">Add an animal</h3>
             <PetForm
               pet={null}
               busy={busy === "new"}
@@ -301,7 +297,7 @@ export default function Pets({
               className="btn btn-primary"
               onClick={() => setAdding(true)}
             >
-              Add a pet
+              Add an animal
             </button>
           )
         )}
@@ -344,7 +340,7 @@ function PetFacts({ pet }) {
   );
 }
 
-function PetForm({ pet, busy, onCancel, onSave }) {
+export function PetForm({ pet, busy, onCancel, onSave }) {
   const [form, setForm] = useState({
     name: pet?.name || "",
     species: pet?.species || "dog",
@@ -381,7 +377,11 @@ function PetForm({ pet, busy, onCancel, onSave }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (busy) return;
+    if (!form.name.trim()) {
+      setError("Enter the animal's name.");
+      return;
+    }
     setError("");
     const weight = Number(String(form.weight_lb).trim());
     const message = await onSave({
@@ -433,15 +433,17 @@ function PetForm({ pet, busy, onCancel, onSave }) {
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs font-semibold">
-          Name
+          {FAMILY_FORM_COPY.animalName} (required)
           <input
+            required
+            maxLength={60}
             className="field mt-1 text-base"
             value={form.name}
             onChange={set("name")}
           />
         </label>
         <label className="block text-xs font-semibold">
-          Species
+          {FAMILY_FORM_COPY.speciesLabel}
           <select
             className="field mt-1 text-base"
             value={form.species}
@@ -498,6 +500,7 @@ function PetForm({ pet, busy, onCancel, onSave }) {
           Date of birth (optional)
           <input
             type="date"
+            max={new Date().toISOString().slice(0, 10)}
             className="field mt-1 text-base"
             value={form.date_of_birth}
             onChange={set("date_of_birth")}

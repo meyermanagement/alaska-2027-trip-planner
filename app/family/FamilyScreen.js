@@ -41,6 +41,7 @@ export default function FamilyScreen({
       ? `a:${pets[0].id}`
       : "new-person";
   const [picked, setPicked] = useState(first);
+  const [momentState, setMomentState] = useState({ dirty: false, busy: false });
 
   const rows = [
     ...travelers.map((t) => ({
@@ -55,8 +56,8 @@ export default function FamilyScreen({
       // A hairline where the people end, so an animal does not read as one.
       divider: i === 0 && travelers.length > 0,
     })),
-    { key: "new-person", label: "+ Add someone", ghost: true, divider: true },
-    { key: "new-pet", label: "+ Add a pet", ghost: true },
+    { key: "new-person", label: "+ Add a person", ghost: true, divider: true },
+    { key: "new-pet", label: "+ Add an animal", ghost: true },
   ];
 
   const id =
@@ -70,13 +71,19 @@ export default function FamilyScreen({
       hint={`${travelers.length + pets.length} in the family`}
       rows={rows}
       picked={picked}
-      onPick={setPicked}
+      onPick={(next) => {
+        if (next === picked || momentState.busy) return;
+        if (momentState.dirty && !window.confirm("Switch profiles without saving your unfinished moment? Moments you already saved will be kept.")) return;
+        setMomentState({ dirty: false, busy: false });
+        setPicked(next);
+      }}
     />
   );
 
   return (
     <>
       <People
+        onMomentStateChange={setMomentState}
         familyId={familyId}
         userId={userId}
         userEmail={userEmail}

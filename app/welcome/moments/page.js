@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import WelcomeMomentsForm from "./WelcomeMomentsForm";
+import { MOMENTS_COPY } from "@/lib/travelers/formCopy";
 
 export const metadata = { title: "Favorite moments · Alyeska" };
 export const dynamic = "force-dynamic";
@@ -44,13 +45,11 @@ export default async function WelcomeMomentsPage() {
         Your favorite moments
       </h1>
       <p className="mt-3 text-sm text-ink-soft">
-        Small, real memories from your life. Aly reads these before every answer
-        she writes -- the more they sound like you, the better the advice fits.
-        Anything the family owner wrote about you is here to edit, keep, or
-        remove.
+        {MOMENTS_COPY.prompt}
+        {access.can.editPeople && " Any moments already added for you are here to keep, edit, or remove."}
       </p>
       <div className="mt-6">
-        <WelcomeMomentsForm travelerId={me.id} travelerName={me.name} />
+        <WelcomeMomentsForm travelerId={me.id} travelerName={me.name} canEdit={access.can.editPeople} />
       </div>
     </main>
   );

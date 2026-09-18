@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import MomentsEditor from "@/components/MomentsEditor";
+import { MOMENTS_COPY } from "@/lib/travelers/formCopy";
 
 // The moments step. Reuses the same editor used on each person's page in
 // Family -- adding, editing, removing here writes exactly what the People
@@ -22,12 +23,15 @@ import MomentsEditor from "@/components/MomentsEditor";
 // already has all four of those things done goes straight to the trips they
 // were invited to see.
 
-export default function WelcomeMomentsForm({ travelerId, travelerName }) {
+export default function WelcomeMomentsForm({ travelerId, travelerName, canEdit = true }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [momentState, setMomentState] = useState({ dirty: false, busy: false });
 
   async function finish() {
+    if (busy || momentState.busy) return;
+    if (momentState.dirty && !window.confirm("Continue without saving your unfinished moment? Moments you already saved will be kept.")) return;
     setBusy(true);
     setError("");
     try {
@@ -51,27 +55,33 @@ export default function WelcomeMomentsForm({ travelerId, travelerName }) {
 
   return (
     <div className="space-y-5">
-      <MomentsEditor
+      {canEdit && <MomentsEditor
+        key={travelerId}
         travelerId={travelerId}
         travelerName={travelerName}
-        heading="Your favorite moments"
-        help={`Anything you or the family owner has written about ${travelerName || "you"} lives here. Add a new one, edit wording that came out wrong, remove one that no longer fits.`}
-      />
+        heading=""
+        help={MOMENTS_COPY.help}
+        disabled={busy}
+        onStateChange={setMomentState}
+      />}
+      {!canEdit && <p className="text-sm text-ink-soft">Ask a household planner to add or update your favorite moments in Family.</p>}
 
-      {error && <p className="text-xs text-terra-deep">{error}</p>}
+      {error && <p role="alert" className="text-xs text-terra-deep">{error}</p>}
 
       <div className="flex flex-wrap gap-2 border-t border-sand-deep pt-4">
         <button
           type="button"
           onClick={finish}
-          disabled={busy}
+          disabled={busy || momentState.busy}
           className="btn btn-primary whitespace-nowrap px-4 py-2 text-sm"
         >
-          {busy ? "Finishing..." : "I'm done -- what's next"}
+          {busy ? "Finishing…" : "Go to my trips"}
         </button>
       </div>
       <p className="text-xs text-ink-soft">
-        You can add or change moments any time on your file in Family.
+        {canEdit
+          ? "Nothing to add? You can continue now and add moments later in Family."
+          : "You can continue without adding a moment."}
       </p>
     </div>
   );

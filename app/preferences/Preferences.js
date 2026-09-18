@@ -536,9 +536,8 @@ export default function Preferences({
               About your family
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-              A paragraph or two about each person, and the small real memories
-              from their life that make an answer feel like it was written for
-              them. Aly reads these before every answer.
+              Each person's About you answers and favorite travel memories help
+              Aly understand what they enjoy. Use their own words where possible.
             </p>
           </div>
           <div className="space-y-3">
@@ -647,7 +646,6 @@ export default function Preferences({
                               travelerId={person.id}
                               travelerName={name}
                               heading=""
-                              help={`Small, real memories from ${name}\u2019s life -- the kind of thing you would tell a friend about at dinner. Aly reads these before every answer she writes.`}
                             />
                           </div>
                         )}

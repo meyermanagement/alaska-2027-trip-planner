@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SPECIES, speciesLabel } from "@/lib/pets/pets";
-import { GENDERS } from "@/lib/travelers/profile";
+import { GENDERS, genderLabel } from "@/lib/travelers/profile";
+import { FAMILY_FORM_COPY, OWN_GENDER_TERM, welcomeGender } from "@/lib/travelers/formCopy";
 import HomePicker, { locateHome } from "@/components/HomePicker";
 import AlyKnowsSidebar from "@/components/AlyKnowsSidebar";
 import { patchRun } from "@/lib/practice/session";
@@ -52,12 +53,8 @@ export default function WelcomeForm({
   // a child is one press of the button below, and a family of one should not
   // have to remove a blank row that made an assumption on their behalf.
   //
-  // Each row also carries date of birth and gender -- both optional, both
-  // things Aly leans on for the ordinary parts of planning (age tells her a
-  // ten-year-old is on the trip; gender helps with what to pack and who
-  // shares a room). Free-text "another term" lives on the Family screen; the
-  // welcome form keeps to the four common values plus a blank so nobody has
-  // to click through a picker they do not care about.
+  // Both optional fields use the same choices as the Family editor, including
+  // a person's own term. Neither field fills in travel-document information.
   const [people, setPeople] = useState([
     { name: myName || "", dob: "", gender: "" },
   ]);
@@ -104,9 +101,9 @@ export default function WelcomeForm({
 
     // The family name always goes back with the home update, so what the user
     // typed is what the row says, whether or not they changed it. Trimmed and
-    // capped at 60; blanks fall back to the original name so somebody who
+    // capped at the shared Family limit; blanks fall back to the original name so somebody who
     // cleared the field does not end up with an empty family row.
-    const cleanFamilyName = (name || "").trim().slice(0, 60);
+    const cleanFamilyName = (name || "").trim().slice(0, FAMILY_FORM_COPY.householdNameLimit);
     const nextFamilyName = cleanFamilyName || familyName || "New Family";
 
     // Practice: work out the same rows the real Save would write, but do not
@@ -119,7 +116,7 @@ export default function WelcomeForm({
         .map((r) => ({
           name: (r.name || "").trim(),
           dob: (r.dob || "").trim() || null,
-          gender: (r.gender || "").trim() || null,
+          gender: welcomeGender(r),
         }))
         .filter((r) => r.name.length > 0);
       if (cleanPeople.length === 0) {
@@ -203,7 +200,7 @@ export default function WelcomeForm({
         dob: (r.dob || "").trim() || null,
         // Only the four canonical values reach here; "Another term" is a
         // Family-screen feature.
-        gender: (r.gender || "").trim() || null,
+        gender: welcomeGender(r),
         sort_order: i + 1,
       }))
       .filter((r) => r.name.length > 0);
@@ -275,10 +272,10 @@ export default function WelcomeForm({
       >
         <section className="card p-4">
           <label className="section-label block" htmlFor="welcome-family-name">
-            What should we call your household? (optional)
+            {FAMILY_FORM_COPY.householdLabel} (optional)
           </label>
           <p className="mt-1 text-xs text-ink-soft">
-            A name for your shared travel profile, even if it is just you.
+            {FAMILY_FORM_COPY.householdHelp}
           </p>
           <input
             id="welcome-family-name"
@@ -286,22 +283,21 @@ export default function WelcomeForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Rivera Family"
-            maxLength={60}
+            maxLength={FAMILY_FORM_COPY.householdNameLimit}
           />
         </section>
 
         <section className="card p-4">
           <label className="section-label block" htmlFor="welcome-home">
-            Where do you live? (optional)
+            {FAMILY_FORM_COPY.homeLabel}
           </label>
           <p className="mt-1 text-xs text-ink-soft">
-            Your city is enough to start. Choose a suggestion if one fits, or
-            keep what you type. This helps me plan travel from home.
+            {FAMILY_FORM_COPY.homeHelp}
           </p>
           <div className="mt-2">
             <HomePicker
               id="welcome-home"
-              placeholder="City or home address"
+              placeholder={FAMILY_FORM_COPY.homePlaceholder}
               value={address}
               onChange={setAddress}
               onLocated={(place) => {
@@ -373,9 +369,21 @@ export default function WelcomeForm({
                           {g.label}
                         </option>
                       ))}
+                      <option value={OWN_GENDER_TERM}>Another term…</option>
                     </select>
+                    {row.gender === OWN_GENDER_TERM && (
+                      <input
+                        className="field mt-2 text-base"
+                        aria-label={`Gender in ${row.name || "this person's"} own words`}
+                        placeholder="In their own words"
+                        value={row.gender_own || ""}
+                        onChange={(e) => setPerson(i, { gender_own: e.target.value })}
+                        maxLength={40}
+                      />
+                    )}
                   </label>
                 </div>
+                <p className="text-xs text-ink-soft">{FAMILY_FORM_COPY.genderHelp}</p>
               </div>
             ))}
           </div>
@@ -392,7 +400,7 @@ export default function WelcomeForm({
         <section className="card p-4">
           <h2 className="section-label">Any animals to plan around? (optional)</h2>
           <p className="mt-1 text-xs text-ink-soft">
-            Include animals that travel with you or need care while you are away.
+            {FAMILY_FORM_COPY.animalsHelp}
           </p>
           {pets.length > 0 && (
             <div className="mt-3 space-y-4">
@@ -403,7 +411,7 @@ export default function WelcomeForm({
                 >
                   <div className="flex items-center gap-2">
                     <label className="min-w-0 flex-1 text-xs font-semibold text-ink-soft">
-                      Animal&apos;s name
+                    {FAMILY_FORM_COPY.animalName}
                       <input
                         className="field mt-1"
                         required
@@ -424,7 +432,7 @@ export default function WelcomeForm({
                     </button>
                   </div>
                   <label className="block text-xs font-semibold text-ink-soft">
-                    What kind of animal?
+                    {FAMILY_FORM_COPY.speciesLabel}
                     <select
                       className="field mt-1 text-base"
                       value={row.species}
@@ -519,7 +527,7 @@ function WelcomePreview({ preview }) {
               {p.name}
               {i === 0 ? " (you)" : " (no login yet)"}
               {p.dob ? ` — born ${p.dob}` : ""}
-              {p.gender ? ` — ${p.gender}` : ""}
+              {p.gender ? ` — ${genderLabel(p.gender)}` : ""}
             </li>
           ))}
         </ul>
