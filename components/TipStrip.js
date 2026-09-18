@@ -5,6 +5,7 @@ import Link from "next/link";
 import { OFFER_SCOPE, tipWhen, WALLET_SCOPES } from "@/lib/tips/tip";
 import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { tripPath } from "@/lib/trips/route";
+import { announceTipHeaderHidden, onTipHeaderHidden } from "@/lib/tips/header";
 
 /**
  * The pro tips that have earned a place at the top of every screen.
@@ -17,8 +18,11 @@ import { tripPath } from "@/lib/trips/route";
  * Quieter than the passport band above it, and dismissible, which is the honest
  * difference between advice and a problem. Advice you can wave off.
  */
-export default function TipStrip({ tips = [], today }) {
+export default function TipStrip({ tips = [], today, readOnly = false }) {
   const [gone, setGone] = useState({});
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => onTipHeaderHidden((id) => setGone((prev) => ({ ...prev, [id]: "hidden" }))), []);
   const shown = tips.filter((tip) => !gone[tip.id]);
 
   // The same tip cleared on the screen below. Nothing to save -- that already
@@ -36,27 +40,23 @@ export default function TipStrip({ tips = [], today }) {
     [],
   );
 
-  const resolve = useCallback(async (tip, status) => {
-    setGone((prev) => ({ ...prev, [tip.id]: status }));
-    announceTipResolved(tip.id, status);
+  const resolve = useCallback(async (tip, headerOnly = false) => {
+    setBusy(tip.id);
+    setError("");
     try {
       const res = await fetch(`/api/tips/${tip.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(headerOnly ? { header_hidden: true } : { status: "cleared" }),
       });
       if (!res.ok) throw new Error();
+      setGone((prev) => ({ ...prev, [tip.id]: headerOnly ? "hidden" : "cleared" }));
+      if (headerOnly) announceTipHeaderHidden(tip.id);
+      else announceTipResolved(tip.id, "cleared");
     } catch {
-      // Put it back rather than pretend, in both places. A tip that silently
-      // failed to clear would reappear on the next page load anyway, which is
-      // more confusing -- and one hidden here while still live in the table is
-      // worse than the problem this was meant to solve.
-      setGone((prev) => {
-        const next = { ...prev };
-        delete next[tip.id];
-        return next;
-      });
-      announceTipResolved(tip.id, null);
+      setError("That did not save. Please try again.");
+    } finally {
+      setBusy(null);
     }
   }, []);
 
@@ -115,10 +115,11 @@ export default function TipStrip({ tips = [], today }) {
                     {tip.about || "Wallet"}
                   </Link>
                 ) : null}
-                {tip.trip_id ? (
+                {tip.trip_id && !readOnly ? (
                   <button
                     type="button"
                     onClick={() => makeTask(tip)}
+                    disabled={busy !== null}
                     className="text-xs font-semibold uppercase tracking-[0.06em] text-teal hover:underline"
                   >
                     Remind me
@@ -129,19 +130,33 @@ export default function TipStrip({ tips = [], today }) {
                     write is "read" -- which would file the offer's own sentence
                     under the cleared tips while the offer itself sat open in the
                     Wallet. The link above goes to where the decision is made. */}
-                {tip.scope === OFFER_SCOPE ? null : (
+                {!readOnly ? (
                   <button
                     type="button"
-                    onClick={() => resolve(tip, "cleared")}
-                    className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-soft hover:text-teal"
+                    disabled={busy !== null}
+                    onClick={() => resolve(tip, true)}
+                    title="Hide this notice; keep the tip where it belongs"
+                    className="min-h-11 text-xs font-semibold text-ink-soft hover:text-teal disabled:opacity-60"
                   >
-                    Clear
+                    {busy === tip.id ? "Saving…" : "Hide from top"}
+                  </button>
+                ) : null}
+                {tip.scope === OFFER_SCOPE || readOnly ? null : (
+                  <button
+                    type="button"
+                    onClick={() => resolve(tip)}
+                    disabled={busy !== null}
+                    title="Clear this tip from its page and the top of the screen"
+                    className="min-h-11 text-xs font-semibold text-ink-soft hover:text-teal disabled:opacity-60"
+                  >
+                    {tip.trip_id ? "Clear from trip" : WALLET_SCOPES.includes(tip.scope) ? "Clear from Wallet" : "Clear tip"}
                   </button>
                 )}
               </p>
             </div>
           );
         })}
+        {error ? <p role="alert" className="text-sm text-rose">{error}</p> : null}
       </div>
     </section>
   );

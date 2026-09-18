@@ -9,13 +9,21 @@ import Link from "next/link";
 // is below these bands, drawn by the same Reminders component the menu used to
 // send you to -- these are only the lines pulled out of it that today is about.
 
-function Band({ tone = "plain", title, count, children }) {
+function Band({ tone = "plain", title, count, children, collapsible = false }) {
   const edge =
     tone === "hot"
       ? "border-rose/40"
       : tone === "warm"
         ? "border-[color:var(--color-amber,#b4762a)]/40"
         : "border-[var(--line)]";
+  if (collapsible) return (
+    <details className={`card mt-4 border ${edge} p-0`}>
+      <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold marker:text-teal">
+        {title}<span className="ml-2 text-ink-soft">{count}</span>
+      </summary>
+      <div className="divide-y divide-[var(--line)]">{children}</div>
+    </details>
+  );
   return (
     <section className={`card mt-4 border ${edge} p-0`}>
       <h2 className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-2.5 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
@@ -62,7 +70,7 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0 }) {
   return (
     <>
       {pressing.length ? (
-        <Band tone="hot" title="Needs attention today" count={pressing.length}>
+        <Band tone="hot" title="Needs attention today" count={pressing.length} collapsible>
           {pressing.map((item) => (
             <Row
               key={item.id}

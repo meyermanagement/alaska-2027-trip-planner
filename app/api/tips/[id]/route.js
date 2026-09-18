@@ -10,12 +10,11 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { tipUpdate } from "@/lib/tips/update";
 
 export const runtime = "nodejs";
 
-// Ignore was retired: one dismiss, and it is reversible. "ignored" is still read
-// from rows written while the button existed, but nothing writes it any more.
-const ALLOWED = new Set(["active", "cleared"]);
+// Hiding the header is separate from clearing the underlying advice.
 
 export async function PATCH(request, { params }) {
   const { id } = await params;
@@ -23,12 +22,11 @@ export async function PATCH(request, { params }) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Send a status." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a tip action." }, { status: 400 });
   }
-  const status = String(body?.status || "");
-  if (!ALLOWED.has(status)) {
+  if (!tipUpdate(body, null)) {
     return NextResponse.json(
-      { error: "That is not a status." },
+      { error: "Choose whether to hide or clear this tip." },
       { status: 400 },
     );
   }
@@ -42,16 +40,13 @@ export async function PATCH(request, { params }) {
 
   // Bringing a tip back means it was never resolved, so the record of who put it
   // away goes with it rather than lingering as a half-truth.
-  const patch =
-    status === "active"
-      ? { status, resolved_by: null, resolved_at: null }
-      : { status, resolved_by: user.id, resolved_at: new Date().toISOString() };
+  const patch = tipUpdate(body, user.id);
 
   const { data, error } = await supabase
     .from("pro_tips")
     .update(patch)
     .eq("id", id)
-    .select("id, status")
+    .select("id, status, header_hidden_at")
     .maybeSingle();
 
   if (error) {

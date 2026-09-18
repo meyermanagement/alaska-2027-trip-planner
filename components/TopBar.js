@@ -154,7 +154,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
           trip is a trip-ending problem and belongs at the top; unfiled mail is
           one tap of work and should not shout over it. The banner hides itself
           when the person is already on /inbox. */}
-      <HeaderUpdates inboxCount={inboxCount} tips={urgent} today={today} />
+      <HeaderUpdates inboxCount={inboxCount} tips={urgent} today={today} readOnly={secondary} />
     </>
   );
 }

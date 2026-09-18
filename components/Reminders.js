@@ -300,15 +300,15 @@ export default function Reminders({
 
       <div className="space-y-4">
         {groups.map(([bucket, list]) => (
-          <div key={bucket.id} className="card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
+          <details key={`${bucket.id}:${Boolean(find.trim())}`} open={find.trim() ? true : undefined} className="card overflow-hidden">
+            <summary className="min-h-11 cursor-pointer bg-sand/60 px-4 py-3 marker:text-teal">
+              <span className="text-sm font-semibold text-ink">
                 {bucket.label}
-              </h2>
-              <span className="text-xs font-semibold text-ink-soft">
-                {list.length}
               </span>
-            </div>
+              <span className="ml-2 text-sm text-ink-soft">
+                {list.length} {list.length === 1 ? "reminder" : "reminders"}
+              </span>
+            </summary>
             {/* The red edge marks the same rows the menu's red number counts, so
                 the two cannot disagree. It used to mark every high priority task,
                 which on a trip a year out was most of the page and told nobody
@@ -409,7 +409,7 @@ export default function Reminders({
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         ))}
         {groups.length === 0 && (
           <p className="card p-6 text-center text-sm text-ink-soft">

@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/rewards";
 import { formatDay } from "@/lib/format";
 import { monthsSaid } from "@/lib/someday/months";
+import { groupFareAlerts } from "@/lib/deals/groups";
 
 function fareLine(deal) {
   const bits = [`${money(deal.price)} each`];
@@ -70,6 +71,7 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
   const [reason, setReason] = useState("");
 
   const decide = async (deal, patch) => {
+    setError("");
     setActing(deal.id);
     try {
       const res = await fetch(`/api/deals/${deal.id}`, {
@@ -92,14 +94,14 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
     (trip) => trip.status !== "complete" && trip.status !== "cancelled",
   );
 
-  const card = (deal) => {
+  const card = (deal, compact = false) => {
     const v = deal.verdict || { facts: [] };
-    return (
-      <li key={deal.id} className="card p-3">
+    const body = (
+      <>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h3 className="font-display text-lg font-semibold">
+          {!compact ? <h3 className="font-display text-lg font-semibold">
             {deal.origin} to {deal.destination}
-          </h3>
+          </h3> : null}
           {v.headline ? (
             // Wrapping on purpose: the longest of these -- "Under your ceiling,
             // and you have the trip" -- is wider than a 320px card, and a chip
@@ -124,7 +126,7 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
             </span>
           ) : null}
         </div>
-        <p className="mt-0.5 text-sm text-ink-soft">{fareLine(deal)}</p>
+        {!compact ? <p className="mt-0.5 text-sm text-ink-soft">{fareLine(deal)}</p> : null}
 
         {v.facts?.length ? (
           <ul className="mt-2 space-y-1 text-sm text-ink">
@@ -240,6 +242,19 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
             </button>
           </div>
         )}
+      </>
+    );
+    return (
+      <li key={deal.id} className={compact ? "border-t border-[var(--line)]" : "card p-3"}>
+        {compact ? (
+          <details>
+            <summary className="cursor-pointer rounded-lg px-3 py-3 text-sm marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
+              <span className="font-semibold">{deal.destination}</span>
+              <span className="mt-1 block pl-4 text-ink-soft">{fareLine(deal)}</span>
+            </summary>
+            <div className="px-3 pb-4">{body}</div>
+          </details>
+        ) : body}
       </li>
     );
   };
@@ -260,12 +275,31 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
           <p className="mt-1 max-w-2xl text-sm text-ink-soft">
             {tripId
               ? "Read out of the alerts you forwarded, and measured against this trip's dates, party and budget."
-              : "Read out of the alerts you forwarded, and measured against your airports, the ceilings on this list and the trips you already have."}
+              : "Your forwarded alerts, grouped by departure airport. Open one to compare destinations and see how each fare fits."}
           </p>
-          <ul className="mt-3 space-y-3">{open.map(card)}</ul>
+          <ul className="mt-3 space-y-3">
+            {tripId ? open.map((deal) => card(deal)) : groupFareAlerts(open).map((group) => (
+              <li key={group.key} className="card min-w-0">
+                <details>
+                  <summary className="cursor-pointer rounded-xl p-3 marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
+                    <span className="font-semibold">From {group.origin}</span>
+                    <span className="ml-2 text-sm text-ink-soft">
+                      {group.destinationCount} {group.destinationCount === 1 ? "destination" : "destinations"}
+                      {group.lowestPrice !== null ? <span className="inline-block"> · from {money(group.lowestPrice)} each</span> : ""}
+                    </span>
+                    <span className="mt-1 block pl-4 text-xs text-ink-faint">
+                      {group.sourceName}
+                      {group.createdAt ? ` · received ${formatDay(group.createdAt.slice(0, 10))}` : ""}
+                    </span>
+                  </summary>
+                  <ul className="mx-3 mb-1">{group.deals.map((deal) => card(deal, true))}</ul>
+                </details>
+              </li>
+            ))}
+          </ul>
         </>
       ) : null}
-      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 text-sm text-rose">{error}</p> : null}
 
       {taken.length ? (
         <div className="mt-6">

@@ -6,10 +6,16 @@ import InboxBanner from "./InboxBanner";
 import TipStrip from "./TipStrip";
 import { onTipResolved } from "@/lib/tips/cleared";
 import { needsProminence } from "@/lib/ui/notices";
+import { onTipHeaderHidden } from "@/lib/tips/header";
+import { visibleHeaderTips } from "@/lib/tips/update";
 
-export default function HeaderUpdates({ inboxCount = 0, tips = [], today }) {
+export default function HeaderUpdates({ inboxCount = 0, tips = [], today, readOnly = false }) {
   const pathname = usePathname() || "";
   const [resolved, setResolved] = useState({});
+  const [hidden, setHidden] = useState({});
+  useEffect(() => onTipHeaderHidden((id) => {
+    setHidden((previous) => ({ ...previous, [id]: true }));
+  }), []);
   useEffect(
     () =>
       onTipResolved((id, status) =>
@@ -17,14 +23,14 @@ export default function HeaderUpdates({ inboxCount = 0, tips = [], today }) {
       ),
     [],
   );
-  const shown = tips.filter((tip) => !resolved[tip.id]);
+  const shown = visibleHeaderTips(tips).filter((tip) => !resolved[tip.id] && !hidden[tip.id]);
   const urgent = shown.filter((tip) => needsProminence(tip, today));
   const other = shown.filter((tip) => !needsProminence(tip, today));
   const mail = pathname.startsWith("/inbox") ? 0 : inboxCount;
   const count = mail + other.length;
   return (
     <>
-      <TipStrip tips={urgent} today={today} />
+      <TipStrip tips={urgent} today={today} readOnly={readOnly} />
       {count > 0 && (
         <details className="header-updates no-print">
           <summary>
@@ -32,7 +38,7 @@ export default function HeaderUpdates({ inboxCount = 0, tips = [], today }) {
             <span>Show details</span>
           </summary>
           <InboxBanner count={mail} />
-          <TipStrip tips={other} today={today} />
+          <TipStrip tips={other} today={today} readOnly={readOnly} />
         </details>
       )}
     </>
