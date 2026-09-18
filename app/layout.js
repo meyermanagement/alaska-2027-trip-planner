@@ -66,10 +66,10 @@ export const metadata = {
   // get the right answer.
   icons: {
     icon: [
-      { url: "/alyeska-tab-80b12e.svg", type: "image/svg+xml", sizes: "any" },
-      { url: "/alyeska-tab-02a365.ico", type: "image/x-icon", sizes: "48x48" },
+      { url: "/alyeska-tab-dee9cd.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/alyeska-tab-645b99.ico", type: "image/x-icon", sizes: "48x48" },
     ],
-    shortcut: "/alyeska-tab-02a365.ico",
+    shortcut: "/alyeska-tab-645b99.ico",
     apple: { url: "/alyeska-touch.png", sizes: "180x180", type: "image/png" },
   },
 };
