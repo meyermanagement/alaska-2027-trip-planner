@@ -295,10 +295,10 @@ export default function HomeLanding() {
                 }}
               >
                 Finally, one place to plan your trip, keep it all together, and
-                get help along the way. From “where should we go?” to “what do we
-                need tomorrow?”, Aly brings your itinerary, bookings, packing,
-                and budget together with advice that fits you. Less to juggle.
-                More to enjoy.
+                get help along the way. From “where should we go?” to “what do
+                we need tomorrow?”, Aly brings your itinerary, bookings,
+                packing, and budget together with advice that fits you. Less to
+                juggle. More to enjoy.
               </p>
               <div
                 className="ma-in mt-7 flex flex-wrap items-center gap-3"
@@ -361,52 +361,68 @@ export default function HomeLanding() {
           title="Suggestions that already know how you travel."
           body="Start with an idea, not a dozen open tabs. Aly helps turn it into places to stay and days you’ll look forward to, all shaped around you."
           media={
-            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
+            <div
+              className="ma-in card home-trip-example p-5"
+              style={{ animationDelay: "80ms" }}
+            >
               <div className="flex items-baseline justify-between gap-4">
                 <p className="font-display text-[17px] font-semibold">
                   A new trip
                 </p>
-                <p className="text-[13px] text-ink-soft">Nothing saved yet</p>
+                <p className="home-trip-example-badge">Example trip</p>
               </div>
 
-              {/* The box as the builder actually presents it: one sentence, in
-                  the words somebody would say, and the line underneath that
-                  tells them how much of a trip they just described. */}
-              <p className="mt-4 rounded-xl border border-[var(--line)] bg-sand/50 p-3 text-[14px] leading-relaxed">
+              {/* Show a starting idea and explain the follow-up without
+                  exposing the builder's internal completeness checklist. */}
+              <p className="home-trip-example-prompt mt-4 rounded-xl p-3 text-[14px] leading-relaxed">
                 Maui for a week in March for about $6,000.
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-                That already covers where, when and budget. Aly will ask about
-                the other four.
+                Aly asks who’s going and what you enjoy, then helps fill in the
+                details.
               </p>
 
               <div className="mt-4 border-t border-[var(--line)] pt-3">
                 <p className="text-[13px] font-semibold">
-                  What she came back with
+                  A few ideas that fit you
                 </p>
                 <div className="mt-2.5 space-y-3">
-                  <Row
-                    left="A two-bedroom condo in Kīhei"
-                    right="$1,880 the week"
-                    sub="You cook most nights, and it is a four-minute walk to the sand"
-                  />
-                  <Row
-                    left="The 10:40 am flight, not the 6:10"
-                    right="$240 more"
-                    sub="Dani does not do overnights, and Mia is nine"
-                  />
-                  <Row
-                    left="$300 of airline credit against it"
-                    right="Expires in May"
-                    sub="It covers most of a bag and a seat change"
-                    last
-                  />
+                  <div className="home-trip-example-idea" data-kind="stay">
+                    <p className="home-trip-example-kind">Stay your way</p>
+                    <Row
+                      left="A two-bedroom condo in Kīhei"
+                      right="$1,880 for the week"
+                      sub="Room to cook, with the beach a short walk away."
+                      last
+                    />
+                  </div>
+                  <div className="home-trip-example-idea" data-kind="flight">
+                    <p className="home-trip-example-kind">
+                      Keep the morning easy
+                    </p>
+                    <Row
+                      left="The 10:40 am flight, not the 6:10 am"
+                      right="$240 more"
+                      sub="A gentler start for Dani and Mia, with the extra cost clear."
+                      last
+                    />
+                  </div>
+                  <div className="home-trip-example-idea" data-kind="credit">
+                    <p className="home-trip-example-kind">
+                      Use what you already have
+                    </p>
+                    <Row
+                      left="$300 in airline credit"
+                      right="Expiry in May"
+                      sub="Put your existing credit toward the flight."
+                      last
+                    />
+                  </div>
                 </div>
               </div>
 
               <p className="mt-4 border-t border-[var(--line)] pt-3 text-[13px] text-ink-soft">
-                Suggested from how your travelers travel, the number you gave
-                her, and what is already in your wallet.
+                You choose what makes it into the plan.
               </p>
             </div>
           }

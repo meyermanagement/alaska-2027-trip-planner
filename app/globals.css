@@ -8800,6 +8800,57 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   opacity: 1;
 }
 
+/* The trip example distinguishes stays, flights, and credits with named
+   color bands. All colors follow the active skin; labels carry the meaning. */
+.home-trip-example {
+  border-top: 3px solid var(--color-teal);
+}
+
+.home-trip-example-badge {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  background: color-mix(in srgb, var(--color-teal) 16%, transparent);
+  color: var(--color-teal);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.home-trip-example-prompt {
+  background: color-mix(in srgb, var(--color-teal) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-teal) 35%, var(--line));
+}
+
+.home-trip-example-idea {
+  --idea-color: var(--color-teal);
+  padding: 0.8rem;
+  border-radius: var(--radius-xl);
+  border-left: 3px solid var(--idea-color);
+  background: color-mix(in srgb, var(--idea-color) 10%, transparent);
+}
+
+.home-trip-example-idea[data-kind="flight"] {
+  --idea-color: var(--color-glacier);
+}
+
+.home-trip-example-idea[data-kind="credit"] {
+  --idea-color: var(--color-amber);
+}
+
+.home-trip-example-kind {
+  color: var(--idea-color);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+@media (max-width: 480px) {
+  .home-trip-example-idea > div > .flex {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .home-hero-film {
     display: none;
