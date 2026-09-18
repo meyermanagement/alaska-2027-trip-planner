@@ -63,13 +63,13 @@ import { HERO_CONVERSATION } from "@/lib/home/heroConversation";
 
 const CHAR_MS = 26; // questions, typed
 const WORD_MS = 42; // answers, written
-const ITEM_MS = 26; // list items, a little quicker
 const THINK_MS = 620; // the pause before she starts
 const BEAT_MS = 520; // between paragraphs
 const TURN_MS = 4000; // between one exchange and the next
 const SEEN_MS = 500; // in view this long before anything is allowed to move
 const SEEN_PX = 160; // and this much of the card actually on screen
 const LEAD_MS = 2600; // then the first question sits there, unanswered
+const CARD_MS = 780; // between one recommendation arriving and the next
 
 /** The exchange flattened into the order the blocks are written in. */
 function buildBlocks() {
@@ -81,15 +81,16 @@ function buildBlocks() {
     for (const paragraph of turn.answer) {
       blocks.push({ kind: "answer", turn: turn.id, text: paragraph });
     }
-    if (turn.checklist) {
+    for (const place of turn.places || []) {
+      blocks.push({ kind: "place", turn: turn.id, text: place.name, place });
+    }
+    if (turn.pack) {
       blocks.push({
-        kind: "checklistTitle",
+        kind: "pack",
         turn: turn.id,
-        text: turn.checklist.title,
+        text: turn.pack.title,
+        pack: turn.pack,
       });
-      for (const item of turn.checklist.items) {
-        blocks.push({ kind: "checklistItem", turn: turn.id, text: item });
-      }
     }
     if (turn.tail) {
       blocks.push({ kind: "tail", turn: turn.id, text: turn.tail });
@@ -111,15 +112,146 @@ function unitsOf(block) {
   if (block.kind === "answer" || block.kind === "tail") {
     return { list: block.text.split(" "), step: WORD_MS, join: " " };
   }
-  if (block.kind === "checklistItem") {
-    return { list: block.text.split(" "), step: ITEM_MS, join: " " };
-  }
   return { list: [block.text], step: 0, join: "" };
 }
 
 function partial(block, shown) {
   const { list, join } = unitsOf(block);
   return list.slice(0, shown).join(join);
+}
+
+/**
+ * One recommendation, drawn the way the product draws one: a photograph, the
+ * name, how far away it is and what it costs, the rating, the reason it is on
+ * the list at all, and the buttons that do something about it.
+ *
+ * The first of the three is given the photograph across its whole width and the
+ * other two carry it as a thumbnail. That is not decoration -- a shortlist has
+ * a shape, and the one Aly would pick reads as the answer while the other two
+ * read as the alternatives she checked. Three full cards turned the front door
+ * into eleven hundred pixels of scrolling transcript.
+ *
+ * Nothing here is a real business. No name is invented either: the places are
+ * described by what they are, and the photographs carry no signage, because a
+ * made-up restaurant name on a public page is a made-up restaurant somebody
+ * will go looking for.
+ *
+ * The buttons do not act. They are spans rather than buttons and they are out
+ * of the tab order, so a reader on a keyboard is never handed a control that
+ * goes nowhere, and a screen reader is told the card is a picture of the
+ * product rather than the product.
+ */
+function PlaceCard({ place }) {
+  const lead = place.lead;
+  return (
+    <div
+      className="mt-3 overflow-hidden rounded-[0.85rem]"
+      style={{
+        border: "1px solid rgba(246,243,236,0.16)",
+        background: "rgba(246,243,236,0.06)",
+      }}
+    >
+      {lead ? (
+        <img
+          src={place.photo}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="block h-[104px] w-full object-cover"
+        />
+      ) : null}
+      <div className={lead ? "p-3" : "flex gap-2.5 p-2.5"}>
+        {lead ? null : (
+          <img
+            src={place.photo}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="block h-16 w-16 shrink-0 rounded-[0.6rem] object-cover"
+          />
+        )}
+        <div className="min-w-0">
+          <p
+            className="text-[14px] font-semibold"
+            style={{ color: "rgba(246,243,236,0.96)" }}
+          >
+            {place.name}
+          </p>
+          <p
+            className="mt-0.5 text-[12px]"
+            style={{ color: "rgba(246,243,236,0.62)" }}
+          >
+            {place.area} · {place.price} ·{" "}
+            <span style={{ color: "#e8b54a" }} aria-hidden="true">
+              ★
+            </span>{" "}
+            {place.rating}{" "}
+            <span style={{ color: "rgba(246,243,236,0.45)" }}>
+              ({place.count})
+            </span>
+          </p>
+          <p
+            className="mt-2 text-[13px] leading-relaxed"
+            style={{ color: "rgba(246,243,236,0.86)" }}
+          >
+            {place.why}
+          </p>
+          <p className="mt-2.5 flex flex-wrap gap-1.5" aria-hidden="true">
+            <span className="home-ask-act" data-act="on">
+              Add to itinerary
+            </span>
+            <span className="home-ask-act">Map &amp; photos</span>
+            {lead ? <span className="home-ask-act">Tell me more</span> : null}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What to carry tomorrow, offered as a change rather than as advice.
+ *
+ * In the product every line Aly proposes arrives ticked, with a button that
+ * applies the ticked ones and a way to discard the rest, so a person reads the
+ * list once and presses one thing. Advice you have to remember is not the
+ * feature; the day pack having the tablets in it is. The ticks here are drawn
+ * already on for that reason, and they are decoration -- nothing on this page
+ * can be untucked, so the whole block is hidden from a screen reader and the
+ * lines are read out as plain text by the copy underneath.
+ */
+function PackCard({ pack }) {
+  return (
+    <div
+      className="mt-3 rounded-[0.85rem] p-3"
+      style={{
+        border: "1px solid rgba(246,243,236,0.16)",
+        background: "rgba(246,243,236,0.06)",
+      }}
+    >
+      <p
+        className="text-[11px] font-semibold uppercase tracking-[0.14em]"
+        style={{ color: "rgba(246,243,236,0.62)" }}
+      >
+        {pack.title}
+      </p>
+      {pack.items.map((item) => (
+        <p
+          key={item}
+          className="home-ask-tick mt-2 text-[13px] leading-relaxed"
+          style={{ color: "rgba(246,243,236,0.9)" }}
+        >
+          {item}
+        </p>
+      ))}
+      <p className="mt-3 flex flex-wrap gap-1.5" aria-hidden="true">
+        <span className="home-ask-act" data-act="on">
+          {pack.action}
+        </span>
+        <span className="home-ask-act">Edit</span>
+      </p>
+    </div>
+  );
 }
 
 export default function AskDemo() {
@@ -221,7 +353,15 @@ export default function AskDemo() {
     }
 
     if (shown >= list.length) {
-      const gap = BLOCKS[at + 1]?.kind === "stamp" ? TURN_MS : BEAT_MS;
+      const next = BLOCKS[at + 1]?.kind;
+      // A card is a bigger thing to arrive than a line of prose, so it is
+      // given longer to be looked at before the one under it appears.
+      const gap =
+        next === "stamp"
+          ? TURN_MS
+          : next === "place" || next === "pack"
+            ? CARD_MS
+            : BEAT_MS;
       const t = setTimeout(() => {
         setAt((n) => n + 1);
         setShown(0);
@@ -289,8 +429,8 @@ export default function AskDemo() {
     const block = visible[i];
     const fromAly =
       block.kind === "answer" ||
-      block.kind === "checklistTitle" ||
-      block.kind === "checklistItem" ||
+      block.kind === "place" ||
+      block.kind === "pack" ||
       block.kind === "tail";
     if (fromAly) {
       const open = rendered[rendered.length - 1];
@@ -314,28 +454,12 @@ export default function AskDemo() {
     const text = live ? partial(block, shown) : block.text;
     const key = `${block.turn}-${block.kind}-${index}`;
 
-    if (block.kind === "checklistTitle") {
-      return (
-        <p
-          key={key}
-          className="mt-4 text-[12px] font-semibold uppercase tracking-[0.14em]"
-          style={{ color: "rgba(246,243,236,0.62)" }}
-        >
-          {text}
-        </p>
-      );
+    if (block.kind === "place") {
+      return <PlaceCard key={key} place={block.place} />;
     }
 
-    if (block.kind === "checklistItem") {
-      return (
-        <p
-          key={key}
-          className="home-ask-item mt-2 text-[14px] leading-relaxed"
-          style={{ color: "rgba(246,243,236,0.92)" }}
-        >
-          {text}
-        </p>
-      );
+    if (block.kind === "pack") {
+      return <PackCard key={key} pack={block.pack} />;
     }
 
     return (

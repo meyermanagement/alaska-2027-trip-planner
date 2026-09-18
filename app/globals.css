@@ -8679,21 +8679,56 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   }
 }
 
-/* The things to bring read as a list, so each one gets a mark. */
-.home-ask-item {
-  position: relative;
-  padding-left: 0.95rem;
+/* The buttons on a recommendation, and on the day pack it offers. They are
+   spans, not buttons: nothing on the front door can be pressed, so a reader on
+   a keyboard is never handed a control that goes nowhere. The filled one is
+   the thing the product would have you press. */
+.home-ask-act {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(246, 243, 236, 0.28);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: rgba(246, 243, 236, 0.82);
 }
 
-.home-ask-item::before {
+.home-ask-act[data-act="on"] {
+  border-color: transparent;
+  background: rgba(246, 243, 236, 0.94);
+  color: rgba(23, 29, 34, 0.96);
+}
+
+/* Every line Aly proposes arrives already ticked, the way it does in the app,
+   because the point is one press rather than five decisions. */
+.home-ask-tick {
+  position: relative;
+  padding-left: 1.3rem;
+}
+
+.home-ask-tick::before {
   content: "";
   position: absolute;
   left: 0.05rem;
-  top: 0.62em;
-  width: 0.28rem;
-  height: 0.28rem;
-  border-radius: 999px;
-  background: rgba(246, 243, 236, 0.5);
+  top: 0.32em;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 0.24rem;
+  background: var(--color-teal, #1b5a4c);
+}
+
+.home-ask-tick::after {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 0.5em;
+  width: 0.26rem;
+  height: 0.46rem;
+  border: solid rgba(246, 243, 236, 0.96);
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
