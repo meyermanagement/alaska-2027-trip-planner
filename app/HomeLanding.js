@@ -359,7 +359,7 @@ export default function HomeLanding() {
         <Scene
           label="Building the trip"
           title="Suggestions that already know how you travel."
-          body="Describe it in a sentence. She suggests the rest around how your travelers actually travel and the number you meant to spend."
+          body="Start with an idea, not a dozen open tabs. Aly helps turn it into places to stay and days you’ll look forward to, all shaped around you."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
