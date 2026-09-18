@@ -3,6 +3,20 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import HomeLanding from "./HomeLanding";
 
+// A static, public image gives messaging apps an explicit preview instead of
+// leaving them to choose a photograph from one of the landing-page sections.
+const publicOrigin = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://alaska-2027-trip-planner.vercel.app"
+).replace(/\/+$/, "");
+const shareImage = {
+  url: `${publicOrigin}/alyeska-share-midnight-v1.png`,
+  width: 1200,
+  height: 630,
+  type: "image/png",
+  alt: "Alyeska. Travel · Personalized. Contextualized. Simplified. Midnight Aurora compass logo.",
+};
+
 export const metadata = {
   // The brand first, then the promise. "Aly has your back" on its own reads as
   // somebody's name with no subject attached, which is no use in a tab strip or
@@ -10,6 +24,21 @@ export const metadata = {
   title: "Alyeska · Aly has your back",
   description:
     "Alyeska plans your travel and stays with you on it. Tell Aly roughly where and when, and she builds the days around whoever is going, keeps the bookings, documents, packing lists and points in one place, and answers from the day you are living. She books nothing and sells nothing.",
+  openGraph: {
+    type: "website",
+    siteName: "Alyeska",
+    title: "Alyeska · Aly has your back",
+    description: "Travel · Personalized. Contextualized. Simplified.",
+    url: publicOrigin,
+    locale: "en_US",
+    images: [shareImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Alyeska · Aly has your back",
+    description: "Travel · Personalized. Contextualized. Simplified.",
+    images: [{ url: shareImage.url, alt: shareImage.alt }],
+  },
 };
 
 // Read at request time, because which of the two pages below a visitor gets
