@@ -1884,9 +1884,9 @@ export function PersonForm({
           <label className="block text-xs font-semibold sm:col-span-2">
             Booking notes (optional)
             <textarea
-              className="field mt-1 text-base"
+              className="family-booking-notes field mt-1 text-base"
               rows={2}
-              placeholder="Practical booking details, such as an aisle seat or a name that differs on tickets."
+              placeholder="Notes to use when booking."
               value={form.notes}
               onChange={set("notes")}
             />

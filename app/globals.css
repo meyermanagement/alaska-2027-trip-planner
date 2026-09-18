@@ -5878,6 +5878,7 @@ html[data-route="3"] .quick-tall .quick-heading {
 }
 .editing-footer button { min-height: 44px; min-width: 0; }
 .editing-footer > [role="status"] { grid-column: 1 / -1; }
+.family-booking-notes::placeholder { color: var(--color-ink-soft); opacity: 1; }
 @media (max-width: 420px) {
   .editing-footer { grid-template-columns: 1fr 1fr; }
   .editing-footer button { padding-inline: 0.4rem; font-size: var(--fs-xs); }
