@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runDeadlineWatch, watchRecord } from "@/lib/watch/run";
+import {
+  runDeadlineWatch,
+  runDeadlineWatchForAll,
+  watchRecord,
+} from "@/lib/watch/run";
 import { siteOrigin } from "@/lib/email/sendInvite";
 import { homeToday } from "@/lib/format";
 
@@ -49,15 +53,53 @@ export async function GET(request) {
     return NextResponse.json({ error: "Not allowed." }, { status: 401 });
   }
 
-  const outcome = await runDeadlineWatch({
+  // Every household, named one at a time. The pass used to be called without a
+  // household at all, which left it watching whichever row `families` returned
+  // first: one household's fares looked at every evening, everybody else's never,
+  // and the run recorded under the household that happened to be first. One row
+  // per household now, so a household with nothing due can still show that its
+  // evening pass happened.
+  const pass = await runDeadlineWatchForAll({
     supabase,
     siteUrl: siteOrigin(request),
     today: homeToday(),
   });
 
-  await record({ supabase, outcome, source: "cron" });
+  for (const outcome of pass.households) {
+    await record({ supabase, outcome, source: "cron" });
+  }
+  // A run that could not even list the households has no household to file under,
+  // and that is worth a row of its own rather than silence.
+  if (!pass.households.length) {
+    await record({
+      supabase,
+      outcome: { ok: pass.ok, error: pass.error, familyId: null },
+      source: "cron",
+    });
+  }
 
-  return NextResponse.json(outcome, { status: outcome.ok ? 200 : 500 });
+  return NextResponse.json(
+    {
+      ok: pass.ok,
+      today: pass.today,
+      households: pass.households.length,
+      error: pass.error,
+      considered: pass.households.reduce((n, h) => n + (h.considered || 0), 0),
+      sent: pass.households.reduce((n, h) => n + (h.sent?.length || 0), 0),
+      failed: pass.households.reduce((n, h) => n + (h.failed?.length || 0), 0),
+      expired: pass.households.reduce((n, h) => n + (h.expired || 0), 0),
+      runs: pass.households.map((h) => ({
+        familyId: h.familyId,
+        considered: h.considered,
+        sent: h.sent?.length || 0,
+        failed: h.failed?.length || 0,
+        expired: h.expired,
+        channel: h.channel,
+        error: h.error || null,
+      })),
+    },
+    { status: pass.ok ? 200 : 500 },
+  );
 }
 
 /**
