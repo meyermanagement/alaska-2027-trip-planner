@@ -21,6 +21,7 @@ import { SECONDARY } from "@/lib/travelers/access";
 import useBetaTester, { useAdminUser } from "./useBetaTester";
 import useSoftKeyboard from "./useSoftKeyboard";
 import { SETUP_HREF } from "@/lib/setup/items";
+import { NAV_STYLE_EVENT, readNavigationStyle } from "./NavigationPreference";
 
 /**
  * The bar along the bottom of every signed-in screen, and the only navigation
@@ -429,6 +430,13 @@ export default function NavTabs({
   // once all five are done, which is how the marks retire themselves.
   setup = null,
 }) {
+  const [navigationStyle, setNavigationStyle] = useState("compass");
+  useEffect(() => {
+    setNavigationStyle(readNavigationStyle());
+    const change = (event) => setNavigationStyle(event.detail === "quick" ? "quick" : "compass");
+    window.addEventListener(NAV_STYLE_EVENT, change);
+    return () => window.removeEventListener(NAV_STYLE_EVENT, change);
+  }, []);
   // Read once, lazily, so the first frame the skeleton draws is already right
   // rather than being corrected a moment later.
   const [recalled] = useState(recall);
@@ -588,18 +596,19 @@ export default function NavTabs({
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    // Focus the sheet so a keyboard lands inside it rather than back on the
-    // page, then, on the next frame, hand focus to the search field so a
-    // person opening the menu can start typing without a second tap. On a
-    // phone this raises the software keyboard automatically -- the whole
-    // reason the field is next to the compass instead of buried inside the
-    // arc.
+    // Keep focus inside the menu. Only desktop pointer users get search
+    // autofocus; opening navigation on a phone must not raise its keyboard.
     sheetRef.current?.focus();
+    const focusSearch = () => {
+      if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+        queryInputRef.current?.focus();
+      }
+    };
     const raf =
       typeof window !== "undefined" &&
       typeof window.requestAnimationFrame === "function"
-        ? window.requestAnimationFrame(() => queryInputRef.current?.focus())
-        : setTimeout(() => queryInputRef.current?.focus(), 0);
+        ? window.requestAnimationFrame(focusSearch)
+        : setTimeout(focusSearch, 0);
     return () => {
       window.removeEventListener("keydown", onKey);
       if (
@@ -1529,6 +1538,8 @@ export default function NavTabs({
         /* Named so the report button can tell whether it is sharing the
            bottom of the screen with these two discs or has it to itself. */
         data-navbar="1"
+        data-navigation-style={navigationStyle}
+        data-menu-open={open ? "true" : "false"}
         className={`aly-clear no-print pointer-events-none fixed inset-x-0 bottom-0 ${
           present ? "z-[39]" : "z-30"
         } px-4 transition-transform duration-200 ${
@@ -1578,6 +1589,7 @@ export default function NavTabs({
                   : "border border-[var(--disc-edge)] bg-[var(--disc-face)] shadow-[var(--disc-shadow)] hover:border-[var(--line-strong)]"
               }`}
             >
+              {!open && <span className="floating-control-label">Menu</span>}
               {/* Drawn to very nearly the width of the button, and the only
                   place in the app that wears the graduated bezel. The
                   button's own rim is the bezel's edge -- the mark supplies
@@ -1684,6 +1696,14 @@ export default function NavTabs({
               </>
             )}
           </div>
+          {navigationStyle === "quick" && !open && (
+            <div className="quick-navigation pointer-events-auto" aria-label="Quick navigation">
+              <Link href="/trips" aria-current={pathname.startsWith("/trips") ? "page" : undefined}>Trips</Link>
+              <Link href="/now" aria-current={pathname === "/now" ? "page" : undefined}>Now</Link>
+              {!secondary && <Link href="/inbox" aria-current={pathname.startsWith("/inbox") ? "page" : undefined}>Inbox</Link>}
+              <button type="button" onClick={() => setOpen(true)} aria-expanded={open} aria-label="More navigation">More</button>
+            </div>
+          )}
           {showAsk &&
             !open &&
             (askLive ? (

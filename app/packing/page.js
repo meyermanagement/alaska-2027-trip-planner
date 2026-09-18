@@ -221,6 +221,7 @@ export default async function PackingTemplatesPage() {
           title="Packing templates"
           subtitle={SCREEN_INTROS.packing}
         />
+        <p className="scope-caption">Reusable templates · Choose which trips use each list</p>
         <PackingScreen
           travelers={(travelers || [])
             .filter((t) => t.is_person)

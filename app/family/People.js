@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PassportWarningPanel } from "@/components/PassportWarning";
 import MomentsEditor from "@/components/MomentsEditor";
+import OptionalSection from "@/components/OptionalSection";
+import useUnsavedChanges from "@/components/useUnsavedChanges";
 import { FAMILY_FORM_COPY, OWN_GENDER_TERM } from "@/lib/travelers/formCopy";
 import AboutSections from "@/components/AboutSections";
 import DocumentPicker from "@/components/DocumentPicker";
@@ -585,7 +587,7 @@ export default function People({
                     if (
                       momentState.dirty &&
                       !window.confirm(
-                        "Close without saving your unfinished moment? Moments you already saved will be kept.",
+                        "Close without saving your changes? Anything already saved will be kept.",
                       )
                     )
                       return;
@@ -870,6 +872,7 @@ export default function People({
         <div className="card p-5">
           <h2 className="font-display text-lg font-semibold">Add a person</h2>
           <PersonForm
+            onMomentStateChange={setMomentState}
             homeLat={homeLat}
             homeLon={homeLon}
             onCancel={closeAdd}
@@ -1715,12 +1718,16 @@ export function PersonForm({
   const [aboutParts, setAboutParts] = useState(() =>
     splitAboutMe(person?.about_me || ""),
   );
+  const initialDraft = useRef(JSON.stringify({ form, aboutParts }));
+  const dirty = JSON.stringify({ form, aboutParts }) !== initialDraft.current;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [momentState, setMomentState] = useState({ dirty: false, busy: false });
+  useUnsavedChanges(dirty || momentState.dirty);
   useEffect(() => {
-    onMomentStateChange?.(momentState);
-  }, [momentState, onMomentStateChange]);
+    onMomentStateChange?.({ dirty: dirty || momentState.dirty, busy: busy || momentState.busy });
+  }, [dirty, busy, momentState, onMomentStateChange]);
+  useEffect(() => () => onMomentStateChange?.({ dirty: false, busy: false }), [onMomentStateChange]);
   const canLeaveMoments = () =>
     !momentState.dirty ||
     window.confirm(
@@ -1780,6 +1787,7 @@ export function PersonForm({
       setError(message);
       return;
     }
+    initialDraft.current = JSON.stringify({ form, aboutParts });
     // The paragraph is also what Aly's interview priors are extracted from, and
     // that extraction needs a server with the model key on it. The row write
     // above already stored the words; this asks the About-you route to read them
@@ -1885,8 +1893,7 @@ export function PersonForm({
           </label>
         </div>
 
-        <div className="space-y-2 border-t border-teal/30 pt-3">
-          <p className="section-label">In their own words</p>
+        <OptionalSection title="About you">
           <p className="text-xs text-ink-soft">
             Answer for {form.name.trim() || "this person"}, using their own
             words where possible. Every question is optional.
@@ -1899,10 +1906,10 @@ export function PersonForm({
             idPrefix={`person-about-${person?.id || "new"}`}
             className="mt-1"
           />
-        </div>
+        </OptionalSection>
 
         {person?.id && (
-          <div className="space-y-3 border-t border-teal/30 pt-3">
+          <OptionalSection title="Favorite moments">
             <MomentsEditor
               key={person.id}
               travelerId={person.id}
@@ -1910,11 +1917,10 @@ export function PersonForm({
               onStateChange={setMomentState}
               disabled={busy}
             />
-          </div>
+          </OptionalSection>
         )}
 
-        <div className="space-y-3 border-t border-teal/30 pt-3">
-          <p className="section-label">Travel details (optional)</p>
+        <OptionalSection title="Travel details">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs font-semibold">
               Mobile provider (optional)
@@ -1942,6 +1948,8 @@ export function PersonForm({
             </p>
           </div>
 
+        </OptionalSection>
+        <OptionalSection title="Travel needs">
           <fieldset>
             <legend className="text-xs font-semibold">
               Travel equipment and support (optional)
@@ -1993,7 +2001,7 @@ export function PersonForm({
               and language support.
             </span>
           </label>
-        </div>
+        </OptionalSection>
       </fieldset>
       {error && (
         <p
@@ -2003,7 +2011,10 @@ export function PersonForm({
           {error}
         </p>
       )}
-      <div className="flex gap-2">
+      <div className="editing-footer">
+        <span className="mr-auto text-xs text-ink-soft" role="status">
+          {busy || momentState.busy ? "Saving changes…" : dirty ? "Unsaved changes" : momentState.dirty ? "Unfinished favorite moment" : "No unsaved changes"}
+        </span>
         <button
           className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
           disabled={busy || momentState.busy}
@@ -2015,7 +2026,7 @@ export function PersonForm({
           className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
           disabled={busy || momentState.busy}
           onClick={() => {
-            if (canLeaveMoments()) onCancel();
+            if ((!dirty && !momentState.dirty) || window.confirm("Discard your unsaved changes? Anything already saved will be kept.")) onCancel();
           }}
         >
           Cancel

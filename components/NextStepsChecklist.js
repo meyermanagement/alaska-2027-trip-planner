@@ -13,10 +13,8 @@ import { NEXT_STEPS as ITEMS, waitingSentence } from "@/lib/welcome/copy";
  * things worth doing next -- the app on the Home Screen with notifications on,
  * the rest of the family's own words, Wallet, forwarding, past trips -- each
  * drawn with a small compass mark that finds
- * north as its row arrives. Nothing on the screen is actionable: it is telling
- * the family what is worth doing before they move on to a first trip, and the
- * "take me to the trip builder" button is the same escape hatch the old flow
- * had straight after moments.
+ * north as its row arrives. The first-trip action comes before optional setup;
+ * returning users can open each destination from its expanded checklist row.
  *
  * Kept as a plain component that takes an `onContinue` callback so the same
  * markup can be reused from the practice hub, where "Continue" is replaced
@@ -92,6 +90,13 @@ const BEAT = {
   rowStep: 0.16,
   rowStepMax: 2,
 };
+const OPEN_LABEL = {
+  install: "Open Now",
+  others: "Open Family & pets",
+  wallet: "Open Wallet",
+  forwarding: "Open Inbox",
+  past: "Open Trip log",
+};
 
 function CompassMark({ delay }) {
   // Same Housing + Needle the loader and boot splash use, so the checklist
@@ -158,6 +163,7 @@ function NextStepRow({
   done = false,
   linked = false,
   waiting = "",
+  expanded = false,
 }) {
   const [ref, shown] = useRevealed();
   const base = Math.min(index, BEAT.rowStepMax) * BEAT.rowStep;
@@ -171,37 +177,19 @@ function NextStepRow({
       {...(booted && shown ? { "data-ma-shown": "1" } : {})}
       className={`relative flex items-start gap-4 rounded-2xl border border-sand-deep bg-sand-soft/60 p-4${
         to
-          ? " cursor-pointer transition-colors hover:border-teal/40 hover:bg-sand-soft focus-within:border-teal/60"
+          ? " transition-colors focus-within:border-teal/60"
           : ""
       }`}
     >
-      {/* The whole card is the target, and this is what makes it one: a sheet
-          laid over the card, named by its title, sitting above everything the
-          card draws.
-
-          Not the card wrapped in a link -- that would put the forwarding row's
-          copy button inside an anchor, which is invalid and would cost somebody
-          the one tap on this screen that was already doing something. And not
-          the title's own reach stretched over the card either, which is what
-          this was first: every line in the card arrives on a transform, a
-          transformed element is the containing block for anything absolute
-          inside it, so a reach written on the title covered the title and
-          nothing else. */}
-      {to && (
-        <Link
-          href={to}
-          aria-label={item.title}
-            className="absolute inset-0 z-10 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal"
-        />
-      )}
+      {/* Expansion and navigation are separate, explicitly named controls. */}
       {done ? <DoneMark /> : <CompassMark delay={base + BEAT.needle} />}
-      <div className="min-w-0">
-        <p
-          className="ma-in font-display text-lg font-semibold text-ink"
+      <details className="min-w-0 flex-1 setup-step" open={expanded || undefined}>
+        <summary
+          className="cursor-pointer font-display text-lg font-semibold text-ink"
           style={{ animationDelay: `${base + BEAT.title}s` }}
         >
           {item.title}
-        </p>
+        </summary>
         {done && <p className="text-xs font-medium text-teal">Already started or not needed</p>}
         <p
           className="ma-in mt-0.5 text-sm leading-relaxed text-ink"
@@ -246,7 +234,8 @@ function NextStepRow({
             </li>
           ))}
         </ul>
-      </div>
+        {to && <Link href={to} className="btn btn-ghost mt-3">{OPEN_LABEL[item.key]}</Link>}
+      </details>
     </li>
   );
 }
@@ -319,6 +308,11 @@ export default function NextStepsChecklist({
         >
           {intro}
         </p>
+        {onContinue && (
+          <button type="button" onClick={onContinue} className="btn btn-primary mt-4">
+            {continueLabel}
+          </button>
+        )}
       </div>
 
       <ol className="space-y-3">
@@ -330,6 +324,7 @@ export default function NextStepsChecklist({
             inboxAddress={inboxAddress}
             booted={booted}
             done={done.includes(item.key)}
+            expanded={index === Math.max(0, ITEMS.findIndex((entry) => !done.includes(entry.key)))}
             linked={linked}
             waiting={
               item.key === "others" && !done.includes("others")

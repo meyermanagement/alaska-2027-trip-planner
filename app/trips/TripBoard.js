@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { tabKeyDown } from "@/lib/ui/tabs";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
@@ -45,7 +46,7 @@ const VIEWS = TRIP_VIEWS;
 // carries its own top margin, so the slot adds none.
 function Section({ id, view, title, blurb, count, aside, children }) {
   return (
-    <section className={view === id ? "" : "hidden print:block"}>
+    <section id={`trips-panel-${id}`} role="tabpanel" aria-labelledby={`trips-tab-${id}`} tabIndex={0} className={view === id ? "" : "hidden print:block"}>
       <div className="flex items-center gap-3">
         <h2 className="font-display text-lg font-semibold text-ink-soft">
           {title}
@@ -483,6 +484,7 @@ export default function TripBoard({
       <div
         className="no-print mb-6 inline-flex rounded-full border border-[var(--line)] bg-white p-1"
         role="tablist"
+        onKeyDown={tabKeyDown}
         aria-label="Which trips to show"
       >
         {tabs.map((t) => {
@@ -492,6 +494,9 @@ export default function TripBoard({
               key={t.id}
               type="button"
               role="tab"
+              id={`trips-tab-${t.id}`}
+              aria-controls={`trips-panel-${t.id}`}
+              tabIndex={on ? 0 : -1}
               aria-selected={on}
               onClick={() => show(t.id)}
               className={`whitespace-nowrap rounded-full px-2 py-1.5 text-sm font-semibold transition sm:px-3.5 ${
@@ -541,6 +546,7 @@ export default function TripBoard({
               {current.length > 0
                 ? "Enjoy this adventure. Your current trip is above, and the next one can wait until you are ready."
                 : "No trips coming up yet. Start a new trip, or open a draft and move it here when you are ready."}
+              {canRemove && <Link href="/trips/new" className="btn btn-primary mt-3">Start a new trip</Link>}
             </p>
           )}
         </Section>
@@ -563,6 +569,7 @@ export default function TripBoard({
               Your next adventure can start with one idea. Select “Start a new
               trip” and tell Aly what you have in mind. It stays a draft until
               you move it to Planned trips.
+              {canRemove && <Link href="/trips/new" className="btn btn-primary mt-3">Start a new trip</Link>}
             </p>
           )}
         </Section>

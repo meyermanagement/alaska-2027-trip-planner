@@ -170,6 +170,9 @@ export default async function PeoplePage() {
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
         <PageHeader title="Family & pets" subtitle={SCREEN_INTROS.family}>
+          <details className="optional-section" open={!household?.home_address}>
+          <summary>Household settings<span className="optional-section-hint">Home, airports & forwarding</span></summary>
+          <div className="space-y-3 pt-3">
           <HouseholdName familyId={familyId} name={household?.name || ""} />
           <HouseholdHome
             familyId={familyId}
@@ -194,6 +197,8 @@ export default async function PeoplePage() {
             address={inboxAddressFor(household?.inbox_local_part)}
             note="Forward flight, hotel and rental confirmations to"
           />
+          </div>
+          </details>
         </PageHeader>
         <InterviewLauncher
           progress={interviewProgress(

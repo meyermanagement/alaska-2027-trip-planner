@@ -33,14 +33,16 @@ export default function AskAlyTrigger({ href, round = false }) {
 
   // Two shapes, one control. Inline in a page it is still a labelled pill. On
   // the floating pair of controls at the bottom of every screen it is a disc
-  // the size of the menu beside it, carrying the bubble alone: the words were
-  // the only reason that corner needed a bar behind it to sit on.
+  // the size of the menu beside it, with a visible label for new travelers.
   const styles = round
-    ? "inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal text-on-accent shadow-[var(--disc-shadow)] ring-1 ring-[var(--disc-edge)] transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px"
+    ? "relative inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal text-on-accent shadow-[var(--disc-shadow)] ring-1 ring-[var(--disc-edge)] transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px"
     : "inline-flex items-center gap-1.5 rounded-full bg-teal px-4 py-2 text-sm font-semibold text-on-accent shadow-sm transition hover:bg-[color-mix(in_srgb,var(--color-teal)_86%,var(--color-ink))] active:translate-y-px";
 
   const inner = round ? (
-    <BubbleIcon className="h-8 w-8 shrink-0" />
+    <>
+      <BubbleIcon className="h-8 w-8 shrink-0" />
+      <span className="floating-control-label">Ask Aly</span>
+    </>
   ) : (
     <>
       <BubbleIcon />

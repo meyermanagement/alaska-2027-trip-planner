@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { tabKeyDown } from "@/lib/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 import { sortItinerary } from "@/lib/day/order";
 import {
@@ -669,9 +670,9 @@ export default function TripView({
              Set on the trip's own plate now -- the illustration and the coast
              behind it, the same picture the card on the trip list carries -- so
              opening a trip lands you somewhere rather than on a white strip. */
-          <div className="trip-plate on-photo min-h-[216px] justify-end sm:min-h-[228px]">
-            <TripBackdrop trip={info} shape="head" />
-            <div className="relative flex flex-col gap-3.5 p-5 pt-10 sm:flex-row sm:items-end sm:justify-between">
+          <div className={tab === "overview" ? "trip-plate on-photo min-h-[216px] justify-end sm:min-h-[228px]" : "trip-working-header"}>
+            {tab === "overview" && <TripBackdrop trip={info} shape="head" />}
+            <div className={`relative flex flex-col gap-3.5 p-5 sm:flex-row sm:items-end sm:justify-between ${tab === "overview" ? "pt-10" : ""}`}>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                   <span className="emoji-badge" aria-hidden="true">
@@ -781,7 +782,7 @@ export default function TripView({
           sitting on it, so the tab and the panel below it are visibly one
           surface and the rest are behind it. */}
       <div className="relative mt-4 min-w-0">
-        <nav ref={tabBarRef} className="tabbar no-print" role="tablist">
+        <nav ref={tabBarRef} className="tabbar no-print" role="tablist" aria-label="Trip sections" onKeyDown={tabKeyDown}>
           {groups.map((g) => {
             const here = group?.id === g.id;
             // Where the red count sits, decided by the rule both navigations
@@ -795,6 +796,9 @@ export default function TripView({
                 data-tab={g.id}
                 type="button"
                 role="tab"
+                id={`trip-group-${g.id}`}
+                aria-controls="trip-group-panel"
+                tabIndex={here ? 0 : -1}
                 aria-selected={here}
                 aria-current={here ? "page" : undefined}
                 onClick={() => openGroup(g)}
@@ -819,10 +823,12 @@ export default function TripView({
       {/* Lighter than the bar above it on purpose: these are the same door, not
           four more of them. A door with one thing behind it draws nothing, so
           Days and Money stay silent. */}
+      <div role="tabpanel" id="trip-group-panel" aria-labelledby={`trip-group-${group?.id}`} tabIndex={0}>
       {opensASecondRow(group) && (
         <div
           className="no-print mt-3 flex flex-wrap gap-2"
           role="tablist"
+          onKeyDown={tabKeyDown}
           aria-label={`Inside ${group.label}`}
         >
           {group.leaves.map((t) => {
@@ -832,6 +838,9 @@ export default function TripView({
                 key={t.id}
                 type="button"
                 role="tab"
+                id={`trip-tab-${t.id}`}
+                aria-controls="trip-content-panel"
+                tabIndex={here ? 0 : -1}
                 aria-selected={here}
                 onClick={() => setTab(t.id)}
                 className={here ? "chip chip-shade font-semibold" : "chip"}
@@ -848,7 +857,11 @@ export default function TripView({
         </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-4" id="trip-content-panel"
+        role={opensASecondRow(group) ? "tabpanel" : undefined}
+        aria-labelledby={opensASecondRow(group) ? `trip-tab-${tab}` : undefined}
+        tabIndex={opensASecondRow(group) ? 0 : undefined}>
+        {tab === "packing" && <p className="scope-caption">For this trip · {info.name}</p>}
         {/* The Tips tab holds the advice about the trip as a whole, and now only
             that. The button that asks for a look moved up into the header: the
             same press was never really about this tab -- it walks the trip, the
@@ -1011,6 +1024,7 @@ export default function TripView({
         )}
       </div>
 
+      </div>
       <AskAlyDrawer
         trip={trip}
         focus={tab}

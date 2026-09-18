@@ -5,10 +5,9 @@ import { loadHeaderNotices } from "@/lib/tips/load";
 import { isOnTrip, resolveAccess } from "@/lib/travelers/access";
 import { loadSetupState } from "@/lib/setup/state";
 import CurrentTripBanner from "./CurrentTripBanner";
-import InboxBanner from "./InboxBanner";
+import HeaderUpdates from "./HeaderUpdates";
 import NavTabs from "./NavTabs";
 import PassportWarning from "./PassportWarning";
-import TipStrip from "./TipStrip";
 
 // Pass nothing and the button opens the Ask Aly drawer on the current screen,
 // which is what every signed-in screen does. `askHref` is kept for any screen
@@ -155,8 +154,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
           trip is a trip-ending problem and belongs at the top; unfiled mail is
           one tap of work and should not shout over it. The banner hides itself
           when the person is already on /inbox. */}
-      <InboxBanner count={inboxCount} />
-      <TipStrip tips={urgent} today={today} />
+      <HeaderUpdates inboxCount={inboxCount} tips={urgent} today={today} />
     </>
   );
 }

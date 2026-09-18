@@ -73,7 +73,7 @@ export default function FamilyScreen({
       picked={picked}
       onPick={(next) => {
         if (next === picked || momentState.busy) return;
-        if (momentState.dirty && !window.confirm("Switch profiles without saving your unfinished moment? Moments you already saved will be kept.")) return;
+        if (momentState.dirty && !window.confirm("Switch profiles without saving your changes? Anything already saved will be kept.")) return;
         setMomentState({ dirty: false, busy: false });
         setPicked(next);
       }}

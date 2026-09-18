@@ -1225,6 +1225,7 @@ export default function ChatPanel({
                       : "border-teal/40 ring-teal/20"
                   }`}
                 >
+                  <p className="result-status" data-state="review">Needs review · Not saved yet</p>
                   <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                     {group.label} · {count} change{count === 1 ? "" : "s"}
                   </p>

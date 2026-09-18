@@ -16,18 +16,27 @@
 // the cards need the family's rows and the record needs the refusals, and both
 // are already read there.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { tabKeyDown } from "@/lib/ui/tabs";
 
 export default function WalletTabs({ cards, history, historyCount = 0 }) {
   const [tab, setTab] = useState("cards");
+  useEffect(() => {
+    const showCards = () => setTab("cards");
+    window.addEventListener("wallet-add-program", showCards);
+    return () => window.removeEventListener("wallet-add-program", showCards);
+  }, []);
 
   return (
     <>
       <div className="mt-6 min-w-0">
-        <nav className="tabbar no-print" role="tablist" aria-label="Wallet">
+        <nav className="tabbar no-print" role="tablist" aria-label="Wallet" onKeyDown={tabKeyDown}>
           <button
             type="button"
             role="tab"
+            id="wallet-tab-cards"
+            aria-controls="wallet-panel-cards"
+            tabIndex={tab === "cards" ? 0 : -1}
             aria-selected={tab === "cards"}
             onClick={() => setTab("cards")}
             className="tab"
@@ -41,6 +50,9 @@ export default function WalletTabs({ cards, history, historyCount = 0 }) {
           <button
             type="button"
             role="tab"
+            id="wallet-tab-history"
+            aria-controls="wallet-panel-history"
+            tabIndex={tab === "history" ? 0 : -1}
             aria-selected={tab === "history"}
             onClick={() => setTab("history")}
             className="tab"
@@ -59,8 +71,8 @@ export default function WalletTabs({ cards, history, historyCount = 0 }) {
           and back does not throw away a half-typed balance or a form somebody
           had open. The record is the other way round -- genuinely absent until
           asked for -- because mounting it is what fetches it. */}
-      <div className={tab === "cards" ? "mt-6" : "hidden"}>{cards}</div>
-      {tab === "history" ? <div className="mt-6">{history}</div> : null}
+      <div id="wallet-panel-cards" role="tabpanel" aria-labelledby="wallet-tab-cards" tabIndex={0} className={tab === "cards" ? "mt-6" : "hidden"}>{cards}</div>
+      <div id="wallet-panel-history" role="tabpanel" aria-labelledby="wallet-tab-history" tabIndex={0} hidden={tab !== "history"} className="mt-6">{tab === "history" ? history : null}</div>
     </>
   );
 }

@@ -5,6 +5,7 @@ import { SCREEN_INTROS } from "@/lib/screenCopy";
 import SkinPicker from "@/components/SkinPicker";
 import BetaConsentControls from "@/components/BetaConsentControls";
 import TextSizePicker from "@/components/TextSizePicker";
+import NavigationPreference from "@/components/NavigationPreference";
 import SetupDoneControl from "@/components/SetupDoneControl";
 import DeleteAccountControl from "@/components/DeleteAccountControl";
 import { SETTINGS_FOCUS } from "@/lib/agent/context";
@@ -48,6 +49,7 @@ export default function SettingsBody({
           <SkinPicker skin={skin} />
 
           <TextSizePicker size={textSize} />
+          <NavigationPreference />
 
           {/* Only for an account that agreed to something. It sits above the
               account section rather than at the foot of the screen because it is

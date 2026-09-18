@@ -13,6 +13,7 @@ import { WALLET_SCOPES } from "@/lib/tips/tip";
 import RewardsBoard from "./RewardsBoard";
 import DeclinedOffers from "./DeclinedOffers";
 import WalletTabs from "./WalletTabs";
+import WalletAddButton from "@/components/WalletAddButton";
 
 export const metadata = { title: "Wallet · Alyeska" };
 
@@ -126,11 +127,13 @@ export default async function RewardsPage() {
           title="Wallet"
           subtitle={SCREEN_INTROS.wallet}
           action={
-            <Link href="/family" className="btn btn-ghost w-full sm:w-auto">
-              Looking for travel documents?
-            </Link>
+            <WalletAddButton />
           }
         />
+        <p className="mb-4 text-sm text-ink-soft">
+          Passports and travel documents live with each person in{" "}
+          <Link href="/family" className="text-teal underline underline-offset-2">Family & pets</Link>.
+        </p>
         {/* autoLook: the Wallet is the one screen whose whole job is noticing
             things nobody asked about -- a credit going unused, points about to
             lapse, a fee coming round -- so opening it runs the look, the way
@@ -170,6 +173,7 @@ export default async function RewardsPage() {
           historyCount={declinedOffers.length}
           cards={
             <RewardsBoard
+              showAddAction={false}
               familyId={familyId}
               travelers={travelers || []}
               programs={programs || []}

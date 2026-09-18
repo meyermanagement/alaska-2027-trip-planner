@@ -125,6 +125,7 @@ export default function RewardsBoard({
   familyId,
   travelers,
   programs,
+  showAddAction = true,
   // The read failed rather than came back empty. Everything below still works
   // -- adding a program writes fine -- but the list is not to be believed, so
   // the screen says that instead of implying the wallet is bare.
@@ -331,6 +332,11 @@ export default function RewardsBoard({
     const base = { ...BLANK, ...(preset || {}) };
     setForm({ id: null, values: base });
   }
+  useEffect(() => {
+    const add = () => setForm((current) => current || { id: null, values: { ...BLANK } });
+    window.addEventListener("wallet-add-program", add);
+    return () => window.removeEventListener("wallet-add-program", add);
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -481,13 +487,13 @@ export default function RewardsBoard({
               Ask how to pay for something
             </button>
           )}
-          <button
+          {showAddAction && <button
             type="button"
             className="btn btn-primary"
             onClick={() => startAdd()}
           >
-            Add a program
-          </button>
+            Add a card or program
+          </button>}
         </div>
       </div>
 
@@ -567,7 +573,7 @@ export default function RewardsBoard({
       )}
 
       {form && (
-        <div ref={formRef} className="scroll-mt-24">
+        <div id="wallet-program-editor" ref={formRef} className="scroll-mt-24">
           <ProgramForm
             values={form.values}
             isNew={!form.id}

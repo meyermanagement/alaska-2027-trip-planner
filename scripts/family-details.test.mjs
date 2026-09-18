@@ -81,7 +81,8 @@ test("optional Family fields avoid overpromising access and personalization", ()
     people,
     /suggestion for nobody|Whoever owns this address|What Aly needs to make the advice specific/,
   );
-  assert.match(people, /Travel details \(optional\)/);
+  assert.match(people, /OptionalSection title="Travel details"/);
+  assert.match(source("components/OptionalSection.js"), />Optional</);
   assert.match(people, /Remove sign-in access/);
   assert.match(people, /controlled && !out/);
   assert.match(source("app/family/Pets.js"), /Saved choice:/);
