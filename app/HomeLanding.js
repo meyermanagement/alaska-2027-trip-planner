@@ -431,8 +431,8 @@ export default function HomeLanding() {
           label="Before you go"
           flip
           title="From the day you book to the morning you leave."
-          body="Every task dated against your real departure, arriving the week you can act on it."
-          note="You never start the packing list from nothing. The things nobody remembers are on it before you open the case."
+          body="Aly turns your trip details into timely reminders, so you can get ready a little at a time."
+          note="Your packing list brings together your saved essentials and suggestions for the trip you’ve planned."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
@@ -457,25 +457,25 @@ export default function HomeLanding() {
                   when="Book now"
                   on="Jan 6"
                   title="Hold the condo and the car"
-                  sub="Both climb over the new year"
+                  sub="Choose your stay and transport before planning the days"
                 />
                 <Stage
                   when="A month out"
                   on="Feb 12"
                   title="Book the morning snorkel boat"
-                  sub="The early one goes first, and Mia is nine"
+                  sub="Choose a departure that fits your morning"
                 />
                 <Stage
                   when="Week before"
                   on="Mar 7"
                   title="Stop the mail, tell the neighbor"
-                  sub="Seven days of post in the box otherwise"
+                  sub="A few things at home to take care of before you go"
                 />
                 <Stage
                   when="Day before"
                   on="Mar 13"
                   title="Pack from the list, chargers last"
-                  sub="Built from who is going and what Maui is like"
+                  sub="Keep the last-minute essentials easy to find"
                 />
                 <Stage
                   when="Travel day"
@@ -491,13 +491,13 @@ export default function HomeLanding() {
 
         <Scene
           label="While you are there"
-          title="The whole day, and everything you booked for it, on one screen."
-          body="It opens on the day you are living, with the confirmation number under each thing on it."
+          title="Today’s plans, without the inbox hunt."
+          body="Bookings, check-in details, and your day pack stay with the day they belong to. Ask Aly for help with what’s next."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
                 <p className="font-display text-[17px] font-semibold">
-                  Thursday, August 12
+                  A day in Maui
                 </p>
                 <p className="text-[13px] text-ink-soft">
                   Kīhei &middot; 84&deg;, rain at 2
@@ -512,7 +512,7 @@ export default function HomeLanding() {
                 <Row
                   left="Lunch, back at the condo"
                   right="12:30 pm"
-                  sub="Ahead of the shower"
+                  sub="Back before the afternoon rain"
                 />
                 <Row
                   left="Sunset, walk from the door"
@@ -526,19 +526,19 @@ export default function HomeLanding() {
                   short list for today rather than the whole packing list. */}
               <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
                 <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-[13px] font-semibold">In the bag today</p>
-                  <p className="text-[12px] text-ink-soft">3 of 4</p>
+                  <p className="text-[13px] font-semibold">Today’s day pack</p>
+                  <p className="text-[12px] text-ink-soft">To bring</p>
                 </div>
                 <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
-                  Reef-safe sunscreen &middot; Mia&rsquo;s shell &middot; the
-                  printed voucher &middot; cash for the deposit
+                  Sunscreen &middot; Mia&rsquo;s light jacket &middot; photo ID
+                  &middot; cash for the balance
                 </p>
               </div>
 
               <p className="mt-3 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
                 <span className="font-semibold">Aly:</span> The boat&rsquo;s
-                voucher wants the balance in cash and a photo ID at the desk, so
-                both are in today&rsquo;s bag. Rain about two, gone by four.
+                confirmation asks for cash and photo ID. Check that both are
+                packed before you head out.
               </p>
             </div>
           }
@@ -547,8 +547,8 @@ export default function HomeLanding() {
         <Scene
           label="When it changes"
           flip
-          title="The ones you can see coming, and the ones you cannot."
-          body="She warns you about the ones you can see coming, and rebuilds the day around the ones you cannot."
+          title="A change of plans, not a fresh start."
+          body="Aly flags conflicts and helps you work around surprises, using the trip you already planned. You decide what changes."
           media={
             <Shot
               src="/landing/rain.jpg"
@@ -560,9 +560,9 @@ export default function HomeLanding() {
 
         <Scene
           label="The money"
-          title="What it has cost, and which card to hand over."
-          body="Every price against the number you meant to spend, and which card to hand over at dinner."
-          note="She reads your insurance policy and the coverage your card already gives you, so you know what you have before you buy it again."
+          title="Keep the budget in view. Put your benefits to use."
+          body="Aly brings trip costs, saved credits, and card benefits together, helping you see what’s left to spend and which card to use."
+          note="She helps you understand your insurance and card or reward-program benefits, so you can check existing coverage before buying more."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -572,18 +572,17 @@ export default function HomeLanding() {
                 <p className="text-[13px] text-ink-soft">7 days</p>
               </div>
               <div className="mt-4 space-y-3">
-                <Row left="Flights" right="Booked" sub="Four seats, paid" />
-                <Row left="Where you stay" right="Booked" sub="Deposit taken" />
+                <Row left="Flights" right="Booked" sub="Tickets paid for" />
+                <Row left="Where you stay" right="Booked" sub="Deposit paid" />
                 <Row
                   left="Food and days out"
                   right="Estimated"
-                  sub="Aly filled in only the blank prices"
+                  sub="Planning estimates, separate from confirmed costs"
                   last
                 />
               </div>
               <p className="mt-4 border-t border-[var(--line)] pt-3 text-[13px] text-ink-soft">
-                No affiliate links, no commission, no paid placements. The
-                numbers are yours.
+                A clearer picture before you spend more.
               </p>
             </div>
           }
@@ -592,8 +591,8 @@ export default function HomeLanding() {
         <Scene
           label="Pro tips"
           flip
-          title="The things you would only know if you had been before."
-          body="The things you would only know if you had been before, dated to the day they matter, each saying where it came from."
+          title="A little local knowledge goes a long way."
+          body="Tips tailored to your plans, with sources you can check. Turn the useful ones into reminders so they’re there when you need them."
           media={
             <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
               <div className="flex items-baseline justify-between gap-4">
@@ -608,18 +607,18 @@ export default function HomeLanding() {
                   twice. */}
               <div className="mt-4 space-y-2.5">
                 <Tip
-                  when="Buy by February 11"
-                  title="The sunrise permit goes on sale 60 days out"
+                  when="Before you book"
+                  title="Check sunrise entry requirements before choosing your day"
                   source="recreation.gov"
                 />
                 <Tip
                   when="Day 4, before you leave"
-                  title="No signal on the back road — download the map first"
-                  source="Your own days, no model involved"
+                  title="Download an offline map for your day 4 drive"
+                  source="Your itinerary"
                 />
                 <Tip
                   when="Before you pack"
-                  title="Sunscreen with oxybenzone cannot be sold in Hawaii"
+                  title="Check local sunscreen rules before you pack"
                   source="Hawaii Revised Statutes 342D-21"
                 />
               </div>
