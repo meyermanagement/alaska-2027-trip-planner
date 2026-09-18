@@ -627,38 +627,38 @@ export default function HomeLanding() {
         />
       </div>
 
-      {/* ------------------------------------------------------------ abilities
-          Names and nothing else, grouped under five verbs. This is the widest
-          view of the product on the page. Since the six scenes above were cut
-          to a line each it is also where most of the specifics now live; the
-          insurance policy and the packing list earned a second line on their
-          own scenes, but reading a confirmation in another language is named
-          only here. It reads from lib/home/alyIndex.js, which is its own
-          file rather than the Meet Aly list, because that list is eight claims
-          Aly has to be able to answer for live and this one is an index. */}
+      {/* Supporting capabilities, without repeating the six scenes above.
+          Plain lists rather than chips: these describe features, not actions. */}
       <Reveal
         as="section"
         className="mx-auto w-full max-w-[74rem] px-5 sm:px-8"
       >
         <div className="border-t border-[var(--line)] py-14">
-          <p className="section-label ma-in">Everything Aly looks after</p>
-          <div className="mt-6 flex flex-col gap-7">
+          <h2 id="aly-details-heading" className="section-label ma-in">
+            More of the details, taken care of
+          </h2>
+          <div className="mt-7 grid gap-8 md:grid-cols-3 md:gap-10">
             {ALY_INDEX.map((group, gi) => (
-              <div key={group.key}>
-                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.09em] opacity-70">
+              <div
+                key={group.key}
+                className="ma-in"
+                style={{ animationDelay: `${gi * 80}ms` }}
+              >
+                <h3 className="border-b border-[var(--line)] pb-3 font-display text-[20px] font-semibold">
                   {group.heading}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {group.items.map((item, i) => (
-                    <span
-                      key={item}
-                      className="ma-chip rounded-full border border-[var(--line)] px-3.5 py-1.5 text-[14px] font-medium"
-                      style={{ animationDelay: `${gi * 90 + i * 45}ms` }}
-                    >
-                      {item}
-                    </span>
+                </h3>
+                <ul className="mt-4 space-y-5">
+                  {group.items.map((item) => (
+                    <li key={item.title}>
+                      <h4 className="text-[16px] font-semibold">
+                        {item.title}
+                      </h4>
+                      <p className="mt-1 text-[16px] leading-relaxed text-ink-soft">
+                        {item.body}
+                      </p>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ))}
           </div>
@@ -741,7 +741,7 @@ export default function HomeLanding() {
             style={{ animationDelay: "80ms" }}
           >
             <Link href="/login" className="btn btn-primary ma-cta">
-              Sign in
+              Meet Aly
             </Link>
           </div>
           <p
