@@ -4583,10 +4583,7 @@ html[data-route="3"] .quick-tall .quick-heading {
 }
 
 :root {
-  /* One cycle of the tagline, and one word's share of it. Named because the
-     three words are staggered by exactly one share and the loop has to close
-     on the third -- a hand-typed 1.8s in one rule and 2.7s in another drift
-     apart the first time the cadence is tuned. */
+  /* One pass of the tagline, with the three words staggered by one share. */
   --boot-tag-turn: 5.7s;
   --boot-tag-step: 1.9s;
 }
@@ -4636,7 +4633,7 @@ html[data-route="3"] .quick-tall .quick-heading {
   letter-spacing: -0.012em;
   color: var(--color-teal);
   opacity: 0;
-  animation: boot-tag-turn var(--boot-tag-turn) linear infinite both;
+  animation: boot-tag-turn var(--boot-tag-turn) linear 1 both;
 }
 
 .boot-tag-slot span:nth-child(2) {
@@ -4644,6 +4641,7 @@ html[data-route="3"] .quick-tall .quick-heading {
 }
 
 .boot-tag-slot span:nth-child(3) {
+  animation-name: boot-tag-last;
   animation-delay: calc(var(--boot-tag-step) * 2);
 }
 
@@ -4671,6 +4669,23 @@ html[data-route="3"] .quick-tall .quick-heading {
     opacity: 0;
     filter: blur(5px);
     transform: translateY(-0.34em);
+  }
+}
+
+/* End on the final promise, even if fonts or hydration hold the veil longer.
+   Neither a blank tagline nor a second flash of the first word is an ending. */
+@keyframes boot-tag-last {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(0.42em);
+  }
+
+  4%,
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
   }
 }
 
@@ -5217,7 +5232,8 @@ html[data-route="3"] .quick-tall .quick-heading {
   /* One word, standing still. The turn is the whole animation, so there is
      nothing to slow down -- only a choice of which promise to make, and the
      first one is the one the rest depend on. */
-  .boot-tag-slot span {
+  .boot-tag-slot span,
+  .boot-tag-slot span:nth-child(3) {
     animation: none;
     opacity: 0;
   }

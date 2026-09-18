@@ -109,3 +109,27 @@ test("Home starts its visibility and reading timers only after boot readiness", 
     /else if \(!seen\) \{\s*clearTimeout\(beat\);\s*clearTimeout\(lead\)/,
   );
 });
+
+test("the opening plays once, holds the final word, and fades without an extra tail", () => {
+  const css = readFileSync(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
+  const veil = readFileSync(
+    new URL("../components/BootVeil.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    css,
+    /animation: boot-tag-turn var\(--boot-tag-turn\) linear 1 both/,
+  );
+  assert.match(
+    css,
+    /\.boot-tag-slot span:nth-child\(3\) \{\s*animation-name: boot-tag-last/,
+  );
+  assert.match(
+    css,
+    /@keyframes boot-tag-last[\s\S]*?4%,\s*100% \{\s*opacity: 1/,
+  );
+  assert.match(veil, /const HOLD_MS = 5300/);
+});

@@ -48,13 +48,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Shortest time the mark stays up: one full turn of the tagline, three words at
-// 1.9s each. It was 620ms, chosen so a fast open stayed fast, which meant the
-// rotation was a thing only a slow connection ever saw. Holding for the whole
-// turn is a deliberate trade -- every open now costs the family five and a half
-// seconds they did not previously spend -- and it is the reason the words get
-// long enough on screen to be read as claims rather than as a spinner.
-const HOLD_MS = 5700;
+// The three words enter 1.9s apart. Give the final word 1.5s before fading the
+// whole veil, rather than waiting for it to leave and the first word to restart.
+// CSS plays this sequence once and holds the last word throughout the fade.
+const HOLD_MS = 5300;
 
 // The short opening's hold. It was 480ms, which is the least it can be without
 // flickering, and at that length the crossing was over before anyone could see
@@ -839,10 +836,8 @@ export function BootStage() {
             the open this exists to cover is the moment the veil is already
             lifting.
 
-            Three words at 1.9s each, and the veil is now held for the whole
-            turn rather than the other way round -- a rotation nobody stays
-            long enough to see is not worth having, and a word that leaves
-            before it has been read is a spinner with letters on it. */}
+            The three words enter 1.9s apart, once only. The final word stays
+            readable while the whole opening fades into the page. */}
         <p className="boot-tag" aria-hidden="true">
           <span className="boot-tag-fixed">Travel</span>
           <span className="boot-tag-slot">
