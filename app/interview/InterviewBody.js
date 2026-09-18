@@ -12,6 +12,7 @@ import {
   questionsFor,
   optionsFor,
   optionLabels,
+  optionForAnswer,
   rankSentence,
   multiSentence,
 } from "@/lib/travelers/interview";
@@ -22,11 +23,11 @@ import {
   parsePetsNote,
   petsSentence,
 } from "@/lib/travelers/animals";
+import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 import {
-  personalizationContext,
-  personalizeReasons,
-} from "@/lib/travelers/interviewPersonalize";
-import { whysAfterUntick } from "@/lib/travelers/interviewChips";
+  reasonSuggestions,
+  whysAfterUntick,
+} from "@/lib/travelers/interviewChips";
 import {
   BAND_MIN,
   BAND_MAX,
@@ -137,9 +138,7 @@ const BLANK_FIELDS = {
 function fieldsForAnswer(question, priorAnswer) {
   if (!priorAnswer || !question) return BLANK_FIELDS;
   if (question.kind === "options") {
-    const opt = (question.options || []).find(
-      (o) => o.label === priorAnswer.picked,
-    );
+    const opt = optionForAnswer(question, priorAnswer.picked);
     const priorWhys = Array.isArray(priorAnswer.whys) ? priorAnswer.whys : [];
     const priorOwnWords =
       typeof priorAnswer.ownWords === "string" ? priorAnswer.ownWords : "";
@@ -174,7 +173,7 @@ function fieldsForAnswer(question, priorAnswer) {
     const labels = Array.isArray(priorAnswer.picked) ? priorAnswer.picked : [];
     const values = [];
     for (const label of labels) {
-      const opt = (question.options || []).find((o) => o.label === label);
+      const opt = optionForAnswer(question, label);
       if (opt && !values.includes(opt.value)) values.push(opt.value);
     }
     return {
@@ -295,8 +294,8 @@ export default function InterviewBody({
   const [limits, setLimits] = useState([]);
   // The tapped option values, for the two shapes that collect more than one:
   // the ranked question, where the order is the answer, and the multi ones,
-  // where it is a set and only the first tap is privileged (it decides which
-  // option's reason chips are offered). One state rather than two because the
+  // where it is a set and each selected option contributes reason chips.
+  // One state rather than two because the
   // shape is the same -- a list of option values in the order they were
   // tapped -- and every save path, every Back, and every pre-fill would
   // otherwise be written twice.
@@ -345,11 +344,12 @@ export default function InterviewBody({
       const pickedLabel = Array.isArray(answer.picked)
         ? answer.picked[0]
         : answer.picked;
-      const opt = (question?.options || []).find(
-        (o) => o.label === pickedLabel,
-      );
+      const opt = optionForAnswer(question, pickedLabel);
       base[answer.slot] = {
-        value: opt?.value || null,
+        value:
+          question?.kind === "multi" && answer.picked?.length > 1
+            ? null
+            : opt?.value || null,
         whys: answer.whys || [],
       };
     }
@@ -661,10 +661,24 @@ export default function InterviewBody({
 
   // Every choice the primary makes by hand, so the pre-picked option can stop
   // claiming to be worked out the moment they disagree with it.
-  const pickChoice = useCallback((value) => {
-    setTouched(true);
-    setChoice(value);
-  }, []);
+  const pickChoice = useCallback(
+    (value) => {
+      setTouched(true);
+      if (value !== choice) {
+        setWhys((previous) =>
+          whysAfterUntick({
+            question,
+            removed: choice,
+            remaining: [value],
+            whys: previous,
+            context: live,
+          }),
+        );
+      }
+      setChoice(value);
+    },
+    [choice, question, live],
+  );
 
   // Tap to add, tap again to take back out. On the ranked question the list
   // is the answer, so a tap appends and stamps the next number and removing
@@ -1332,9 +1346,7 @@ export default function InterviewBody({
             {confirmingInference && !aboutMeCovers && (
               <div className="mb-4 rounded-2xl border border-teal/30 bg-teal-soft/25 px-4 py-3 text-sm leading-relaxed text-ink-soft">
                 <p className="font-display text-ink">
-                  {inferred.strength === "sure"
-                    ? "You have already answered this one."
-                    : "I think I can guess this one."}
+                  Based on what you told me, would this fit?
                 </p>
                 <p className="mt-1">{inferred.because}</p>
                 <p className="mt-2">
@@ -1655,47 +1667,6 @@ export default function InterviewBody({
 // The opposing option's hand-written reasons are still NOT surfaced: they
 // argue against the answer just picked, and stacking them into the reason
 // would contradict it.
-const MORE_CAP = 10;
-
-// How many hand-written chips the primary row shows at once. One option's
-// worth is three, so a single pick is never trimmed; a question that takes
-// three ticks would otherwise reach nine chips, which on a phone is nine
-// stacked lines between the question and the box where the family types the
-// part the chips cannot say. The share is split evenly across the ticks
-// rather than taken off the top, so the last option ticked is represented
-// instead of scrolled away.
-const PRIMARY_CAP = 6;
-
-// Two chips that only differ by punctuation, pronoun choice, filler verbs, or
-// boilerplate endings plan the same day, so they are one chip. This is what
-// keeps a primary chip and an otherReasons chip that say the same thing in
-// different words from both being drawn, and it earns its keep across two
-// ticked options whose second rows overlap.
-function signatureOf(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(
-      /\b(we|the family|the kids|our family)\s+(?:would\s+(?:rather|prefer)|prefer(?:red)?\s+to|like(?:d)?\s+to|love\s+to|want\s+to|need\s+to|have\s+to|tend\s+to|try\s+to|are\s+going\s+to|are\s+used\s+to|end\s+up|always|usually|often|sometimes|mostly|never|rarely)\b/g,
-      "$1",
-    )
-    .replace(/\b(?:we|us|our|ours|the family|our family)\b/g, "we")
-    .replace(
-      /\b(?:the kids|the children|our kids|our children|the boys|the girls)\b/g,
-      "kids",
-    )
-    .replace(
-      /\b(?:in general|most of the time|most days|most trips|on trips|when we travel|either way|no matter what|for us|for our family|as a rule|as a family)\b/g,
-      " ",
-    )
-    .replace(
-      /\b(?:really|actually|honestly|simply|just|kind of|sort of|a bit)\b/g,
-      " ",
-    )
-    .replace(/[^a-z0-9\s]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 // Counts read as words in a sentence, because "2 ordered" in the middle of a
 // line of prose reads like a field value rather than something Aly said.
 const COUNT_WORDS = ["none", "one", "two", "three", "four", "five"];
@@ -1715,9 +1686,8 @@ function countWordCap(n) {
 // a rotation rather than one kind of restaurant.
 //
 // Ticks rather than numbers, because unlike the money question the order here
-// means nothing to the answer. It means one thing to the screen: the first
-// card tapped is the one whose reasons open underneath, so the drawer is one
-// drawer instead of three.
+// means nothing to the answer. Each selected option contributes details to
+// one shared panel, with overflow available through More details.
 //
 // The cap is the point of the shape. Without it a family ticks everything and
 // the answer says nothing, so at the cap the untapped cards go quiet and stop
@@ -1788,10 +1758,10 @@ function MultiPanel({ question, order, onTap }) {
       </ul>
       <p className="mt-3 text-sm text-ink-soft" aria-live="polite">
         {picked.length === 0
-          ? `Tick the ones that are actually true, up to ${COUNT_WORDS[max] || max}.`
+          ? `Choose up to ${COUNT_WORDS[max] || max}.`
           : atCap
-            ? `${countWordCap(picked.length)} ticked, which is as many as I can use here. Tap one to take it out and swap it.`
-            : `${countWordCap(picked.length)} ticked, and room for ${COUNT_WORDS[remaining] || remaining} more. What you leave out I will not lead with, rather than rule out.`}
+            ? `${countWordCap(picked.length)} selected. Unselect one to choose another.`
+            : `${countWordCap(picked.length)} selected. Choose up to ${COUNT_WORDS[remaining] || remaining} more, or continue.`}
       </p>
     </div>
   );
@@ -2082,14 +2052,10 @@ function RankPanel({ question, order, onTap, clearRank }) {
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-soft">
         <p aria-live="polite">
           {ranked.length === 0
-            ? "Nothing ordered yet. Tap the one you would protect first."
+            ? "Choose your highest priority first."
             : unranked.length === 0
-              ? "All four ordered. Tap a card to take it back out."
-              : `${countWordCap(ranked.length)} ordered. I will treat the ${
-                  unranked.length === 1
-                    ? "other one"
-                    : `other ${COUNT_WORDS[unranked.length] || unranked.length}`
-                } as no strong feeling, not as last.`}
+              ? "All four ranked. Select a ranked item again to remove it."
+              : `${countWordCap(ranked.length)} ranked. You can continue without ranking the rest.`}
         </p>
         {ranked.length > 0 && (
           <button
@@ -2097,7 +2063,7 @@ function RankPanel({ question, order, onTap, clearRank }) {
             onClick={clearRank}
             className="underline underline-offset-4 hover:text-ink"
           >
-            Start the order again
+            Clear ranking
           </button>
         )}
       </div>
@@ -2140,36 +2106,6 @@ function WhyPanel({
   // the family's actual names when we know them, so the chip reads as if Aly
   // knew who she was writing to rather than a stock questionnaire.
   //
-  const primary = useMemo(() => {
-    const chosen = (
-      Array.isArray(choices) && choices.length > 0 ? choices : [choice]
-    ).filter(Boolean);
-    const share = Math.max(
-      1,
-      Math.ceil(PRIMARY_CAP / Math.max(1, chosen.length)),
-    );
-    const seen = new Set();
-    const list = [];
-    for (const value of chosen) {
-      const opt = (question.options || []).find((o) => o.value === value);
-      let taken = 0;
-      for (const chip of personalizeReasons(
-        (opt && opt.reasons) || [],
-        context,
-      )) {
-        if (taken >= share) break;
-        const sig = signatureOf(chip);
-        if (!sig || seen.has(sig)) continue;
-        seen.add(sig);
-        list.push(chip);
-        taken += 1;
-      }
-    }
-    return list;
-  }, [question, choices, choice, context]);
-
-  // The ticked options, in tick order, so the second row is assembled in the
-  // same order the family answered in.
   const ticked = useMemo(
     () =>
       (Array.isArray(choices) && choices.length > 0
@@ -2179,58 +2115,19 @@ function WhyPanel({
     [choices, choice],
   );
 
-  // A question can ship with no reason chips at all -- the money question does,
-  // because chips on an ordered answer would look like they explained the whole
-  // order. That question still wants the own-words box, so the panel drops to
-  // the box alone rather than disappearing, and drops the chip instructions
-  // with it: there is nothing left to tap.
+  const { primary, more, saved } = useMemo(
+    () => reasonSuggestions({ question, choices: ticked, context, whys }),
+    [question, ticked, context, whys],
+  );
+  const [expandedFor, setExpandedFor] = useState(null);
+  const expanded = expandedFor === question.slot;
   const hasChips = primary.length > 0;
 
   const activeSet = new Set((whys || []).map((s) => (s || "").toLowerCase()));
-  // Which primary chips are actually picked. The second row appears once one
-  // of them is on, so the panel opens as a question with a short answer rather
-  // than as a wall of eleven chips.
-  const pickedPrimary = (whys || []).filter((l) =>
-    primary.some((p) => p.toLowerCase() === (l || "").toLowerCase()),
-  );
-
-  // Assemble the "More" row. The question's neutral otherReasons come first
-  // because they belong to no option and so are the part of the row that does
-  // not move as ticks change; each ticked option's own `more` lines follow in
-  // tick order. Everything is deduped by SIGNATURE against the primary row and
-  // against each other -- two ticked options can carry second-row lines that
-  // plan the same day in different words -- and capped at MORE_CAP so a
-  // three-tick question does not run away down the screen. Picked chips are
-  // NOT filtered out, so a wrong tap can be untapped from the place it was
-  // tapped.
-  const more = useMemo(() => {
-    const seen = new Set();
-    for (const s of primary) {
-      const sig = signatureOf(s);
-      if (sig) seen.add(sig);
-    }
-    const out = [];
-    const push = (chip) => {
-      if (out.length >= MORE_CAP) return false;
-      const sig = signatureOf(chip);
-      if (!sig || seen.has(sig)) return true;
-      seen.add(sig);
-      out.push(chip);
-      return true;
-    };
-    for (const r of personalizeReasons(question.otherReasons || [], context)) {
-      if (!push(r)) return out;
-    }
-    for (const value of ticked) {
-      const opt = (question.options || []).find((o) => o.value === value);
-      for (const r of personalizeReasons((opt && opt.more) || [], context)) {
-        if (!push(r)) return out;
-      }
-    }
-    return out;
-  }, [question, ticked, primary, context]);
-
-  const showMoreSection = pickedPrimary.length > 0 && more.length > 0;
+  // Closing the drawer never hides a saved preference or its remove control.
+  const visibleMore = expanded
+    ? more
+    : more.filter((chip) => activeSet.has(chip.toLowerCase()));
 
   function toggle(chip) {
     const key = chip.toLowerCase();
@@ -2267,17 +2164,16 @@ function WhyPanel({
   return (
     <div className="mt-4 rounded-2xl border border-teal/30 bg-teal-soft/25 p-4">
       <p className="font-display text-lg text-ink">
-        {question?.ownWordsHeading || "Why? (Optional.)"}
+        {question?.ownWordsHeading || "Anything to add? (Optional)"}
       </p>
       {hasChips && (
         <p className="mt-1 text-sm text-ink-soft">
-          Tap any that fit. I save each one as its own line on your Preferences
-          page.
+          Choose only the details that fit. These are optional.
         </p>
       )}
       {hasChips && (
         <div className="mt-3">
-          <p className="section-label text-ink-soft">Suggestions</p>
+          <p className="section-label text-ink-soft">What matters to you</p>
           <div className="mt-1 flex flex-wrap gap-2">
             {primary.map((chip) => (
               <Chip key={chip} chip={chip} />
@@ -2285,11 +2181,34 @@ function WhyPanel({
           </div>
         </div>
       )}
-      {showMoreSection && (
+      {more.length > 0 && (
         <div className="mt-3">
-          <p className="section-label text-ink-soft">More</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            {more.map((chip) => (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={`interview-more-${question.slot}`}
+            onClick={() => setExpandedFor(expanded ? null : question.slot)}
+            className="min-h-11 py-2 text-sm font-semibold text-teal underline underline-offset-4"
+          >
+            {expanded ? "Fewer details" : "More details"}
+          </button>
+          <div
+            id={`interview-more-${question.slot}`}
+            className="mt-1 flex flex-wrap items-center gap-2"
+          >
+            {visibleMore.map((chip) => (
+              <Chip key={chip} chip={chip} />
+            ))}
+          </div>
+        </div>
+      )}
+      {saved.length > 0 && (
+        <div className="mt-3">
+          <p className="section-label text-ink-soft">
+            Previously selected details
+          </p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {saved.map((chip) => (
               <Chip key={chip} chip={chip} />
             ))}
           </div>
@@ -2309,9 +2228,9 @@ function WhyPanel({
           onChange={(e) => setOwnWords(e.target.value)}
           placeholder={
             hasChips
-              ? "Add a sentence about your reason, if you want."
+              ? "Add any other preferences or exceptions."
               : question?.ownWordsPlaceholder ||
-                "A sentence about why, if you want. I save it as its own line on your Preferences page."
+                "Add anything else you would like Aly to consider."
           }
           className="mt-2 w-full rounded-2xl border border-sand-deep bg-white p-3 text-ink placeholder:text-ink-faint focus:border-teal focus:outline-none"
         />

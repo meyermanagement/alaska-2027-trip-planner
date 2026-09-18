@@ -1,0 +1,172 @@
+{
+  "pace": {
+    "packed": [
+      "Four things is our sweet spot.",
+      "We can rest when we get home.",
+      "Two hours a stop, not four.",
+      "Book the early slot so the day has room for a fourth thing.",
+      "A long lunch is a stop we would rather skip.",
+      "Two things before noon, two after."
+    ],
+    "one_thing": [
+      "One thing in the morning, one after a nap.",
+      "One ticket a day; the rest should be walking.",
+      "The best part is not on the list.",
+      "Nothing booked before ten.",
+      "Same neighborhood two days running is fine by us.",
+      "If there is a second thing, it should be five minutes' walk from the first."
+    ]
+  },
+  "doing_or_seeing": {
+    "doing": [
+      "One physical thing before lunch.",
+      "A hard hike over an easy walk.",
+      "A guided activity is worth it when it gets us doing the thing.",
+      "Gear rental is fine; carrying our own is not.",
+      "Half a day is the right length for the active thing.",
+      "Nobody has to do every activity."
+    ],
+    "seeing": [
+      "A twenty-minute walk, not an hour.",
+      "Somewhere we can drive most of the way.",
+      "We would rather stay an hour than tick it off.",
+      "A bench or a cafe at the end of it.",
+      "Shade matters more than the view does.",
+      "We would rather see one thing properly than three quickly."
+    ]
+  },
+  "staying": {
+    "hotel": [
+      "Four stars is our floor.",
+      "A real concierge over a bigger room.",
+      "A hotel bar we would actually use.",
+      "Breakfast included, not billed.",
+      "A pool we would actually swim in.",
+      "Late checkout is worth asking for every time."
+    ],
+    "small_inn": [
+      "Fewer than twenty rooms.",
+      "Breakfast made by somebody who lives here.",
+      "A place with a story over a spa.",
+      "Somebody at the desk who will book things for us.",
+      "We will take a smaller room in a better building.",
+      "No shared bathrooms."
+    ],
+    "rental": [
+      "Two bedrooms is the minimum.",
+      "A washer and dryer earns it.",
+      "We cook at least half our dinners.",
+      "A real table to eat at, not a counter.",
+      "Parking on the property.",
+      "Walking distance to a grocery store."
+    ],
+    "resort": [
+      "All-inclusive, not nickel-and-dime.",
+      "On the beach, not near it.",
+      "A kids' club the kids like.",
+      "More than one restaurant on site.",
+      "A quiet pool as well as a busy one.",
+      "We will book excursions through the resort rather than arrange our own."
+    ]
+  },
+  "getting_around": {
+    "car": [
+      "Two hours in the car is our limit.",
+      "An automatic; manual is a non-starter.",
+      "Free parking is worth paying up for on the room.",
+      "One driver, so the route has to be manageable alone.",
+      "We would rather pay for the bigger car.",
+      "No driving after dark."
+    ],
+    "transit": [
+      "First-class on a train over two hours.",
+      "Trains between cities, always.",
+      "A taxi at night, transit in the day.",
+      "A hotel near the station, always.",
+      "Seats reserved in advance, not turn-up-and-go.",
+      "Only what we can carry ourselves."
+    ],
+    "walk": [
+      "Twenty minutes on foot is the sweet spot.",
+      "Walkable is worth paying up for on the room.",
+      "A car in a city is a headache.",
+      "Flat, or we will feel it by day three.",
+      "A taxi when it rains, and no guilt about it.",
+      "Everything we need inside one neighborhood."
+    ],
+    "driver": [
+      "A driver who speaks the language.",
+      "A private guide who knows where to go.",
+      "A driver out of town, our feet in it.",
+      "The same driver the whole trip if we can.",
+      "Half days, not full days.",
+      "A guide who will change the plan when we ask."
+    ]
+  },
+  "food": {
+    "line": [
+      "Forty-five minutes is worth the wait.",
+      "The hard reservation before the flights.",
+      "One splurge meal a trip: a tasting menu, then the rest simple.",
+      "Put us on the waitlist and we will walk the block.",
+      "We will eat at five or at nine to get in.",
+      "Book it the day the calendar opens."
+    ],
+    "quiet": [
+      "Nobody in the way, and the kids can relax.",
+      "Seated in five minutes or we walk.",
+      "A table outside, always.",
+      "Somewhere we can walk to from the room.",
+      "A menu we can read before we sit down.",
+      "We would rather eat early than wait."
+    ],
+    "market": [
+      "Lunch should never cost an hour.",
+      "A market on the first morning.",
+      "We eat where the locals stand.",
+      "Cash on us, because the good stalls will not take a card.",
+      "One proper sit-down meal a day is plenty.",
+      "We will eat whatever is being made that day."
+    ],
+    "cook": [
+      "A kitchen is a requirement, not a bonus.",
+      "One grocery run on the day we arrive.",
+      "Breakfast at home, every morning.",
+      "A market within walking distance of the kitchen.",
+      "We eat out at lunch and cook at night.",
+      "Bring the coffee, or find it the first morning."
+    ],
+    "familiar": [
+      "One safe thing on every menu.",
+      "Fed before seven or the evening is gone.",
+      "We split up rather than fight about dinner.",
+      "Somewhere we do not have to be quiet.",
+      "Bread on the table quickly.",
+      "The kids will order off the adult menu."
+    ]
+  },
+  "crowds": {
+    "with": [
+      "A guide who skips the line beats the cheaper ticket.",
+      "A timed ticket, booked six months out.",
+      "The crowd is half the reason we came.",
+      "Buy the upgrade that gets us in sooner.",
+      "One famous thing a day, and nothing else booked around it.",
+      "We will wait in the rain."
+    ],
+    "without": [
+      "The first entry of the day.",
+      "An empty room is the room.",
+      "An off-peak day over an off-peak hour.",
+      "Up at six if it means having it to ourselves.",
+      "The second-most-famous thing, on purpose.",
+      "Shoulder season over summer, every time."
+    ]
+  },
+  "money": {
+    "room": [],
+    "meals": [],
+    "experiences": [],
+    "flights": []
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "pace": {
+    "label": "How full a day should be",
+    "options": {
+      "packed": "Pack it in",
+      "one_thing": "One thing a day, tops"
+    }
+  },
+  "day_shape": {
+    "label": "When the day starts and ends",
+    "options": {}
+  },
+  "doing_or_seeing": {
+    "label": "Doing something, or looking at something",
+    "options": {
+      "doing": "In the middle of it",
+      "seeing": "Taking it in"
+    }
+  },
+  "staying": {
+    "label": "Where you sleep",
+    "options": {
+      "hotel": "Somebody else makes the bed",
+      "small_inn": "Ten rooms and a cooked breakfast",
+      "rental": "Somewhere with a kitchen",
+      "resort": "Never leave the property"
+    }
+  },
+  "getting_around": {
+    "label": "How you get around",
+    "options": {
+      "car": "We are",
+      "transit": "The train is",
+      "walk": "Nobody, we walk",
+      "driver": "Somebody else is"
+    }
+  },
+  "food": {
+    "label": "What you will actually eat",
+    "options": {
+      "line": "The place with the line",
+      "quiet": "The place with the empty table",
+      "market": "A paper plate, standing up",
+      "cook": "Cooking in",
+      "familiar": "Somewhere the kids will actually eat"
+    }
+  },
+  "crowds": {
+    "label": "Crowds, lines and noise",
+    "options": {
+      "with": "Get in it",
+      "without": "Beat it"
+    }
+  },
+  "money": {
+    "label": "Where money is worth spending",
+    "options": {
+      "room": "The room",
+      "meals": "The meals",
+      "experiences": "The experiences",
+      "flights": "The flight"
+    }
+  },
+  "limits": {
+    "label": "Anything anybody can't do",
+    "options": {}
+  },
+  "animals": {
+    "label": "Whether the animals travel",
+    "options": {}
+  },
+  "moments": {
+    "label": "Favorite moments",
+    "options": {}
+  }
+}
