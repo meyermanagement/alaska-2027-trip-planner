@@ -25,9 +25,10 @@ import { formatMoney } from "@/lib/rewards";
 import { formatDay } from "@/lib/format";
 import { monthsSaid } from "@/lib/someday/months";
 import { groupFareAlerts } from "@/lib/deals/groups";
+import { farePriceLabel, awardOptionLabel } from "@/lib/deals/award";
 
 function fareLine(deal) {
-  const bits = [`${money(deal.price)} each`];
+  const bits = [farePriceLabel(deal)];
   if (deal.cabin && deal.cabin !== "economy") bits.push(deal.cabin);
   if (deal.airline) bits.push(deal.airline);
   if (deal.travel_start || deal.travel_end)
@@ -127,6 +128,25 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
           ) : null}
         </div>
         {!compact ? <p className="mt-0.5 text-sm text-ink-soft">{fareLine(deal)}</p> : null}
+        {deal.award_pricing?.options?.length ? (
+          <div className="mt-2 space-y-2 text-sm text-ink-soft">
+            {deal.award_pricing.options.map((option, index) => (
+              <div key={`${option.program}-${index}`}>
+                {deal.award_pricing.options.length > 1 ? <p>{awardOptionLabel(option)} per person</p> : null}
+                {option.round_trip_cash !== null ? (
+                  <p>Round-trip taxes &amp; fees: {money(option.round_trip_cash)} per person. Return miles must be checked separately.</p>
+                ) : null}
+                <details className="mt-1">
+                  <summary className="cursor-pointer py-2 text-xs text-teal">Pricing in the email</summary>
+                  <blockquote className="mt-1 whitespace-pre-line border-l-2 border-[var(--line)] pl-3 text-xs">
+                    {option.route_text ? <p>{option.route_text}</p> : null}
+                    <p className="mt-1">{option.pricing_text}</p>
+                  </blockquote>
+                </details>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {v.facts?.length ? (
           <ul className="mt-2 space-y-1 text-sm text-ink">
@@ -286,6 +306,7 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
                     <span className="ml-2 text-sm text-ink-soft">
                       {group.destinationCount} {group.destinationCount === 1 ? "destination" : "destinations"}
                       {group.lowestPrice !== null ? <span className="inline-block"> · from {money(group.lowestPrice)} each</span> : ""}
+                      {group.awardCount ? <span> · {group.deals.length === 1 ? farePriceLabel(group.deals[0]) : `${group.awardCount} award ${group.awardCount === 1 ? "fare" : "fares"}`}</span> : null}
                     </span>
                     <span className="mt-1 block pl-4 text-xs text-ink-faint">
                       {group.sourceName}
@@ -307,7 +328,7 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
           <ul className="mt-2 space-y-1 text-sm text-ink-soft">
             {taken.map((deal) => (
               <li key={deal.id}>
-                {deal.origin} to {deal.destination}, {money(deal.price)} each
+                {deal.origin} to {deal.destination}, {farePriceLabel(deal)}
                 {deal.verdict?.trip ? ` on ${deal.verdict.trip.name}` : ""}.
               </li>
             ))}
@@ -321,7 +342,7 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
           <ul className="mt-2 space-y-1 text-sm text-ink-soft">
             {ran.map((deal) => (
               <li key={deal.id}>
-                {deal.origin} to {deal.destination}, {money(deal.price)} each
+                {deal.origin} to {deal.destination}, {farePriceLabel(deal)}
                 {deal.book_by
                   ? ` — the book-by date was ${formatDay(deal.book_by) || deal.book_by}`
                   : ""}
@@ -347,8 +368,7 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
-                    {deal.origin} to {deal.destination}, {money(deal.price)}{" "}
-                    each
+                    {deal.origin} to {deal.destination}, {farePriceLabel(deal)}
                   </p>
                   {deal.dismissed_reason ? (
                     <p className="mt-0.5 text-sm text-ink-soft">

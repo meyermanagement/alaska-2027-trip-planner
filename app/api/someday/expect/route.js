@@ -58,6 +58,7 @@ function faresFor(deals, place, region) {
       origin: deal.origin,
       destination: deal.destination,
       price: deal.price,
+      award_pricing: deal.award_pricing,
       airline: deal.airline,
       source_name: deal.source_name,
       seen: String(deal.created_at || "").slice(0, 10),
@@ -130,7 +131,7 @@ export async function POST(request) {
       .order("is_primary", { ascending: false }),
     supabase
       .from("flight_deals")
-      .select("origin, destination, destination_code, price, airline")
+      .select("origin, destination, destination_code, price, award_pricing, airline")
       .eq("family_id", familyId)
       .order("created_at", { ascending: false }),
   ]);
