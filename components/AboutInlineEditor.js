@@ -36,16 +36,20 @@ export default function AboutInlineEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedAt, setSavedAt] = useState(0);
+  const [savedParagraph, setSavedParagraph] = useState(() =>
+    aboutMeFromParts(splitAboutMe(saved)),
+  );
 
   // If the parent hands us a new person (whose changes), reset the boxes.
   useEffect(() => {
     setParts(splitAboutMe(String(initial || "").trim()));
     setError("");
     setSavedAt(0);
+    setSavedParagraph(aboutMeFromParts(splitAboutMe(initial)));
   }, [travelerId, initial]);
 
   const paragraph = aboutMeFromParts(parts);
-  const dirty = paragraph !== saved;
+  const dirty = paragraph !== savedParagraph;
 
   async function save() {
     setBusy(true);
@@ -69,12 +73,13 @@ export default function AboutInlineEditor({
     if (!response.ok) {
       setError(
         response.status === 403
-          ? "That did not save. Ask a primary traveler in the family to write this one."
+          ? "Your answers weren't saved. Ask a primary traveler to check your access to this profile."
           : payload?.error || "That did not save. Try again in a moment.",
       );
       return;
     }
     setSavedAt(Date.now());
+    setSavedParagraph(paragraph);
   }
 
   const name = String(travelerName || "this person").trim() || "this person";
@@ -82,8 +87,8 @@ export default function AboutInlineEditor({
   return (
     <div className="space-y-3">
       <p className="text-xs text-ink-soft">
-        The same five questions {name} would be asked on their own About you
-        screen. Aly reads the answers before every answer she writes.
+        Answer for {name}, using their own words where possible. Every question
+        is optional. Aly uses these details to personalize suggestions.
       </p>
       <AboutSections
         parts={parts}

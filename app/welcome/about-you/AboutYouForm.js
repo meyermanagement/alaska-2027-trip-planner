@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { ABOUT_ME_PLACEHOLDER } from "@/lib/travelers/profile";
+import { aboutMeFromParts, splitAboutMe } from "@/lib/travelers/profile";
+import AboutSections from "@/components/AboutSections";
 
 // The About me step of the first-login walkthrough. Two verbs:
 //
@@ -15,23 +16,11 @@ import { ABOUT_ME_PLACEHOLDER } from "@/lib/travelers/profile";
 //   here; that only happens at the end of the moments step, so somebody who
 //   drops off About me can still be routed back if they sign in again.
 
-export default function AboutYouForm({ initialAbout, travelerName }) {
+export default function AboutYouForm({ initialAbout }) {
   const router = useRouter();
-  const [aboutMe, setAboutMe] = useState(initialAbout || "");
+  const [parts, setParts] = useState(() => splitAboutMe(initialAbout));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  // Same auto-grow trick as the People form and the moments editor. A four-
-  // row scroll box is exactly the wrong shape when the point is to read the
-  // whole paragraph back.
-  const textareaRef = useRef(null);
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const border = el.offsetHeight - el.clientHeight;
-    el.style.height = `${el.scrollHeight + border}px`;
-  }, [aboutMe]);
 
   async function saveAndContinue(e) {
     e.preventDefault();
@@ -41,7 +30,7 @@ export default function AboutYouForm({ initialAbout, travelerName }) {
       const res = await fetch("/api/welcome", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ about_me: aboutMe }),
+        body: JSON.stringify({ about_me: aboutMeFromParts(parts) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -62,30 +51,18 @@ export default function AboutYouForm({ initialAbout, travelerName }) {
 
   return (
     <form onSubmit={saveAndContinue} className="space-y-3">
-      {initialAbout ? (
+      {initialAbout && (
         <p className="rounded-lg border border-sand-deep bg-sand-soft/60 px-3 py-2 text-xs text-ink-soft">
-          Below is what the family owner wrote about {travelerName}. I erase
-          nothing if you leave it -- add a line, rewrite a sentence, or move on
-          as you like.
-        </p>
-      ) : (
-        <p className="rounded-lg border border-sand-deep bg-sand-soft/60 px-3 py-2 text-xs text-ink-soft">
-          Nobody has written About {travelerName} yet. This is the place to say
-          who you are as a traveler -- I read it before every answer.
+          These details are already in your profile. Keep them, edit them, or
+          add your own words. Skipping leaves your saved answers unchanged.
         </p>
       )}
 
-      <label className="block text-xs font-semibold">
-        About me
-        <textarea
-          ref={textareaRef}
-          className="field mt-1 min-h-32 overflow-hidden text-base"
-          rows={6}
-          value={aboutMe}
-          onChange={(e) => setAboutMe(e.target.value)}
-          placeholder={ABOUT_ME_PLACEHOLDER}
-        />
-      </label>
+      <AboutSections
+        parts={parts}
+        setParts={setParts}
+        idPrefix="welcome-about"
+      />
 
       {error && <p className="text-xs text-terra-deep">{error}</p>}
 

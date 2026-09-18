@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import {
+  aboutChipSentence,
+  hasAboutChip,
+  toggleAboutChip,
+} from "@/lib/travelers/aboutChips";
 import {
   ABOUT_ME_CHIP_GROUPS,
   ABOUT_ME_MICRO_PROMPTS,
@@ -58,92 +63,16 @@ export default function AboutSections({
 }) {
   const [openGroup, setOpenGroup] = useState(null);
 
-  // Chip feedback -- when a chip is tapped, its key goes into justAdded so the
-  // chip renders as "added" for a moment, and the target prompt key goes into
-  // flashedPrompt so the box the sentence landed in gets a teal ring and the
-  // "Just added" strapline for the same window. Both clear on a timer, and
-  // re-tapping a chip resets the timer so somebody tapping fast still sees the
-  // confirmation.
-  const [justAdded, setJustAdded] = useState({});
-  const [flashedPrompt, setFlashedPrompt] = useState(null);
-  const chipTimersRef = useRef(new Map());
-  const flashTimerRef = useRef(null);
-  const promptRefs = useRef({});
-
-  // Clean up any pending timers on unmount so closing the drawer mid-flash does
-  // not leave setState calls firing against an unmounted component.
-  useEffect(() => {
-    const chipTimers = chipTimersRef.current;
-    const flashTimer = flashTimerRef;
-    return () => {
-      chipTimers.forEach((id) => clearTimeout(id));
-      chipTimers.clear();
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-    };
-  }, []);
-
-  // Append a sentence to the target prompt box, scroll it into view, flash the
-  // box, and mark the chip as added. Everything the user needs to notice
-  // happens on this one call.
-  const appendToPrompt = useCallback(
-    (targetKey, sentence, chipId) => {
-      const clean = String(sentence || "").trim();
-      if (!clean) return;
-
-      setParts((prev) => {
-        const existing = String(prev[targetKey] || "").replace(/\s+$/, "");
-        const next = existing ? `${existing} ${clean}` : clean;
-        return { ...prev, [targetKey]: next };
-      });
-
-      // On the next tick, after React writes the new value: bring the box into
-      // view and put the caret at the end so somebody who is skimming can see
-      // exactly what landed.
-      setTimeout(() => {
-        const el = promptRefs.current[targetKey];
-        if (!el) return;
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        // Move the caret to the end without stealing focus from the chip
-        // button -- taking focus on mobile pops the keyboard, which hides the
-        // very box we are trying to point at.
-        const end = el.value.length;
-        try {
-          el.setSelectionRange(end, end);
-        } catch {
-          // Some browsers throw on setSelectionRange for a textarea that has
-          // not been focused yet. Not a real error, ignore.
-        }
-      }, 0);
-
-      setFlashedPrompt(targetKey);
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      flashTimerRef.current = setTimeout(() => {
-        setFlashedPrompt((current) => (current === targetKey ? null : current));
-        flashTimerRef.current = null;
-      }, 1600);
-
-      if (chipId) {
-        const existing = chipTimersRef.current.get(chipId);
-        if (existing) clearTimeout(existing);
-        const id = setTimeout(() => {
-          setJustAdded((prev) => {
-            if (!(chipId in prev)) return prev;
-            const next = { ...prev };
-            delete next[chipId];
-            return next;
-          });
-          chipTimersRef.current.delete(chipId);
-        }, 1600);
-        chipTimersRef.current.set(chipId, id);
-        setJustAdded((prev) => ({ ...prev, [chipId]: true }));
-      }
-    },
-    [setParts],
-  );
+  const [feedback, setFeedback] = useState("");
 
   function addChip(group, item) {
-    const chipId = `${group.key}:${item}`;
-    appendToPrompt(group.target, `${group.prefix} ${item}.`, chipId);
+    const sentence = aboutChipSentence(group, item);
+    const removing = hasAboutChip(parts[group.target], sentence);
+    setParts((prev) => ({
+      ...prev,
+      [group.target]: toggleAboutChip(prev[group.target], sentence),
+    }));
+    setFeedback(`${removing ? "Removed" : "Added"}: ${sentence}`);
   }
 
   // Fill the sports chip group with local teams first, general sports after.
@@ -163,9 +92,16 @@ export default function AboutSections({
 
   return (
     <div className={`space-y-4 ${className}`.trim()}>
+      <p className="text-xs text-ink-soft">
+        Write your own answer or use the suggestions. Select a pill to add or
+        remove a sentence, then edit it if needed. Share only what you&apos;re
+        comfortable sharing.
+      </p>
+      <span className="sr-only" role="status">
+        {feedback}
+      </span>
       {ABOUT_ME_MICRO_PROMPTS.map((p, idx) => {
         const groups = chipsFor(p.key);
-        const isFlashed = flashedPrompt === p.key;
         return (
           <section
             key={p.key}
@@ -192,28 +128,13 @@ export default function AboutSections({
                   htmlFor={`${idPrefix}-${p.key}`}
                   className="mt-0.5 block font-display text-lg font-semibold leading-snug text-ink"
                 >
-                  {p.label}
+                  {p.question}
                 </label>
               </div>
-              {isFlashed && (
-                <span
-                  aria-live="polite"
-                  className="shrink-0 pt-1 text-xs font-semibold text-teal"
-                >
-                  Just added
-                </span>
-              )}
             </div>
             <textarea
               id={`${idPrefix}-${p.key}`}
-              ref={(el) => {
-                promptRefs.current[p.key] = el;
-              }}
-              className={`field text-base leading-relaxed transition-colors ${
-                isFlashed
-                  ? "border-teal ring-2 ring-teal/30 bg-teal-soft/25"
-                  : ""
-              }`}
+              className="field text-base leading-relaxed"
               rows={4}
               placeholder={p.placeholder}
               value={parts[p.key]}
@@ -235,14 +156,11 @@ export default function AboutSections({
                         type="button"
                         onClick={() => setOpenGroup(isOpen ? null : group.key)}
                         aria-expanded={isOpen}
-                        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs font-semibold text-ink"
+                        aria-label={`${isOpen ? "Hide" : "Show"} ${group.label} suggestions`}
+                        aria-controls={`${idPrefix}-suggestions-${group.key}`}
+                        className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-semibold text-ink"
                       >
-                        <span>
-                          {group.label}{" "}
-                          <span className="font-normal text-ink-soft">
-                            — tap to add
-                          </span>
-                        </span>
+                        <span>{group.label}</span>
                         <span
                           aria-hidden="true"
                           className="text-ink-soft transition-transform"
@@ -256,28 +174,34 @@ export default function AboutSections({
                         </span>
                       </button>
                       {isOpen && (
-                        <div className="border-t border-sand-deep px-3 py-2.5">
+                        <div
+                          id={`${idPrefix}-suggestions-${group.key}`}
+                          className="border-t border-sand-deep px-3 py-2.5"
+                        >
                           <ul className="flex flex-wrap gap-1.5">
                             {group.items.map((item) => {
-                              const chipId = `${group.key}:${item}`;
-                              const added = !!justAdded[chipId];
+                              const added = hasAboutChip(
+                                parts[group.target],
+                                aboutChipSentence(group, item),
+                              );
                               return (
                                 <li key={item}>
                                   <button
                                     type="button"
                                     onClick={() => addChip(group, item)}
+                                    aria-pressed={added}
                                     aria-label={
                                       added
-                                        ? `${item} added to ${p.label}`
-                                        : `Add ${item} to ${p.label}`
+                                        ? `Remove: ${aboutChipSentence(group, item)}`
+                                        : `Add: ${aboutChipSentence(group, item)}`
                                     }
-                                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                    className={`min-h-11 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
                                       added
                                         ? "border-teal bg-teal text-on-accent"
                                         : "border-teal/40 bg-white text-ink hover:border-teal hover:bg-teal-soft/40"
                                     }`}
                                   >
-                                    {added ? `✓ ${item} added` : `+ ${item}`}
+                                    {added ? `✓ ${item}` : `+ ${item}`}
                                   </button>
                                 </li>
                               );

@@ -1843,9 +1843,8 @@ function PersonForm({ person, onCancel, onSave, homeLat, homeLon }) {
       <div className="space-y-2 border-t border-teal/30 pt-3">
         <p className="section-label">In their own words</p>
         <p className="text-xs text-ink-soft">
-          The same five questions {form.name.trim() || "this person"} would be
-          asked on their own About you screen. Answer any of them and skip the
-          rest.
+          Answer for {form.name.trim() || "this person"}, using their own words
+          where possible. Every question is optional.
         </p>
         <AboutSections
           parts={aboutParts}

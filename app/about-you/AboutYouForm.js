@@ -77,7 +77,9 @@ export default function AboutYouForm({
   const [parts, setParts] = useState(() => splitAboutMe(initial));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
+  const [savedParagraph, setSavedParagraph] = useState(null);
+  const paragraph = aboutMeFromParts(parts);
+  const done = savedParagraph !== null && paragraph === savedParagraph;
 
   // Whose name the heading greets. Real visits greet the signed-in traveler.
   // A practice visit greets the first person from the practice run, because
@@ -108,14 +110,12 @@ export default function AboutYouForm({
     setBusy(true);
     setError("");
 
-    const paragraph = aboutMeFromParts(parts);
-
     if (practice) {
       setBusy(false);
       // Keep the paragraph in the practice run so the proof screen later in
       // the chain can weigh it, the way a real paragraph would be weighed.
       patchRun({ aboutMe: paragraph || "" });
-      setDone(true);
+      setSavedParagraph(paragraph);
       return;
     }
 
@@ -154,15 +154,15 @@ export default function AboutYouForm({
       if (response.status === 403) {
         setError(
           secondary
-            ? "That did not save. This paragraph is yours to change, so if it keeps refusing, tell a primary traveler in the family — something is wrong at our end, not yours."
-            : "That did not save. Ask a primary traveler in the family to write this one for you.",
+            ? "Your answers weren't saved. You should be able to edit your own About you. Try again, or ask a primary traveler to check your access."
+            : "Your answers weren't saved. You may not have permission to edit this profile. Ask a primary traveler to check your access.",
         );
         return;
       }
       setError(payload?.error || "That did not save. Try again in a moment.");
       return;
     }
-    setDone(true);
+    setSavedParagraph(paragraph);
     if (first) router.replace(nextHref);
     else router.refresh();
   }
@@ -186,12 +186,12 @@ export default function AboutYouForm({
               ? `Now tell me about you, ${heading}.`
               : "Now tell me about you."
           }
-          lead="Five short questions about you, not about a trip. Skip any that do not come easily."
+          lead="Help Aly understand your interests and preferences. A few words are enough, and every question is optional."
         />
       ) : (
         <PageHeader
           title="About you"
-          subtitle="Five short questions about you, not about a trip. Skip any that do not come easily."
+          subtitle="Help Aly understand your interests and preferences. A few words are enough, and every question is optional."
           className="mb-0"
         />
       )}
@@ -225,7 +225,7 @@ export default function AboutYouForm({
       {error && <p className="mt-4 text-sm font-semibold text-rose">{error}</p>}
       {done && !first && !practice && (
         <p className="mt-4 text-sm font-semibold text-teal">
-          Saved. I will use this from my next answer on.
+          Saved. Aly can use these details to personalize suggestions.
         </p>
       )}
       {done && practice && (
@@ -257,7 +257,9 @@ export default function AboutYouForm({
           type="button"
           className="btn btn-primary"
           onClick={save}
-          disabled={busy || !hasAnyText}
+          disabled={
+            busy || (!hasAnyText && !initial.trim() && savedParagraph === null)
+          }
         >
           {busy
             ? "Saving…"

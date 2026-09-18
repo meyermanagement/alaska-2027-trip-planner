@@ -60,13 +60,10 @@ export default async function WelcomeAboutYouPage() {
       <AlyIntro
         eyebrow="About you"
         headline={`First, tell me about you, ${me.name}.`}
-        lead="Whoever set up the family wrote the paragraph below about you. Keep it, add to it, or say it in your own words."
+        lead="Help Aly understand your interests and preferences. A few words are enough, and every question is optional."
       />
       <div className="mt-6">
-        <AboutYouForm
-          initialAbout={me.about_me || ""}
-          travelerName={me.name || "you"}
-        />
+        <AboutYouForm initialAbout={me.about_me || ""} />
       </div>
     </main>
   );
