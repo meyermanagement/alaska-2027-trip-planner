@@ -72,11 +72,22 @@ export async function GET(request) {
   // there is no destination, keeping the common path at the same cost it was.
   let fallback = null;
   if (!near && !anywhere) {
-    const { data: family } = await supabase
-      .from("families")
-      .select("home_lat, home_lon")
-      .not("home_lat", "is", null)
-      .limit(1);
+    // Scoped to the visitor's own households rather than the first row that has
+    // coordinates: somebody who belongs to two would otherwise get whichever home
+    // came back first as the anchor for their search.
+    const { data: mine } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id);
+    const familyIds = (mine || []).map((m) => m.family_id).filter(Boolean);
+    const { data: family } = familyIds.length
+      ? await supabase
+          .from("families")
+          .select("home_lat, home_lon")
+          .in("id", familyIds)
+          .not("home_lat", "is", null)
+          .limit(1)
+      : { data: null };
     fallback = homeAnchor(family?.[0]) || ipAnchor(request.headers);
   }
 

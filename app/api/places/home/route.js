@@ -21,9 +21,20 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  // The visitor's own households, named. RLS already keeps this to households they
+  // belong to, but "the first row with an address in it" is the wrong question for
+  // somebody who belongs to two: it can answer with the other household's home.
+  const { data: mine } = await supabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", user.id);
+  const familyIds = (mine || []).map((m) => m.family_id).filter(Boolean);
+  if (!familyIds.length) return NextResponse.json({ home: homeRow(null) });
+
   const { data } = await supabase
     .from("families")
     .select("home_address, home_lat, home_lon, home_precise")
+    .in("id", familyIds)
     .not("home_address", "is", null)
     .limit(1);
   return NextResponse.json({ home: homeRow(data?.[0]) });
