@@ -21,6 +21,7 @@ function setup({ user = { id: "me" }, secondary = false, trip = null, place = nu
         select() { return q; }, order() { return q; }, maybeSingle() { call.single = true; return q; },
         eq(key, value) { call.filters.push([key, value]); return q; },
         in(key, value) { call.filters.push([key, value]); return q; },
+        or(value) { call.filters.push(["or", value]); return q; },
         update(value) { call.action = "update"; call.value = value; return q; },
         upsert(value) { call.action = "upsert"; call.value = value; return q; },
         then(resolve, reject) {
@@ -112,4 +113,32 @@ test("a past stated deadline cannot be restored, while estimates can", async () 
   assert.equal(calls.some((call) => call.action === "update"), false);
   setup({ fare: { book_by: "2000-01-01", book_by_inferred: true } });
   assert.equal((await save({ status: "open" })).status, 200);
+});
+
+test("group restore is atomic, household-scoped, declined-only and deadline guarded", async () => {
+  const calls = setup();
+  const response = await group.POST(req({ ids: ["fare", "fare", "another"], action: "restore" }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { restored: 1, skipped: 1 });
+  const writes = calls.filter((c) => c.action === "update");
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0].value, { status: "open", dismissed_reason: null, trip_id: null, someday_id: null, updated_by: "me" });
+  assert.ok(writes[0].filters.some(([k, v]) => k === "family_id" && v === "family"));
+  assert.ok(writes[0].filters.some(([k, v]) => k === "status" && v === "dismissed"));
+  assert.deepEqual(writes[0].filters.find(([k]) => k === "id")[1], ["fare", "another"]);
+  assert.match(writes[0].filters.find(([k]) => k === "or")[1], /^book_by\.is\.null,book_by\.gte\.\d{4}-\d{2}-\d{2},book_by_inferred\.eq\.true$/);
+});
+
+test("group actions reject malformed requests and unauthorized restore", async () => {
+  for (const body of [{ ids: ["fare"], action: "erase" }, { ids: [] }, { ids: [3] },
+    { ids: Array.from({ length: 201 }, (_, i) => `${i}`) }]) {
+    const calls = setup();
+    assert.equal((await group.POST(req(body))).status, 400);
+    assert.equal(calls.some((c) => c.action === "update"), false);
+  }
+  for (const state of [{ user: null }, { secondary: true }]) {
+    const calls = setup(state);
+    assert.equal((await group.POST(req({ ids: ["fare"], action: "restore" }))).status, state.user === null ? 401 : 403);
+    assert.equal(calls.some((c) => c.action === "update"), false);
+  }
 });

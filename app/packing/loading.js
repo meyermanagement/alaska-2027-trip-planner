@@ -7,7 +7,7 @@ import PageSkeleton, { Bar, PillRow } from "@/components/PageSkeleton";
  * pending and the page underneath sat there looking finished until the whole
  * thing swapped at once. The shapes below stand in for the real furniture: the
  * packing templates to choose between, the name of the one you are on, the row of
- * people to filter by, and two of the per-person sections with their tinted
+ * people to filter by, and two category sections with their tinted
  * heading.
  */
 function SectionBlock({ rows = 4 }) {

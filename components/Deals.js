@@ -30,7 +30,7 @@ import { awardOptionLabel } from "@/lib/deals/award";
 import { fareOfferLabel, fareGroupCabinLabel } from "@/lib/deals/cabin";
 import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
 import { tripPath } from "@/lib/trips/route";
-import { fareDeadlinePassed, fareHasExpired, fareForToday, fareMatchesTrip } from "@/lib/deals/deadline";
+import { fareDeadlinePassed, fareHasExpired, fareForToday, fareListsForToday, fareMatchesTrip } from "@/lib/deals/deadline";
 import ConfirmSheet from "./ConfirmSheet";
 
 function fareLine(deal) {
@@ -75,13 +75,10 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
       document.removeEventListener("visibilitychange", checkDay);
     };
   }, [today, router]);
-  const current = deals.map((deal) => fareForToday(deal, today));
   const mine = tripId
-    ? current.filter((deal) => fareMatchesTrip(deal, tripId))
-    : current;
-  const open = mine.filter((deal) => deal.status === "open");
-  const refused = mine.filter((deal) => deal.status === "dismissed");
-  const taken = mine.filter((deal) => deal.status === "taken");
+    ? deals.filter((deal) => fareMatchesTrip(fareForToday(deal, today), tripId))
+    : deals;
+  const { open, refused, expired, taken } = fareListsForToday(mine, today);
   const deadlineBadge = (deal) => fareDeadlinePassed(deal, today) ? (
     <span className="chip mt-1 max-w-full text-left text-rose" style={{ whiteSpace: "normal" }}
       title={`Book by ${formatDay(deal.book_by)}`}>
@@ -90,6 +87,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   ) : null;
 
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [acting, setActing] = useState(null);
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(null);
@@ -119,6 +117,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
 
   function askDismiss(selection) {
     setError("");
+    setNotice("");
     setReason("");
     setConfirm({ kind: "dismiss", ...selection });
   }
@@ -143,6 +142,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
     if (writeLock.current) return;
     writeLock.current = true;
     setError("");
+    setNotice("");
     setActing(deal.id);
     try {
       const res = await fetch(`/api/deals/${deal.id}`, {
@@ -166,25 +166,73 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
     kind: "attach", deal, name: trip.name,
     patch: { status: "taken", trip_id: trip.id },
   });
-  const clearGroup = async (group) => {
+  const clearGroup = async (group, action = "dismiss") => {
     if (writeLock.current) return;
+    const failure = `The group did not ${action === "restore" ? "restore" : "clear"}. Try again.`;
     writeLock.current = true;
     setActing(group.key);
     setError("");
+    setNotice("");
     try {
       const res = await fetch("/api/deals/group", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: group.deals.map((deal) => deal.id), reason: reason.trim() }),
+        body: JSON.stringify({ ids: group.deals.map((deal) => deal.id), reason: reason.trim(), action }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "The group did not clear. Try again.");
+      if (!res.ok) throw new Error(result.error || failure);
+      if (action === "restore") {
+        setNotice(`${result.restored} ${result.restored === 1 ? "fare" : "fares"} moved to active fares.${result.skipped ? ` ${result.skipped} left unchanged because they expired or changed since this list loaded.` : ""}`);
+      }
       finish();
     } catch (err) {
-      setError(err.message || "The group did not clear. Try again.");
+      setError(err.message || failure);
       setActing(null);
       writeLock.current = false;
     }
   };
+
+  const historyGroups = (rows, isExpired = false) => (
+    <ul className="mt-2 space-y-2">
+      {groupFareAlerts(rows).map((group) => (
+        <li key={group.key} className="rounded-xl border border-[var(--line)] bg-white/60">
+          <div className="flex flex-wrap items-start gap-x-3 px-3">
+            <details className="min-w-0 flex-1 basis-52">
+              <summary className="min-h-11 cursor-pointer py-3 text-sm marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
+                <span className="font-semibold">From {group.origin}</span>
+                <span className="ml-2 text-ink-soft">{group.deals.length} {group.deals.length === 1 ? "fare" : "fares"}</span>
+                <span className="mt-1 block pl-4 text-xs text-ink-faint">
+                  {group.sourceName}{group.createdAt ? ` · received ${formatDay(group.createdAt.slice(0, 10))}` : ""}
+                </span>
+              </summary>
+              <ul className="space-y-2 pb-3">
+                {group.deals.map((deal) => (
+                  <li key={deal.id} className="border-t border-[var(--line)] pt-3">
+                    <p className="text-sm font-semibold">{deal.origin} to {deal.destination}, {fareOfferLabel(deal)}</p>
+                    {deadlineBadge(deal)}
+                    {isExpired && !fareDeadlinePassed(deal, today) ? <p className="mt-1 text-xs text-rose">Deadline passed</p> : null}
+                    {deal.dismissed_reason && deal.dismissed_reason !== "Deadline passed" ? (
+                      <p className="mt-0.5 text-sm text-ink-soft">{deal.dismissed_reason}</p>
+                    ) : null}
+                    {!isExpired ? <button type="button"
+                      className="min-h-11 text-left text-sm text-teal underline disabled:opacity-60"
+                      disabled={Boolean(acting)} onClick={() => decide(deal, { status: "open" })}>
+                      {acting === deal.id ? "Moving…" : "Move to active fares"}
+                    </button> : null}
+                  </li>
+                ))}
+              </ul>
+            </details>
+            {!isExpired ? <button type="button"
+              className="btn btn-ghost my-2 min-h-11 text-xs disabled:opacity-60"
+              aria-label={`Restore group from ${group.origin}, ${group.sourceName}, ${group.deals.length} fares`}
+              disabled={Boolean(acting)} onClick={() => clearGroup(group, "restore")}>
+              {acting === group.key ? (refreshing ? "Updating list…" : "Restoring…") : "Restore group"}
+            </button> : null}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
 
   const card = (deal, compact = false) => {
     const v = deal.verdict || { facts: [] };
@@ -342,7 +390,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   // Nothing on file, so there is nothing to say. The screen that holds this panel
   // explains how fares get here; a panel that announced its own emptiness would
   // be saying it twice.
-  if (!open.length && !refused.length && !taken.length)
+  if (!open.length && !refused.length && !expired.length && !taken.length)
     return null;
 
   return (
@@ -417,6 +465,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
         </>
       ) : null}
       {error && !confirm ? <p role="alert" className="mt-2 text-sm text-rose">{error}</p> : null}
+      {notice ? <p role="status" className="mt-2 text-sm text-teal">{notice}</p> : null}
 
       {taken.length ? (
         <div className="mt-6" id="saved-fares">
@@ -451,40 +500,22 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
 
       {refused.length ? (
         <div className="mt-6">
-          <h3 className="section-label">Fares you turned down</h3>
+          <h3 className="section-label">Fares you turned down · {refused.length}</h3>
           <p className="mt-1 max-w-2xl text-sm text-ink-soft">
             Aly leaves these alone unless something has changed, and says what
             changed.
           </p>
-          <ul className="mt-2 space-y-2">
-            {refused.map((deal) => (
-              <li
-                key={deal.id}
-                className="rounded-xl border border-[var(--line)] bg-white/60 p-3 sm:flex sm:items-start sm:justify-between sm:gap-4"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink">
-                    {deal.origin} to {deal.destination}, {fareOfferLabel(deal)}
-                  </p>
-                  {deadlineBadge(deal)}
-                  {deal.dismissed_reason && (deal.dismissed_reason !== "Deadline passed" || !fareDeadlinePassed(deal, today)) ? (
-                    <p className="mt-0.5 text-sm text-ink-soft">
-                      {deal.dismissed_reason}
-                    </p>
-                  ) : null}
-                </div>
-                {!fareHasExpired(deal, today) && <button
-                  type="button"
-                  className="btn btn-ghost mt-2 w-full shrink-0 px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-60 sm:mt-0 sm:w-auto"
-                  disabled={Boolean(acting)}
-                  onClick={() => decide(deal, { status: "open" })}
-                >
-                  {acting === deal.id ? "Moving…" : "Move to active fares"}
-                </button>}
-              </li>
-            ))}
-          </ul>
+          {historyGroups(refused)}
         </div>
+      ) : null}
+      {expired.length ? (
+        <details className="mt-6" id="expired-fares">
+          <summary className="min-h-11 cursor-pointer rounded-xl border border-[var(--line)] p-3 text-sm marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
+            <span className="font-semibold">Expired fares</span>
+            <span className="ml-2 text-ink-soft">{expired.length}</span>
+          </summary>
+          {historyGroups(expired, true)}
+        </details>
       ) : null}
     </section>
   );

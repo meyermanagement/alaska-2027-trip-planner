@@ -3,7 +3,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, { alias: { "@": fileURLToPath(new URL("..", import.meta.url)) } });
-const { fareDeadlinePassed, fareHasExpired, fareForToday, fareMatchesTrip, retireFares } = jiti("../lib/deals/deadline.js");
+const { fareDeadlinePassed, fareHasExpired, fareForToday, fareListsForToday, fareMatchesTrip, retireFares } = jiti("../lib/deals/deadline.js");
 const { deadlinesInView } = jiti("../lib/watch/deadlines.js");
 const { judged } = jiti("../lib/deals/world.js");
 const today = "2026-09-19";
@@ -73,4 +73,30 @@ test("watch retirement is scoped and guards against a concurrent save or deadlin
   await retireFares(db, null, ["past"], today);
   await retireFares(db, "family", [], today);
   assert.equal(calls.length, 0);
+});
+
+test("history separates still-valid refusals from auto-expired, declined-expired and legacy fares", () => {
+  const rows = [
+    { ...expired, id: "active-expired" },
+    { ...expired, id: "declined-expired", status: "dismissed", dismissed_reason: "Wrong week" },
+    { id: "legacy", status: "expired" },
+    { id: "valid", status: "dismissed", book_by: today },
+    { id: "undated", status: "dismissed" },
+    { ...expired, id: "estimate", status: "dismissed", book_by_inferred: true },
+    { ...expired, id: "saved", status: "taken" },
+    { id: "open", status: "open" },
+  ];
+  const lists = fareListsForToday(rows, today);
+  assert.deepEqual(lists.expired.map(d => d.id), ["active-expired", "declined-expired", "legacy"]);
+  assert.deepEqual(lists.refused.map(d => d.id), ["valid", "undated", "estimate"]);
+  assert.deepEqual(lists.taken.map(d => d.id), ["saved"]);
+  assert.deepEqual(lists.open.map(d => d.id), ["open"]);
+  assert.equal(lists.expired[1].dismissed_reason, "Wrong week");
+  assert.equal(rows[0].status, "open");
+});
+
+test("a previously refused fare moves into expired history after the whole deadline day", () => {
+  const rows = [{ id: "refused", status: "dismissed", book_by: "2026-09-19" }];
+  assert.equal(fareListsForToday(rows, "2026-09-19").refused.length, 1);
+  assert.equal(fareListsForToday(rows, "2026-09-20").expired.length, 1);
 });

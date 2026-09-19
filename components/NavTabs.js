@@ -411,8 +411,10 @@ function onScreen(href, pathname, exact = false) {
 
 export default function NavTabs({
   attention = 0,
-  // How many trips are sitting in Drafts, read in TopBar with everything else.
+  // Quiet counts matching the three trip-board tabs, read together in TopBar.
   drafts = 0,
+  planned = 0,
+  logged = 0,
   level = null,
   askHref,
   showAsk = true,
@@ -909,7 +911,7 @@ export default function NavTabs({
             // The quiet numeral on the right of the row, in the same style the
             // group bands use for how many screens are behind them. Not the rose
             // dot: a draft is not late, it is simply unfinished.
-            tally: kid.draftCount && drafts > 0 ? drafts : 0,
+            tally: ({ drafts, upcoming: planned, past: logged })[kid.view] || 0,
             active:
               onScreen(kid.href, pathname, Boolean(kid.view)) &&
               (!kid.view || (view || "upcoming") === kid.view),

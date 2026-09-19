@@ -10,6 +10,7 @@ import NavTabs from "./NavTabs";
 import PassportWarning from "./PassportWarning";
 import { unreadFares } from "@/lib/deals/unread";
 import FareArrivalSync from "./FareArrivalSync";
+import { tripMenuCounts } from "@/lib/trips/menuCounts";
 
 // Pass nothing and the button opens the Ask Aly drawer on the current screen,
 // which is what every signed-in screen does. `askHref` is kept for any screen
@@ -70,12 +71,9 @@ export default async function TopBar({ askHref, showAsk = true }) {
   // no household until resolveAccess has said which one. It costs one lookup by
   // primary key for a family who has finished, and nothing at all for an invited
   // member: see lib/setup/state.js for why it is a latch.
-  // How many trips are still drafts, and the menu's Trip drafts row says so.
-  // Read after the access lookup rather than alongside it, because it is scoped
-  // to the household and there is no household until resolveAccess has named
-  // one -- somebody who belongs to two families would otherwise be told the
-  // count of both. A head count of ids: no rows come back, only the number.
-  const [setup, draftRows] = await Promise.all([
+  // Read the same classification fields used by the trip board, scoped to the
+  // selected household. All three menu totals use one date and one query.
+  const [setup, tripRows] = await Promise.all([
     loadSetupState(supabase, {
       familyId: access?.familyId,
       travelerId: access?.travelerId,
@@ -85,12 +83,11 @@ export default async function TopBar({ askHref, showAsk = true }) {
     access?.familyId && !secondary
       ? supabase
           .from("trips")
-          .select("id", { count: "exact", head: true })
+          .select("status, start_date, end_date")
           .eq("family_id", access.familyId)
-          .eq("status", "draft")
-      : Promise.resolve({ count: 0 }),
+      : Promise.resolve({ data: [] }),
   ]);
-  const draftCount = draftRows?.count || 0;
+  const tripCounts = tripMenuCounts(tripRows?.data || [], today);
   const warnings = secondary ? [] : notices.warnings;
   const urgent = notices.urgent;
 
@@ -147,7 +144,9 @@ export default async function TopBar({ askHref, showAsk = true }) {
       )}
       <NavTabs
         attention={attention}
-        drafts={draftCount}
+        drafts={tripCounts.drafts}
+        planned={tripCounts.planned}
+        logged={tripCounts.logged}
         level={access?.level}
         askHref={askHref}
         showAsk={showAsk}

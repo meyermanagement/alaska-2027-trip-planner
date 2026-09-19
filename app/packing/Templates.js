@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { assigneeColor } from "@/lib/format";
-import { matchesQuery } from "@/lib/packing/find";
+import { templateGroups } from "@/lib/packing/templateGroups";
 import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
 import TripsUsing from "@/components/TripsUsing";
 import FirstTemplate from "@/components/FirstTemplate";
@@ -27,14 +27,8 @@ const EMPTY_DRAFT = {
 };
 
 /**
- * The packing templates, arranged by who packs what rather than by
- * category. A trip's own list is grouped by category, because when you are
- * standing over an open suitcase you want all the toiletries together; here the
- * question being asked is a different one — "what does Veda always take?" — so
- * the person comes first and the category is a heading inside their list.
- *
- * Anyone with items but no longer on the travelers list still gets a section, so
- * a name nobody uses any more can be corrected instead of being invisible.
+ * Category-first like the trip packing list. Person chips remain filters and
+ * every line names its owner, including leftover names that need reassignment.
  */
 export default function Templates({
   travelers,
@@ -105,43 +99,17 @@ export default function Templates({
 
   const categories = useMemo(
     () =>
-      Array.from(new Set(mine.map((i) => i.category).filter(Boolean))).sort(
+      Array.from(new Set(mine.map((i) => i.category || "General"))).sort(
         (a, b) => a.localeCompare(b),
       ),
     [mine],
   );
 
-  // Person → category → items, in the order the people are listed rather than
-  // alphabetically, so the family reads the way it does everywhere else.
-  const sections = useMemo(() => {
-    const shown = who === "all" ? people : [who];
-    const looking = Boolean(find) || onlyCategory !== "all";
-    const built = shown.map((person) => {
-      const rows = mine.filter(
-        (i) =>
-          (i.assignee || SHARED) === person &&
-          (onlyCategory === "all" ||
-            (i.category || "General") === onlyCategory) &&
-          matchesQuery(find, i.item, i.category, i.assignee),
-      );
-      const byCategory = new Map();
-      rows.forEach((i) => {
-        const key = i.category || "General";
-        if (!byCategory.has(key)) byCategory.set(key, []);
-        byCategory.get(key).push(i);
-      });
-      return {
-        person,
-        looking,
-        count: rows.length,
-        stray: !known.includes(person) && person !== SHARED,
-        groups: Array.from(byCategory.entries()).sort((a, b) =>
-          a[0].localeCompare(b[0]),
-        ),
-      };
-    });
-    return looking ? built.filter((section) => section.count > 0) : built;
-  }, [mine, people, who, known, find, onlyCategory]);
+  const sections = useMemo(
+    () => templateGroups(mine, { who, category: onlyCategory, find }),
+    [mine, who, find, onlyCategory],
+  );
+  const addPerson = who === "all" ? SHARED : who;
 
   const nextSort = () =>
     mine.reduce((max, i) => Math.max(max, i.sort_order || 0), 0) + 1;
@@ -159,17 +127,11 @@ export default function Templates({
     return true;
   }
 
-  /**
-   * Which Add button is open. A person's, or one category inside that person's
-   * list -- the two have to be told apart, because a list can hold a category
-   * called the same thing as a person and pressing Add on Veda's Toiletries
-   * should not open the form under Veda's heading as well.
-   */
-  const addKey = (person, category) =>
-    category ? `${person}\u0000${category}` : person;
+  // Prefix category keys so a category can never collide with the global form.
+  const addKey = (category) => category ? `category:${category}` : "new";
 
   function startAdd(person, category = null) {
-    setAdding(addKey(person, category));
+    setAdding(addKey(category));
     setEditingId(null);
     setAddDraft({
       ...EMPTY_DRAFT,
@@ -339,26 +301,21 @@ export default function Templates({
   }
 
   /**
-   * The form for a new template line, opened on a person or on one of their
-   * categories. One function rather than one per place, so both agree about
-   * every question it asks.
+   * Add within a category or start a new one. The person filter supplies the
+   * default owner, which can always be changed without leaving this form.
    */
-  function addForm(person, category) {
+  function addForm(category) {
     return (
       <form
         onSubmit={submitAdd}
-        className={`no-print grid grid-cols-2 gap-2 border-b border-[var(--line)] bg-teal/5 px-4 py-3 ${
-          category
-            ? "sm:grid-cols-[2fr_5rem_auto_auto_auto]"
-            : "sm:grid-cols-[2fr_1fr_5rem_auto_auto]"
-        }`}
+        className="no-print grid grid-cols-2 gap-2 border-b border-[var(--line)] bg-teal/5 px-4 py-3 sm:grid-cols-3"
       >
         <input
           className="field col-span-2 sm:col-span-1"
           placeholder={
             category
               ? `Something else for ${category}`
-              : `What ${person} always takes`
+              : "Item to add"
           }
           value={addDraft.item}
           onChange={(e) => setAddDraft({ ...addDraft, item: e.target.value })}
@@ -377,6 +334,14 @@ export default function Templates({
             }
           />
         )}
+        <select
+          className="field"
+          aria-label="Who packs the new item"
+          value={addDraft.assignee}
+          onChange={(e) => setAddDraft({ ...addDraft, assignee: e.target.value })}
+        >
+          {people.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
         <input
           className="field"
           placeholder="Qty"
@@ -608,6 +573,9 @@ export default function Templates({
             </button>
           ))}
         </div>
+        <button type="button" className="btn btn-ghost mt-3" onClick={() => startAdd(addPerson)}>
+          Add item
+        </button>
       </div>
 
       {error && (
@@ -623,6 +591,23 @@ export default function Templates({
       </datalist>
 
       <div className="space-y-4">
+        {adding === addKey(null) && addForm(null)}
+        {!sections.length && !find && onlyCategory === "all" && (
+          <div className="card px-4 py-4 text-sm text-ink-soft">
+            <p>{who === "all" ? "No items on this template yet." : `Nothing on ${whosePhrase(who)} yet.`}</p>
+            {who !== "all" && people.some((p) => p !== who && countFor(p) > 0) && (
+              <div className="no-print mt-2 flex flex-wrap items-center gap-2">
+                <span className="text-xs">Start from someone else:</span>
+                {people.filter((p) => p !== who && countFor(p) > 0).map((p) => (
+                  <button key={p} onClick={() => copyFrom(who, p)} disabled={busy}
+                    className="chip border border-[var(--line)] bg-white text-ink-soft">
+                    Copy {countFor(p)} from {p}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {!sections.length && (find || onlyCategory !== "all") && (
           <div className="card px-4 py-6 text-center">
             <p className="text-sm font-semibold text-ink">
@@ -646,81 +631,24 @@ export default function Templates({
             </button>
           </div>
         )}
-        {sections.map((section) => (
-          <div key={section.person} className="card overflow-hidden">
+        {sections.map(([category, rows]) => (
+          <div key={category} className="card overflow-hidden">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--line)] bg-sand/60 px-4 py-2.5">
-              <span className={`chip ${assigneeColor(section.person)}`}>
-                {section.person}
-              </span>
+              <h3 className="font-display text-base font-semibold">{category}</h3>
               <span className="text-xs font-semibold text-ink-soft">
-                {section.count} {section.count === 1 ? "item" : "items"}
+                {rows.length} {rows.length === 1 ? "item" : "items"}
               </span>
-              {section.stray && (
-                <span className="text-xs text-ink-soft">
-                  Not on the Family tab — reassign these to fold them in.
-                </span>
-              )}
               <button
-                onClick={() => startAdd(section.person)}
-                className="no-print ml-auto text-xs font-bold uppercase tracking-wide text-teal"
+                type="button"
+                onClick={() => adding === addKey(category) ? setAdding(null) : startAdd(addPerson, category)}
+                aria-expanded={adding === addKey(category)}
+                aria-label={`Add item to ${category}`}
+                className="no-print ml-auto min-h-11 px-2 text-xs font-bold uppercase tracking-wide text-teal"
               >
-                + Add
+                {adding === addKey(category) ? "Close" : "+ Add"}
               </button>
             </div>
-
-            {adding === section.person && addForm(section.person, null)}
-
-            {section.count === 0 ? (
-              <div className="px-4 py-4 text-sm text-ink-soft">
-                <p>Nothing on {whosePhrase(section.person)} yet.</p>
-                {people.filter((p) => p !== section.person && countFor(p) > 0)
-                  .length > 0 && (
-                  <p className="no-print mt-2 flex flex-wrap items-center gap-2">
-                    <span className="text-xs">Start from someone else:</span>
-                    {people
-                      .filter((p) => p !== section.person && countFor(p) > 0)
-                      .map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => copyFrom(section.person, p)}
-                          disabled={busy}
-                          className="chip border border-[var(--line)] bg-white text-ink-soft hover:border-teal/40 hover:text-teal"
-                        >
-                          Copy {countFor(p)} from {p}
-                        </button>
-                      ))}
-                  </p>
-                )}
-              </div>
-            ) : (
-              section.groups.map(([category, rows]) => (
-                <div key={category}>
-                  <div className="flex items-center gap-x-3 bg-white px-4 pb-1 pt-3">
-                    <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
-                      {category}
-                    </h3>
-                    {/* The same small word that edits a row, on the heading of
-                        the group it adds to, opening the form directly
-                        underneath where the new line will appear. */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        adding === addKey(section.person, category)
-                          ? setAdding(null)
-                          : startAdd(section.person, category)
-                      }
-                      aria-expanded={
-                        adding === addKey(section.person, category)
-                      }
-                      className="no-print ml-auto text-xs font-bold uppercase tracking-wide text-teal"
-                    >
-                      {adding === addKey(section.person, category)
-                        ? "Close"
-                        : "+ Add"}
-                    </button>
-                  </div>
-                  {adding === addKey(section.person, category) &&
-                    addForm(section.person, category)}
+                  {adding === addKey(category) && addForm(category)}
                   <ul>
                     {rows.map((row) =>
                       editingId === row.id ? (
@@ -838,7 +766,8 @@ export default function Templates({
                           key={row.id}
                           className="group flex items-center gap-3 border-b border-sand/80 px-4 py-2.5 last:border-0"
                         >
-                          <span className="min-w-0 flex-1 text-sm">
+                          <div className="min-w-0 flex-1">
+                          <span className="block break-words text-sm">
                             {row.item}
                             {row.quantity ? (
                               <span className="text-ink-soft">
@@ -846,6 +775,11 @@ export default function Templates({
                                 ×{row.quantity}
                               </span>
                             ) : null}
+                          </span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className={`chip shrink-0 ${assigneeColor(row.assignee || SHARED)}`}
+                            title={row.assignee && row.assignee !== SHARED && !known.includes(row.assignee) ? "Not on the Family tab. Edit to reassign." : undefined}>
+                            {row.assignee || SHARED}
                           </span>
                           {row.last_minute && (
                             <span
@@ -855,6 +789,8 @@ export default function Templates({
                               {LAST_MINUTE_LABEL}
                             </span>
                           )}
+                          </div>
+                          </div>
                           {/* The same 36px squares as the trip's packing list
                               -- a template row is a packing item too, and the
                               cross here was the same 12px glyph. */}
@@ -888,9 +824,6 @@ export default function Templates({
                       ),
                     )}
                   </ul>
-                </div>
-              ))
-            )}
           </div>
         ))}
       </div>
