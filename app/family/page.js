@@ -17,6 +17,7 @@ import { todayISO } from "@/lib/reminders";
 import { passportWarnings } from "@/lib/tips/warnings";
 import { coverage, ledgerFor } from "@/lib/travelers/ledger";
 import { interviewProgress } from "@/lib/travelers/interview";
+import { adultAccessEnabled } from "@/lib/adultAccess/server";
 
 export const metadata = { title: "Family · Alyeska" };
 
@@ -110,6 +111,15 @@ export default async function PeoplePage() {
       .order("drive_minutes", { ascending: true, nullsFirst: false })
       .order("code", { ascending: true }),
   ]);
+
+  if (adultAccessEnabled()) {
+    const { data: states, error: statusError } = await supabase.rpc("adult_access_status", { p_family: familyId });
+    for (const traveler of travelers || []) {
+      if (traveler.access_level === "secondary") {
+        traveler.adult_access_state = statusError ? "unavailable" : states?.[traveler.id];
+      }
+    }
+  }
 
   // One standing per person, worked out on the server so the card does not have
   // to hold the slot definitions or the rules about what counts as answered.

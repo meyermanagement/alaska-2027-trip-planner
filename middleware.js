@@ -160,6 +160,17 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL("/child", request.url));
     }
   }
+  // This mailbox-capability flow is public but must not run diagnostics or
+  // preserve tokens in referrers/caches. Its POST handlers independently check
+  // the release flag, same-origin request, signed-out state, age and invitation.
+  if (path === "/auth/adult-access" || path.startsWith("/auth/adult-access/")) {
+    const invite = NextResponse.next({ request });
+    invite.headers.set("Cache-Control", "private, no-store");
+    invite.headers.set("Referrer-Policy", "no-referrer");
+    invite.headers.set("X-Robots-Tag", "noindex, nofollow");
+    invite.headers.set("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    return invite;
+  }
   if (["/child", "/api/child", "/api/child/return"].includes(path)) {
     const child = NextResponse.next({ request });
     child.headers.set("Cache-Control", "private, no-store");

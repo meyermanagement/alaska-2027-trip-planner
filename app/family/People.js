@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { tripPath } from "@/lib/trips/route";
 import { ageToday } from "@/lib/travelers/ages";
 import { isMinorTraveler } from "@/lib/beta/accountAge";
+import AdultAccess from "./AdultAccess";
 import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
   aboutMeFromParts,
@@ -1495,6 +1496,10 @@ export function AccessRow({
       Open {person.name}’s trip view
     </a>
   </div>;
+
+  if (!isMe && person.adult_access_state && !["active", "underage"].includes(person.adult_access_state)) {
+    return <AdultAccess person={person} state={person.adult_access_state} />;
+  }
 
   return (
     <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/40 px-3 py-2.5">

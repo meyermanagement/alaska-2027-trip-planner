@@ -158,4 +158,176 @@ test("temporary records are purged without reviving a stale JWT or deleting trav
   await admin();
   assert.equal((await db.query("select skin from profiles where id=$1",[child])).rows[0].skin,"frost");
 });
+test("adult invitation migration and lifecycle (isolated database only)", async t => {
+  await admin();
+  await db.exec(`
+    alter table auth.users add column email_confirmed_at timestamptz default now(), add column created_at timestamptz default now();
+    alter table family_members add column role text default 'member', add unique(user_id,family_id);
+    alter table travelers add column wants_reminders boolean default true, add column linked_at timestamptz;
+    alter table beta_consents add column family_id uuid, add column app_build text, add column ai_provider text,
+      add column ai_decided_at timestamptz, add column features jsonb, add column diagnostics boolean,
+      add column sharing_acknowledged boolean, add column accepted_at timestamptz;
+  `);
+  await db.exec(readFileSync(new URL("../supabase/migrations/20261002_adult_access_invitations.sql",import.meta.url),"utf8"));
+  const newUser=id(1001), newSeat=id(1002), inviteHash="d".repeat(64), email="adult@test.invalid";
+  const consent={agreement_version:"2026-09-22",privacy_version:"2026-09-22",
+    age_confirmed:true,data_acknowledged:true,sharing_acknowledged:true,
+    ai_processing:false,diagnostics:false,features:{mail:false,documents:false}};
+  const create=()=>db.query("select create_adult_access_invitation($1,$2,$3) as result",[newSeat,inviteHash,email]);
+  const inspect=()=>db.query("select check_adult_access_invitation($1) as result",[inviteHash]);
+  const accept=(uid=newUser,c=consent)=>db.query("select accept_adult_access_invitation($1,$2,$3) as result",[inviteHash,uid,c]);
+  const refused=async(fn,pattern)=>{
+    await db.exec("savepoint refusal");
+    await assert.rejects(fn,pattern);
+    await db.exec("rollback to refusal; release savepoint refusal");
+  };
+  const seed=async()=>{
+    await db.exec(`
+      insert into auth.users(id,email) values('${newUser}','${email}');
+      insert into travelers(id,family_id,user_id,is_person,date_of_birth,access_level,email,name)
+      values('${newSeat}','${family}','${newUser}',true,current_date-interval '17 years','secondary','${email}','Adult Traveler');
+      insert into family_members values('${newUser}','${family}','member');
+      insert into profiles values('${newUser}','frost','large');
+      insert into trip_travelers values('${id(31)}','${newSeat}');
+      update travelers set date_of_birth=current_date-interval '18 years' where id='${newSeat}';
+    `);
+  };
+  const isolated=async(name,body)=>t.test(name,async()=>{
+    await admin(); await db.exec("begin");
+    try { await seed(); await body(); } finally { await db.exec("rollback"); await admin(); }
+  });
+  await isolated("birthday does not unban or restore sessions; existing unknown bans need review",async()=>{
+    assert.equal((await db.query("select banned_until>now() as banned from auth.users where id=$1",[newUser])).rows[0].banned,true);
+    assert.equal((await db.query("select review_required from private.minor_login_holds where user_id=$1",[newUser])).rows[0].review_required,false);
+    assert.equal((await db.query("select review_required from private.minor_login_holds where user_id=$1",[child])).rows[0].review_required,true);
+    await as(parent,id(102));
+    const states=(await db.query("select adult_access_status($1) as result",[family])).rows[0].result;
+    assert.equal(states[newSeat],"eligible");
+    await create();
+    assert.equal((await db.query("select adult_access_status($1) as result",[family])).rows[0].result[newSeat],"pending");
+  });
+  await isolated("under-18, missing birthday, secondary inviter, outsider and stale parent session are refused",async()=>{
+    for(const dob of ["current_date-interval '18 years'+interval '1 day'","null"]) {
+      await admin(); await db.exec(`update travelers set date_of_birth=${dob} where id='${newSeat}'`);
+      await as(parent,id(102)); await refused(create,/eligible/);
+    }
+    await admin(); await db.exec(`update travelers set date_of_birth=current_date-interval '18 years' where id='${newSeat}'`);
+    for(const [uid,sid] of [[other,id(104)],[newUser,id(1009)],[parent,id(101)]]) {
+      await as(uid,sid); await refused(create,/eligible/);
+    }
+  });
+  await isolated("parents cannot inspect bearer links or accept consent via direct RPC",async()=>{
+    await as(parent,id(102)); await create();
+    await refused(inspect,/permission denied/);
+    await refused(accept,/permission denied/);
+    await refused(()=>db.query("select * from adult_access_invitations"),/permission denied/);
+    await refused(()=>db.query("select * from private.minor_login_holds"),/permission denied/);
+  });
+  await isolated("atomic adult acceptance preserves theme and assignments, resets permissions, rejects replay",async()=>{
+    await as(parent,id(102)); await create(); await admin();
+    assert.equal((await inspect()).rows[0].result.email,email);
+    await db.exec(`insert into auth.sessions values('${id(1009)}','${newUser}')`);
+    assert.equal((await accept()).rows[0].result,true);
+    assert.equal((await db.query("select banned_until from auth.users where id=$1",[newUser])).rows[0].banned_until,null);
+    assert.equal((await db.query("select * from auth.sessions where user_id=$1",[newUser])).rows.length,0);
+    assert.equal((await db.query("select skin from profiles where id=$1",[newUser])).rows[0].skin,"frost");
+    assert.equal((await db.query("select * from trip_travelers where traveler_id=$1",[newSeat])).rows.length,1);
+    const c=(await db.query("select * from beta_consents where user_id=$1",[newUser])).rows[0];
+    assert.equal(c.ai_processing,false); assert.equal(c.diagnostics,false); assert.equal(c.sharing_acknowledged,true);
+    assert.equal((await db.query("select access_level,wants_reminders from travelers where id=$1",[newSeat])).rows[0].access_level,"secondary");
+    await assert.rejects(accept(),/no longer available/);
+  });
+  await isolated("changed, missing, coerced or old consent is not accepted",async()=>{
+    await as(parent,id(102)); await create(); await admin();
+    for(const override of [{age_confirmed:false},{sharing_acknowledged:"true"},{privacy_version:"old"},{agreement_version:null}]) {
+      await db.exec("savepoint consent_attempt");
+      await assert.rejects(accept(newUser,{...consent,...override}),/personal consent/);
+      await db.exec("rollback to consent_attempt");
+    }
+    assert.equal((await db.query("select banned_until>now() as banned from auth.users where id=$1",[newUser])).rows[0].banned,true);
+  });
+  for(const [name,change] of [
+    ["expired", "update adult_access_invitations set expires_at=now()-interval '1 second'"],
+    ["revoked", "update adult_access_invitations set revoked_at=now()"],
+    ["changed email", `update travelers set email='changed@test.invalid' where id='${newSeat}'`],
+    ["changed DOB", `update travelers set date_of_birth=current_date-interval '19 years' where id='${newSeat}'`],
+    ["parent consent withdrawn", `update beta_consents set withdrawn_at=now() where user_id='${parent}'`],
+    ["different administrative ban", `update auth.users set banned_until=now()+interval '200 years' where id='${newUser}'`],
+  ]) await isolated(`${name} blocks acceptance`,async()=>{
+    await as(parent,id(102)); await create(); await admin(); await db.exec(change);
+    await assert.rejects(accept(),/invitation|review|changed/);
+  });
+  await isolated("email duplicates and existing account mismatches cannot be invited",async()=>{
+    await db.exec(`insert into travelers(id,family_id,email,is_person) values('${id(1003)}','${family}','${email}',true)`);
+    await as(parent,id(102)); await assert.rejects(create(),/another traveler/);
+  });
+  await isolated("new adult account must be newly provisioned, verified, banned and unlinked",async()=>{
+    await db.exec(`delete from family_members where user_id='${newUser}'; update travelers set user_id=null where id='${newSeat}'; delete from auth.users where id='${newUser}'`);
+    await as(parent,id(102)); await create(); await admin();
+    assert.equal((await inspect()).rows[0].result.needsPassword,true);
+    await db.exec(`insert into auth.users(id,email,banned_until) values('${newUser}','${email}',now()+interval '100 years')`);
+    const provisionedBan=(await db.query("select banned_until from auth.users where id=$1",[newUser])).rows[0].banned_until;
+    await db.query("select accept_adult_access_invitation($1,$2,$3,$4)",[inviteHash,newUser,consent,provisionedBan]);
+    assert.equal((await db.query("select user_id from travelers where id=$1",[newSeat])).rows[0].user_id,newUser);
+    assert.equal((await db.query("select role from family_members where user_id=$1",[newUser])).rows[0].role,"member");
+  });
+  await isolated("resending invalidates previous link and revoking does not unban",async()=>{
+    await as(parent,id(102)); await create(); await admin();
+    await db.exec("update adult_access_invitations set created_at=now()-interval '2 minutes'");
+    await as(parent,id(102));
+    await db.query("select create_adult_access_invitation($1,$2,$3)",[newSeat,"e".repeat(64),email]);
+    await admin(); await assert.rejects(inspect(),/no longer available/);
+  });
+  await isolated("parent cancellation revokes the capability without restoring login",async()=>{
+    await as(parent,id(102)); await create();
+    await db.query("select revoke_adult_access_invitation($1)",[newSeat]);
+    await admin(); await refused(inspect,/no longer available/);
+    assert.equal((await db.query("select banned_until>now() as banned from auth.users where id=$1",[newUser])).rows[0].banned,true);
+  });
+  await isolated("wrong account, unverified email, and wrong account email are rejected",async()=>{
+    await as(parent,id(102)); await create(); await admin();
+    await refused(()=>accept(parent),/verified account/);
+    await db.exec(`update auth.users set email_confirmed_at=null where id='${newUser}'`);
+    await refused(accept,/verified account/);
+    await db.exec(`update auth.users set email_confirmed_at=now(),email='wrong@test.invalid' where id='${newUser}'`);
+    await refused(accept,/administrative review/);
+  });
+  await isolated("a new admin restriction during minority invalidates automatic release provenance",async()=>{
+    await db.exec(`update travelers set date_of_birth=current_date-interval '17 years' where id='${newSeat}';
+      update auth.users set banned_until=now()+interval '200 years' where id='${newUser}';
+      update travelers set date_of_birth=current_date-interval '18 years' where id='${newSeat}';`);
+    assert.equal((await db.query("select review_required from private.minor_login_holds where user_id=$1",[newUser])).rows[0].review_required,true);
+    await as(parent,id(102)); await refused(create,/administrative review/);
+  });
+  await isolated("an existing owner role is never retained or silently demoted by activation",async()=>{
+    await as(parent,id(102)); await create(); await admin();
+    await db.exec(`update family_members set role='owner' where user_id='${newUser}'`);
+    await refused(accept,/memberships.*review/);
+    assert.equal((await db.query("select role from family_members where user_id=$1",[newUser])).rows[0].role,"owner");
+  });
+  await isolated("new minor auth creation records an age hold without a foreign-key race",async()=>{
+    const newcomer=id(1100);
+    await db.exec(`insert into travelers(id,family_id,email,is_person,date_of_birth,access_level)
+      values('${id(1101)}','${family}','newminor@test.invalid',true,current_date-interval '12 years','secondary');
+      insert into auth.users(id,email) values('${newcomer}','newminor@test.invalid');
+      set constraints all immediate;`);
+    assert.equal((await db.query("select review_required from private.minor_login_holds where user_id=$1",[newcomer])).rows[0].review_required,false);
+    assert.equal((await db.query("select banned_until>now() as banned from auth.users where id=$1",[newcomer])).rows[0].banned,true);
+  });
+  await isolated("ordinary Google enrollment cannot bypass a birthday or pending/expired invitation",async()=>{
+    await db.exec(`insert into travelers(id,family_id,email,is_person,date_of_birth,access_level)
+      values('${id(1200)}','${family}','birthday@test.invalid',true,current_date-interval '17 years','secondary');
+      update travelers set date_of_birth=current_date-interval '18 years' where id='${id(1200)}';
+      insert into auth.users(id,email) values('${id(1201)}','birthday@test.invalid');`);
+    assert.equal((await db.query("select banned_until>now() as banned from auth.users where id=$1",[id(1201)])).rows[0].banned,true);
+    await db.exec(`insert into travelers(id,family_id,email,is_person,date_of_birth,access_level)
+      values('${id(1202)}','${family}','pending@test.invalid',true,current_date-interval '19 years','secondary')`);
+    await as(parent,id(102));
+    await db.query("select create_adult_access_invitation($1,$2,$3)",[id(1202),"f".repeat(64),"pending@test.invalid"]);
+    await admin();
+    await db.exec(`update adult_access_invitations set expires_at=now()-interval '1 second';
+      insert into auth.users(id,email) values('${id(1203)}','pending@test.invalid');`);
+    assert.equal((await db.query("select banned_until>now() as banned from auth.users where id=$1",[id(1203)])).rows[0].banned,true);
+  });
+});
 test.after(async()=>db.close());

@@ -28,6 +28,6 @@ export default function AppServices() {
       window.removeEventListener("focus", check);
     };
   }, [path]);
-  if (path === "/child" || path === "/welcome/parent") return null;
+  if (path === "/child" || path === "/welcome/parent" || path.startsWith("/auth/adult-access")) return null;
   return <><ServiceWorkerBoot /><UsageTrail /><FeedbackSheet /><ReportButton /><FaultWatch /></>;
 }
