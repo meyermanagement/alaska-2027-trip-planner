@@ -9,6 +9,7 @@ import { stampDaySaid } from "@/lib/format";
 import { VERIFICATION_SENDERS } from "@/lib/inbox/verification";
 import ReprocessEmail from "@/components/ReprocessEmail";
 import HistoryGroups from "@/components/HistoryGroups";
+import HistoryRetentionNotice from "@/components/HistoryRetentionNotice";
 
 /**
  * The messages that have left the inbox, kept where they can be found again.
@@ -97,6 +98,7 @@ export default function ClearedInbox() {
       </summary>
 
       <div className="mt-4">
+        <HistoryRetentionNotice inbox />
         {problem ? (
           <div role="alert" className="text-sm text-rose">
             {problem} <button className="btn btn-ghost ml-2" disabled={busy} onClick={() => load(Boolean(rows?.length && nextCursor))}>Retry</button>
@@ -107,13 +109,12 @@ export default function ClearedInbox() {
         ) : null}
         {rows && !rows.length ? (
           <p className="text-sm leading-relaxed text-ink-soft">
-            Nothing has left the inbox yet. Everything you file or throw out
-            ends up here, along with any fare alerts Aly read, and most of it
-            can be put back.
+            No messages in history. Recently filed or dismissed messages and
+            fare alerts appear here.
           </p>
         ) : null}
         {rows && rows.length ? (
-          <HistoryGroups items={rows} getDate={message => message.received_at}
+          <HistoryGroups items={rows} shortHistory getDate={message => message.received_at}
             renderItems={messages => <ul className="space-y-3">
             {messages.map((message) => {
               const trip = message.trips;

@@ -33,6 +33,7 @@ import { tripPath } from "@/lib/trips/route";
 import { fareDeadlinePassed, fareHasExpired, fareForToday, fareListsForToday, fareMatchesTrip } from "@/lib/deals/deadline";
 import ConfirmSheet from "./ConfirmSheet";
 import HistoryGroups from "./HistoryGroups";
+import HistoryRetentionNotice from "./HistoryRetentionNotice";
 import { newestHistoryDate } from "@/lib/history/periods";
 
 function fareLine(deal) {
@@ -194,9 +195,9 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   };
 
   const historyGroups = (rows, isExpired = false) => (
-    <HistoryGroups items={groupFareAlerts(rows)} today={today}
-      getDate={group => newestHistoryDate(group.deals.map(deal => isExpired
-        ? deal.book_by || deal.created_at : deal.created_at))}
+    <HistoryGroups items={groupFareAlerts(rows)} today={today} shortHistory
+      getDate={group => newestHistoryDate(group.deals.map(deal => deal.history_entered_at ||
+        (isExpired ? deal.book_by || deal.created_at : deal.created_at)))}
       countItems={groups => groups.reduce((count, group) => count + group.deals.length, 0)}
       renderItems={groups =>
     <ul className="mt-2 space-y-2">
@@ -505,6 +506,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
         </div>
       ) : null}
 
+      {refused.length || expired.length ? <HistoryRetentionNotice /> : null}
       {refused.length ? (
         <div className="mt-6">
           <h3 className="section-label">Fares you turned down · {refused.length}</h3>

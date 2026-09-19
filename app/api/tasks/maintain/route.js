@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runRetentionPurges, JOBS } from "@/lib/retention/purge";
 import { retryOpenDeletions } from "@/lib/account/retryDeletions";
+import { purgeCompletedHistory } from "@/lib/retention/history";
 
 export const maxDuration = 60;
 
@@ -56,6 +57,16 @@ export async function GET(request) {
   }
 
   const asked = new URL(request.url).searchParams.get("job");
+  const dryRun = new URL(request.url).searchParams.get("dryRun") === "true";
+  if (dryRun) {
+    if (asked !== "completed-history") return NextResponse.json(
+      { error: "Dry run is available only for job=completed-history." }, { status: 400 });
+    try {
+      return NextResponse.json(await purgeCompletedHistory({ supabase, dryRun: true }));
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
   if (asked && asked !== DELETIONS && !JOBS.includes(asked)) {
     return NextResponse.json(
       { error: `No such job. Try one of: ${[...JOBS, DELETIONS].join(", ")}.` },

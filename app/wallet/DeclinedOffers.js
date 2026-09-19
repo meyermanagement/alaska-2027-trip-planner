@@ -18,6 +18,7 @@ import { useState } from "react";
 import { offerDate, offerHost } from "@/lib/rewards-offers";
 import { formatMoney } from "@/lib/rewards";
 import HistoryGroups from "@/components/HistoryGroups";
+import HistoryRetentionNotice from "@/components/HistoryRetentionNotice";
 
 function terms(offer) {
   const parts = [];
@@ -70,9 +71,10 @@ export default function DeclinedOffers({
       <p className="mt-1 text-sm text-ink-soft">
         {rows.length
           ? "Aly leaves these alone unless the terms genuinely improve — a bigger bonus, less spending, or a smaller fee. Ask again and she will treat it as an open question at the next look."
-          : "Nothing turned down yet. Press “Not this card” on a welcome offer and it lands here, with the terms you saw and the day you saw them, so a card you passed on once is never quietly retired for good."}
+          : "No offers in history. Offers you turn down appear here."}
       </p>
-      <HistoryGroups items={rows} getDate={offer => offer.decided_on || offer.created_at}
+      <HistoryRetentionNotice />
+      <HistoryGroups items={rows} shortHistory getDate={offer => offer.history_entered_at || offer.decided_on || offer.created_at}
         renderItems={periodOffers => <ul className="mt-3 space-y-2">
         {periodOffers.map((offer) => (
           <li

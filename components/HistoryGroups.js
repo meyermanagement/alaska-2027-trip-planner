@@ -22,8 +22,8 @@ function Period({ group, initiallyOpen, renderItems, countItems }) {
   </section>;
 }
 
-export default function HistoryGroups({ items, getDate, renderItems, countItems, today = homeToday() }) {
-  const groups = groupHistory(items, getDate, today);
+export default function HistoryGroups({ items, getDate, renderItems, countItems, today = homeToday(), shortHistory = false }) {
+  const groups = groupHistory(items, getDate, today, { shortHistory });
   return <div className="mt-3 space-y-4">{groups.map((group, index) =>
     <Period key={group.key} group={group} initiallyOpen={index === 0} renderItems={renderItems} countItems={countItems} />
   )}</div>;

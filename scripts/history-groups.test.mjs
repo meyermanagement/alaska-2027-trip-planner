@@ -10,6 +10,12 @@ const browseCode=readFileSync(new URL("../lib/reviews/browse.js",import.meta.url
   .replace('"../history/periods"',JSON.stringify(dataModule(periodCode)));
 const {browsePlaces,defaultGroupBy}=await import(dataModule(browseCode));
 const today="2026-09-19";
+test("temporary histories use relative months across year boundaries without hiding protected older rows",()=>{
+  const options={shortHistory:true};
+  assert.deepEqual(["2026-01-01","2025-12-15","2025-11-15","2025-10-31","2024-01-01"]
+    .map(date=>historyPeriod(date,"2026-01-15",options).label),
+    ["This month","Last month","2 months ago","3 months ago","Older history"]);
+});
 
 test("history uses calendar month and year labels without exact-date headings",()=>{
   assert.deepEqual(["2026-09-18","2026-08-01","2026-01-15","2025-12-20","2024-05-02","2023-02-12"]
