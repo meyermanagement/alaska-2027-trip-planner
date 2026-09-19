@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AlyWordmark from "@/components/AlyWordmark";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -1384,13 +1385,10 @@ export default function NavTabs({
               sets, not the width of the word, so it is the same object in both
               places rather than a measurement of whatever it happens to sit
               over. */}
-          <span
-            className="nav-rail-word aly-word font-display"
+          <AlyWordmark
+            className="nav-rail-word"
             style={{ fontSize: "var(--fs-base)" }}
-          >
-            Alyeska
-            <span className="aly-word-rule" />
-          </span>
+          />
         </Link>
         {/* The same field as the one in the pill beside the compass, and the
             same state behind it. On the strip there is no room for it and it is

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import AlyWordmark from "@/components/AlyWordmark";
 import LoginForm from "./LoginForm";
 import AlyeskaMark from "@/components/AlyeskaMark";
 
@@ -48,10 +49,7 @@ export default function LoginPage() {
           {/* A shade above the email's 21px. An inbox has to share a card with
               the message underneath it; this screen has nothing else on it, so
               the name can stand a little taller without crowding anything. */}
-          <h1 className="aly-word font-display text-[24px]">
-            Alyeska
-            <span className="aly-word-rule" />
-          </h1>
+          <AlyWordmark as="h1" className="text-[24px]" />
           <p className="mt-1.5 text-[13px] font-medium leading-[1.35] text-ink-soft">
             <span className="font-semibold">Travel</span>
             {/* The divider in the rule's own color. The email hard-codes a pale

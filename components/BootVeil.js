@@ -1,5 +1,6 @@
 "use client";
 
+import AlyWordmark from "@/components/AlyWordmark";
 // What the family looks at for the first half-second of a cold open.
 //
 // Opening the app used to show a white flash, then a frame of grey bars, then
@@ -444,10 +445,7 @@ function QuickVeil() {
           route stays the thing you look at. The full opening already introduces
           the app with a lockup in the middle of the screen; this one is a map,
           and a map carries its title in a corner. */}
-      <p className="quick-title aly-word font-display">
-        Alyeska
-        <span className="aly-word-rule" />
-      </p>
+      <AlyWordmark as="p" className="quick-title" />
       {/* The map, and the camera looking at it. The world turns and breathes;
           inside it the camera slides the ground and the route together by
           exactly the amount that keeps the compass on the line, and because the
@@ -823,12 +821,9 @@ export function BootStage() {
         {/* The same lockup the crossing carries, and the menu, and the top of
             every email: capitals over a hairline. Centred here rather than set
             in a corner, because on this screen the name is the thing on the
-            screen. The rule is centred with it so the axis through the
-            compass, the name and the tagline stays a single line. */}
-        <span className="boot-word aly-word font-display">
-          Alyeska
-          <span className="aly-word-rule mid" />
-        </span>
+            screen. The lockup stays centred; its rule follows only Aly,
+            exactly as it does on the Home screen and in the menu. */}
+        <AlyWordmark className="boot-word" />
         {/* The tagline turns on CSS keyframes rather than a React interval, for
             the same reason the veil is markup in the layout: this has to be
             animating in the first frame of HTML, before any JavaScript has run.

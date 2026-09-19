@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import AskDemo from "@/components/home/AskDemo";
@@ -251,13 +252,7 @@ export default function HomeLanding() {
                   headline under it is 48px, so at 21px the lockup read as
                   furniture above the real thing. The rule grows with it:
                   it is meant to sit under the word, not under part of it. */}
-              <p className="aly-word font-display text-[24px] sm:text-[26px]">
-                Alyeska
-                <span
-                  className="aly-word-rule"
-                  style={{ width: "3rem", marginTop: "0.45rem" }}
-                />
-              </p>
+              <AlyWordmark as="p" className="text-[24px] sm:text-[26px]" />
             </div>
             <Link
               href="/login"

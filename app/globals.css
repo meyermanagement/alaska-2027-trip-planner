@@ -609,17 +609,26 @@ html[data-boot="full"] #boot-veil .boot-mark {
 
 /* Set in the ink of the word above it rather than in the line color, so it
    belongs to the name and not to the panel the name happens to be on. */
-.aly-word-rule {
-  display: block;
-  width: 2.4rem;
-  height: 1px;
-  margin-top: 0.4rem;
-  background: currentColor;
-  opacity: 0.4;
+.aly-word-letters {
+  display: inline-block;
+  padding-bottom: 0.4rem;
+  white-space: nowrap;
 }
 
-.aly-word-rule.mid {
-  margin-inline: auto;
+.aly-word-prefix {
+  position: relative;
+}
+
+.aly-word-prefix::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  /* CSS tracking includes the space after Y. Exclude it from the rule. */
+  right: 0.26em;
+  bottom: -0.4rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.4;
 }
 
 .quick-title {
