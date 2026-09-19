@@ -5,8 +5,16 @@ import AlyWordmark from "@/components/AlyWordmark";
 import TripBackdrop from "@/components/TripBackdrop";
 import ChildNavigation from "./ChildNavigation";
 import { SKINS, skinOr, paintChrome } from "@/lib/skins";
-import { formatTime, homeToday } from "@/lib/format";
-import { tripDays, itemsOnDay, groupChildTrips } from "@/lib/childView/days";
+import { formatTime, homeToday, localToday } from "@/lib/format";
+import { tripDays, itemsOnDay, groupChildTrips, childOpeningTab } from "@/lib/childView/days";
+import { tabKeyDown } from "@/lib/ui/tabs";
+
+const CHILD_TRIP_TABS = [
+  { id: "packing", label: "Packing" },
+  { id: "itinerary", label: "Itinerary" },
+  { id: "live", label: "Live" },
+  { id: "overview", label: "Trip" },
+];
 
 function dateLabel(date) {
   if (!date) return "Dates to come";
@@ -30,7 +38,8 @@ export default function MinorReview({ initial = null }) {
   const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState("");
   const [tripId, setTripId] = useState(null);
-  const [tab, setTab] = useState("itinerary");
+  const [chosenTab, setTab] = useState("itinerary");
+  const [today, setToday] = useState(homeToday);
   const [selectedDay, setSelectedDay] = useState(null);
   const [themeOpen, setThemeOpen] = useState(false);
   const [tripGroup, setTripGroup] = useState("upcoming");
@@ -41,6 +50,13 @@ export default function MinorReview({ initial = null }) {
   const mutationRef = useRef(false);
   const requestRef = useRef(null);
   const menuRef = useRef(null);
+  useEffect(() => {
+    const update = () => setToday(localToday());
+    update();
+    const timer = setInterval(update, 30000);
+    window.addEventListener("focus", update);
+    return () => { clearInterval(timer); window.removeEventListener("focus", update); };
+  }, []);
   const load = useCallback(async () => {
     if (signingOutRef.current || mutationRef.current) return;
     requestRef.current?.abort();
@@ -157,9 +173,12 @@ export default function MinorReview({ initial = null }) {
   }
   const trip = data?.trips?.find(row => row.id === tripId);
   const days = trip ? tripDays(trip) : [];
-  const today = homeToday();
+  const isLive = childOpeningTab(trip, today) === "live";
+  // A refresh must not override a manually selected tab. Only an unavailable
+  // Live tab falls back to Itinerary after the trip ends or is completed.
+  const tab = chosenTab === "live" && !isLive ? "itinerary" : chosenTab;
   const tripGroups = groupChildTrips(data?.trips || [], today);
-  const day = days.includes(selectedDay) ? selectedDay : days.includes(today) ? today : days[0];
+  const day = tab === "live" ? today : days.includes(selectedDay) ? selectedDay : days.includes(today) ? today : days[0];
   const navigate = destination => {
     menuRef.current?.close(); setSaved("");
     if (["trips", "upcoming", "past"].includes(destination)) {
@@ -182,7 +201,7 @@ export default function MinorReview({ initial = null }) {
           {signingOut ? "Verifying parent…" : "Parent return"}
         </button>
       </header>
-      <div className="mt-7 flex flex-wrap items-start justify-between gap-3">
+      {(!trip || themeOpen) && <div className="mt-7 flex flex-wrap items-start justify-between gap-3">
         <div><p className="text-sm font-semibold text-teal">Your adventure</p>
           <h1 className="mt-2 text-3xl font-semibold">{themeOpen && data?.enabled ? "Settings" : trip ? trip.name : "My trips"}</h1>
           <p className="mt-2 text-sm text-ink-soft">{themeOpen ? "Your look, saved for next time." : "Your plans to explore. Your things to pack."}</p>
@@ -190,7 +209,7 @@ export default function MinorReview({ initial = null }) {
         <button className="btn btn-secondary" disabled={loading || signingOut || !!busy} onClick={load}>
           {loading ? "Checking access…" : "Refresh"}
         </button>
-      </div>
+      </div>}
       {error && <p role="alert" className="card mt-5 p-5">{error}</p>}
       <p role="status" aria-live="polite" className="mt-3 min-h-6 text-sm text-teal">{busy ? "Saving…" : saved}</p>
       {!data && loading && <p role="status" className="card mt-5 p-5">Loading your trips…</p>}
@@ -222,7 +241,7 @@ export default function MinorReview({ initial = null }) {
         </div>
         {!tripGroups[tripGroup].length && <p className="card p-5">{tripGroup === "past" ? "No past trips yet. Trips you’ve taken will be here." : "No upcoming trips yet. Your parent can add you to a trip’s traveler list."}</p>}
         <div className="grid gap-5 sm:grid-cols-2">{tripGroups[tripGroup].map(row => <button key={row.id} className="trip-plate card on-photo min-h-[268px] w-full justify-end text-left"
-          onClick={() => { setTripId(row.id); setSelectedDay(null); setTab("itinerary"); setSaved(""); }}>
+          onClick={() => { const date = localToday(); setToday(date); setTripId(row.id); setSelectedDay(null); setTab(childOpeningTab(row, date)); setSaved(""); }}>
           <TripBackdrop trip={row} />
           <span className="relative block p-5"><span className="block text-2xl font-semibold">{row.name}</span>
             <span className="mt-2 block text-sm">{row.destination}</span>
@@ -232,22 +251,47 @@ export default function MinorReview({ initial = null }) {
         </button>)}</div>
       </section>}
       {data?.enabled && !themeOpen && trip && <>
-        <button className="btn btn-secondary mb-4" onClick={() => navigate("trips")}>← {tripGroup === "past" ? "Past trips" : "Upcoming trips"}</button>
-        <div className="trip-plate card on-photo min-h-[180px] justify-end">
-          <TripBackdrop trip={trip} shape="head" />
-          <div className="relative p-5"><p className="text-xl font-semibold">{trip.destination || trip.name}</p>
-            <p className="mt-2 text-sm">{dateLabel(trip.start_date)} – {dateLabel(trip.end_date)}</p>
+        <button className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-teal hover:bg-teal/10"
+          onClick={() => navigate("trips")}>← {tripGroup === "past" ? "Past trips" : "Upcoming trips"}</button>
+        <section className="card overflow-hidden">
+        <div className={tab === "overview" ? "trip-plate on-photo min-h-[216px] justify-end" : "trip-working-header"}>
+          {tab === "overview" && <TripBackdrop trip={trip} shape="head" />}
+          <div className="relative p-5">
+            <h1 className="font-display text-2xl font-semibold leading-tight">{trip.name}</h1>
+            <p className="mt-2 text-sm"><span className="font-semibold">{dateLabel(trip.start_date)} – {dateLabel(trip.end_date)}</span>
+              {trip.destination && <span className="mt-1 block">{trip.destination}</span>}
+            </p>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-2" aria-label="Trip sections">
-          {["itinerary", "packing"].map(value => <button key={value} aria-pressed={tab === value}
-            className={`btn ${tab === value ? "btn-primary" : "btn-secondary"}`} onClick={() => { setTab(value); setSaved(""); }}>
-            {value === "itinerary" ? "Itinerary" : `My packing · ${packedCount}/${trip.packing.length}`}
+        </section>
+        <nav className="tabbar mt-4 no-print" role="tablist" aria-label="Trip sections" onKeyDown={tabKeyDown}>
+          {CHILD_TRIP_TABS.filter(item => item.id !== "live" || isLive).map(({ id, label }) => <button key={id} type="button" role="tab" id={`child-trip-tab-${id}`}
+            aria-controls="child-trip-panel" aria-selected={tab === id} tabIndex={tab === id ? 0 : -1}
+            className="tab" onClick={() => { setTab(id); setSaved(""); }}>
+            {label}
           </button>)}
-        </div>
-        <section className="mt-5 space-y-5" aria-label={tab === "itinerary" ? "Itinerary" : "My packing"}>
-          {tab === "itinerary" ? <>
-            <div className="flex gap-2 overflow-x-auto pb-3" aria-label="Trip days">
+        </nav>
+        <section className="mt-5 space-y-5" role="tabpanel" id="child-trip-panel" aria-labelledby={`child-trip-tab-${tab}`} tabIndex={0}>
+          {tab === "overview" ? <>
+            <div><h2 className="text-xl font-semibold">Your trip</h2>
+              <p className="mt-2 text-sm text-ink-soft">Explore the plans and get your things ready.</p></div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button className="card p-5 text-left" onClick={() => setTab("packing")}>
+                <span className="block font-semibold">Your packing</span>
+                <span className="mt-2 block text-sm text-ink-soft">{packedCount} of {trip.packing.length} packed</span>
+                <span className="mt-3 block text-sm font-semibold text-teal">Open packing →</span>
+              </button>
+              <button className="card p-5 text-left" onClick={() => setTab("itinerary")}>
+                <span className="block font-semibold">Your days</span>
+                <span className="mt-2 block text-sm text-ink-soft">{trip.itinerary.length} {trip.itinerary.length === 1 ? "plan" : "plans"} to explore</span>
+                <span className="mt-3 block text-sm font-semibold text-teal">View itinerary →</span>
+              </button>
+            </div>
+          </> : tab === "itinerary" || tab === "live" ? <>
+            {tab === "live" ? <div>
+              <p className="text-sm font-semibold text-teal">Today on your trip</p>
+              <button className="mt-2 min-h-11 text-sm font-semibold text-teal" onClick={() => setTab("itinerary")}>See the full itinerary →</button>
+            </div> : <div className="flex gap-2 overflow-x-auto pb-3" aria-label="Trip days">
               {days.map(value => <button key={value} className={`day-tile ${day === value ? "day-tile-on" : ""}`}
                 aria-label={dateLabel(value)} aria-pressed={day === value} onClick={() => setSelectedDay(value)}>
                 {value === "Unscheduled" ? <span className="p-2 text-xs">No date</span> : <>
@@ -256,7 +300,7 @@ export default function MinorReview({ initial = null }) {
                   <span className="day-tile-foot">{new Date(`${value}T12:00:00`).toLocaleDateString("en-US", { month: "short" })}</span>
                 </>}
               </button>)}
-            </div>
+            </div>}
             <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{day ? dateLabel(day) : "Itinerary"}</h2><span className="text-xs text-ink-soft">View only</span></div>
             {!itemsOnDay(trip, day).length && <p className="card p-5">No plans for this day yet.</p>}
             <ul className="space-y-3">{itemsOnDay(trip, day).map(item => <li key={item.id} className="card p-5">

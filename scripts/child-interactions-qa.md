@@ -11,6 +11,8 @@ Review only. No push, production migration, live account operation, or counsel-p
 | Upcoming and past groups | Regular completion/date rules; counts; current trip stays upcoming; back keeps group | Both trip groups |
 | Settings contains theme | Menu to Settings, save theme, return to previous trip | Settings and themed itinerary |
 | Packing reached through a trip | Open upcoming or past card, choose My packing | Own packing checks |
+| Date-aware opening tab | Day before departure opens Packing; trip days open Live; otherwise Itinerary; manual choices survive refresh | Packing first, standard tab bar, compact header, photo overview |
+| Live availability | Present only during trip; today's plans only, full itinerary available; no AI or location calls | Phone and desktop Live |
 | Read-only day plans | Switch dates; empty days; continuing stays | Day tiles and activity cards |
 | Own packing checkmarks | Check, immediate saving, saved, uncheck; reload persists | Packing screen |
 | Theme saved for next visit | Change, saved, refresh; all five available | Theme picker and dark itinerary |
@@ -53,3 +55,12 @@ Real-device parent passkey / live staging end-to-end verification remains a rele
 - Browser checks passed for menu grouping, past-trip packing save, retained return filter, Settings theme save, Escape focus return, empty packing, expired-view clearing, and 320/375/1280 layouts.
 - Isolated iframe test passed for menu, past trips, and theme save, without storage APIs or live accounts.
 - Final build passed. Database and regression suite: 260 tests passed. No authorization routes were added or relaxed.
+
+## Date-aware trip tabs revision
+
+- Packing remains first. Itinerary is always available. Live is available only during the trip, including its first and last day; Trip keeps the photo overview.
+- Default on opening: departure eve Packing, trip days Live, other dates Itinerary. Browser-local calendar, no location collection.
+- Live displays today's saved plans only. No new AI, tracking, weather, traffic, or adult capabilities.
+- Unit coverage includes one-day trips, final day, completed/archived/canceled/draft/undated trips, leap day, year boundary, and DST dates.
+- Browser coverage: all four date scenarios, packing save, full itinerary, keyboard arrows, manual choice surviving access refresh, Live hidden outside the trip, 320/375/1280 widths, and opaque iframe.
+- Final regression suite: 263 passing, zero failing. Build passed. Lint zero errors and nine existing warnings.
