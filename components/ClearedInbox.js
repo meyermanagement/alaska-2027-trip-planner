@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/LinkPending";
@@ -8,6 +8,7 @@ import { tripPath } from "@/lib/trips/route";
 import { stampDaySaid } from "@/lib/format";
 import { VERIFICATION_SENDERS } from "@/lib/inbox/verification";
 import ReprocessEmail from "@/components/ReprocessEmail";
+import HistoryGroups from "@/components/HistoryGroups";
 
 /**
  * The messages that have left the inbox, kept where they can be found again.
@@ -36,20 +37,28 @@ export default function ClearedInbox() {
   const [problem, setProblem] = useState("");
   const [askingId, setAskingId] = useState(null);
   const [workingId, setWorkingId] = useState(null);
+  const [nextCursor, setNextCursor] = useState(null);
+  const loading = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (append = false) => {
+    if (loading.current) return;
+    loading.current = true;
     setBusy(true);
     setProblem("");
     try {
-      const res = await fetch("/api/inbox/cleared");
+      const res = await fetch(`/api/inbox/cleared${append === true && nextCursor ? `?cursor=${encodeURIComponent(nextCursor)}` : ""}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "");
-      setRows(json.messages || []);
+      setRows(prev => append === true
+        ? [...new Map([...(prev || []), ...(json.messages || [])].map(row => [row.id, row])).values()]
+        : json.messages || []);
+      setNextCursor(json.nextCursor || null);
     } catch {
-      setProblem("Could not fetch those. Try opening it again.");
+      setProblem("Could not fetch those. Your loaded messages are still here.");
     }
     setBusy(false);
-  }, []);
+    loading.current = false;
+  }, [nextCursor]);
 
   const reopen = useCallback(
     async (message) => {
@@ -89,9 +98,9 @@ export default function ClearedInbox() {
 
       <div className="mt-4">
         {problem ? (
-          <p role="alert" className="text-sm text-rose">
-            {problem}
-          </p>
+          <div role="alert" className="text-sm text-rose">
+            {problem} <button className="btn btn-ghost ml-2" disabled={busy} onClick={() => load(Boolean(rows?.length && nextCursor))}>Retry</button>
+          </div>
         ) : null}
         {busy && rows === null ? (
           <p className="text-sm text-ink-soft">Fetching…</p>
@@ -104,8 +113,9 @@ export default function ClearedInbox() {
           </p>
         ) : null}
         {rows && rows.length ? (
-          <ul className="space-y-3">
-            {rows.map((message) => {
+          <HistoryGroups items={rows} getDate={message => message.received_at}
+            renderItems={messages => <ul className="space-y-3">
+            {messages.map((message) => {
               const trip = message.trips;
               const wasFiled = message.status === "filed";
               // A fare alert, read for the fares in it. Neither filed nor thrown
@@ -230,8 +240,10 @@ export default function ClearedInbox() {
                 </li>
               );
             })}
-          </ul>
+          </ul>} />
         ) : null}
+        {nextCursor && <button className="btn btn-ghost mt-4" disabled={busy}
+          onClick={() => load(true)}>{busy ? "Loading older messages…" : "Load older messages"}</button>}
       </div>
     </details>
   );

@@ -32,6 +32,8 @@ import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
 import { tripPath } from "@/lib/trips/route";
 import { fareDeadlinePassed, fareHasExpired, fareForToday, fareListsForToday, fareMatchesTrip } from "@/lib/deals/deadline";
 import ConfirmSheet from "./ConfirmSheet";
+import HistoryGroups from "./HistoryGroups";
+import { newestHistoryDate } from "@/lib/history/periods";
 
 function fareLine(deal) {
   const bits = [fareOfferLabel(deal)];
@@ -192,8 +194,13 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   };
 
   const historyGroups = (rows, isExpired = false) => (
+    <HistoryGroups items={groupFareAlerts(rows)} today={today}
+      getDate={group => newestHistoryDate(group.deals.map(deal => isExpired
+        ? deal.book_by || deal.created_at : deal.created_at))}
+      countItems={groups => groups.reduce((count, group) => count + group.deals.length, 0)}
+      renderItems={groups =>
     <ul className="mt-2 space-y-2">
-      {groupFareAlerts(rows).map((group) => (
+      {groups.map((group) => (
         <li key={group.key} className="rounded-xl border border-[var(--line)] bg-white/60">
           <div className="flex flex-wrap items-start gap-x-3 px-3">
             <details className="min-w-0 flex-1 basis-52">
@@ -231,7 +238,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           </div>
         </li>
       ))}
-    </ul>
+    </ul>} />
   );
 
   const card = (deal, compact = false) => {

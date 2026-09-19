@@ -15,10 +15,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
+import { decodeInboxCursor, encodeInboxCursor, inboxCursorFilter } from "@/lib/history/inboxCursor";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request) {
+  let cursor;
+  try { cursor = decodeInboxCursor(new URL(request.url).searchParams.get("cursor")); }
+  catch { return NextResponse.json({ error: "Please reopen the message history." }, { status: 400 }); }
   const supabase = await createClient();
   const user = await whoIs(supabase);
   if (!user) {
@@ -42,15 +46,19 @@ export async function GET() {
   // and half on another reads as broken. Arrival order is also the order the
   // family saw them in, which is how somebody looking for a particular
   // confirmation remembers it.
-  const { data: rows, error } = await supabase
+  let query = supabase
     .from("inbox_messages")
     .select(
       "id, subject, from_email, from_name, received_at, status, filed_at, auto_filed, classification, parse_error, trips!inbox_messages_filed_trip_id_fkey (id, name, slug, public_id)",
     )
     .eq("family_id", familyId)
     .in("status", ["filed", "deleted", "noted"])
-    .order("received_at", { ascending: false })
-    .limit(60);
+    .order("received_at", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: false })
+    .limit(61);
+  if (cursor) query = query.or(inboxCursorFilter(cursor));
+  const { data: fetched, error } = await query;
+  const rows = (fetched || []).slice(0, 60);
 
   if (error) {
     return NextResponse.json(
@@ -98,6 +106,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    nextCursor: fetched?.length > 60 ? encodeInboxCursor(rows.at(-1)) : null,
     messages: (rows || []).map((row) => ({
       ...row,
       itinerary_rows: removable.get(row.id) || 0,

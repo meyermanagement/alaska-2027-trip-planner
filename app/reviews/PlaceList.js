@@ -5,7 +5,7 @@ import FilterBar from "@/components/FilterBar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CATEGORY_ICONS, formatStayRange } from "@/lib/format";
+import { CATEGORY_ICONS, formatStayRange, homeToday } from "@/lib/format";
 import Stars from "@/components/Stars";
 import { tripPath } from "@/lib/trips/route";
 import {
@@ -41,6 +41,7 @@ export default function PlaceList({ groups, trips }) {
   // which sections they have asked to see all of.
   const [toggled, setToggled] = useState({});
   const [expanded, setExpanded] = useState({});
+  const today = homeToday();
 
   // The kinds are what the server grouped by; we regroup ourselves, so the flat
   // list is the thing to work from.
@@ -73,8 +74,9 @@ export default function PlaceList({ groups, trips }) {
         unjudgedOnly,
         sort,
         by,
+        today,
       }),
-    [items, trips, kinds, query, tripFilter, unjudgedOnly, sort, by],
+    [items, trips, kinds, query, tripFilter, unjudgedOnly, sort, by, today],
   );
 
   // Changing what is on screen changes which headings ought to be open, so the

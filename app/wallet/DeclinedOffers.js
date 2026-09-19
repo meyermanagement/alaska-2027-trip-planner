@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { offerDate, offerHost } from "@/lib/rewards-offers";
 import { formatMoney } from "@/lib/rewards";
+import HistoryGroups from "@/components/HistoryGroups";
 
 function terms(offer) {
   const parts = [];
@@ -71,8 +72,9 @@ export default function DeclinedOffers({
           ? "Aly leaves these alone unless the terms genuinely improve — a bigger bonus, less spending, or a smaller fee. Ask again and she will treat it as an open question at the next look."
           : "Nothing turned down yet. Press “Not this card” on a welcome offer and it lands here, with the terms you saw and the day you saw them, so a card you passed on once is never quietly retired for good."}
       </p>
-      <ul className="mt-3 space-y-2">
-        {rows.map((offer) => (
+      <HistoryGroups items={rows} getDate={offer => offer.decided_on || offer.created_at}
+        renderItems={periodOffers => <ul className="mt-3 space-y-2">
+        {periodOffers.map((offer) => (
           <li
             key={offer.id}
             className="rounded-xl border border-[var(--line)] bg-white/60 p-4 sm:flex sm:items-start sm:justify-between sm:gap-4"
@@ -104,7 +106,7 @@ export default function DeclinedOffers({
             </button>
           </li>
         ))}
-      </ul>
+      </ul>} />
     </section>
   );
 }
