@@ -28,8 +28,10 @@ export async function POST(request) {
     }
     if (body.action !== "verify") throw new Error("Unknown action.");
     const challenge = await consumeChallenge(admin, parentId, "return", hash);
-    await verifyParentKey(admin, parentId, body.response, challenge, relyingParty);
-    const { error } = await admin.from("parent_trip_views").update({ closed_at: new Date().toISOString() }).eq("token_hash", hash);
+    const verifiedKey = await verifyParentKey(admin, parentId, body.response, challenge, relyingParty);
+    const { error } = await admin.rpc("finish_parent_trip_return", {
+      parent_id: parentId, view_hash: hash, verified_key: verifiedKey,
+    });
     if (error) throw new Error("Could not close view.");
     const jar = await cookies();
     jar.delete(CHILD_VIEW_COOKIE);

@@ -6,6 +6,7 @@ import { siteOrigin } from "@/lib/email/sendInvite";
 import { runRecord, runRecordsFor } from "@/lib/tasks/runs";
 import { runRetentionPurges } from "@/lib/retention/purge";
 import { retryOpenDeletions } from "@/lib/account/retryDeletions";
+import { deliverParentKeyAlerts } from "@/lib/childView/keyAlerts";
 import { homeToday } from "@/lib/format";
 
 export const maxDuration = 60;
@@ -91,8 +92,9 @@ export async function GET(request) {
     deletions = { ok: false, error: String(e?.message || e), rows: [] };
   }
 
+  const parentKeyAlerts = await deliverParentKeyAlerts(supabase).catch(() => ({ sent: 0, pending: true }));
   return NextResponse.json(
-    { ...outcome, retention, deletions },
+    { ...outcome, retention, deletions, parentKeyAlerts },
     { status: outcome.ok ? 200 : 500 },
   );
 }

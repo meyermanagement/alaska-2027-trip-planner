@@ -487,4 +487,150 @@ test("saved parent approval permits direct handoff without relaxing the boundary
     });
   }
 });
+test("parent key backup and recovery keep the child boundary closed",async t=>{
+  await admin();
+  await db.exec(readFileSync(new URL("../supabase/migrations/20261006_parent_key_recovery.sql",import.meta.url),"utf8"));
+  const grant="b".repeat(64), code="c".repeat(64), next="d".repeat(64), session=id(102);
+  const authorize=async(kind="add",proof="test-key",target=null,recovery=null,p=parent,s=session,g=grant)=>
+    (await db.query("select authorize_parent_key_change($1,$2,$3,$4,$5,$6,$7) as ok",[p,s,kind,proof,target,recovery,g])).rows[0].ok;
+  const finish=(key="backup",pub="backup-public",newCode=null,p=parent,s=session,g=grant)=>
+    db.query("select finish_parent_key_change($1,$2,$3,$4,$5,0,'{}','Backup phone',$6)",[p,s,g,key,pub,newCode]);
+  const isolated=async(name,fn)=>t.test(name,async()=>{
+    await admin();await db.exec("begin");
+    try {
+      await db.query("insert into parent_key_security(guardian_user_id,recovery_hash) values($1,$2)",[parent,code]);
+      await fn();
+    } finally {await db.exec("rollback; reset role;");}
+  });
+  await isolated("a verified existing key can add a backup without closing views",async()=>{
+    assert.equal(await authorize(),true);await finish();
+    assert.equal((await db.query("select * from parent_view_keys where guardian_user_id=$1",[parent])).rows.length,2);
+    assert.equal((await read("9".repeat(64))).enabled,true);
+    assert.equal((await db.query("select * from parent_key_alerts")).rows.length,1);
+  });
+  await isolated("initial registration cannot bypass existing passkeys",async()=>{
+    await assert.rejects(db.query("select register_initial_parent_key($1,$2,'new','pub',0,'{}')",[parent,session]),/already registered/);
+  });
+  await isolated("initial registration remains available when no key exists",async()=>{
+    await db.query("delete from parent_view_keys where guardian_user_id=$1",[parent]);
+    await db.query("select register_initial_parent_key($1,$2,'new','pub',0,'{}')",[parent,session]);
+    assert.equal((await db.query("select * from parent_view_keys where guardian_user_id=$1",[parent])).rows.length,1);
+  });
+  await isolated("a nonexistent proof cannot authorize management",async()=>{
+    await assert.rejects(authorize("add","missing"),/currently registered/);
+  });
+  await isolated("removing the key used for verification is refused",async()=>{
+    await assert.rejects(authorize("remove","test-key","test-key"),/different passkey/);
+  });
+  await isolated("removal verified by a different key succeeds",async()=>{
+    await authorize();await finish();
+    await authorize("remove","backup","test-key");await finish(null,null);
+    assert.deepEqual((await db.query("select credential_id from parent_view_keys")).rows,[{credential_id:"backup"}]);
+  });
+  await isolated("five-key limit is enforced at commit, not only by UI",async()=>{
+    for(let n=0;n<4;n++) await db.query("insert into parent_view_keys(guardian_user_id,credential_id,public_key) values($1,$2,'pub')",[parent,`key${n}`]);
+    await authorize();await assert.rejects(finish(),/five parent/);
+  });
+  await isolated("grant is single-use",async()=>{
+    await authorize();await finish();await assert.rejects(finish(),/expired/);
+  });
+  await isolated("grant is bound to the adult session",async()=>{
+    await db.query("insert into auth.sessions values($1,$2)",[id(999),parent]);
+    await authorize();await assert.rejects(finish("backup","pub",null,parent,id(999)),/expired/);
+  });
+  await isolated("grant expires in five minutes",async()=>{
+    await authorize();await db.exec("update parent_key_grants set expires_at=now()-interval '1 second'");
+    await assert.rejects(finish(),/expired/);
+  });
+  await isolated("a revoked proof cannot commit an in-flight add",async()=>{
+    await authorize();await db.exec("delete from parent_view_keys");
+    await assert.rejects(finish(),/currently registered/);
+  });
+  await isolated("rotation invalidates other outstanding authorizations",async()=>{
+    await authorize();await authorize("recovery-code","test-key",null,null,parent,session,"e".repeat(64));
+    await finish(null,null,next,parent,session,"e".repeat(64));
+    await assert.rejects(finish(),/expired/);
+  });
+  await isolated("missing recovery code never authorizes recovery",async()=>{
+    await db.exec("update parent_key_security set recovery_hash=null");
+    assert.equal(await authorize("recover",null,null,null),false);
+    assert.equal((await db.query("select * from parent_key_grants")).rows.length,0);
+  });
+  await isolated("five wrong codes block even the correct code until cooldown",async()=>{
+    for(let n=0;n<5;n++) assert.equal(await authorize("recover",null,null,next),false);
+    assert.equal(await authorize("recover",null,null,code),false);
+    assert.equal((await db.query("select blocked_until>now() as blocked from parent_key_security")).rows[0].blocked,true);
+    await db.exec("update parent_key_security set blocked_until=now()-interval '1 second'");
+    assert.equal(await authorize("recover",null,null,code),true);
+  });
+  await isolated("recovery replaces keys, rotates code, closes views and revokes approvals atomically",async()=>{
+    assert.equal(await authorize("recover",null,null,code),true);
+    await finish("replacement","pub",next);
+    assert.deepEqual((await db.query("select credential_id from parent_view_keys")).rows,[{credential_id:"replacement"}]);
+    assert.equal((await read("9".repeat(64))).enabled,false);
+    assert.equal((await db.query("select * from parent_view_approved_children($1,'2026-09-19-parent-view-2')",[parent])).rows.length,0);
+    assert.equal((await db.query("select recovery_hash from parent_key_security")).rows[0].recovery_hash,next);
+    assert.equal(await authorize("recover",null,null,code),false);
+    assert.equal((await db.query("select skin from profiles where id=$1",[child])).rows[0].skin,"frost");
+    assert.equal((await db.query("select * from trip_travelers where traveler_id=$1",[seat])).rows.length,3);
+  });
+  await isolated("failed replacement does not delete existing keys or close views",async()=>{
+    await authorize("recover",null,null,code);
+    await db.exec("savepoint before_finish");
+    await assert.rejects(finish("test-key","pub",next),/duplicate/);
+    await db.exec("rollback to savepoint before_finish");
+    assert.deepEqual((await db.query("select credential_id from parent_view_keys")).rows,[{credential_id:"test-key"}]);
+    assert.equal((await read("9".repeat(64))).enabled,true);
+  });
+  await isolated("recovery cannot complete without a rotated recovery code",async()=>{
+    await authorize("recover",null,null,code);await assert.rejects(finish(),/recovery code/);
+  });
+  await isolated("stale adult sessions cannot recover",async()=>{
+    await assert.rejects(authorize("recover",null,null,code,parent,id(101)),/adult account/);
+  });
+  await isolated("foreign parent cannot use the same recovery code",async()=>{
+    assert.equal(await authorize("recover",null,null,code,other,id(104)).catch(()=>false),false);
+  });
+  for(const [name,sql] of [
+    ["withdrawn consent","update beta_consents set withdrawn_at=now()"],
+    ["secondary parent",`update travelers set access_level='secondary' where user_id='${parent}'`],
+    ["minor parent",`update travelers set date_of_birth=current_date-interval '17 years' where user_id='${parent}'`],
+    ["removed parent",`delete from family_members where user_id='${parent}'`],
+    ["banned parent",`update auth.users set banned_until=now()+interval '1 day' where id='${parent}'`],
+  ]) await isolated(`${name} cannot manage keys`,async()=>{
+    await db.exec(sql);await assert.rejects(authorize(),/adult account/);
+  });
+  await isolated("an old verified key cannot unlock return after recovery",async()=>{
+    await authorize("recover",null,null,code);await finish("replacement","pub",next);
+    await assert.rejects(db.query("select finish_parent_trip_return($1,$2,'test-key')",[parent,"9".repeat(64)]),/currently registered/);
+  });
+  await isolated("replacement key can close the locked view without restoring adult session",async()=>{
+    await authorize("recover",null,null,code);await finish("replacement","pub",next);
+    await db.query("select finish_parent_trip_return($1,$2,'replacement')",[parent,"9".repeat(64)]);
+    assert.equal((await db.query("select * from auth.sessions where id=$1",[id(101)])).rows.length,0);
+  });
+  await isolated("in-flight fresh approval cannot bypass key replacement",async()=>{
+    await authorize("recover",null,null,code);await finish("replacement","pub",next);
+    await assert.rejects(db.query("select open_guarded_parent_trip_view($1,$2,$3,$4,'2026-09-19-parent-view-2',true,'test-key')",
+      [parent,seat,session,"f".repeat(64)]),/setup required/);
+  });
+  for(const role of ["anon","authenticated"]) {
+    for(const table of ["parent_key_security","parent_key_grants","parent_key_alerts"])
+      await isolated(`${role} cannot read ${table}`,async()=>{
+        await as(parent,session,role);await assert.rejects(db.query(`select * from ${table}`),/permission denied/);
+      });
+    await isolated(`${role} cannot authorize key changes`,async()=>{
+      await as(parent,session,role);await assert.rejects(authorize(),/permission denied/);
+    });
+    await isolated(`${role} cannot finish key changes`,async()=>{
+      await as(parent,session,role);await assert.rejects(finish(),/permission denied/);
+    });
+    await isolated(`${role} cannot register a first key`,async()=>{
+      await as(parent,session,role);await assert.rejects(db.query("select register_initial_parent_key($1,$2,'x','x',0,'{}')",[parent,session]),/permission denied/);
+    });
+    await isolated(`${role} cannot finish parent return`,async()=>{
+      await as(parent,session,role);await assert.rejects(db.query("select finish_parent_trip_return($1,$2,'test-key')",[parent,hash]),/permission denied/);
+    });
+  }
+});
 test.after(async()=>db.close());

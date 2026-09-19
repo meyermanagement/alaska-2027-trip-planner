@@ -351,6 +351,9 @@ export default function MinorReview({ initial = null }) {
         <details className="mt-3"><summary className="cursor-pointer py-2">Privacy &amp; parent help</summary>
           <p className="mt-2">You do not sign in. Your packing status and theme are saved for next time. A necessary cookie keeps this temporary view private. No chat, uploads, location sharing, screen-use analytics, or AI calls. Essential hosting and security logs may still be kept.</p>
           <p className="mt-2">Ask your parent about access, correction, or deletion, or contact admin@alyeska.app.</p>
+          <h2 className="mt-4 font-semibold">Parent passkey help</h2>
+          <p className="mt-2">On a different device, try Parent return with a registered backup key or choose another device in the passkey prompt to use your own phone. Only use a passkey the child cannot unlock.</p>
+          <p className="mt-2">Lost every passkey? On your own browser or browser profile, sign in to Alyeska and open Family &amp; pets, then child trip access. Recovery requires a fresh adult sign-in and your saved recovery code. After replacing the keys, use Parent return here with the new key, then sign in again. This screen stays restricted.</p>
         </details>
       </footer>
     </main>

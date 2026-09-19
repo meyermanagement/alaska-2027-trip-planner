@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
 import { MINOR_REVIEW_NOTICE, MINOR_REVIEW_NOTICE_VERSION } from "@/lib/beta/minorReview";
 import { childAccessRequest as request, finishChildHandoff, openSavedChildView } from "@/lib/childView/client";
+import ParentKeySettings from "./ParentKeySettings";
 export default function ChildAccessPanel({ initial = null }) {
   const [data, setData] = useState(initial);
   const [loading, setLoading] = useState(!initial);
@@ -92,6 +93,7 @@ export default function ChildAccessPanel({ initial = null }) {
         {busy === "key" ? "Setting up passkey…" : "Set up parent passkey"}
       </button>
     </div>}
+    {data?.passkeyReady && <ParentKeySettings onRecovered={load} />}
     {!loading && data?.children?.length === 0 && <p className="card p-5">No minor profiles found. Add their birthday in Family &amp; pets first.</p>}
     {data?.children?.map(child => <article key={child.id} className="card p-5" aria-busy={busy === child.id}>
       <h2 className="text-lg font-semibold">{child.name}</h2>

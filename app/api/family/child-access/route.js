@@ -57,10 +57,10 @@ export async function POST(request) {
       });
       if (!result.verified || !result.registrationInfo.userVerified) throw new Error("Parent verification was not completed.");
       const key = result.registrationInfo.credential;
-      const { error } = await admin.from("parent_view_keys").insert({
-        credential_id: key.id, guardian_user_id: user.id,
-        public_key: Buffer.from(key.publicKey).toString("base64url"), counter: key.counter,
-        transports: key.transports || [],
+      const { error } = await admin.rpc("register_initial_parent_key", {
+        parent_id: user.id, adult_session: sessionId, key_id: key.id,
+        key_public: Buffer.from(key.publicKey).toString("base64url"), key_counter: key.counter,
+        key_transports: key.transports || [],
       });
       if (error) throw new Error("The parent passkey could not be saved.");
       return reply({ ok: true });
@@ -93,15 +93,16 @@ export async function POST(request) {
       await issueChallenge(admin, user.id, "open", options.challenge, binding);
       return reply({ options });
     }
+    let verifiedKey = null;
     if (!savedEntry) {
       if (body.action !== "open-verify") return reply({ error: "Unknown action." }, 400);
       const challenge = await consumeChallenge(admin, user.id, "open", binding);
-      await verifyParentKey(admin, user.id, body.response, challenge, relyingParty);
+      verifiedKey = await verifyParentKey(admin, user.id, body.response, challenge, relyingParty);
     }
     const token = randomToken();
-    const { data: theme, error: openError } = await admin.rpc("open_approved_parent_trip_view", {
+    const { data: theme, error: openError } = await admin.rpc("open_guarded_parent_trip_view", {
       parent_id: user.id, child_id: child.id, old_session_id: sessionId, view_hash: hashToken(token), notice: CHILD_VIEW_NOTICE,
-      freshly_verified: !savedEntry,
+      freshly_verified: !savedEntry, verified_key: verifiedKey,
     });
     if (savedEntry && openError?.message === "Parent setup required.") {
       return reply({ error: "Please review the child-view setup again.", setupRequired: true }, 409);
