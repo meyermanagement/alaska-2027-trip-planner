@@ -49,7 +49,7 @@ export default function SomedayTabs({ places, fares, fareCount = 0 }) {
   }
 
   return <>
-    <nav className="tabbar no-print mt-6" role="tablist" aria-label="Bucket list" onKeyDown={tabKeyDown}>
+    <nav className="tabbar no-print mt-6" role="tablist" aria-label="Bucket list & fares" onKeyDown={tabKeyDown}>
       {[["places", "Places"], ["fares", "Fare alerts"]].map(([id, label]) => (
         <button key={id} type="button" role="tab" className="tab"
           id={`someday-tab-${id}`} aria-controls={`someday-panel-${id}`}

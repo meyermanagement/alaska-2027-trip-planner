@@ -14,7 +14,7 @@ import ForwardFares from "@/components/ForwardFares";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
-export const metadata = { title: "Bucket list · Alyeska" };
+export const metadata = { title: "Bucket list & fares · Alyeska" };
 
 /**
  * The places this household wants to go, and what would make each one worth it.
@@ -103,7 +103,7 @@ export default async function SomedayPage() {
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
         <PageHeader
-          title="Bucket list"
+          title="Bucket list & fares"
           count={(places || []).length || undefined}
           subtitle={SCREEN_INTROS.bucketList}
         />

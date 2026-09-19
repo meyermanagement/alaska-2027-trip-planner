@@ -34,7 +34,7 @@ function PlaceBlock({ why = true }) {
 
 export default function LoadingSomeday() {
   return (
-    <PageSkeleton label="Loading your bucket list">
+    <PageSkeleton label="Loading your bucket list and fares">
       <div className="mb-6 space-y-3">
         <Bar className="h-8 w-48 max-w-full" />
         <Bar className="h-4 w-full max-w-2xl" />
