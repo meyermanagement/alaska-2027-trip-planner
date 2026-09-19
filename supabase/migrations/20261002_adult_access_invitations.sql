@@ -1,4 +1,4 @@
--- HELD FOR REVIEW. No birthday job, automatic unban, or production backfill of
+-- Production release approved September 19, 2026. No birthday job, automatic unban, or backfill of
 -- trusted ban provenance. Historical restrictions deliberately need review.
 begin;
 create table private.traveler_login_holds (

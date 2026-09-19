@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 const jiti=createJiti(import.meta.url,{alias:{"@":fileURLToPath(new URL("..",import.meta.url))}});
 const {cleanAdultConsent,validAdultToken,adultEmailMatches}=jiti("../lib/adultAccess/validation.js");
 const {adultInviteEmail}=jiti("../lib/email/adultInvite.js");
+const {adultAccessEnabled}=jiti("../lib/adultAccess/enabled.js");
 const versions={agreementVersion:"current",privacyVersion:"current",appBuild:"review",featureIds:["mail","documents"]};
 const base={agreementVersion:"current",privacyVersion:"current",agreed:true,ageConfirmed:true,dataAcknowledged:true,sharingAcknowledged:true};
 test("adult consent is personal, strict, current and optional-off by default",()=>{
@@ -30,9 +31,17 @@ test("invitation copy never promises manager access and escapes email content",(
   assert.match(mail.html,/&lt;adult&gt;/); assert.doesNotMatch(mail.html,/<adult>/);
   assert.match(mail.text,/parent cannot accept/);
 });
-test("release stays disabled by default and acceptance has no diagnostic listeners",()=>{
+test("approved release enables production only, with an explicit kill switch",()=>{
+  assert.equal(adultAccessEnabled({}),false);
+  assert.equal(adultAccessEnabled({VERCEL_ENV:"preview"}),false);
+  assert.equal(adultAccessEnabled({VERCEL_ENV:"development"}),false);
+  assert.equal(adultAccessEnabled({VERCEL_ENV:"production"}),true);
+  assert.equal(adultAccessEnabled({VERCEL_ENV:"production",ADULT_ACCESS_INVITES_ENABLED:"false"}),false);
+  assert.equal(adultAccessEnabled({VERCEL_ENV:"production",ADULT_ACCESS_INVITES_ENABLED:""}),false);
+  assert.equal(adultAccessEnabled({VERCEL_ENV:"preview",ADULT_ACCESS_INVITES_ENABLED:"true"}),true);
+});
+test("acceptance has no diagnostic listeners or persistent token storage",()=>{
   const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
-  assert.match(read("lib/adultAccess/server.js"),/ADULT_ACCESS_INVITES_ENABLED === "true"/);
   assert.match(read("components/AppServices.js"),/path.startsWith\("\/auth\/adult-access"\)/);
   assert.match(read("app/auth/adult-access/AdultAcceptance.js"),/history.replaceState/);
   assert.doesNotMatch(read("app/auth/adult-access/AdultAcceptance.js"),/localStorage|sessionStorage/);
