@@ -26,14 +26,14 @@ import { formatMoney } from "@/lib/rewards";
 import { formatDay } from "@/lib/format";
 import { monthsSaid } from "@/lib/someday/months";
 import { groupFareAlerts } from "@/lib/deals/groups";
-import { farePriceLabel, awardOptionLabel } from "@/lib/deals/award";
+import { awardOptionLabel } from "@/lib/deals/award";
+import { fareOfferLabel, fareGroupCabinLabel } from "@/lib/deals/cabin";
 import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
 import { tripPath } from "@/lib/trips/route";
 import ConfirmSheet from "./ConfirmSheet";
 
 function fareLine(deal) {
-  const bits = [farePriceLabel(deal)];
-  if (deal.cabin && deal.cabin !== "economy") bits.push(deal.cabin);
+  const bits = [fareOfferLabel(deal)];
   if (deal.airline) bits.push(deal.airline);
   if (deal.travel_start || deal.travel_end)
     bits.push(
@@ -352,7 +352,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
       {confirm && <ConfirmSheet
         title={confirm.kind === "attach" ? `Save this fare to ${confirm.name}?` : `Clear ${confirm.group.deals.length} fares?`}
         body={confirm.kind === "attach"
-          ? `${confirm.deal.origin} to ${confirm.deal.destination}, ${farePriceLabel(confirm.deal)}. This saves the offer for reference; it does not book a flight. ${confirm.patch.trip_id ? "The trip will open next." : "It will appear under Saved fares."}`
+          ? `${confirm.deal.origin} to ${confirm.deal.destination}, ${fareOfferLabel(confirm.deal)}. This saves the offer for reference; it does not book a flight. ${confirm.patch.trip_id ? "The trip will open next." : "It will appear under Saved fares."}`
           : "Move these fares to Fares you turned down. You can restore them later; saved fares will not change."}
         onCancel={() => setConfirm(null)}
         busy={Boolean(acting)}
@@ -379,8 +379,8 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                     <span className="font-semibold">From {group.origin}</span>
                     <span className="ml-2 text-sm text-ink-soft">
                       {group.destinationCount} {group.destinationCount === 1 ? "destination" : "destinations"}
-                      {group.lowestPrice !== null ? <span> · from {farePriceLabel(group.deals.find((deal) => !deal.award_pricing && Number(deal.price) === group.lowestPrice))}</span> : ""}
-                      {group.awardCount ? <span> · {group.deals.length === 1 ? farePriceLabel(group.deals[0]) : `${group.awardCount} award ${group.awardCount === 1 ? "fare" : "fares"}`}</span> : null}
+                      {group.lowestPrice !== null ? <span> · from {fareOfferLabel(group.deals.find((deal) => !deal.award_pricing && Number(deal.price) === group.lowestPrice))}</span> : ""}
+                      {group.awardCount ? <span> · {group.deals.length === 1 ? fareOfferLabel(group.deals[0]) : `${group.awardCount} award ${group.awardCount === 1 ? "fare" : "fares"} · ${fareGroupCabinLabel(group.deals.filter((deal) => deal.award_pricing))}`}</span> : null}
                     </span>
                     <span className="mt-1 block pl-4 text-xs text-ink-faint">
                       {group.sourceName}
@@ -415,7 +415,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           <ul className="mt-2 space-y-1 text-sm text-ink-soft">
             {taken.map((deal) => (
               <li key={deal.id}>
-                {deal.origin} to {deal.destination}, {farePriceLabel(deal)}
+                {deal.origin} to {deal.destination}, {fareOfferLabel(deal)}
                 {deal.trip_id ? (() => {
                   const target = trips.find((trip) => trip.id === deal.trip_id);
                   return target ? <> on <Link className="font-semibold text-teal underline" href={`${tripPath(target, "overview")}#fares`}>{target.name}</Link></> : " on a trip no longer available";
@@ -437,7 +437,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           <ul className="mt-2 space-y-1 text-sm text-ink-soft">
             {ran.map((deal) => (
               <li key={deal.id}>
-                {deal.origin} to {deal.destination}, {farePriceLabel(deal)}
+                {deal.origin} to {deal.destination}, {fareOfferLabel(deal)}
                 {deal.book_by
                   ? ` — the book-by date was ${formatDay(deal.book_by) || deal.book_by}`
                   : ""}
@@ -463,7 +463,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
-                    {deal.origin} to {deal.destination}, {farePriceLabel(deal)}
+                    {deal.origin} to {deal.destination}, {fareOfferLabel(deal)}
                   </p>
                   {deal.dismissed_reason ? (
                     <p className="mt-0.5 text-sm text-ink-soft">
