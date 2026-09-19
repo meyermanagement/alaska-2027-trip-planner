@@ -91,16 +91,6 @@ export default async function RewardsPage() {
     (row) => row.status === "declined",
   );
 
-  // When a look last ran here. Two things read it: the card, to decide whether
-  // opening the Wallet should run the look on its own rather than waiting to be
-  // asked, and nothing else. The comparison against midnight happens in the
-  // browser, because the midnight that matters is the reader's.
-  const { data: family } = await supabase
-    .from("families")
-    .select("wallet_looked_at")
-    .eq("id", familyId)
-    .maybeSingle();
-
   // Has anybody ever asked? "No tips" and "not looked yet" want different words,
   // and a cleared tip still counts as having looked.
   const { count: everLooked } = await supabase
@@ -134,12 +124,8 @@ export default async function RewardsPage() {
           Passports and travel documents live with each person in{" "}
           <Link href="/family" className="text-teal underline underline-offset-2">Family & pets</Link>.
         </p>
-        {/* autoLook: the Wallet is the one screen whose whole job is noticing
-            things nobody asked about -- a credit going unused, points about to
-            lapse, a fee coming round -- so opening it runs the look, the way
-            opening a trip does. Once a day, judged against wallet_looked_at,
-            because it is two grounded model calls and the family opens this
-            screen more often than the answers change. */}
+        {/* Opening Wallet only reads saved tips. A new look is always requested
+            explicitly with the manual button, including the offers pass. */}
         <ProTips
           tips={tips || []}
           offers={openOffers}
@@ -147,8 +133,7 @@ export default async function RewardsPage() {
           scope="wallet"
           canLook
           everLooked={Boolean(everLooked)}
-          autoLook
-          lastLookedAt={family?.wallet_looked_at || null}
+          autoLook={false}
           heading="Pro tips"
           chain={[{ scope: "wallet" }, { scope: "offers" }]}
           emptyLooked="Nothing worth telling you about the Wallet right now. Tips appear when a credit is going unused, points are about to lapse, a fee is coming round, or a welcome bonus on a card you do not hold is worth the spending you already have planned."

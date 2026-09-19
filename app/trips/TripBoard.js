@@ -356,6 +356,7 @@ export default function TripBoard({
   today,
   canRemove = false,
   inboxAddress = "",
+  secondary = false,
 }) {
   // Which group is showing lives in the address and nowhere else. The menu's
   // three trip rows are this one screen with a different group open, so arriving
@@ -366,7 +367,8 @@ export default function TripBoard({
   // one of them.
   const params = useSearchParams();
   const asked = String(params.get("view") || "").toLowerCase();
-  const wanted = VIEWS.includes(asked) ? asked : null;
+  const allowedViews = secondary ? ["upcoming", "past"] : VIEWS;
+  const wanted = allowedViews.includes(asked) ? asked : null;
 
   // A press shows its group at once, before the address has caught up, and is
   // dropped the moment the address says anything -- including the same thing.
@@ -389,7 +391,7 @@ export default function TripBoard({
   const view =
     picked ||
     wanted ||
-    (upcoming.length === 0 && current.length === 0 && drafts.length > 0
+    (!secondary && upcoming.length === 0 && current.length === 0 && drafts.length > 0
       ? "drafts"
       : "upcoming");
 
@@ -406,6 +408,7 @@ export default function TripBoard({
   // Upcoming would have bounced straight back.
   const pathname = usePathname();
   const show = (id) => {
+    if (secondary && id === "drafts") return;
     setPicked(id);
     try {
       window.history.replaceState(null, "", `${pathname}?view=${id}`);
@@ -420,13 +423,13 @@ export default function TripBoard({
   useEffect(() => {
     function onAsk(e) {
       const id = String(e?.detail?.view || "").toLowerCase();
-      if (!VIEWS.includes(id)) return;
+      if (!VIEWS.includes(id) || (secondary && id === "drafts")) return;
       askedRef.current = id;
       setSwitching(id);
     }
     window.addEventListener(TRIPS_VIEW_EVENT, onAsk);
     return () => window.removeEventListener(TRIPS_VIEW_EVENT, onAsk);
-  }, []);
+  }, [secondary]);
 
   // Drawn as its own step so the skeleton has been painted before the group
   // replaces it, and so a second request landing mid-wait simply wins.
@@ -454,7 +457,7 @@ export default function TripBoard({
     { id: "upcoming", label: "Planned", count: upcoming.length },
     { id: "drafts", label: "Drafts", count: drafts.length },
     { id: "past", label: "Trip log", count: shelf.length },
-  ];
+  ].filter((tab) => !secondary || tab.id !== "drafts");
 
   if (switching) {
     return (
@@ -545,13 +548,15 @@ export default function TripBoard({
             <p className="card p-5 text-sm text-ink-soft">
               {current.length > 0
                 ? "Enjoy this adventure. Your current trip is above, and the next one can wait until you are ready."
-                : "No trips coming up yet. Start a new trip, or open a draft and move it here when you are ready."}
+                : secondary
+                  ? "You’re not included on any planned trips yet. Ask a primary traveler to add you."
+                  : "No trips coming up yet. Start a new trip, or open a draft and move it here when you are ready."}
               {canRemove && <Link href="/trips/new" className="btn btn-primary mt-3">Start a new trip</Link>}
             </p>
           )}
         </Section>
 
-        <Section
+        {!secondary && <Section
           id="drafts"
           view={view}
           title="Trip drafts"
@@ -572,7 +577,7 @@ export default function TripBoard({
               {canRemove && <Link href="/trips/new" className="btn btn-primary mt-3">Start a new trip</Link>}
             </p>
           )}
-        </Section>
+        </Section>}
 
         <Section
           id="past"
@@ -584,7 +589,7 @@ export default function TripBoard({
           {shelf.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {shelf.map((trip) => (
-                <PastCard key={trip.id} trip={trip} canArchive />
+                <PastCard key={trip.id} trip={trip} canArchive={!secondary} />
               ))}
             </div>
           ) : (
@@ -621,7 +626,7 @@ export default function TripBoard({
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {archived.map((trip) => (
-                  <PastCard key={trip.id} trip={trip} canArchive />
+                  <PastCard key={trip.id} trip={trip} canArchive={!secondary} />
                 ))}
               </div>
             </details>

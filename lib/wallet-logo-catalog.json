@@ -1,0 +1,312 @@
+[
+  {
+    "file": "chase-freedom-unlimited",
+    "kind": "credit_card",
+    "aliases": [
+      "Chase Freedom Unlimited"
+    ]
+  },
+  {
+    "file": "citi-strata-premier",
+    "kind": "credit_card",
+    "aliases": [
+      "Citi Strata Premier"
+    ]
+  },
+  {
+    "file": "united-explorer-card",
+    "kind": "credit_card",
+    "aliases": [
+      "United Explorer Card"
+    ]
+  },
+  {
+    "file": "united-gateway-card",
+    "kind": "credit_card",
+    "aliases": [
+      "United Gateway Card"
+    ]
+  },
+  {
+    "file": "united-quest-card",
+    "kind": "credit_card",
+    "aliases": [
+      "United Quest Card"
+    ]
+  },
+  {
+    "file": "united-club-card",
+    "kind": "credit_card",
+    "aliases": [
+      "United Club Card"
+    ]
+  },
+  {
+    "file": "southwest-rapid-rewards-priority",
+    "kind": "credit_card",
+    "aliases": [
+      "Southwest Rapid Rewards Priority"
+    ]
+  },
+  {
+    "file": "southwest-rapid-rewards-plus",
+    "kind": "credit_card",
+    "aliases": [
+      "Southwest Rapid Rewards Plus"
+    ]
+  },
+  {
+    "file": "southwest-rapid-rewards-premier",
+    "kind": "credit_card",
+    "aliases": [
+      "Southwest Rapid Rewards Premier"
+    ]
+  },
+  {
+    "file": "aeroplan-card",
+    "kind": "credit_card",
+    "aliases": [
+      "Aeroplan Card"
+    ]
+  },
+  {
+    "file": "marriott-bonvoy-boundless",
+    "kind": "credit_card",
+    "aliases": [
+      "Marriott Bonvoy Boundless"
+    ]
+  },
+  {
+    "file": "marriott-bonvoy-bountiful",
+    "kind": "credit_card",
+    "aliases": [
+      "Marriott Bonvoy Bountiful"
+    ]
+  },
+  {
+    "file": "world-of-hyatt-credit-card",
+    "kind": "credit_card",
+    "aliases": [
+      "World of Hyatt Credit Card"
+    ]
+  },
+  {
+    "file": "world-of-hyatt-business-credit-card",
+    "kind": "credit_card",
+    "aliases": [
+      "World of Hyatt Business Credit Card"
+    ]
+  },
+  {
+    "file": "ihg-one-rewards-premier",
+    "kind": "credit_card",
+    "aliases": [
+      "IHG One Rewards Premier"
+    ]
+  },
+  {
+    "file": "disney-visa-card",
+    "kind": "credit_card",
+    "aliases": [
+      "Disney Visa Card"
+    ]
+  },
+  {
+    "file": "wells-fargo-autograph",
+    "kind": "credit_card",
+    "aliases": [
+      "Wells Fargo Autograph"
+    ]
+  },
+  {
+    "file": "bank-of-america-travel-rewards",
+    "kind": "credit_card",
+    "aliases": [
+      "Bank of America Travel Rewards"
+    ]
+  },
+  {
+    "file": "chase-ink-business-cash",
+    "kind": "credit_card",
+    "aliases": [
+      "Chase Ink Business Cash"
+    ]
+  },
+  {
+    "file": "chase-ink-business-unlimited",
+    "kind": "credit_card",
+    "aliases": [
+      "Chase Ink Business Unlimited"
+    ]
+  },
+  {
+    "file": "chase-ink-business-premier",
+    "kind": "credit_card",
+    "aliases": [
+      "Chase Ink Business Premier"
+    ]
+  },
+  {
+    "file": "chase-freedom-flex",
+    "kind": "credit_card",
+    "aliases": [
+      "Chase Freedom Flex"
+    ]
+  },
+  {
+    "file": "carnival-vifp-club",
+    "kind": "cruise",
+    "aliases": [
+      "Carnival VIFP Club"
+    ]
+  },
+  {
+    "file": "budget-fastbreak",
+    "kind": "car",
+    "aliases": [
+      "Budget Fastbreak"
+    ]
+  },
+  {
+    "file": "disney-rewards-dollars",
+    "kind": "dining",
+    "aliases": [
+      "Disney Rewards Dollars"
+    ]
+  },
+  {
+    "file": "american-express-gold-card",
+    "kind": "credit_card",
+    "aliases": [
+      "American Express Gold Card"
+    ]
+  },
+  {
+    "file": "delta-skymiles-gold-american-express",
+    "kind": "credit_card",
+    "aliases": [
+      "Delta SkyMiles Gold American Express"
+    ]
+  },
+  {
+    "file": "delta-skymiles-reserve-american-express",
+    "kind": "credit_card",
+    "aliases": [
+      "Delta SkyMiles Reserve American Express"
+    ]
+  },
+  {
+    "file": "citi-aadvantage-platinum-select-world-elite-mastercard",
+    "kind": "credit_card",
+    "aliases": [
+      "Citi / AAdvantage Platinum Select World Elite Mastercard"
+    ]
+  },
+  {
+    "file": "aadvantage-mileup-card",
+    "kind": "credit_card",
+    "aliases": [
+      "AAdvantage MileUp Card"
+    ]
+  },
+  {
+    "file": "citi-aadvantage-business-world-elite-mastercard",
+    "kind": "credit_card",
+    "aliases": [
+      "Citi / AAdvantage Business World Elite Mastercard"
+    ]
+  },
+  {
+    "file": "hilton-honors-american-express-surpass",
+    "kind": "credit_card",
+    "aliases": [
+      "Hilton Honors American Express Surpass"
+    ]
+  },
+  {
+    "file": "alaska-atmos-rewards",
+    "kind": "airline",
+    "aliases": [
+      "Alaska Atmos Rewards"
+    ]
+  },
+  {
+    "file": "jetblue-trueblue",
+    "kind": "airline",
+    "aliases": [
+      "JetBlue TrueBlue"
+    ]
+  },
+  {
+    "file": "hilton-honors",
+    "kind": "hotel",
+    "aliases": [
+      "Hilton Honors"
+    ]
+  },
+  {
+    "file": "best-western-rewards",
+    "kind": "hotel",
+    "aliases": [
+      "Best Western Rewards"
+    ]
+  },
+  {
+    "file": "capital-one-venture-rewards",
+    "kind": "credit_card",
+    "aliases": [
+      "Capital One Venture Rewards"
+    ]
+  },
+  {
+    "file": "royal-caribbean-crown-anchor-society",
+    "kind": "cruise",
+    "aliases": [
+      "Royal Caribbean Crown & Anchor Society"
+    ],
+    "dark": true
+  },
+  {
+    "file": "wyndham-rewards",
+    "kind": "hotel",
+    "aliases": [
+      "Wyndham Rewards"
+    ]
+  },
+  {
+    "file": "choice-privileges",
+    "kind": "hotel",
+    "aliases": [
+      "Choice Privileges"
+    ]
+  },
+  {
+    "file": "national-emerald-club",
+    "kind": "car",
+    "aliases": [
+      "National Emerald Club"
+    ]
+  },
+  {
+    "file": "enterprise-plus",
+    "kind": "car",
+    "aliases": [
+      "Enterprise Plus"
+    ]
+  },
+  {
+    "file": "norwegian-latitudes-rewards",
+    "kind": "cruise",
+    "dark": true,
+    "aliases": [
+      "Norwegian Latitudes Rewards"
+    ]
+  },
+  {
+    "file": "citi-aadvantage-globe-mastercard",
+    "kind": "credit_card",
+    "aliases": [
+      "Citi / AAdvantage Globe Mastercard"
+    ]
+  }
+]

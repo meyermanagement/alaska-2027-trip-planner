@@ -43,15 +43,8 @@ export default function ProTips({
   // "no tips" and "no tips yet" — two states that deserve different words.
   everLooked = false,
   // Whether opening this screen should run the look on its own, rather than
-  // waiting to be asked. Off everywhere by default, and on where the screen
-  // itself is the reason to look: the Wallet, which the family opens to find out
-  // whether a credit is going unused or points are about to lapse, and where
-  // asking them to remember a button is asking them to remember the thing the
-  // screen was supposed to notice for them.
-  //
-  // Held to once a day by lastLookedAt below, the same gate the trip page uses.
-  // A look is two grounded model calls here and most of a minute; running it on
-  // every open would spend the day's budget re-answering breakfast.
+  // waiting to be asked. Opt-in only; Wallet explicitly disables it.
+  // An opted-in look is held to once a day by lastLookedAt below.
   autoLook = false,
   // When a look last ran here, so the once-a-day gate can be judged against the
   // reader's own midnight rather than the server's.

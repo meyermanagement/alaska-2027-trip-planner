@@ -20,6 +20,7 @@ import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { ABOUT_SKIP_COOKIE } from "@/lib/travelers/profile";
 import { BASIC_SELECT } from "@/lib/trips/basics";
+import { canSeeTrip, visibleTripIds } from "@/lib/trips/visibility";
 
 export const metadata = { title: "Trips · Alyeska" };
 
@@ -108,6 +109,7 @@ export default async function TripsPage({ searchParams }) {
             people={people || []}
             canRemove={!access?.can.isSecondary}
             inboxAddress={!access?.can.isSecondary ? inboxAddress : ""}
+            access={access}
           />
         </Suspense>
       </main>
@@ -121,7 +123,7 @@ export default async function TripsPage({ searchParams }) {
  * boundary above rather than in the page, so the frame paints and the skeleton
  * stands in for the cards while these run.
  */
-async function Board({ familyId, people, canRemove, inboxAddress }) {
+async function Board({ familyId, people, canRemove, inboxAddress, access }) {
   const supabase = await createClient();
 
   // None of these depend on each other, so they go together rather than one
@@ -133,6 +135,7 @@ async function Board({ familyId, people, canRemove, inboxAddress }) {
     { data: taskRows },
     { data: itineraryRows },
     { data: rosters },
+    allowedTripIds,
   ] = await Promise.all([
     supabase
       .from("trips")
@@ -160,6 +163,7 @@ async function Board({ familyId, people, canRemove, inboxAddress }) {
     supabase.from("predeparture_tasks").select("trip_id, is_done"),
     supabase.from("itinerary_items").select("trip_id"),
     supabase.from("trip_travelers").select("trip_id, traveler_id"),
+    visibleTripIds(supabase, access),
   ]);
 
   function progress(rows, tripId, doneKey) {
@@ -194,7 +198,8 @@ async function Board({ familyId, people, canRemove, inboxAddress }) {
   // One date, used for all four buckets, so a trip cannot be sorted into two of
   // them because the clock ticked over a midnight between two calls.
   const today = homeToday();
-  const all = (trips || []).map(card);
+  const all = (trips || []).filter((trip) =>
+    canSeeTrip({ ...trip, family_id: familyId }, access, allowedTripIds)).map(card);
   const drafts = all.filter(isDraftTrip);
   // A trip they are on now is lifted out of Upcoming entirely. It is not upcoming
   // — that is the point — and leaving it in the list meant the trip you were
@@ -218,6 +223,7 @@ async function Board({ familyId, people, canRemove, inboxAddress }) {
       today={today}
       canRemove={canRemove}
       inboxAddress={inboxAddress}
+      secondary={Boolean(access?.can.isSecondary)}
     />
   );
 }

@@ -17,6 +17,7 @@ import {
   changesBetween,
 } from "@/lib/trips/circumstances";
 import { tripContradictions } from "@/lib/trips/contradictions";
+import { canSeeTrip, visibleTripIds } from "@/lib/trips/visibility";
 
 // Finding the trip this URL is talking about.
 //
@@ -67,18 +68,14 @@ async function findTrip(supabase, ref, familyId) {
 export async function generateMetadata({ params }) {
   const { ref } = await params;
   const supabase = await createClient();
-  const { key, raw } = parseTripRef(ref);
-  // This runs outside the signed-in path, so it cannot resolve a household and
-  // cannot use the scoped fallback. It takes the first row it is allowed to see
-  // rather than maybeSingle, because a title is not worth an error — and if it
-  // sees nothing, which is what row-level security gives a stranger, the tab
-  // just says Trip.
-  const { data } = await supabase
-    .from("trips")
-    .select("name")
-    .eq(key ? "public_id" : "slug", key || raw)
-    .limit(1);
-  return { title: `${data?.[0]?.name || "Trip"} · Alyeska` };
+  const user = await whoIs(supabase);
+  const access = await resolveAccess(supabase, user);
+  if (!access) return { title: "Trip · Alyeska" };
+  const [trip, ids] = await Promise.all([
+    findTrip(supabase, ref, access.familyId),
+    visibleTripIds(supabase, access),
+  ]);
+  return { title: `${canSeeTrip(trip, access, ids) ? trip.name : "Trip"} · Alyeska` };
 }
 
 export default async function TripPage({ params, searchParams }) {
@@ -91,7 +88,8 @@ export default async function TripPage({ params, searchParams }) {
   const access = await resolveAccess(supabase, user);
 
   const trip = await findTrip(supabase, ref, access?.familyId);
-  if (!trip) notFound();
+  const allowedTripIds = await visibleTripIds(supabase, access);
+  if (!canSeeTrip(trip, access, allowedTripIds)) notFound();
 
   // An old link, or a link whose readable half no longer matches the trip's
   // name. The query string has to survive the correction, because the tab a
