@@ -87,6 +87,7 @@ test("trip tabs use the regular style with packing first and date-aware defaults
   assert.match(ui,/setTab\(childOpeningTab\(row, date\)\)/);
   assert.doesNotMatch(ui,/id: "live"|tab === "live"/);
   assert.match(ui,/homeOpenedRef.current/);
+  assert.match(ui,/setTab\(childOpeningTab\(openingTrip, date\)\)/);
   assert.match(ui,/childHomeTrip\(data.trips \|\| \[\], date\)/);
   assert.match(ui,/childItineraryDay\(trip, today, selectedDay\)/);
   assert.match(ui,/className="tabbar mt-4 no-print" role="tablist"/);

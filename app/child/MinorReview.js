@@ -59,7 +59,8 @@ export default function MinorReview({ initial = null }) {
     const openingTrip = childHomeTrip(data.trips || [], date);
     setToday(date);
     if (openingTrip) {
-      setTripId(openingTrip.id); setSelectedDay(null); setTab("itinerary");
+      setTripId(openingTrip.id); setSelectedDay(null);
+      setTab(childOpeningTab(openingTrip, date));
       setTripGroup("upcoming"); setThemeOpen(false);
     }
     // Open once per entry, never on refresh or after the user chooses All trips.

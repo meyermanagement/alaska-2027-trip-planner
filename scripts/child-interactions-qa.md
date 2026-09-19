@@ -70,10 +70,10 @@ Real-device parent passkey / live staging end-to-end verification remains a rele
 Supersedes the separate Live tab and Live-related checks above.
 
 - No separate Live tab: Packing, Itinerary, Trip only.
-- Home automatically opens a server-authorized current trip or a trip leaving tomorrow, directly in Itinerary. Today is selected during the trip; departure day is selected the day before.
+- Home automatically opens a server-authorized current trip or a trip leaving tomorrow. Leaving tomorrow opens Packing; during the trip opens Itinerary with today selected.
 - Current trips outrank tomorrow's trips; overlapping current trips use latest start date, then stable ID. Inactive and unrelated trips cannot be selected.
 - Auto-entry runs once when the view opens. Back to trips, Settings, chosen tabs, and selected dates must survive refresh.
-- Manually opening a trip the day before still defaults to Packing; the automatic home shortcut goes straight to Itinerary as requested.
+- Manually opening a trip and the automatic home shortcut both default to Packing the day before departure.
 - Browser inventory: distant future stays on list; tomorrow/start/mid-trip auto-open correctly; changing a date works; returning to trip list does not bounce; manual packing and theme save still work; 320/375/1280 widths; isolated iframe.
 - Edge cases: expired view clears content; midnight changes the default day without overriding an explicitly selected date.
 - Executed: 266 regression tests passed; production-mode build passed; lint zero errors with nine pre-existing warnings. Browser checks passed for future list, tomorrow/departure/mid-trip entry, departure-day fallback, manual packing save, chosen day retention, back-to-list refresh, real simulated calendar rollover, explicit-date retention across rollover, expired-data clearing, 320/375/1280 widths, and opaque iframe. No JavaScript errors.
@@ -94,3 +94,9 @@ Supersedes the separate Live tab and Live-related checks above.
 - Browser checks passed from Settings, trip list and another trip; the banner reopens the current trip in Itinerary with the default current day.
 - Hidden before departure and removed when the child view expires. No page-width overflow at 320 or 1280 pixels; phone and desktop screenshots reviewed.
 - Final combined verification: 274 tests passed, no failures/skips; production-mode build passed; lint zero errors and nine existing warnings. No JavaScript errors in either browser fixture.
+
+## Departure-eve clarification
+
+- Child automatic home entry now uses the shared date-aware opening rule, matching the regular app: Packing on departure eve, Itinerary during the trip.
+- 22 focused opening/child-interaction tests passed. Browser verified tomorrow opens Packing, Itinerary remains selectable, and a current trip still opens Itinerary. No JavaScript errors.
+- Review-only follow-up; production remains unchanged.
