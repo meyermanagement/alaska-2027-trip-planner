@@ -15,6 +15,7 @@ import {
 import PromoteDraft from "./PromoteDraft";
 import ArchiveTrip from "./ArchiveTrip";
 import TripBackdrop from "./TripBackdrop";
+import TripBackLink from "./TripBackLink";
 import { PencilIcon } from "./Icons";
 import TripOverview from "./TripOverview";
 import TripForm from "./TripForm";
@@ -624,6 +625,7 @@ export default function TripView({
 
   return (
     <main className="screen px-5 pb-20 pt-6">
+      <TripBackLink trip={info} today={today} />
       {/* A draft is still an idea, and the whole page otherwise reads like a
           trip that is really happening — so it says so, once, at the top. */}
       {isDraftTrip(info) && (

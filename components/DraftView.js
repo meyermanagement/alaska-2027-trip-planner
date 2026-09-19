@@ -20,6 +20,7 @@ import PromoteDraft, { PROMOTE_DRAFT_EVENT } from "./PromoteDraft";
 import TripRoster from "./TripRoster";
 import BasicAnswer from "./BasicAnswer";
 import TripChanges from "./TripChanges";
+import TripBackLink from "./TripBackLink";
 
 /**
  * A draft, shown as the thing it actually is.
@@ -188,6 +189,7 @@ export default function DraftView({
 
   return (
     <main className="screen px-5 pb-24 pt-6">
+      <TripBackLink trip={trip} today={today} />
       {/* The header. Dashed, sand, and it says "draft" before it says the name,
           because that is the one thing somebody arriving here needs to know. */}
       <header className="rounded-3xl border-2 border-dashed border-[var(--line-strong)] bg-sand/70 p-5 sm:p-7">
