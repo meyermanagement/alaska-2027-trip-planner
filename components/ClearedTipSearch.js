@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 export default function ClearedTipSearch({ tripId, wallet, renderTip, onRestore, children }) {
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState(wallet ? "wallet" : "trips");
+  const scope = wallet ? "wallet" : "trip";
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -40,17 +40,9 @@ export default function ClearedTipSearch({ tripId, wallet, renderTip, onRestore,
           placeholder="That tip about getting seasick on the cruise…" />
       </label>
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="min-w-0 basis-full sm:basis-auto sm:flex-1 text-xs font-semibold">Search in
-          <select value={scope} disabled={busy} onChange={event => { setScope(event.target.value); setResult(null); setError(""); }}
-            className="mt-1 block min-h-11 w-full rounded-lg border border-[var(--line)] bg-white px-3 text-sm">
-            <option value="trips">All trips, including past trips</option>
-            {tripId && <option value="trip">This trip only</option>}
-            <option value="wallet">Wallet tips</option>
-          </select>
-        </label>
         <button className="btn btn-primary" disabled={busy || query.trim().length < 3}>{busy ? "Finding tips…" : "Search tips"}</button>
       </div>
-      <p className="mt-2 text-xs text-ink-soft">Describe the place or advice in your own words. Search finds the old tip; checking it is a separate step.</p>
+      <p className="mt-2 text-xs text-ink-soft">{wallet ? "Search cleared Wallet tips." : "Search cleared tips from this trip."} Describe the advice in your own words.</p>
     </form>
     {busy && <p role="status" className="mb-4 text-sm text-ink-soft">Looking for related advice, including tips saved under different wording…</p>}
     {error && <p role="alert" className="mb-4 text-sm text-rose">{error}</p>}
@@ -60,8 +52,8 @@ export default function ClearedTipSearch({ tripId, wallet, renderTip, onRestore,
         <button type="button" className="btn btn-ghost" onClick={() => { setResult(null); setQuery(""); setError(""); }}>Back to recent tips</button>
       </div>
       <p className="mb-3 text-xs text-ink-soft">{result.note}</p>
-      {result.truncated && <p className="mb-3 text-sm text-ink-soft">There are more possible matches than this search can rank at once. Add a trip name, destination, or more specific topic.</p>}
-      {!result.tips.length ? <p className="text-sm text-ink-soft">No matching cleared tips found. Try the place, trip name, or a different description.</p>
+      {result.truncated && <p className="mb-3 text-sm text-ink-soft">There are more possible matches than this search can rank at once. Try a more specific topic or place.</p>}
+      {!result.tips.length ? <p className="text-sm text-ink-soft">No matching cleared tips found. Try the place or a different description.</p>
         : <ul className="space-y-3">{result.tips.map(tip => renderTip(tip, restore))}</ul>}
     </section>}
     {!result && !busy && children}

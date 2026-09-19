@@ -26,7 +26,7 @@ import { tripPath } from "@/lib/trips/route";
  * with, and made the list longer every month whether or not you were thinking
  * about any of the trips in it. It now sits on the trip whose tips it holds, and
  * in the Wallet for the Wallet's. Recent records stay local to that screen;
- * an explicit search can find older advice across accessible trips.
+ * an explicit search can find older advice within that same trip or Wallet.
  *
  * It used to list only the tips pressed with Ignore, back when Clear and Ignore
  * were different buttons. They are one button now, and it lists everything put
@@ -256,7 +256,7 @@ function Record({ busy, problem, rows, wallet, tripId, onLoad = null, onRestore 
       {busy && rows === null ? (
         <p className="text-sm text-ink-soft">Fetching…</p>
       ) : null}
-      <ClearedTipSearch tripId={tripId} wallet={wallet} onRestore={onRestore}
+      <ClearedTipSearch key={wallet ? "wallet" : tripId} tripId={tripId} wallet={wallet} onRestore={onRestore}
         renderTip={(tip, restore) => <ClearedCard key={tip.id} tip={tip} onRestore={restore} />}>
       {rows && !rows.length ? (
         <p className="text-sm leading-relaxed text-ink-soft">
@@ -266,7 +266,7 @@ function Record({ busy, problem, rows, wallet, tripId, onLoad = null, onRestore 
         </p>
       ) : null}
       {rows && rows.length ? (
-        <><p className="mb-3 text-xs text-ink-soft">Recent cleared tips. Search above to find older advice across your trips.</p>
+        <><p className="mb-3 text-xs text-ink-soft">Recent cleared tips. Search above to find older advice {wallet ? "from your Wallet" : "from this trip"}.</p>
         <ul className="space-y-3">
           {rows.map((tip) => (
             <ClearedCard key={tip.id} tip={tip} onRestore={onRestore} />

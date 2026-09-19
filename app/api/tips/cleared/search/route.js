@@ -16,9 +16,9 @@ export async function POST(request) {
     if (raw.length > 4000) return reply({ error: "Please shorten your search." }, 400);
     const body = JSON.parse(raw);
     const query = typeof body.query === "string" ? body.query.trim() : "";
-    if (query.length < 3 || query.length > 500 || !["trip", "trips", "wallet"].includes(body.scope) ||
+    if (query.length < 3 || query.length > 500 || !["trip", "wallet"].includes(body.scope) ||
         (body.scope === "trip" && !UUID.test(body.tripId || "")))
-      return reply({ error: "Describe the tip in a few words and choose where to search." }, 400);
+      return reply({ error: "Search from a trip's cleared tips or Wallet history." }, 400);
     const { supabase, familyId, ai } = context;
     let terms = searchTerms(query), expanded = false;
     if (ai) {
@@ -31,25 +31,15 @@ export async function POST(request) {
       } catch { /* Keyword search remains usable without model availability. */ }
     }
     if (!terms.length) return reply({ error: "Try a place or topic, such as cruise motion sickness." }, 400);
-    let tripIds = [], tripsTruncated = false;
-    if (body.scope === "trips") {
-      const tripFilter = terms.flatMap(term => ["name", "destination"].map(field => `${field}.ilike.%${term}%`)).join(",");
-      const { data, error } = await supabase.from("trips").select("id")
-        .eq("family_id", familyId).or(tripFilter).order("start_date", { ascending: false }).limit(101);
-      if (error) throw new Error("Trip lookup failed");
-      tripIds = (data || []).slice(0, 100).map(trip => trip.id);
-      tripsTruncated = data?.length > 100;
-    }
     let requestRows = supabase.from("pro_tips").select(ARCHIVE_COLUMNS)
       .eq("family_id", familyId).in("status", ["cleared", "ignored"])
-      .or(archiveFilter(terms, tripIds)).order("resolved_at", { ascending: false, nullsFirst: false })
+      .or(archiveFilter(terms)).order("resolved_at", { ascending: false, nullsFirst: false })
       .order("id", { ascending: false }).limit(ARCHIVE_LIMIT + 1);
     if (body.scope === "trip") requestRows = requestRows.eq("trip_id", body.tripId);
-    else if (body.scope === "wallet") requestRows = requestRows.in("scope", WALLET_SCOPES);
-    else requestRows = requestRows.not("trip_id", "is", null);
+    else requestRows = requestRows.in("scope", WALLET_SCOPES);
     const { data, error } = await requestRows;
     if (error) throw new Error("Archive lookup failed");
-    const truncated = tripsTruncated || data?.length > ARCHIVE_LIMIT;
+    const truncated = data?.length > ARCHIVE_LIMIT;
     const candidates = (data || []).slice(0, ARCHIVE_LIMIT);
     let tips = keywordRank(candidates, terms).slice(0, 30), mode = expanded ? "expanded" : "keywords";
     if (ai && candidates.length) {

@@ -90,10 +90,12 @@ const req = body => ({ text: async () => JSON.stringify(body) });
 test("search route scopes database reads, expands and ranks actual archive IDs", async () => {
   const { log, calls } = setup({ outputs: [{ text: '{"terms":["motion sickness"]}' }, { text: JSON.stringify({ matches: [{ id, reason: "Seasickness advice" }] }) }] });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
-  const res = await POST(req({ query: "getting seasick on the boat", scope: "trips" }));
+  const res = await POST(req({ query: "getting seasick on the boat", scope: "trip", tripId: id }));
   assert.equal(res.status, 200); assert.equal(res.data.mode, "meaning"); assert.equal(res.data.tips[0].id, id);
   assert.equal(calls.length, 2);
   assert.ok(log.some(row => row[0] === "pro_tips" && row[1] === "eq" && row[2] === "family_id"));
+  assert.ok(log.some(row => row[0] === "pro_tips" && row[1] === "eq" && row[2] === "trip_id" && row[3] === id));
+  assert.ok(!log.some(row => row[0] === "trips"));
   assert.ok(log.some(row => row[1] === "in" && row[2] === "status" && row[3].includes("cleared")));
   assert.ok(log.some(row => row[1] === "or" && row[2].includes("motion sickness")));
   assert.ok(!log.some(row => ["insert", "update", "delete"].includes(row[1])));
@@ -101,15 +103,32 @@ test("search route scopes database reads, expands and ranks actual archive IDs",
 test("AI-off search stays useful without any model call; large candidate sets are disclosed", async () => {
   const { calls } = setup({ ai: false, rows: Array.from({ length: 101 }, (_, n) => ({ ...tip, id: String(n) })) });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
-  const res = await POST(req({ query: "cruise", scope: "trips" }));
+  const res = await POST(req({ query: "cruise", scope: "trip", tripId: id }));
   assert.equal(res.data.mode, "keywords"); assert.equal(calls.length, 0);
   assert.equal(res.data.truncated, true); assert.equal(res.data.tips.length, 30);
 });
 test("search failures degrade explicitly and do not invent semantic matches", async () => {
-  setup({ outputs: [new Error("unavailable"), new Error("unavailable")] });
+  const { log } = setup({ outputs: [new Error("unavailable"), new Error("unavailable")] });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
   const res = await POST(req({ query: "cruise", scope: "wallet" }));
   assert.equal(res.data.mode, "keywords"); assert.match(res.data.note, /unavailable/);
+  assert.ok(log.some(row => row[1] === "in" && row[2] === "scope" && row[3].includes("wallet")));
+});
+test("all-trip searches and missing trip identifiers are rejected before any model or database call", async () => {
+  for (const body of [{ scope: "trips" }, { scope: "trip" }, { scope: "trip", tripId: "invalid" }]) {
+    const { calls, log } = setup();
+    const { POST } = await route("app/api/tips/cleared/search/route.js");
+    assert.equal((await POST(req({ query: "cruise", ...body }))).status, 400);
+    assert.equal(calls.length, 0); assert.equal(log.length, 0);
+  }
+});
+test("trip searches do not exclude past or upcoming trips and the UI has no scope picker", () => {
+  const server = read("app/api/tips/cleared/search/route.js");
+  assert.doesNotMatch(server, /\.g[te]{1,2}\("end_date"|\.l[te]{1,2}\("start_date"|\.eq\("status"/);
+  const ui = read("components/ClearedTipSearch.js");
+  assert.match(ui, /wallet \? "wallet" : "trip"/);
+  assert.doesNotMatch(ui, /<select|All trips/);
+  assert.match(read("components/ClearedTips.js"), /key=\{wallet \? "wallet" : tripId\}/);
 });
 test("denied access never reaches a model or archive query", async () => {
   const { calls, log } = setup({ denied: true });
