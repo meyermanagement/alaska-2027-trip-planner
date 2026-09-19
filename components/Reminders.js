@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import FilterBar from "@/components/FilterBar";
 import PriorityMeter from "@/components/PriorityMeter";
+import { TaskDetail } from "./TaskDetail";
 import AddToCalendar from "@/components/AddToCalendar";
 import TaskEdit from "@/components/TaskEdit";
 import { eventFromTask } from "@/lib/calendar";
@@ -361,11 +362,10 @@ export default function Reminders({
                           </span>
                         )}
                       </div>
-                      {row.task.detail && (
-                        <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                          {row.task.detail}
-                        </p>
-                      )}
+                      <TaskDetail
+                        text={row.task.detail}
+                        title={row.task.title}
+                      />
                     </div>
                     <div className="no-print flex shrink-0 items-center gap-1">
                       {row.due.date && (

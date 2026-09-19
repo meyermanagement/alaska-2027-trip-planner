@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import PriorityMeter from "@/components/PriorityMeter";
+import { TaskDetail } from "./TaskDetail";
 import LastMinuteTasks from "@/components/LastMinuteTasks";
 import FilterBar from "@/components/FilterBar";
 import AddToCalendar from "@/components/AddToCalendar";
@@ -477,11 +478,7 @@ export default function Tasks({
                           </span>
                         )}
                       </div>
-                      {task.detail && (
-                        <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                          {task.detail}
-                        </p>
-                      )}
+                      <TaskDetail text={task.detail} title={task.title} />
                     </div>
                     <div className="no-print -mr-1.5 flex shrink-0 items-center gap-0.5">
                       {!task.is_done && eventFromTask(task, trip) && (
