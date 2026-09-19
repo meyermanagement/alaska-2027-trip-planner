@@ -21,6 +21,7 @@ import { tripPath } from "@/lib/trips/route";
 import { ageToday } from "@/lib/travelers/ages";
 import { isMinorTraveler } from "@/lib/beta/accountAge";
 import AdultAccess from "./AdultAccess";
+import ChildTripViewAction from "./ChildTripViewAction";
 import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
   aboutMeFromParts,
@@ -546,6 +547,20 @@ export default function People({
 
       {shown.map((person) => {
         const docs = docsFor(person.id);
+        const minor = isMinorTraveler(person);
+        const personSummary = (
+          <p className="text-xs text-ink-soft">
+            {person.date_of_birth
+              ? `Born ${formatDayYear(person.date_of_birth)}${
+                  ageToday(person.date_of_birth, todayISO) === null
+                    ? ""
+                    : ` · ${ageToday(person.date_of_birth, todayISO)} years old`
+                }`
+              : "No date of birth saved"}
+            <span aria-hidden="true"> · </span>
+            {docs.length} {docs.length === 1 ? "document" : "documents"}
+          </p>
+        );
         return (
           <section
             key={person.id}
@@ -565,19 +580,7 @@ export default function People({
                   <h2 className="font-display text-xl font-semibold">
                     {person.name}
                   </h2>
-                  <p className="text-xs text-ink-soft">
-                    {person.date_of_birth
-                      ? `Born ${formatDayYear(person.date_of_birth)}${
-                          // The number nobody wants to work out in their head,
-                          // and the one that decides what is bookable.
-                          ageToday(person.date_of_birth, todayISO) === null
-                            ? ""
-                            : ` · ${ageToday(person.date_of_birth, todayISO)} years old`
-                        }`
-                      : "No date of birth saved"}
-                    <span aria-hidden="true"> · </span>
-                    {docs.length} {docs.length === 1 ? "document" : "documents"}
-                  </p>
+                  {!minor && personSummary}
                 </div>
               </div>
               <div className="no-print flex flex-wrap justify-end gap-2">
@@ -617,7 +620,7 @@ export default function People({
                 )}
                 <button
                   type="button"
-                  className="btn btn-primary whitespace-nowrap px-3 py-1.5 text-xs"
+                  className={`btn ${minor ? "btn-ghost" : "btn-primary"} whitespace-nowrap px-3 py-1.5 text-xs`}
                   onClick={() => {
                     setEditingDoc(null);
                     setAddingFor(addingFor === person.id ? null : person.id);
@@ -627,6 +630,13 @@ export default function People({
                 </button>
               </div>
             </div>
+
+            {minor && (
+              <>
+                <ChildTripViewAction person={person} />
+                {personSummary}
+              </>
+            )}
 
             {/* Everything a button on that row opens, opens here: directly under
                 the button, before the notes and the profile lines and the access
@@ -809,7 +819,7 @@ export default function People({
               />
             )}
 
-            {canSetLevels && (
+            {canSetLevels && !minor && (
               <LevelPicker
                 person={person}
                 isMe={
@@ -1489,13 +1499,8 @@ export function AccessRow({
   const mine = isMe && !!person.email;
   const linked = !!person.user_id || mine;
 
-  if (isMinorTraveler(person)) return <div className="mt-3 rounded-xl border border-line bg-sand/40 p-3">
-    <p className="section-label">Parent-managed trip view</p>
-    <p className="mt-1 text-sm text-ink-soft">No independent sign-in. Itinerary and own packing, view only.</p>
-    <a className="btn btn-secondary mt-3" href={`/family/child-access?traveler=${encodeURIComponent(person.id)}`}>
-      Open {person.name}’s trip view
-    </a>
-  </div>;
+  // The child's primary action lives above their profile information.
+  if (isMinorTraveler(person)) return null;
 
   if (!isMe && person.adult_access_state && !["active", "underage"].includes(person.adult_access_state)) {
     return <AdultAccess person={person} state={person.adult_access_state} />;
