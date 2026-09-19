@@ -8971,6 +8971,41 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   margin-bottom: 0.4rem;
 }
 
+/* Wallet headers have explicit balance placement rather than flex-wrap. */
+.wallet-program-card {
+  container-type: inline-size;
+}
+.wallet-program-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+.wallet-program-balance {
+  min-width: 0;
+  margin-left: 4.75rem;
+  text-align: left;
+}
+.wallet-program-identity > [data-wallet-logo] {
+  width: 4rem;
+  height: 2.5rem;
+}
+@container (min-width: 520px) {
+  .wallet-program-identity > [data-wallet-logo] {
+    width: 5rem;
+    height: 3rem;
+  }
+  .wallet-program-header {
+    grid-template-columns: minmax(0, 1fr) minmax(8rem, auto);
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .wallet-program-balance {
+    margin-left: 0;
+    text-align: right;
+    max-width: 16rem;
+  }
+}
+
 @media (max-width: 480px) {
   .home-trip-example-idea > div > .flex {
     flex-direction: column;

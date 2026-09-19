@@ -6,7 +6,7 @@ import { WALLET_LOGOS } from "@/lib/wallet-logos";
 
 const programs = WALLET_LOGOS.map((logo, i) => ({
   id: `sample-${i}`, kind: logo.kind, brand: logo.aliases[0],
-  points_balance: i % 2 ? 42000 : null, currency_label: "points",
+  points_balance: i === 0 ? 0 : i === 5 ? 1234567 : i % 2 ? 42000 : null, currency_label: "points",
   status_tier: i % 2 ? "Member" : null, earn_rules: [], credits: [],
 })).concat([{ id: "custom", kind: "other", brand: "Local Adventure Rewards" }]);
 
@@ -17,7 +17,7 @@ export default function WalletLogoFixture() {
       <button className="btn btn-ghost" onClick={() => { document.documentElement.dataset.skin = "aurora"; }}>Dark</button>
     </div>
     <h1 className="font-display text-xl font-semibold">Wallet</h1>
-    <RewardsBoard familyId="synthetic-only" travelers={[]} programs={programs} />
+    <RewardsBoard familyId="synthetic-only" travelers={[{id:"test-person",name:"Taylor"}, {id:"test-pet",name:"Test pet",is_person:false}]} programs={programs} />
     <Deals deals={[
       { id: "hawaii", origin: "ORD", destination: "Hawaii", status: "dismissed",
         book_by: "2026-09-17", book_by_inferred: true, dismissed_reason: "Wrong time of year",

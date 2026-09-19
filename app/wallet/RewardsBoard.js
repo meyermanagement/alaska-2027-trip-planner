@@ -7,13 +7,13 @@ import {
   CATALOG,
   CATALOG_AS_OF,
   VALUATION_SOURCE,
-  catalogByKind,
   catalogEntry,
 } from "@/lib/rewards-catalog";
 import { BubbleIcon } from "@/components/AskAlyTrigger";
 import PayAsk, { PAY_ASK_EVENT } from "./PayAsk";
 import { ChevronDisc } from "@/components/ChevronDisc";
 import WalletLogo from "@/components/WalletLogo";
+import ProgramPicker from "./ProgramPicker";
 import {
   CREDIT_PERIODS,
   KIND_ORDER,
@@ -140,6 +140,8 @@ export default function RewardsBoard({
   const [rows, setRows] = useState(programs);
   const [form, setForm] = useState(null); // null | { id | null, values }
   const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveNotice, setSaveNotice] = useState("");
   const [shown, setShown] = useState(() => new Set());
   // Which program cards are open. Empty to start, so a wallet of twenty-one
   // programs arrives as twenty-one titles and balances rather than eight screens
@@ -275,30 +277,34 @@ export default function RewardsBoard({
   const creditTotal = useMemo(() => totalCreditValue(rows), [rows]);
 
   async function save() {
-    if (!form) return;
+    if (!form || busy) return;
     const patch = toRow(form.values);
     if (!patch.brand) return;
     setBusy(true);
-    if (form.id) {
-      const { data } = await supabase
+    setSaveError("");
+    setSaveNotice("");
+    try {
+      const request = form.id ? supabase
         .from("rewards_programs")
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq("id", form.id)
-        .select("*")
-        .maybeSingle();
-      if (data)
-        setRows((list) => list.map((r) => (r.id === form.id ? data : r)));
-    } else {
-      const { data } = await supabase
+        : supabase
         .from("rewards_programs")
-        .insert({ ...patch, family_id: familyId })
-        .select("*")
-        .maybeSingle();
-      if (data) setRows((list) => [...list, data]);
+        .insert({ ...patch, family_id: familyId });
+      const { data, error } = await request.select("*").maybeSingle();
+      if (error || !data) throw error || new Error("Save returned no record");
+      setRows((list) => form.id ? list.map((r) => r.id === form.id ? data : r) : [...list, data]);
+      setSaveNotice(`${patch.brand} ${form.id ? "updated" : "added to Wallet"}.`);
+      setQuery("");
+      setKindFilter("all");
+      setWhose("all");
+      setForm(null);
+      router.refresh();
+    } catch {
+      setSaveError("Couldn’t save this program. Your details are still here. Try again.");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
-    setForm(null);
-    router.refresh();
   }
 
   async function remove(row) {
@@ -330,6 +336,8 @@ export default function RewardsBoard({
   }
 
   function startAdd(preset) {
+    setSaveError("");
+    setSaveNotice("");
     const base = { ...BLANK, ...(preset || {}) };
     setForm({ id: null, values: base });
   }
@@ -491,6 +499,7 @@ export default function RewardsBoard({
           {showAddAction && <button
             type="button"
             className="btn btn-primary"
+            disabled={busy}
             onClick={() => startAdd()}
           >
             Add a card or program
@@ -576,16 +585,19 @@ export default function RewardsBoard({
       {form && (
         <div id="wallet-program-editor" ref={formRef} className="scroll-mt-24">
           <ProgramForm
+            key={form.id || "new"}
             values={form.values}
             isNew={!form.id}
             travelers={travelers}
             busy={busy}
+            error={saveError}
             onChange={(values) => setForm((f) => ({ ...f, values }))}
             onCancel={() => setForm(null)}
             onSave={save}
           />
         </div>
       )}
+      {saveNotice && <p role="status" className="text-sm font-semibold text-teal">{saveNotice}</p>}
 
       {/* The empty state used to explain only the mechanics -- pick a brand and
           the earning rules come filled in -- which answers "how do I add one"
@@ -613,9 +625,8 @@ export default function RewardsBoard({
           <p className="mt-2 text-sm leading-relaxed text-ink-soft">
             Add one and two things appear above: a What to pay with panel for
             each kind of spending, and a button to ask her about a specific
-            purchase. Pick a brand, or type any name and press Look it up, and
-            the earning rules and rough point values come filled in, ready to
-            correct. You can add a balance now or later.
+            purchase. Choose your card or program, say whose it is, and save.
+            You can add a balance and other details now or later.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {CATALOG.slice(0, 8).map((entry) => (
@@ -653,7 +664,7 @@ export default function RewardsBoard({
               // cards go back to however you had them when the box is cleared.
               const open = opened.has(row.id) || searching;
               return (
-                <article key={row.id} className="card">
+                <article key={row.id} className="card wallet-program-card">
                   <HeaderShell
                     open={open}
                     fixed={searching}
@@ -667,10 +678,10 @@ export default function RewardsBoard({
                     }
                     label={`${open ? "Hide" : "Show"} details for ${row.brand}`}
                   >
-                    <div className="flex min-w-0 flex-1 basis-60 items-start gap-3">
+                    <div className="wallet-program-identity flex min-w-0 items-start gap-3">
                       <WalletLogo program={row} />
                       <div className="min-w-0">
-                      <h3 className="break-words font-display text-lg font-semibold">
+                      <h3 className="break-words text-base font-semibold leading-snug">
                         {row.brand}
                       </h3>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -688,43 +699,25 @@ export default function RewardsBoard({
                             Whole family
                           </span>
                         )}
-                        {row.program_name && (
-                          <span className="text-xs text-ink-soft">
-                            earns {row.program_name}
-                          </span>
-                        )}
-                        {row.annual_fee !== null &&
-                          row.annual_fee !== undefined && (
-                            <span className="text-xs text-ink-soft">
-                              {Number(row.annual_fee) === 0
-                                ? "no annual fee"
-                                : `${formatMoney(Number(row.annual_fee))} a year`}
-                            </span>
-                          )}
                       </div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="wallet-program-balance">
                       {points ? (
-                        <p className="text-lg font-semibold tabular-nums">
+                        <p className="break-words text-base font-semibold tabular-nums">
                           {points}{" "}
                           <span className="text-xs font-medium text-ink-soft">
                             {row.currency_label || "points"}
                           </span>
                         </p>
                       ) : (
-                        <p className="text-sm text-ink-soft">No balance yet</p>
+                        <p className="text-xs text-ink-faint">Balance not added</p>
                       )}
                       {value ? (
                         <p className="text-xs text-ink-soft">
                           about {formatMoney(value)}
                         </p>
                       ) : null}
-                      {row.points_checked_on && (
-                        <p className="text-2xs text-ink-faint">
-                          checked {row.points_checked_on}
-                        </p>
-                      )}
                     </div>
                   </HeaderShell>
 
@@ -735,6 +728,13 @@ export default function RewardsBoard({
                         : "hidden px-4 pb-4 sm:px-5 sm:pb-5 print:block"
                     }
                   >
+                    {(row.program_name || row.annual_fee != null || row.points_checked_on) && (
+                      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-soft">
+                        {row.program_name && <span>Earns {row.program_name}</span>}
+                        {row.annual_fee != null && <span>{Number(row.annual_fee) === 0 ? "No annual fee" : `${formatMoney(Number(row.annual_fee))} a year`}</span>}
+                        {row.points_checked_on && <span>Balance checked {row.points_checked_on}</span>}
+                      </div>
+                    )}
                     {rules.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {rules.map((rule, i) => (
@@ -850,10 +850,13 @@ export default function RewardsBoard({
                       )}
                       <button
                         type="button"
+                        disabled={busy}
                         className="text-xs font-semibold text-ink-soft underline decoration-[var(--line-strong)] underline-offset-2 hover:text-teal"
-                        onClick={() =>
-                          setForm({ id: row.id, values: toForm(row) })
-                        }
+                        onClick={() => {
+                          setSaveError("");
+                          setSaveNotice("");
+                          setForm({ id: row.id, values: toForm(row) });
+                        }}
                       >
                         Edit
                       </button>
@@ -910,7 +913,7 @@ export default function RewardsBoard({
 function HeaderShell({ open, fixed, onToggle, label, children }) {
   const inside = (
     <>
-      <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
+      <div className="wallet-program-header min-w-0 flex-1">
         {children}
       </div>
       {fixed ? null : <ChevronDisc open={open} />}
@@ -1048,13 +1051,15 @@ function ProgramForm({
   isNew,
   travelers,
   busy,
+  error,
   onChange,
   onCancel,
   onSave,
 }) {
   const set = (patch) => onChange({ ...values, ...patch });
   const isCard = values.kind === "credit_card";
-  const grouped = catalogByKind();
+  const [mode, setMode] = useState(() => isNew && !values.brand ? "choose" : "details");
+  const [manual, setManual] = useState(() => !catalogEntry(values.brand));
   // What a lookup came back with, kept so the status ladder can be shown beside
   // the status field for a program the app does not ship an entry for.
   const [found, setFound] = useState(null);
@@ -1071,7 +1076,8 @@ function ProgramForm({
     // search. Typing \"IHG One Rewards\" gets the same answer as picking it.
     const known = catalogEntry(name);
     if (known) {
-      onChange({ ...values, ...fromCatalog(known) });
+      onChange(isNew ? { ...values, ...fromCatalog(known) } : withLookup(values, known,
+        known.source ? [{ url: known.source }] : [], { replace: false }));
       setFound({ tiers: known.tiers || null });
       setLookupNote({
         tone: "ok",
@@ -1130,58 +1136,49 @@ function ProgramForm({
   // as a level the family held — and Aly read it that way too.
   const ladder = catalogEntry(values.brand)?.tiers || found?.tiers || null;
 
+  if (mode === "choose") return (
+    <ProgramPicker
+      onCancel={onCancel}
+      onPick={(entry) => {
+        onChange({ ...BLANK, traveler_id: values.traveler_id, ...fromCatalog(entry) });
+        setFound(null);
+        setLookupNote(null);
+        setManual(false);
+        setMode("details");
+      }}
+      onManual={(brand, kind) => {
+        onChange({ ...BLANK, traveler_id: values.traveler_id, brand, kind: kind === "all" ? "other" : kind });
+        setFound(null);
+        setLookupNote(null);
+        setManual(true);
+        setMode("details");
+      }}
+    />
+  );
+
   return (
     <form
       className="card space-y-4 p-5"
       onSubmit={(e) => {
         e.preventDefault();
-        onSave();
+        if (!busy && !looking) onSave();
       }}
     >
       <h2 className="font-display text-lg font-semibold">
-        {isNew ? "Add a rewards program" : `Edit ${values.brand}`}
+        {isNew ? "Add to Wallet" : `Edit ${values.brand}`}
       </h2>
-
-      {isNew && (
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Start from a known one
-          </span>
-          <select
-            className="field"
-            value={catalogEntry(values.brand) ? values.brand : ""}
-            onChange={(e) => {
-              const entry = catalogEntry(e.target.value);
-              onChange(
-                entry
-                  ? { ...values, ...fromCatalog(entry) }
-                  : { ...values, brand: "" },
-              );
-            }}
-          >
-            <option value="">Type it in myself</option>
-            {grouped.map((group) => (
-              <optgroup key={group.kind} label={group.label}>
-                {group.items.map((entry) => (
-                  <option key={entry.brand} value={entry.brand}>
-                    {entry.brand}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <span className="mt-1 block text-xs text-ink-soft">
-            Fills in the earning rules, the statement credits and a rough value
-            per point. Everything stays editable — check it against your own
-            account.
-          </span>
-        </label>
-      )}
-
+      <fieldset disabled={busy || looking} className="min-w-0 space-y-4">
+      {!manual && <div className="flex items-center gap-3 rounded-xl bg-sand-deep/40 p-3">
+        <WalletLogo program={values} />
+        <p className="min-w-0 flex-1 break-words text-sm font-semibold">{values.brand}</p>
+      </div>}
+      {isNew && <button type="button" className="text-sm font-semibold text-teal underline underline-offset-2"
+        onClick={() => setMode("choose")}>Choose a different program</button>}
       <div className="grid gap-3 sm:grid-cols-2">
+        {manual && <>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Kind
+            Category
           </span>
           <select
             className="field"
@@ -1220,14 +1217,14 @@ function ProgramForm({
             disabled={looking || values.brand.trim().length < 2}
             onClick={lookUp}
           >
-            {looking ? "Looking it up\u2026" : "Look it up"}
+            {looking ? "Finding details\u2026" : "Find program details"}
           </button>
           <span className="mt-1 block text-xs text-ink-soft">
             {looking
               ? "Reading the program's own pages. This takes a few seconds."
               : isNew
-                ? "I read the program's pages and fill in the earning rules, credits, tiers and a rough value per point."
-                : "Fills in anything still blank. Nothing you have already typed is touched."}
+                ? "Optional. You can save without looking it up."
+                : "Optional. Fills in blank program details."}
           </span>
           {lookupNote && (
             <span
@@ -1258,6 +1255,7 @@ function ProgramForm({
             </span>
           )}
         </div>
+        </>}
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
             Whose account
@@ -1268,7 +1266,7 @@ function ProgramForm({
             onChange={(e) => set({ traveler_id: e.target.value })}
           >
             <option value="">The whole family</option>
-            {travelers.map((t) => (
+            {travelers.filter((t) => t.is_person !== false).map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>
@@ -1277,55 +1275,21 @@ function ProgramForm({
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Points are called
-          </span>
-          <input
-            className="field"
-            value={values.currency_label}
-            onChange={(e) => set({ currency_label: e.target.value })}
-            placeholder="points"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Balance
+            Balance (optional)
           </span>
           <input
             className="field"
             type="number"
+            min="0"
             inputMode="numeric"
             value={values.points_balance}
             onChange={(e) => set({ points_balance: e.target.value })}
             placeholder="42500"
           />
         </label>
-        <label className="block">
+        {!isCard && <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Balance checked on
-          </span>
-          <input
-            className="field"
-            type="date"
-            value={values.points_checked_on}
-            onChange={(e) => set({ points_checked_on: e.target.value })}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Worth per point, in cents
-          </span>
-          <input
-            className="field"
-            type="number"
-            step="0.01"
-            value={values.point_value_cents}
-            onChange={(e) => set({ point_value_cents: e.target.value })}
-            placeholder="1.2"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Status or tier
+            Status (optional)
           </span>
           <input
             className="field"
@@ -1335,95 +1299,56 @@ function ProgramForm({
           />
           {ladder && (
             <span className="mt-1 block text-xs text-ink-soft">
-              Levels in this program: {ladder}. Leave this empty if you have
-              none — nothing will assume one.
+              Levels: {ladder}
             </span>
           )}
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Membership number
-          </span>
-          <input
-            className="field"
-            value={values.member_number}
-            onChange={(e) => set({ member_number: e.target.value })}
-            autoComplete="off"
-          />
-        </label>
-        {isCard && (
-          <>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-                Points go to
-              </span>
-              <input
-                className="field"
-                value={values.program_name}
-                onChange={(e) => set({ program_name: e.target.value })}
-                placeholder="Chase Ultimate Rewards"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-                Annual fee
-              </span>
-              <input
-                className="field"
-                type="number"
-                step="1"
-                value={values.annual_fee}
-                onChange={(e) => set({ annual_fee: e.target.value })}
-                placeholder="95"
-              />
-            </label>
-            {/* Three dates, and the only reason to ask for them is written under
-                them. Every issuer rule that would actually stop an application is
-                a rule about dates, so without these Aly can only recite the rule
-                at you; with them she can say whether you are near it. */}
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-                Opened
-              </span>
-              <input
-                className="field"
-                type="date"
-                value={values.opened_on}
-                onChange={(e) => set({ opened_on: e.target.value })}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-                Welcome bonus earned
-              </span>
-              <input
-                className="field"
-                type="date"
-                value={values.bonus_earned_on}
-                onChange={(e) => set({ bonus_earned_on: e.target.value })}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-                Closed
-              </span>
-              <input
-                className="field"
-                type="date"
-                value={values.closed_on}
-                onChange={(e) => set({ closed_on: e.target.value })}
-              />
-            </label>
-            <p className="text-xs text-ink-soft sm:col-span-2">
-              These three dates are what let Aly tell you where you stand
-              against an issuer&rsquo;s limits instead of quoting them at you.
-              Nothing here touches your credit, and nothing is looked up on your
-              behalf.
-            </p>
-          </>
-        )}
+        </label>}
       </div>
 
+      {error && <p role="alert" className="text-sm text-rose">{error}</p>}
+      <div className="flex flex-wrap gap-3">
+        <button type="submit" className="btn btn-primary" disabled={busy || looking || !values.brand.trim()}>
+          {busy ? "Saving\u2026" : isNew ? "Add to Wallet" : "Save changes"}
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={busy || looking} onClick={onCancel}>Cancel</button>
+      </div>
+      <details className="border-t border-[var(--line)] pt-3">
+        <summary className="cursor-pointer py-1 text-sm font-semibold">Account details <span className="font-normal text-ink-soft">(optional)</span></summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <ProgramField label="Membership number" field="member_number" values={values} set={set} />
+          <ProgramField label="Balance checked on" field="points_checked_on" type="date" values={values} set={set} />
+          <ProgramField label="Notes" field="notes" multiline values={values} set={set} />
+        </div>
+      </details>
+      {isCard && <details className="border-t border-[var(--line)] pt-3">
+        <summary className="cursor-pointer py-1 text-sm font-semibold">Card history <span className="font-normal text-ink-soft">(optional)</span></summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <ProgramField label="Opened" field="opened_on" type="date" values={values} set={set} />
+          <ProgramField label="Welcome bonus earned" field="bonus_earned_on" type="date" values={values} set={set} />
+          <ProgramField label="Closed" field="closed_on" type="date" values={values} set={set} />
+        </div>
+      </details>}
+      <details className="border-t border-[var(--line)] pt-3">
+        <summary className="cursor-pointer py-1 text-sm font-semibold">Program information</summary>
+        <div className="mt-3 space-y-4">
+          <p className="text-xs text-ink-soft">Standard details where available. Check them against your account before relying on them.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {!manual && <>
+              <ProgramField label="Name" field="brand" values={values} set={set} />
+              <label className="block"><span className="mb-1 block text-xs font-semibold text-ink-soft">Category</span>
+                <select className="field" value={values.kind} onChange={(e) => set({ kind: e.target.value })}>
+                  {REWARD_KINDS.map((kind) => <option key={kind.key} value={kind.key}>{kind.label}</option>)}
+                </select>
+              </label>
+            </>}
+            <ProgramField label="Points are called" field="currency_label" values={values} set={set} />
+            <ProgramField label="Estimated cents per point" field="point_value_cents" type="number" values={values} set={set} />
+            {isCard && <>
+              <ProgramField label="Points go to" field="program_name" values={values} set={set} />
+              <ProgramField label="Annual fee" field="annual_fee" type="number" values={values} set={set} />
+              <ProgramField label="Status (optional)" field="status_tier" values={values} set={set} />
+            </>}
+          </div>
       <fieldset className="space-y-2">
         <legend className="text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
           {isCard ? "What it earns" : "Earning rules"}
@@ -1501,7 +1426,7 @@ function ProgramForm({
         </button>
       </fieldset>
 
-      <fieldset className="space-y-2">
+      {isCard && <fieldset className="space-y-2">
         <legend className="text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
           Statement credits
         </legend>
@@ -1597,7 +1522,7 @@ function ProgramForm({
         >
           Add a credit
         </button>
-      </fieldset>
+      </fieldset>}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
@@ -1613,25 +1538,28 @@ function ProgramForm({
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.07em] text-ink-soft">
-            Anything else
+            When points expire
           </span>
           <textarea
             className="field min-h-20"
-            value={values.notes}
-            onChange={(e) => set({ notes: e.target.value })}
+            value={values.expiry_note}
+            onChange={(e) => set({ expiry_note: e.target.value })}
             placeholder="Points expire after 24 months of no activity."
           />
         </label>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {isNew ? "Add it" : "Save changes"}
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
+        </div>
+      </details>
+      </fieldset>
     </form>
   );
+}
+
+function ProgramField({ label, field, values, set, type = "text", multiline = false }) {
+  const props = { className: "field", value: values[field], onChange: (e) => set({ [field]: e.target.value }) };
+  return <label className="block">
+    <span className="mb-1 block text-xs font-semibold text-ink-soft">{label}</span>
+    {multiline ? <textarea {...props} rows={2} /> : <input {...props} type={type} step={type === "number" ? "any" : undefined} autoComplete="off" />}
+  </label>;
 }
