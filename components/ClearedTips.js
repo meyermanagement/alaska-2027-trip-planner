@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { announceTipResolved } from "@/lib/tips/cleared";
 import { ChevronDisc } from "./ChevronDisc";
+import ClearedTipSearch from "./ClearedTipSearch";
+import ClearedTipCheck from "./ClearedTipCheck";
+import Link from "next/link";
+import { tripPath } from "@/lib/trips/route";
 
 /**
  * The tips you have put away, kept where they can be found again.
@@ -21,8 +25,8 @@ import { ChevronDisc } from "./ChevronDisc";
  * one place you could look something up on the one screen it had nothing to do
  * with, and made the list longer every month whether or not you were thinking
  * about any of the trips in it. It now sits on the trip whose tips it holds, and
- * in the Wallet for the Wallet's, so what it lists is always about the screen you
- * are already reading.
+ * in the Wallet for the Wallet's. Recent records stay local to that screen;
+ * an explicit search can find older advice across accessible trips.
  *
  * It used to list only the tips pressed with Ignore, back when Clear and Ignore
  * were different buttons. They are one button now, and it lists everything put
@@ -76,9 +80,10 @@ function clearedOn(value) {
 // they should not compete with the advice above them for the same eye.
 function ClearedCard({ tip, onRestore }) {
   const [open, setOpen] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const from = CAME_FROM[tip.scope];
   const on = clearedOn(tip.resolved_at);
-  const said = [from, on].filter(Boolean).join(" · ");
+  const said = [tip.trips?.name || (tip.scope === "wallet" || tip.scope === "offers" ? "Wallet" : ""), from, on].filter(Boolean).join(" · ");
 
   return (
     <li className="rounded-xl border border-[var(--line)] bg-white/60">
@@ -102,19 +107,25 @@ function ClearedCard({ tip, onRestore }) {
       </button>
 
       <div className={open ? "px-4 pb-4" : "hidden px-4 pb-4 print:block"}>
-        <p className="text-sm leading-relaxed text-ink-faint">{tip.body}</p>
+        {tip.matchReason && <p className="mb-3 text-sm text-teal">{tip.matchReason}</p>}
+        <p className="mb-2 text-xs font-semibold text-ink-soft">Original advice · Not rechecked</p>
+        <p className="text-sm leading-relaxed text-ink-soft">{tip.body}</p>
         {tip.because ? (
-          <p className="mt-2 border-l-2 border-[var(--line)] pl-3 text-sm leading-relaxed text-ink-faint">
+          <p className="mt-2 border-l-2 border-[var(--line)] pl-3 text-sm leading-relaxed text-ink-soft">
             Why you: {tip.because}
           </p>
         ) : null}
         <button
           type="button"
-          onClick={() => onRestore(tip)}
+          disabled={restoring}
+          onClick={async () => { if (restoring) return; setRestoring(true); try { await onRestore(tip); } finally { setRestoring(false); } }}
           className="btn btn-ghost no-print mt-3 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.06em]"
         >
-          Bring it back
+          {restoring ? "Restoring…" : "Bring it back"}
         </button>
+        {tip.trip_id && tip.trips && <Link href={tripPath({ ...tip.trips, id: tip.trip_id }, "tips")}
+          className="btn btn-ghost ml-2 mt-3">Open original trip</Link>}
+        <ClearedTipCheck tip={tip} />
       </div>
     </li>
   );
@@ -152,13 +163,11 @@ export default function ClearedTips({
   }, [tripId, wallet]);
 
   const restore = useCallback(async (tip) => {
-    setRows((prev) => (prev || []).filter((row) => row.id !== tip.id));
     // If it was cleared a minute ago and this is somebody taking it back, the
     // card and the band still have it in hand and only need telling to show it
     // again. If it was cleared last month they never had it, and nothing short of
     // a reload can put it back -- which is fine, because that is not the case
     // anybody is anxious about.
-    announceTipResolved(tip.id, null);
     try {
       const res = await fetch(`/api/tips/${tip.id}`, {
         method: "PATCH",
@@ -166,10 +175,13 @@ export default function ClearedTips({
         body: JSON.stringify({ status: "active" }),
       });
       if (!res.ok) throw new Error();
+      setRows((prev) => (prev || []).filter((row) => row.id !== tip.id));
+      announceTipResolved(tip.id, null);
+      setProblem("");
+      return true;
     } catch {
-      setRows((prev) => [tip, ...(prev || [])]);
-      announceTipResolved(tip.id, "cleared");
       setProblem("That did not save. It is still here.");
+      return false;
     }
   }, []);
 
@@ -190,6 +202,7 @@ export default function ClearedTips({
             problem={problem}
             rows={rows}
             wallet={wallet}
+            tripId={tripId}
             onLoad={load}
             onRestore={restore}
           />
@@ -217,6 +230,7 @@ export default function ClearedTips({
           problem={problem}
           rows={rows}
           wallet={wallet}
+          tripId={tripId}
           onRestore={restore}
         />
       </div>
@@ -227,7 +241,7 @@ export default function ClearedTips({
 // The list itself, which is the same whether a disclosure opened it or a tab
 // did. onLoad is passed only by the bare version, which has nothing to press and
 // so has to fetch for itself.
-function Record({ busy, problem, rows, wallet, onLoad = null, onRestore }) {
+function Record({ busy, problem, rows, wallet, tripId, onLoad = null, onRestore }) {
   useEffect(() => {
     if (onLoad) onLoad();
   }, [onLoad]);
@@ -242,6 +256,8 @@ function Record({ busy, problem, rows, wallet, onLoad = null, onRestore }) {
       {busy && rows === null ? (
         <p className="text-sm text-ink-soft">Fetching…</p>
       ) : null}
+      <ClearedTipSearch tripId={tripId} wallet={wallet} onRestore={onRestore}
+        renderTip={(tip, restore) => <ClearedCard key={tip.id} tip={tip} onRestore={restore} />}>
       {rows && !rows.length ? (
         <p className="text-sm leading-relaxed text-ink-soft">
           {wallet
@@ -250,12 +266,14 @@ function Record({ busy, problem, rows, wallet, onLoad = null, onRestore }) {
         </p>
       ) : null}
       {rows && rows.length ? (
+        <><p className="mb-3 text-xs text-ink-soft">Recent cleared tips. Search above to find older advice across your trips.</p>
         <ul className="space-y-3">
           {rows.map((tip) => (
             <ClearedCard key={tip.id} tip={tip} onRestore={onRestore} />
           ))}
-        </ul>
+        </ul></>
       ) : null}
+      </ClearedTipSearch>
     </>
   );
 }
