@@ -8,6 +8,7 @@ import { templateGroups } from "@/lib/packing/templateGroups";
 import { LAST_MINUTE_LABEL } from "@/lib/packing/lastMinute";
 import TripsUsing from "@/components/TripsUsing";
 import FirstTemplate from "@/components/FirstTemplate";
+import { BaseListOnTemplates } from "@/components/PackingBaseTools";
 import { ASK_ALY_EVENT } from "@/components/AskAlyTrigger";
 import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { proposeRequest } from "@/lib/packing/newTemplate";
@@ -270,7 +271,7 @@ export default function Templates({
   }
 
   if (!template) {
-    return <FirstTemplate trips={packedTrips} />;
+    return <><BaseListOnTemplates people={travelers} onSaved={() => router.refresh()} /><FirstTemplate trips={packedTrips} /></>;
   }
 
   // The way to a second list. It is deliberately not a form: what a list is for
@@ -380,6 +381,7 @@ export default function Templates({
 
   return (
     <section>
+      {template.is_base && <BaseListOnTemplates people={travelers} onSaved={() => router.refresh()} />}
       {/* The picker of templates. In the controlled shape (a template picked
           from the left-hand index on the packing screen) this is hidden, since
           the left-hand index is doing the same job. The Push panel and the

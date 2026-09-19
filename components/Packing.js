@@ -20,12 +20,15 @@ import ZoneBand, { CaseIcon } from "@/components/ZoneBand";
 import ConfirmSheet from "@/components/ConfirmSheet";
 import { hasDayPack } from "@/lib/daypack/pack";
 import ProTips from "./ProTips";
+import PackingBaseTools, { usePackingBase } from "./PackingBaseTools";
+import { baseItemKey } from "@/lib/packing/baseList";
 
 /**
  * The one "category" that is not a category: adding a line under a heading the
  * list does not have yet. Every other add is a button on the card it belongs to.
  */
 const NEW_CATEGORY = "\u0000new";
+const EMPTY_ITEMS = [];
 
 /**
  * One name, compared the way people mean it: trimmed and without regard to
@@ -55,8 +58,8 @@ export default function Packing({
   going = null,
   userId,
   onChange,
-  templates = [],
-  templateItems: initialTemplateItems = [],
+  templates: initialTemplates = [],
+  templateItems: initialTemplateItems = EMPTY_ITEMS,
   tripTemplateIds = [],
   templatesChosen = false,
   tips = [],
@@ -78,6 +81,16 @@ export default function Packing({
   readOnly = false,
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const baseList = usePackingBase(tripId, readOnly);
+  const templates = useMemo(() => baseList.state?.template
+    ? [...initialTemplates.filter(t => t.id !== baseList.state.template.id), baseList.state.template]
+    : initialTemplates, [initialTemplates, baseList.state]);
+  const [keepOnBase, setKeepOnBase] = useState(false);
+  const previousTemplateItems = useRef(initialTemplateItems);
+  useEffect(() => {
+    if (!readOnly && previousTemplateItems.current !== initialTemplateItems) void baseList.refresh();
+    previousTemplateItems.current = initialTemplateItems;
+  }, [initialTemplateItems, readOnly, baseList.refresh]);
   // The lowest sort_order this screen has handed out under each heading, so two
   // quick adds do not collide. See topOfCategory.
   const handFloor = useRef(new Map());
@@ -211,6 +224,11 @@ export default function Packing({
   // page; the copy here only exists so a row written from this form shows up in
   // the labels without another read.
   const [templateItems, setTemplateItems] = useState(initialTemplateItems);
+  useEffect(() => {
+    if (!baseList.state?.template) return;
+    const id = baseList.state.template.id;
+    setTemplateItems(rows => [...rows.filter(row => row.template_id !== id), ...baseList.state.items]);
+  }, [baseList.state]);
   // What the row looked like when its edit form opened, kept so a save can tell
   // what actually changed. Only the fields a template also carries are worth
   // remembering here.
@@ -955,10 +973,8 @@ export default function Packing({
   /**
    * Open the form on one category, or on nothing in particular.
    *
-   * Everything the last press left behind is cleared, because a note saying
-   * "Added, and kept on Meyer Family Base" is about the item you just wrote and
-   * not about the one you are about to write, and a template pill left pressed
-   * would quietly keep the next line too.
+   * Clear item-specific fields, but preserve the explicit destination choice
+   * for rapid entry. It remains visible beside the input.
    */
   function startAdd(category) {
     draftAvailable.current = false;
@@ -967,7 +983,6 @@ export default function Packing({
     setNewItem("");
     setNewCategory(category === NEW_CATEGORY ? "" : category);
     setNewPetId("");
-    setNewTemplates(new Set());
     setNewLastMinute(false);
     setNewLastMinuteSet(false);
     setNewNote("");
@@ -977,6 +992,13 @@ export default function Packing({
     e.preventDefault();
     const name = newItem.trim();
     if (readOnly || !name || !draftAvailable.current) return;
+    const duplicate = displayItems.find(item => !item.stashed_at && baseItemKey(item) === baseItemKey({
+      item: name, assignee: newAssignee, pet_id: newPetId || null,
+    }));
+    if (duplicate) {
+      setNewNote("Already on this trip. Use Remember for future trips to keep it on your base list.");
+      return;
+    }
     // Clear the synchronous guard before React renders, so two submit events
     // for the same draft cannot create two records.
     draftAvailable.current = false;
@@ -996,13 +1018,13 @@ export default function Packing({
     const entry = {
       row, status: "saving", confirmed: false,
       wanted: templates.filter((t) => newTemplates.has(t.id)),
+      keepOnBase,
     };
     setAdditions((entries) => [...entries, entry]);
     setLatestAddId(row.id);
     // Only item-specific choices reset. Category and traveler stay put.
     setNewItem("");
     setNewPetId("");
-    setNewTemplates(new Set());
     setNewLastMinute(false);
     setNewLastMinuteSet(false);
     addInput.current?.focus({ preventScroll: true });
@@ -1022,7 +1044,7 @@ export default function Packing({
       if (error) throw error;
       updateAddition(row.id, {
         status: "saved",
-        templateNote: wanted.length ? "Saving to templates…" : "",
+        templateNote: wanted.length || entry.keepOnBase ? "Saving to templates…" : "",
       });
     } catch {
       updateAddition(row.id, { status: "error" });
@@ -1035,6 +1057,14 @@ export default function Packing({
     Promise.resolve().then(() => onChange()).catch(() => {});
     const kept = [];
     const failed = [];
+    if (entry.keepOnBase) {
+      try {
+        await baseList.save("remember", [row.id]);
+        kept.push("your base list");
+      } catch {
+        failed.push("your base list");
+      }
+    }
     for (const template of wanted) {
       try {
         const { data: already, error: lookupError } = await supabase
@@ -1061,7 +1091,7 @@ export default function Packing({
     updateAddition(row.id, {
       templateNote: [
         kept.length ? `Kept on ${kept.join(" and ")}.` : "",
-        failed.length ? `Did not save to ${failed.join(" or ")}. Use Edit to try again.` : "",
+        failed.length ? `Did not save to ${failed.join(" or ")}. Use Remember for future trips or Edit to try again.` : "",
       ].filter(Boolean).join(" "),
     });
   }
@@ -1486,6 +1516,7 @@ export default function Packing({
           <select
             className="field"
             value={newAssignee}
+            aria-label="Packing item traveler"
             onChange={(e) => setNewAssignee(e.target.value)}
           >
             {people.map((p) => (
@@ -1551,20 +1582,30 @@ export default function Packing({
           </span>
         </label>
 
-        {templates.length > 0 && (
+        <fieldset className="border-t border-sand pt-3">
+          <legend className="text-xs font-semibold text-ink-soft">Keep this item</legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex min-h-11 items-center gap-2"><input type="radio" name="packing-destination" checked={!keepOnBase}
+              onChange={() => setKeepOnBase(false)} />This trip only</label>
+            <label className="flex min-h-11 items-center gap-2"><input type="radio" name="packing-destination" checked={keepOnBase}
+              disabled={!baseList.state} onChange={() => setKeepOnBase(true)} />This trip + my base list</label>
+          </div>
+          <p className="text-xs text-ink-soft">This choice stays selected until you change it.</p>
+        </fieldset>
+        {templates.some(t => !t.is_base) && (
           <div className="border-t border-sand pt-3">
             <p
               className="text-xs font-semibold text-ink-soft"
               id="packing-new-keep-label"
             >
-              Also keep for future trips
+              Also keep on an add-on list
             </p>
             <div
               className="mt-1.5 flex flex-wrap gap-1.5"
               role="group"
               aria-labelledby="packing-new-keep-label"
             >
-              {templates.map((t) => {
+              {templates.filter(t => !t.is_base).map((t) => {
                 const on = newTemplates.has(t.id);
                 return (
                   <button
@@ -1619,6 +1660,9 @@ export default function Packing({
 
   return (
     <section>
+      {!readOnly && <PackingBaseTools model={baseList} tripId={tripId} people={filterNames}
+        items={displayItems.filter(row => !additionsById.has(row.id) || additionsById.get(row.id).status === "saved")}
+        onSaved={async () => { await onChange(); }} />}
       {/* Above everything, including the tips: on the day you leave, "stop the
           mail" outranks advice about how to pack. Shut by default and drawn only
           within a day of departure, so the rest of the run-up is unchanged. */}
@@ -1777,9 +1821,7 @@ export default function Packing({
         // No add-ons exist to choose between, so there is nothing to lay out and
         // the sentence stands on its own rather than in a box of its own.
         <p className="no-print mb-3 text-xs leading-relaxed text-ink-soft">
-          This list started from the family&rsquo;s packing templates. Changes
-          here stay on this trip — {templatesLink} to change what future trips
-          start with.
+          Changes here stay on this trip. You can {templatesLink} to change what future trips start with.
         </p>
       )}
       {stranded.length > 0 && (
