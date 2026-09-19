@@ -238,18 +238,21 @@ function PackCard({ pack }) {
       >
         {pack.title}
       </p>
-      {pack.items.map((item) => (
-        <p
+      {pack.items.map(({ item, reason }) => (
+        <div
           key={item}
           className="home-ask-tick mt-2 text-[13px] leading-relaxed"
           style={{ color: "rgba(246,243,236,0.9)" }}
         >
-          {item}
-        </p>
+          <p className="font-semibold">{item}</p>
+          <p className="text-[12px]" style={{ color: "rgba(246,243,236,0.62)" }}>
+            {reason}
+          </p>
+        </div>
       ))}
       <p className="mt-3 flex flex-wrap gap-1.5" aria-hidden="true">
         <span className="home-ask-act" data-act="on">
-          {pack.action}
+          Add {pack.items.length} to the day pack
         </span>
         <span className="home-ask-act">Edit</span>
       </p>

@@ -274,23 +274,21 @@ export default function HomeLanding() {
           <div className="mt-auto grid gap-10 pt-16 lg:grid-cols-[1fr_368px] lg:items-end lg:gap-14">
             <div>
               <p
-                className="ma-in text-[12px] font-semibold uppercase tracking-[0.16em]"
+                className="text-[12px] font-semibold uppercase tracking-[0.16em]"
                 style={{ color: "#f6f3ec" }}
               >
                 <RotatingWord />
               </p>
               <h1
-                className="ma-in mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
-                style={{ animationDelay: "80ms" }}
+                className="mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
               >
                 Alyeska has your back.
                 <br />
                 Before you go, and while you are there.
               </h1>
               <p
-                className="ma-in mt-5 max-w-[33rem] text-[16px] leading-relaxed sm:text-[17px]"
+                className="mt-5 max-w-[33rem] text-[16px] leading-relaxed sm:text-[17px]"
                 style={{
-                  animationDelay: "180ms",
                   color: "rgba(246,243,236,0.92)",
                 }}
               >
@@ -301,8 +299,7 @@ export default function HomeLanding() {
                 juggle. More to enjoy.
               </p>
               <div
-                className="ma-in mt-7 flex flex-wrap items-center gap-3"
-                style={{ animationDelay: "260ms" }}
+                className="mt-7 flex flex-wrap items-center gap-3"
               >
                 <a
                   href="#how"
@@ -323,9 +320,8 @@ export default function HomeLanding() {
                 </Link>
               </div>
               <p
-                className="ma-fade mt-5 text-[13px]"
+                className="mt-5 text-[13px]"
                 style={{
-                  animationDelay: "420ms",
                   color: "rgba(246,243,236,0.62)",
                 }}
               >
