@@ -1,5 +1,7 @@
 export const reviewFixture = {
   enabled: true,
+  skin: "frost",
+  text_size: "regular",
   trips: [{
     id: "sample-trip", name: "Alaska adventure", destination: "Anchorage & Denali",
     start_date: "2027-08-12", end_date: "2027-08-20",
@@ -18,5 +20,5 @@ export const reviewFixture = {
 };
 export const parentFixture = {
   children: [{ id: "sample-child", name: "Young traveler", user_id: "sample-account", access_level: "secondary" }],
-  grants: [], legacy: [{ traveler_id: "sample-child" }],
+  passkeyReady: true, views: [],
 };

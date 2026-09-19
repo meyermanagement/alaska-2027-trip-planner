@@ -8,7 +8,8 @@ const { minorRouteAllowed }=jiti("../lib/beta/minorRoutes.js");
 const { validateMinorReview }=jiti("../lib/beta/minorReview.js");
 const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
 test("minor route allowlist denies deep links, mutation, forged paths, and AI routes",()=>{
-  for(const path of ["/child","/api/child","/auth/land","/auth/callback"]) assert.equal(minorRouteAllowed(path),true);
+  assert.equal(minorRouteAllowed("/child"),true);
+  for(const path of ["/api/child","/auth/land","/auth/callback"]) assert.equal(minorRouteAllowed(path),false);
   for(const path of ["/api/chat","/api/tips","/api/child/extra","/family","/trips/123","/login/qa","/api/account/delete"]) assert.equal(minorRouteAllowed(path),false);
   assert.equal(minorRouteAllowed("/api/child","POST"),false);
   const middleware=read("middleware.js");
@@ -22,7 +23,8 @@ test("new parent flow has no optional child AI permission",()=>{
 });
 test("minor surface has no adult chrome, writes, or model calls and clears stale data",()=>{
   const ui=read("app/child/MinorReview.js");
-  assert.doesNotMatch(ui,/TopBar|ChatPanel|geolocation|method: "(POST|PATCH|DELETE)"|type="checkbox"/);
+  assert.doesNotMatch(ui,/TopBar|ChatPanel|geolocation|method: "(PATCH|DELETE)"|type="checkbox"/);
+  assert.match(ui,/\/api\/child\/return/);
   assert.match(ui,/setData\(null\)/);
   assert.match(ui,/visibilitychange/);
   assert.match(read("components/AppServices.js"),/path === "\/child".*return null/);

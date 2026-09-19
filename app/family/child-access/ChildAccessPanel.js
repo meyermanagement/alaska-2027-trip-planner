@@ -1,76 +1,124 @@
 "use client";
 import { useEffect, useState } from "react";
+import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
 import { MINOR_REVIEW_NOTICE } from "@/lib/beta/minorReview";
 
+async function request(body) {
+  const response = await fetch("/api/family/child-access", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Please try again.");
+  return data;
+}
+async function clearAdultBrowserState() {
+  for (const key of Object.keys(localStorage)) {
+    if (key !== "alyeska-child-handoff") localStorage.removeItem(key);
+  }
+  sessionStorage.clear();
+  if ("serviceWorker" in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (const registration of registrations) {
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) await subscription.unsubscribe();
+      await registration.unregister();
+    }
+  }
+  if ("caches" in window) {
+    await Promise.all((await caches.keys()).map(key => caches.delete(key)));
+  }
+}
 export default function ChildAccessPanel({ initial = null }) {
   const [data, setData] = useState(initial);
   const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [editing, setEditing] = useState(null);
-  const [confirmOff, setConfirmOff] = useState(null);
   const [busy, setBusy] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [choices, setChoices] = useState({ guardian: false, collection: false });
   async function load() {
     setLoading(true); setError("");
     try {
       const response = await fetch("/api/family/child-access", { cache: "no-store" });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Child access could not be loaded.");
+      if (!response.ok) throw new Error(result.error || "Trip views could not be loaded.");
       setData(result);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }
-  useEffect(() => { if (!initial) load(); }, [initial]);
-  async function save(child, enabled) {
-    setBusy(child.id); setError(""); setNotice("");
+  useEffect(() => {
+    if (!initial) load();
+    const traveler = new URLSearchParams(window.location.search).get("traveler");
+    if (traveler) setEditing(traveler);
+  }, [initial]);
+  async function setupKey() {
+    setBusy("key"); setError("");
     try {
-      const response = await fetch("/api/family/child-access", {
-        method: enabled ? "POST" : "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ travelerId: child.id, ...choices }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Access could not be changed. Please try again.");
-      setData(current => ({ ...current, grants: [
-        ...current.grants.filter(row => row.traveler_id !== child.id), result.grant,
-      ] }));
-      setEditing(null); setConfirmOff(null);
-      setNotice(enabled ? `${child.name} can now review their itinerary and packing. Ask Aly stays unavailable.`
-        : `${child.name}’s trip review access is off.`);
+      const { options } = await request({ action: "register-options" });
+      const response = await startRegistration({ optionsJSON: options });
+      await request({ action: "register-verify", response });
+      setData(current => ({ ...current, passkeyReady: true }));
+    } catch (err) {
+      setError(err.name === "NotAllowedError" ? "Passkey setup was canceled. Nothing changed." : err.message);
+    } finally { setBusy(null); }
+  }
+  async function open(child) {
+    setBusy(child.id); setError("");
+    let handedOff = false;
+    try {
+      const payload = { travelerId: child.id, ...choices };
+      const { options } = await request({ ...payload, action: "open-options" });
+      const response = await startAuthentication({ optionsJSON: options });
+      await clearAdultBrowserState();
+      const result = await request({ ...payload, action: "open-verify", response });
+      handedOff = true;
+      // Broadcast only after the server has revoked this browser's adult session.
+      localStorage.setItem("alyeska-child-handoff", String(Date.now()));
+      // Full navigation removes the adult React tree and router-prefetched data.
+      window.location.replace(result.next);
+    } catch (err) {
+      if (handedOff) window.location.replace("/child");
+      else {
+        setError(err.name === "NotAllowedError" ? "Parent verification was canceled. The trip view was not opened." : err.message);
+        setBusy(null);
+      }
+    }
+  }
+  async function closeViews(child) {
+    setBusy(child.id); setError("");
+    try {
+      await request({ action: "close-views", travelerId: child.id });
+      await load();
     } catch (err) { setError(err.message); }
     finally { setBusy(null); }
   }
   return <section className="mt-6 space-y-4" aria-label="Parent-managed child access">
     <div className="card p-5">
       <p className="text-sm font-semibold text-teal">For travelers under 18</p>
-      <h2 className="mt-2 text-xl font-semibold">Itinerary &amp; packing review</h2>
-      <p className="mt-2 text-sm text-ink-soft">Their own trips and packing lists, view only. No Ask Aly, uploads, edits, or check-offs.</p>
+      <h2 className="mt-2 text-xl font-semibold">Open their trip view</h2>
+      <p className="mt-2 text-sm text-ink-soft">Their itinerary and packing, in their saved theme. No separate child login.</p>
+      <p className="mt-3 text-sm text-ink-soft">Opening a view signs you out of Alyeska in this browser. Your passkey is required to return, then you sign back in.</p>
     </div>
     {error && <div role="alert" className="card p-4 text-sm"><p>{error}</p>
       {!data && <button className="btn btn-secondary mt-3" disabled={loading} onClick={load}>Try again</button>}
     </div>}
-    {notice && <p role="status" className="card p-4 text-sm">{notice}</p>}
-    {loading && <p role="status">Loading child access…</p>}
+    {loading && <p role="status">Loading child trip views…</p>}
+    {data && !data.passkeyReady && <div className="card p-5">
+      <h2 className="font-semibold">Protect the way back</h2>
+      <p className="mt-2 text-sm text-ink-soft">Set up a parent-only passkey before handing over a screen. Use your own phone or security key if your child knows this device’s unlock code.</p>
+      <button className="btn btn-primary mt-4" disabled={Boolean(busy)} onClick={setupKey}>
+        {busy === "key" ? "Setting up passkey…" : "Set up parent passkey"}
+      </button>
+    </div>}
     {!loading && data?.children?.length === 0 && <p className="card p-5">No minor profiles found. Add their birthday in Family &amp; pets first.</p>}
-    {data?.children?.map(child => {
-      const grant = data.grants.find(row => row.traveler_id === child.id);
-      const enabled = grant?.enabled === true;
-      return <article key={child.id} className="card p-5" aria-busy={busy === child.id}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">{child.name}</h2>
-          <span className="rounded-full border border-line px-3 py-1 text-xs font-semibold">{enabled ? "Review enabled" : "Review off"}</span>
-        </div>
-        {child.access_level !== "secondary" ? <p className="mt-3 text-sm">Set their access to Secondary traveler in Family &amp; pets first.</p>
-          : !child.user_id ? <p className="mt-3 text-sm">Have them sign in once using the email on their traveler profile, then enable review here. They will see only the parent-setup screen until you enable it.</p>
-          : !enabled && editing !== child.id && <button className="btn btn-primary mt-4" disabled={Boolean(busy)}
-            onClick={() => { setEditing(child.id); setChoices({ guardian: false, collection: false }); }}>
-            Enable itinerary &amp; packing review
-          </button>}
-        {!enabled && data.legacy?.some(row => row.traveler_id === child.id) && <p className="mt-3 text-sm text-ink-soft">Your earlier request is archived. Confirm the new read-only notice to enable review; no Ask Aly permission carries over.</p>}
-        {editing === child.id && <form className="mt-5" onSubmit={event => { event.preventDefault(); save(child, true); }}>
+    {data?.children?.map(child => <article key={child.id} className="card p-5" aria-busy={busy === child.id}>
+      <h2 className="text-lg font-semibold">{child.name}</h2>
+      {child.access_level !== "secondary" ? <p className="mt-3 text-sm">Set their access to Secondary traveler first.</p>
+        : editing !== child.id ? <button className="btn btn-primary mt-4" disabled={Boolean(busy) || !data.passkeyReady}
+          onClick={() => { setEditing(child.id); setChoices({ guardian: false, collection: false }); }}>
+          Open {child.name}’s trip view
+        </button> : <form className="mt-4" onSubmit={event => { event.preventDefault(); open(child); }}>
           <fieldset className="space-y-4" disabled={Boolean(busy)}>
-            <legend className="mb-3 font-semibold">Parent notice</legend>
+            <legend className="mb-3 font-semibold">Before handing over the screen</legend>
             <div className="space-y-3 rounded-xl border border-line p-4">
               {MINOR_REVIEW_NOTICE.map(item => <div key={item.title}>
                 <h3 className="text-sm font-semibold">{item.title}</h3>
@@ -79,29 +127,25 @@ export default function ChildAccessPanel({ initial = null }) {
               <a className="text-sm underline" href="/privacy" target="_blank" rel="noreferrer">Privacy policy</a>
             </div>
             <label className="flex items-start gap-3 text-sm">
-              <input type="checkbox" className="h-5 w-5 shrink-0" checked={choices.guardian} onChange={e => setChoices(c => ({ ...c, guardian: e.target.checked }))} />
+              <input type="checkbox" className="h-5 w-5 shrink-0" checked={choices.guardian}
+                onChange={e => setChoices(c => ({ ...c, guardian: e.target.checked }))} />
               <span>I am {child.name}’s parent or legal guardian.</span>
             </label>
             <label className="flex items-start gap-3 text-sm">
-              <input type="checkbox" className="h-5 w-5 shrink-0" checked={choices.collection} onChange={e => setChoices(c => ({ ...c, collection: e.target.checked }))} />
-              <span>I have read this notice and want to enable read-only itinerary and packing access now.</span>
+              <input type="checkbox" className="h-5 w-5 shrink-0" checked={choices.collection}
+                onChange={e => setChoices(c => ({ ...c, collection: e.target.checked }))} />
+              <span>I have read this notice and secured other signed-in apps, browser profiles, and device access.</span>
             </label>
             <div className="flex flex-wrap gap-2">
-              <button className="btn btn-primary" disabled={!choices.guardian || !choices.collection}>{busy === child.id ? "Enabling review…" : "Enable review"}</button>
+              <button className="btn btn-primary" disabled={!choices.guardian || !choices.collection}>
+                {busy === child.id ? "Opening trip view…" : `Open ${child.name}’s trip view`}
+              </button>
               <button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
             </div>
           </fieldset>
         </form>}
-        {enabled && confirmOff !== child.id && <button className="btn btn-secondary mt-4" disabled={Boolean(busy)}
-          onClick={() => setConfirmOff(child.id)}>Turn off review access</button>}
-        {confirmOff === child.id && <div className="mt-4 rounded-xl border border-line p-4">
-          <p className="text-sm">Turn off {child.name}’s itinerary and packing review? Their traveler profile and trip lists will stay unchanged.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button className="btn btn-primary" disabled={Boolean(busy)} onClick={() => save(child, false)}>{busy === child.id ? "Turning off…" : "Turn off access"}</button>
-            <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => setConfirmOff(null)}>Keep access</button>
-          </div>
-        </div>}
-      </article>;
-    })}
+      {data.views?.some(view => view.traveler_id === child.id) && <button className="btn btn-secondary mt-4"
+        disabled={Boolean(busy)} onClick={() => closeViews(child)}>Close their open trip views</button>}
+    </article>)}
   </section>;
 }

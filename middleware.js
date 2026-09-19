@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { whoIs } from "@/lib/supabase/who";
 import { accountAge } from "@/lib/beta/accountAge";
 import { minorRouteAllowed } from "@/lib/beta/minorRoutes";
+import { CHILD_VIEW_COOKIE, childViewRouteAllowed } from "@/lib/childView/constants";
 import {
   ARRIVE_COOKIE,
   DEFAULT_SKIN,
@@ -147,6 +148,30 @@ function hasSessionCookie(request) {
 }
 
 export async function middleware(request) {
+  const path = request.nextUrl.pathname;
+  // A child token is never an adult/child Supabase identity. Exact allowlist
+  // applies before auth refresh, beta gates, public pages, and machine bypasses.
+  if (request.cookies.get(CHILD_VIEW_COOKIE)) {
+    if (!childViewRouteAllowed(path, request.method)) {
+      if (path.startsWith("/api/") || !["GET", "HEAD"].includes(request.method)) {
+        return NextResponse.json({ error: "This is a read-only trip view. A parent must verify to return." },
+          { status: 403, headers: { "Cache-Control": "private, no-store" } });
+      }
+      return NextResponse.redirect(new URL("/child", request.url));
+    }
+  }
+  if (["/child", "/api/child", "/api/child/return"].includes(path)) {
+    const child = NextResponse.next({ request });
+    child.headers.set("Cache-Control", "private, no-store");
+    child.headers.set("Referrer-Policy", "no-referrer");
+    child.headers.set("X-Robots-Tag", "noindex, nofollow");
+    child.headers.set("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+    if (path === "/child") child.headers.set("Content-Security-Policy",
+      "default-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; "
+      + `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}; `
+      + "style-src 'self' 'unsafe-inline'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    return child;
+  }
   // Note for anyone tempted to treat prefetches differently here: you cannot.
   // Next strips its own routing headers before middleware sees the request, so
   // `RSC` and `Next-Router-Prefetch` are both absent -- verified by logging the
@@ -193,6 +218,20 @@ export async function middleware(request) {
   // Fresh server-side age classification, before cookies, pages or API handlers.
   // Database RLS independently blocks direct Supabase reads/writes for minors.
   if (user) {
+    const { data: allowed, error: sessionError } = await supabase.rpc("account_session_allowed");
+    if (sessionError) return new NextResponse("Account access could not be checked. Please try again.", {
+      status: 503, headers: { "Cache-Control": "no-store" },
+    });
+    if (!allowed) {
+      const blocked = pathname.startsWith("/api/")
+        ? NextResponse.json({ error: "This session has been signed out.", retryable: false },
+          { status: 401, headers: { "Cache-Control": "no-store" } })
+        : pathname === "/login" ? response : NextResponse.redirect(new URL("/login", request.url));
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.startsWith("sb-") && cookie.name.includes("auth-token")) blocked.cookies.delete(cookie.name);
+      }
+      return blocked;
+    }
     const age = await accountAge(supabase, user.id);
     if (age.unavailable) {
       if (pathname === "/child") return response;
@@ -204,7 +243,7 @@ export async function middleware(request) {
       response.headers.set("Cache-Control", "private, no-store");
       if (minorRouteAllowed(pathname, request.method)) return response;
       if (pathname.startsWith("/api/") || !["GET", "HEAD"].includes(request.method)) {
-        return NextResponse.json({ error: "Minor accounts can only review their itinerary and packing list. Ask Aly is unavailable.", retryable: false },
+        return NextResponse.json({ error: "Independent sign-in is unavailable to minors. A parent must open a read-only trip view.", retryable: false },
           { status: 403, headers: { "Cache-Control": "no-store" } });
       }
       const url = request.nextUrl.clone();

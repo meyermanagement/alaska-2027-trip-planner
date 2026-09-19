@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { whoIs } from "@/lib/supabase/who";
+import { readView, privateHeaders } from "@/lib/childView/server";
 
 export const dynamic = "force-dynamic";
 export async function GET() {
-  const supabase = await createClient();
-  const user = await whoIs(supabase);
-  const headers = { "Cache-Control": "private, no-store" };
-  if (!user) return NextResponse.json({ error: "Please sign in." }, { status: 401, headers });
-  const { data, error } = await supabase.rpc("minor_trip_review");
-  if (error) return NextResponse.json({ error: "We couldn’t load your trips. Please try again." }, { status: 503, headers });
-  return NextResponse.json(data, { headers });
+  try {
+    const ctx = await readView();
+    if (!ctx) return NextResponse.json({ enabled: false, trips: [] }, { headers: privateHeaders });
+    const { data, error } = await ctx.admin.rpc("parent_trip_view_data", { view_hash: ctx.hash });
+    if (error) throw new Error("Trip access could not be checked.");
+    return NextResponse.json(data, { headers: privateHeaders });
+  } catch {
+    return NextResponse.json({ error: "Your trips could not be loaded. Please try again." }, { status: 503, headers: privateHeaders });
+  }
 }

@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { tripPath } from "@/lib/trips/route";
 import { ageToday } from "@/lib/travelers/ages";
+import { isMinorTraveler } from "@/lib/beta/accountAge";
 import { LEVELS, PRIMARY, SECONDARY } from "@/lib/travelers/access";
 import {
   aboutMeFromParts,
@@ -1486,6 +1487,14 @@ export function AccessRow({
   // the seat claim has not caught up — you are demonstrably signed in already.
   const mine = isMe && !!person.email;
   const linked = !!person.user_id || mine;
+
+  if (isMinorTraveler(person)) return <div className="mt-3 rounded-xl border border-line bg-sand/40 p-3">
+    <p className="section-label">Parent-managed trip view</p>
+    <p className="mt-1 text-sm text-ink-soft">No independent sign-in. Itinerary and own packing, view only.</p>
+    <a className="btn btn-secondary mt-3" href={`/family/child-access?traveler=${encodeURIComponent(person.id)}`}>
+      Open {person.name}’s trip view
+    </a>
+  </div>;
 
   return (
     <div className="mt-3 rounded-xl border border-[var(--line)] bg-sand/40 px-3 py-2.5">

@@ -115,6 +115,9 @@ export const viewport = {
 const ROUTE_COUNT = 3;
 
 const applySkin = `(function(){try{
+if(document.cookie.match(/(?:^|; )alyeska-child-lock=1(?:;|$)/)&&location.pathname!=="/child"){
+document.documentElement.style.visibility="hidden";location.replace("/child");return;
+}
 var m=document.cookie.match(/(?:^|; )${SKIN_COOKIE}=([^;]*)/);
 var s=m?decodeURIComponent(m[1]):"";
 var bars=${JSON.stringify(

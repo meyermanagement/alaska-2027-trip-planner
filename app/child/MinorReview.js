@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { startAuthentication } from "@simplewebauthn/browser";
 import AlyWordmark from "@/components/AlyWordmark";
+import { skinOr, paintChrome } from "@/lib/skins";
 
 function dateLabel(date) {
   if (!date) return "Dates to come";
@@ -36,6 +37,10 @@ export default function MinorReview({ initial = null }) {
       const response = await fetch("/api/child", { cache: "no-store", signal: controller.signal });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Your trips could not be loaded.");
+      if (result.enabled && result.skin) {
+        document.documentElement.dataset.skin = skinOr(result.skin);
+        paintChrome(result.skin);
+      }
       setData(result);
     } catch (err) {
       if (controller.signal.aborted) return;
@@ -76,12 +81,21 @@ export default function MinorReview({ initial = null }) {
     setSigningOut(true); setError(""); setData(null);
     requestRef.current?.abort();
     try {
-      const { error: problem } = await createClient().auth.signOut();
-      if (problem) throw problem;
-      window.location.replace("/login");
+      const post = async body => {
+        const response = await fetch("/api/child/return", { method: "POST",
+          headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+        return result;
+      };
+      const { options } = await post({ action: "options" });
+      const response = await startAuthentication({ optionsJSON: options });
+      const result = await post({ action: "verify", response });
+      localStorage.removeItem("alyeska-child-handoff");
+      window.location.replace(result.next);
     } catch {
       signingOutRef.current = false;
-      setError("Sign-out did not finish. Please try again."); setSigningOut(false);
+      setError("Parent verification did not finish. Use the registered parent passkey to return."); setSigningOut(false);
     }
   }
   const trip = data?.trips?.find(row => row.id === tripId);
@@ -89,7 +103,7 @@ export default function MinorReview({ initial = null }) {
     <header className="flex items-center justify-between gap-4">
       <AlyWordmark className="text-[24px]" />
       <button className="btn btn-secondary" disabled={signingOut} onClick={signOut}>
-        {signingOut ? "Signing out…" : "Sign out"}
+        {signingOut ? "Verifying parent…" : "Parent return"}
       </button>
     </header>
     <div className="mt-8 flex flex-wrap items-start justify-between gap-3">
@@ -104,8 +118,8 @@ export default function MinorReview({ initial = null }) {
     {error && <p role="alert" className="card mt-5 p-5">{error}</p>}
     {!data && loading && <p role="status" className="card mt-5 p-5">Loading your trips…</p>}
     {data && !data.enabled && <section className="card mt-6 p-6">
-      <h2 className="text-xl font-semibold">A parent can turn on trip review</h2>
-      <p className="mt-3 text-sm text-ink-soft">Ask your parent or guardian to open Family &amp; pets → Child access in their account and enable itinerary &amp; packing review.</p>
+      <h2 className="text-xl font-semibold">A parent needs to open this view</h2>
+      <p className="mt-3 text-sm text-ink-soft">This view is closed or has expired. A parent can open a fresh two-hour view from Family &amp; pets → Child access. Children do not sign in separately.</p>
     </section>}
     {data?.enabled && !trip && <section className="mt-6 space-y-3" aria-label="Your trips">
       {data.trips.length === 0 && <p className="card p-5">No trips here yet. Your parent can add you to a trip’s traveler list. Draft trips stay private.</p>}
@@ -155,7 +169,7 @@ export default function MinorReview({ initial = null }) {
     <footer className="mt-9 border-t border-line pt-5 text-sm text-ink-soft">
       <p>Ask Aly is not available to anyone under 18. This view has no chat, uploads, edits, or location sharing.</p>
       <details className="mt-3"><summary className="cursor-pointer">Privacy &amp; parent help</summary>
-        <p className="mt-2">Your parent manages what you can review and can turn access off. Signing in uses your account to show your trips; this view does not record screen-use analytics or send your activity to an AI provider. Essential sign-in and security logs may still be kept.</p>
+        <p className="mt-2">Your parent opens this temporary view and can close it. You do not sign in. A necessary cookie keeps the view private; there is no screen-use analytics or sharing with an AI provider. Essential hosting and security logs may still be kept.</p>
         <p className="mt-2">For access, correction, or deletion questions, ask your parent to contact admin@alyeska.app.</p>
       </details>
     </footer>
