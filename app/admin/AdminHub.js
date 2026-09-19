@@ -11,8 +11,8 @@ import PageHeader from "@/components/PageHeader";
 const ROWS = [
   {
     href: "/admin/child-access",
-    label: "Parent verification",
-    sub: "Review requests for parent-managed child access",
+    label: "Archived child requests",
+    sub: "Historical requests; no child AI activation",
   },
   {
     href: "/admin/beta",

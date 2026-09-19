@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { whoIs } from "@/lib/supabase/who";
+import { accountAge } from "@/lib/beta/accountAge";
+import { minorRouteAllowed } from "@/lib/beta/minorRoutes";
 import {
   ARRIVE_COOKIE,
   DEFAULT_SKIN,
@@ -187,6 +189,29 @@ export async function middleware(request) {
     PUBLIC_EXACT.includes(pathname) ||
     MACHINE_PATHS.includes(pathname) ||
     MACHINE_PREFIXES.some((p) => pathname.startsWith(p));
+
+  // Fresh server-side age classification, before cookies, pages or API handlers.
+  // Database RLS independently blocks direct Supabase reads/writes for minors.
+  if (user) {
+    const age = await accountAge(supabase, user.id);
+    if (age.unavailable) {
+      if (pathname === "/child") return response;
+      return new NextResponse("Account permissions could not be checked. Please try again.", {
+        status: 503, headers: { "Cache-Control": "no-store" },
+      });
+    }
+    if (age.minor) {
+      response.headers.set("Cache-Control", "private, no-store");
+      if (minorRouteAllowed(pathname, request.method)) return response;
+      if (pathname.startsWith("/api/") || !["GET", "HEAD"].includes(request.method)) {
+        return NextResponse.json({ error: "Minor accounts can only review their itinerary and packing list. Ask Aly is unavailable.", retryable: false },
+          { status: 403, headers: { "Cache-Control": "no-store" } });
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = "/child"; url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
 
   // Only when there is no session to speak of. See hasSessionCookie above: a
   // held session that the auth server declined to confirm this second is left

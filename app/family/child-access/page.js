@@ -22,7 +22,7 @@ export default async function ChildAccessPage() {
     <TopBar />
     <main className="screen px-5 pb-16 pt-7">
       <a href="/family" className="text-sm text-ink-soft underline">Back to Family &amp; pets</a>
-      <PageHeader title="Child access" subtitle="Permission and verification, managed by a parent or guardian." />
+      <PageHeader title="Child access" subtitle="Read-only trip access, managed by a parent or guardian." />
       <ChildAccessPanel />
     </main>
   </>;

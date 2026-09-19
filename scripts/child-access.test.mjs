@@ -43,12 +43,12 @@ test("age decisions handle birthdays and reject invalid dates", () => {
   assert.equal(validBirthday("not-a-date"), false);
   assert.equal(isMinorTraveler({ date_of_birth: "2030-01-01" }, "2026-09-19"), false);
 });
-test("parent choices require separate AI acknowledgement and never enable chat", () => {
+test("legacy validation can never request child AI", () => {
   assert.ok(validateChildRequest({ guardian: true }));
   assert.ok(validateChildRequest({ guardian: "true", collection: true }));
   assert.equal(validateChildRequest({ guardian: true, collection: true }), null);
   assert.ok(validateChildRequest({ guardian: true, collection: true, askAly: true }));
-  assert.equal(validateChildRequest({ guardian: true, collection: true, askAly: true, aiDisclosure: true }), null);
+  assert.ok(validateChildRequest({ guardian: true, collection: true, askAly: true, aiDisclosure: true }));
   assert.equal(CHILD_CHAT_AVAILABLE, false);
 });
 test("request lifecycle reports pending, verified hold, revoked, expired, and reissued notice", () => {
@@ -62,7 +62,7 @@ test("request lifecycle reports pending, verified hold, revoked, expired, and re
 });
 
 function client({ minor = false, error = false } = {}) {
-  return { from(table) {
+  return { rpc() { return Promise.resolve({ data: minor, error: error ? new Error("offline") : null }); }, from(table) {
     const result = table === "travelers"
       ? { data: minor ? [{ date_of_birth: "2014-02-02" }] : [], error: error ? new Error("offline") : null }
       : { data: current, error: null };

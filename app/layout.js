@@ -1,11 +1,7 @@
 import { Geist } from "next/font/google";
 import "./globals.css";
 import BootVeil from "@/components/BootVeil";
-import ServiceWorkerBoot from "@/components/ServiceWorkerBoot";
-import UsageTrail from "@/components/UsageTrail";
-import FeedbackSheet from "@/components/FeedbackSheet";
-import FaultWatch from "@/components/FaultWatch";
-import ReportButton from "@/components/ReportButton";
+import AppServices from "@/components/AppServices";
 import {
   ARRIVE_COOKIE,
   BAND_COOKIE,
@@ -282,20 +278,8 @@ export default function RootLayout({ children }) {
             the app underneath has painted -- see components/BootVeil.js. */}
         <BootVeil />
         <script dangerouslySetInnerHTML={{ __html: pinBoot }} />
-        <ServiceWorkerBoot />
-        {/* Records which screen a signed-in person is on and how long it held
-            them. Writes nothing for a visitor who is not signed in. */}
-        <UsageTrail />
-        {/* Asleep until the report button wakes it. Mounted here so a report can
-            be written from any screen without leaving it. */}
-        <FeedbackSheet />
-        {/* The button that wakes it, for beta testers only: small, bottom
-            center, and on the onboarding screens as well as the rest. */}
-        <ReportButton />
-        {/* The reports nobody writes: an uncaught error, a promise nobody
-            answered, or one of this app's own calls coming back broken. Recorded
-            once each per visit, on the same desk as the written reports. */}
-        <FaultWatch />
+        {/* Adult-only services are omitted from the minor review surface. */}
+        <AppServices />
         <div className="app-shell">{children}</div>
       </body>
     </html>
