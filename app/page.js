@@ -65,6 +65,6 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
-  if (user) redirect("/trips");
+  if (user) redirect("/trips?arrival=1");
   return <HomeLanding />;
 }

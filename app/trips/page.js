@@ -110,6 +110,7 @@ export default async function TripsPage({ searchParams }) {
             canRemove={!access?.can.isSecondary}
             inboxAddress={!access?.can.isSecondary ? inboxAddress : ""}
             access={access}
+            travelerId={me?.id || null}
           />
         </Suspense>
       </main>
@@ -123,7 +124,7 @@ export default async function TripsPage({ searchParams }) {
  * boundary above rather than in the page, so the frame paints and the skeleton
  * stands in for the cards while these run.
  */
-async function Board({ familyId, people, canRemove, inboxAddress, access }) {
+async function Board({ familyId, people, canRemove, inboxAddress, access, travelerId }) {
   const supabase = await createClient();
 
   // None of these depend on each other, so they go together rather than one
@@ -224,6 +225,8 @@ async function Board({ familyId, people, canRemove, inboxAddress, access }) {
       canRemove={canRemove}
       inboxAddress={inboxAddress}
       secondary={Boolean(access?.can.isSecondary)}
+      arrivalTrips={all.filter(trip => travelerId && (rosters || []).some(
+        row => row.trip_id === trip.id && row.traveler_id === travelerId))}
     />
   );
 }

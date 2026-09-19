@@ -11,7 +11,9 @@ import {
   formatRange,
   isDraftTrip,
   isPastTrip,
+  localToday,
 } from "@/lib/format";
+import { openingTabForLink } from "@/lib/trips/opening";
 import PromoteDraft from "./PromoteDraft";
 import ArchiveTrip from "./ArchiveTrip";
 import TripBackdrop from "./TripBackdrop";
@@ -198,6 +200,7 @@ export default function TripView({
   // Worked out on the server and handed down, so "overdue" means the same thing
   // in the first frame the browser draws as it does after it wakes up.
   today,
+  initialTab = null,
   // The forwarded fares that matched this trip, and the forwarding instructions
   // while a seat is still to buy. Rendered on the server and handed down, so it
   // arrives with the page rather than after it. It sits under Overview, which is
@@ -228,7 +231,9 @@ export default function TripView({
   const tabs = readOnly
     ? TABS.filter((t) => t.id !== "notes" && t.id !== "budget")
     : TABS;
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState(() =>
+    openingTabForLink(trip, today, initialTab, tabs.map(t => t.id)));
+  const openedTripRef = useRef(null);
   // The four doors, holding only the leaves this reader is allowed to see: a
   // secondary traveler loses Notes and Budget, so their Money door holds
   // Insurance alone. That is deliberate rather than an oversight -- what the
@@ -319,39 +324,15 @@ export default function TripView({
       bar.scrollLeft = right - bar.clientWidth + 12;
   }, [group?.id]);
 
-  // Reminders links straight at a trip's task list, so honour ?tab= on arrival.
-  // It is read after mount rather than during render so the server and the
-  // browser always draw the same first frame -- which is also why the day-before
-  // rule below lives here instead of in the initial state: the day depends on
-  // whose clock is asked, and the server's is not the family's.
+  // Resolve the device's calendar once per arrival, not on every refreshed trip
+  // object. Explicit links win, and subsequent manual tab changes stay put.
   useEffect(() => {
+    const key = `${trip.id}:${initialTab || ""}`;
+    if (openedTripRef.current === key) return;
+    openedTripRef.current = key;
     const wanted = new URLSearchParams(window.location.search).get("tab");
-    if (wanted && TABS.some((t) => t.id === wanted)) {
-      setTab(wanted);
-      return;
-    }
-    // What the screen is for changes as a trip arrives, so what it opens on does
-    // too. The night before, the question stops being what the trip is and becomes
-    // what still isn't in the bag. From the morning of departure until the family
-    // is home, it becomes what is happening today and where they have to be. Two
-    // days out and further, the overview is still the answer.
-    //
-    // A link that named a tab has already won above, and a draft has no departure
-    // to count toward.
-    if (isDraftTrip(trip)) return;
-    const away = daysUntil(trip?.start_date);
-    if (away === 1) {
-      setTab("packing");
-      return;
-    }
-    // Underway. Counted to the last day rather than only the first, because on day
-    // four of a cruise the itinerary is no less the thing than it was on day one --
-    // and a trip with no end date gets the day of departure alone.
-    const over = daysUntil(trip?.end_date ?? trip?.start_date);
-    if (away !== null && away <= 0 && (over === null || over >= 0)) {
-      setTab("itinerary");
-    }
-  }, [trip]);
+    setTab(openingTabForLink(trip, localToday(), wanted, tabs.map(t => t.id)));
+  }, [trip, initialTab, tabs]);
   const [itinerary, setItinerary] = useState(initialItinerary);
   const [packing, setPacking] = useState(initialPacking);
   // The bags carried on particular days. Held beside the suitcase list rather than

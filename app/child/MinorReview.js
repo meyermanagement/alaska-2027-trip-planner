@@ -4,15 +4,15 @@ import { startAuthentication } from "@simplewebauthn/browser";
 import AlyWordmark from "@/components/AlyWordmark";
 import TripBackdrop from "@/components/TripBackdrop";
 import ChildNavigation from "./ChildNavigation";
+import ChildCurrentTripBanner from "./ChildCurrentTripBanner";
 import { SKINS, skinOr, paintChrome } from "@/lib/skins";
-import { formatTime, homeToday, localToday } from "@/lib/format";
-import { tripDays, itemsOnDay, groupChildTrips, childOpeningTab } from "@/lib/childView/days";
+import { formatTime, homeToday, localToday, isCurrentTrip } from "@/lib/format";
+import { tripDays, itemsOnDay, groupChildTrips, childOpeningTab, childHomeTrip, childItineraryDay } from "@/lib/childView/days";
 import { tabKeyDown } from "@/lib/ui/tabs";
 
 const CHILD_TRIP_TABS = [
   { id: "packing", label: "Packing" },
   { id: "itinerary", label: "Itinerary" },
-  { id: "live", label: "Live" },
   { id: "overview", label: "Trip" },
 ];
 
@@ -38,7 +38,7 @@ export default function MinorReview({ initial = null }) {
   const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState("");
   const [tripId, setTripId] = useState(null);
-  const [chosenTab, setTab] = useState("itinerary");
+  const [tab, setTab] = useState("itinerary");
   const [today, setToday] = useState(homeToday);
   const [selectedDay, setSelectedDay] = useState(null);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -50,6 +50,20 @@ export default function MinorReview({ initial = null }) {
   const mutationRef = useRef(false);
   const requestRef = useRef(null);
   const menuRef = useRef(null);
+  const homeOpenedRef = useRef(false);
+  const dayTileRef = useRef(null);
+  useEffect(() => {
+    if (!data?.enabled || homeOpenedRef.current) return;
+    homeOpenedRef.current = true;
+    const date = localToday();
+    const openingTrip = childHomeTrip(data.trips || [], date);
+    setToday(date);
+    if (openingTrip) {
+      setTripId(openingTrip.id); setSelectedDay(null); setTab("itinerary");
+      setTripGroup("upcoming"); setThemeOpen(false);
+    }
+    // Open once per entry, never on refresh or after the user chooses All trips.
+  }, [data]);
   useEffect(() => {
     const update = () => setToday(localToday());
     update();
@@ -173,12 +187,11 @@ export default function MinorReview({ initial = null }) {
   }
   const trip = data?.trips?.find(row => row.id === tripId);
   const days = trip ? tripDays(trip) : [];
-  const isLive = childOpeningTab(trip, today) === "live";
-  // A refresh must not override a manually selected tab. Only an unavailable
-  // Live tab falls back to Itinerary after the trip ends or is completed.
-  const tab = chosenTab === "live" && !isLive ? "itinerary" : chosenTab;
   const tripGroups = groupChildTrips(data?.trips || [], today);
-  const day = tab === "live" ? today : days.includes(selectedDay) ? selectedDay : days.includes(today) ? today : days[0];
+  const day = trip ? childItineraryDay(trip, today, selectedDay) : null;
+  useEffect(() => {
+    if (tab === "itinerary") dayTileRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [day, tripId, tab, themeOpen]);
   const navigate = destination => {
     menuRef.current?.close(); setSaved("");
     if (["trips", "upcoming", "past"].includes(destination)) {
@@ -190,7 +203,14 @@ export default function MinorReview({ initial = null }) {
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   const packedCount = trip?.packing.filter(item => item.is_packed).length || 0;
+  const currentTrip = childHomeTrip((data?.trips || []).filter(row => isCurrentTrip(row, today)), today);
   return <div className="child-trip-layout">
+    {data?.enabled && currentTrip && <ChildCurrentTripBanner trip={currentTrip} today={today}
+      onOpen={() => {
+        menuRef.current?.close(); setSaved(""); setThemeOpen(false);
+        setTripId(currentTrip.id); setTripGroup("upcoming"); setSelectedDay(null); setTab("itinerary");
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }} />}
     {data?.enabled && <ChildNavigation menuRef={menuRef} navigate={navigate}
       current={themeOpen ? "settings" : tripGroup}
       counts={{ upcoming: tripGroups.upcoming.length, past: tripGroups.past.length }} />}
@@ -265,7 +285,7 @@ export default function MinorReview({ initial = null }) {
         </div>
         </section>
         <nav className="tabbar mt-4 no-print" role="tablist" aria-label="Trip sections" onKeyDown={tabKeyDown}>
-          {CHILD_TRIP_TABS.filter(item => item.id !== "live" || isLive).map(({ id, label }) => <button key={id} type="button" role="tab" id={`child-trip-tab-${id}`}
+          {CHILD_TRIP_TABS.map(({ id, label }) => <button key={id} type="button" role="tab" id={`child-trip-tab-${id}`}
             aria-controls="child-trip-panel" aria-selected={tab === id} tabIndex={tab === id ? 0 : -1}
             className="tab" onClick={() => { setTab(id); setSaved(""); }}>
             {label}
@@ -287,12 +307,10 @@ export default function MinorReview({ initial = null }) {
                 <span className="mt-3 block text-sm font-semibold text-teal">View itinerary →</span>
               </button>
             </div>
-          </> : tab === "itinerary" || tab === "live" ? <>
-            {tab === "live" ? <div>
-              <p className="text-sm font-semibold text-teal">Today on your trip</p>
-              <button className="mt-2 min-h-11 text-sm font-semibold text-teal" onClick={() => setTab("itinerary")}>See the full itinerary →</button>
-            </div> : <div className="flex gap-2 overflow-x-auto pb-3" aria-label="Trip days">
+          </> : tab === "itinerary" ? <>
+            <div className="flex gap-2 overflow-x-auto pb-3" aria-label="Trip days">
               {days.map(value => <button key={value} className={`day-tile ${day === value ? "day-tile-on" : ""}`}
+                ref={day === value ? dayTileRef : null}
                 aria-label={dateLabel(value)} aria-pressed={day === value} onClick={() => setSelectedDay(value)}>
                 {value === "Unscheduled" ? <span className="p-2 text-xs">No date</span> : <>
                   <span className="day-tile-top">{new Date(`${value}T12:00:00`).toLocaleDateString("en-US", { weekday: "short" })}</span>
@@ -300,7 +318,7 @@ export default function MinorReview({ initial = null }) {
                   <span className="day-tile-foot">{new Date(`${value}T12:00:00`).toLocaleDateString("en-US", { month: "short" })}</span>
                 </>}
               </button>)}
-            </div>}
+            </div>
             <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{day ? dateLabel(day) : "Itinerary"}</h2><span className="text-xs text-ink-soft">View only</span></div>
             {!itemsOnDay(trip, day).length && <p className="card p-5">No plans for this day yet.</p>}
             <ul className="space-y-3">{itemsOnDay(trip, day).map(item => <li key={item.id} className="card p-5">

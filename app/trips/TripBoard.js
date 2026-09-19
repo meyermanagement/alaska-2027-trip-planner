@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { tabKeyDown } from "@/lib/ui/tabs";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { homeOpeningPath } from "@/lib/trips/opening";
 import { PendingSpark, PendingVeil } from "@/components/LinkPending";
 import {
   countdownSaid,
   formatRange,
   daysUntil,
   isArchivedTrip,
+  localToday,
 } from "@/lib/format";
 import { basicsProgress, nextBasic, whenText } from "@/lib/trips/basics";
 import PromoteDraft from "@/components/PromoteDraft";
@@ -357,6 +359,7 @@ export default function TripBoard({
   canRemove = false,
   inboxAddress = "",
   secondary = false,
+  arrivalTrips = [],
 }) {
   // Which group is showing lives in the address and nowhere else. The menu's
   // three trip rows are this one screen with a different group open, so arriving
@@ -366,6 +369,23 @@ export default function TripBoard({
   // instead means the menu and the tabs cannot disagree, because there is only
   // one of them.
   const params = useSearchParams();
+  const router = useRouter();
+  const arrivalHandled = useRef(false);
+  useEffect(() => {
+    if (params.get("arrival") !== "1") {
+      arrivalHandled.current = false;
+      return;
+    }
+    if (arrivalHandled.current) return;
+    arrivalHandled.current = true;
+    const destination = homeOpeningPath(arrivalTrips, localToday(), params);
+    // Consume the entry marker even when nothing qualifies, so refresh/Back
+    // cannot become an automatic-navigation loop.
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("arrival");
+    window.history.replaceState(null, "", `${clean.pathname}${clean.search}${clean.hash}`);
+    if (destination) router.replace(destination);
+  }, [params, arrivalTrips, router]);
   const asked = String(params.get("view") || "").toLowerCase();
   const allowedViews = secondary ? ["upcoming", "past"] : VIEWS;
   const wanted = allowedViews.includes(asked) ? asked : null;

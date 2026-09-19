@@ -371,6 +371,7 @@ export default async function TripPage({ params, searchParams }) {
     <>
       <TopBar />
       <TripView
+        initialTab={typeof query?.tab === "string" ? query.tab : null}
         level={access?.level}
         trip={trip}
         initialItinerary={orderedItinerary}

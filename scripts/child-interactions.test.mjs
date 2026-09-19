@@ -7,7 +7,7 @@ const jiti=createJiti(import.meta.url,{alias:{"@":fileURLToPath(new URL("..",imp
 const { validPacking, validTheme, coverPath, publicChildData }=jiti("../lib/childView/interactions.js");
 const { childViewRouteAllowed, CHILD_VIEW_NOTICE }=jiti("../lib/childView/constants.js");
 const { MINOR_REVIEW_NOTICE_VERSION, validateMinorReview }=jiti("../lib/beta/minorReview.js");
-const { tripDays, itemsOnDay, groupChildTrips, childOpeningTab }=jiti("../lib/childView/days.js");
+const { tripDays, itemsOnDay, groupChildTrips, childOpeningTab, childHomeTrip, childItineraryDay }=jiti("../lib/childView/days.js");
 const id="20000000-0000-0000-0000-000000000031";
 test("only exact own-item and theme payloads are accepted",()=>{
   assert.equal(validPacking({itemId:id,packed:true}),true);
@@ -85,8 +85,10 @@ test("trip tabs use the regular style with packing first and date-aware defaults
   const ui=readFileSync(new URL("../app/child/MinorReview.js",import.meta.url),"utf8");
   assert.match(ui,/const CHILD_TRIP_TABS = \[\s*\{ id: "packing", label: "Packing" \},\s*\{ id: "itinerary", label: "Itinerary" \}/);
   assert.match(ui,/setTab\(childOpeningTab\(row, date\)\)/);
-  assert.match(ui,/item.id !== "live" \|\| isLive/);
-  assert.match(ui,/chosenTab === "live" && !isLive \? "itinerary" : chosenTab/);
+  assert.doesNotMatch(ui,/id: "live"|tab === "live"/);
+  assert.match(ui,/homeOpenedRef.current/);
+  assert.match(ui,/childHomeTrip\(data.trips \|\| \[\], date\)/);
+  assert.match(ui,/childItineraryDay\(trip, today, selectedDay\)/);
   assert.match(ui,/className="tabbar mt-4 no-print" role="tablist"/);
   assert.match(ui,/onKeyDown=\{tabKeyDown\}/);
   assert.match(ui,/role="tabpanel" id="child-trip-panel"/);
@@ -94,10 +96,42 @@ test("trip tabs use the regular style with packing first and date-aware defaults
 });
 test("opening tab follows departure eve, every trip day, and other dates",()=>{
   const trip={start_date:"2027-03-12",end_date:"2027-03-16",status:"planning"};
-  for (const [day,tab] of [["2027-03-10","itinerary"],["2027-03-11","packing"],["2027-03-12","live"],["2027-03-14","live"],["2027-03-16","live"],["2027-03-17","itinerary"]])
+  for (const [day,tab] of [["2027-03-10","itinerary"],["2027-03-11","packing"],["2027-03-12","itinerary"],["2027-03-14","itinerary"],["2027-03-16","itinerary"],["2027-03-17","itinerary"]])
     assert.equal(childOpeningTab(trip,day),tab,day);
-  assert.equal(childOpeningTab({...trip,end_date:null},"2027-03-12"),"live");
+  assert.equal(childOpeningTab({...trip,end_date:null},"2027-03-12"),"itinerary");
   assert.equal(childOpeningTab({...trip,end_date:null},"2027-03-13"),"itinerary");
+});
+test("home opens only a current or tomorrow roster trip, preferring current",()=>{
+  const row=(id,start_date,end_date,status="planning")=>({id,start_date,end_date,status});
+  const current=row("current","2027-03-12","2027-03-16");
+  const tomorrow=row("tomorrow","2027-03-15","2027-03-19");
+  const trips=[tomorrow,row("future","2027-05-01","2027-05-03"),current];
+  const before=structuredClone(trips);
+  assert.equal(childHomeTrip(trips,"2027-03-14").id,"current");
+  assert.equal(childHomeTrip([tomorrow],"2027-03-14").id,"tomorrow");
+  assert.equal(childHomeTrip([current],"2027-03-16").id,"current");
+  assert.equal(childHomeTrip([current],"2027-03-17"),null);
+  assert.equal(childHomeTrip([current],"2027-03-10"),null);
+  assert.equal(childHomeTrip([],"2027-03-14"),null);
+  assert.deepEqual(trips,before);
+});
+test("home ignores inactive trips and has deterministic overlap handling",()=>{
+  const trip={id:"b",start_date:"2027-03-12",end_date:"2027-03-16"};
+  for(const status of ["draft","complete","archived","cancelled","canceled"])
+    assert.equal(childHomeTrip([{...trip,status}],"2027-03-14"),null);
+  assert.equal(childHomeTrip([{...trip,archived_at:"yes"},{id:"undated"}],"2027-03-14"),null);
+  const a={...trip,id:"a"};
+  assert.equal(childHomeTrip([trip,a],"2027-03-14").id,"a");
+  assert.equal(childHomeTrip([a,trip],"2027-03-14").id,"a");
+  assert.equal(childHomeTrip([trip,{...a,start_date:"2027-03-13"}],"2027-03-14").id,"a");
+});
+test("itinerary opens today or departure day, respecting an explicit day choice",()=>{
+  const trip={start_date:"2027-03-12",end_date:"2027-03-16",itinerary:[{item_date:"2027-03-10"},{item_date:null}]};
+  assert.equal(childItineraryDay(trip,"2027-03-11"),"2027-03-12");
+  assert.equal(childItineraryDay(trip,"2027-03-14"),"2027-03-14");
+  assert.equal(childItineraryDay(trip,"2027-03-14","2027-03-15"),"2027-03-15");
+  assert.equal(childItineraryDay(trip,"2027-03-14","Unscheduled"),"Unscheduled");
+  assert.equal(childItineraryDay(trip,"2027-03-14","invalid"),"2027-03-14");
 });
 test("opening tab handles calendar boundaries and inactive or undated trips",()=>{
   for(const [start,previous] of [["2027-01-01","2026-12-31"],["2028-03-01","2028-02-29"],["2027-03-15","2027-03-14"],["2027-11-08","2027-11-07"]])
