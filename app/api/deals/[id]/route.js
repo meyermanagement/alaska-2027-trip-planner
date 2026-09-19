@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
 import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
 import { tripPath } from "@/lib/trips/route";
+import { fareHasExpired } from "@/lib/deals/deadline";
 
 export const runtime = "nodejs";
 
@@ -55,6 +56,15 @@ export async function POST(request, { params }) {
   const tripId = typeof body?.trip_id === "string" ? body.trip_id : null;
   const placeId = typeof body?.someday_id === "string" ? body.someday_id : null;
   let destinationUrl = null;
+  if (status === "open") {
+    const { data: existing, error: readError } = await supabase.from("flight_deals")
+      .select("id, book_by, book_by_inferred").eq("id", id)
+      .eq("family_id", access.familyId).maybeSingle();
+    if (readError) return NextResponse.json({ error: "Could not check the fare deadline. Try again." }, { status: 500 });
+    if (!existing) return NextResponse.json({ error: "That fare is gone." }, { status: 404 });
+    if (fareHasExpired(existing))
+      return NextResponse.json({ error: "The booking deadline has passed. This fare cannot return to active fares." }, { status: 409 });
+  }
   if (status === "taken") {
     if (Boolean(tripId) === Boolean(placeId))
       return NextResponse.json({ error: "Choose one trip or bucket-list place." }, { status: 400 });
@@ -79,10 +89,10 @@ export async function POST(request, { params }) {
   // rows and comes back empty rather than saving anything.
   const patch =
     status === "open"
-      ? { status, dismissed_reason: null, trip_id: null }
+      ? { status, dismissed_reason: null, trip_id: null, someday_id: null }
       : status === "dismissed"
-        ? { status, dismissed_reason: reason }
-        : { status, trip_id: tripId, ...(placeId ? { someday_id: placeId } : {}), dismissed_reason: null };
+        ? { status, dismissed_reason: reason, trip_id: null, someday_id: null }
+        : { status, trip_id: tripId, someday_id: placeId, dismissed_reason: null };
 
   const { data: deal, error } = await supabase
     .from("flight_deals")

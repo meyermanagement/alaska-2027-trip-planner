@@ -41,6 +41,11 @@ export default function LoadingSomeday() {
         <Bar className="h-4 w-3/4 max-w-xl" />
       </div>
 
+      <div className="tabbar mb-6 flex gap-4" aria-hidden="true">
+        <Bar className="h-10 w-24" />
+        <Bar className="h-10 w-32" />
+      </div>
+
       <div className="mb-3 flex flex-wrap gap-1.5" aria-hidden="true">
         <Bar className="h-7 w-20" />
         <Bar className="h-7 w-20" />

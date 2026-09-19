@@ -1,5 +1,6 @@
 import Deals from "@/components/Deals";
 import ForwardFares from "@/components/ForwardFares";
+import { fareForToday, fareMatchesTrip } from "@/lib/deals/deadline";
 
 /**
  * The fares that turned out to be about this trip, on this trip.
@@ -16,9 +17,7 @@ import ForwardFares from "@/components/ForwardFares";
  */
 export default function TripFares({ trip, deals = [], address, unbooked }) {
   const mine = (deals || []).filter(
-    (deal) => deal.status === "taken"
-      ? deal.trip_id === trip.id
-      : deal.verdict?.trip?.id === trip.id,
+    (deal) => fareMatchesTrip(fareForToday(deal), trip.id),
   );
   if (!mine.length && !unbooked) return null;
 

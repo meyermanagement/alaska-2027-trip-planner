@@ -13,10 +13,11 @@ export async function POST(request) {
   const ids = Array.isArray(body.ids) ? [...new Set(body.ids)] : [];
   if (!ids.length || ids.length > 200 || ids.some((id) => typeof id !== "string"))
     return NextResponse.json({ error: "Choose a fare group." }, { status: 400 });
+  const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 300) : "";
   // One atomic statement, scoped to visible IDs and the caller's household.
   // A fare already taken in another tab is left alone.
   const { data, error } = await supabase.from("flight_deals")
-    .update({ status: "dismissed", dismissed_reason: "Cleared with email group", updated_by: user.id })
+    .update({ status: "dismissed", dismissed_reason: reason || "Cleared with email group", trip_id: null, someday_id: null, updated_by: user.id })
     .eq("family_id", access.familyId).eq("status", "open")
     .in("id", ids).select("id");
   if (error) return NextResponse.json({ error: "The group did not clear. Try again." }, { status: 500 });

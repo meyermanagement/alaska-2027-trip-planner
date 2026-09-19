@@ -10,7 +10,7 @@ const single = jiti("../app/api/deals/[id]/route.js");
 const group = jiti("../app/api/deals/group/route.js");
 const unread = jiti("../app/api/deals/unread/route.js");
 
-function setup({ user = { id: "me" }, secondary = false, trip = null, place = null } = {}) {
+function setup({ user = { id: "me" }, secondary = false, trip = null, place = null, fare = {} } = {}) {
   const calls = [];
   globalThis.__fareTestDb = {
     auth: { getUser: async () => ({ data: { user } }) },
@@ -27,7 +27,7 @@ function setup({ user = { id: "me" }, secondary = false, trip = null, place = nu
           const data = table === "family_members" ? [{ family_id: "family" }]
             : table === "travelers" ? [{ id: "traveler", access_level: secondary ? "secondary" : "primary", is_person: true }]
             : table === "trips" ? trip : table === "someday_places" ? place
-            : table === "flight_deals" ? (call.single ? { id: "fare", ...call.value } : [{ id: "fare" }])
+            : table === "flight_deals" ? (call.single ? { id: "fare", ...fare, ...call.value } : [{ id: "fare" }])
             : [];
           return Promise.resolve({ data, error: null }).then(resolve, reject);
         },
@@ -77,6 +77,12 @@ test("bucket list save and restoring an accidental attachment use explicit desti
   assert.equal((await result.json()).destinationUrl, "/someday#saved-fares");
   await save({ status: "open" });
   assert.equal(calls.filter((c) => c.action === "update").at(-1).value.trip_id, null);
+  assert.equal(calls.filter((c) => c.action === "update").at(-1).value.someday_id, null);
+  await save({ status: "dismissed", reason: "Wrong week" });
+  const declined = calls.filter((c) => c.action === "update").at(-1).value;
+  assert.equal(declined.trip_id, null);
+  assert.equal(declined.someday_id, null);
+  assert.equal(declined.dismissed_reason, "Wrong week");
 });
 test("clearing a group is one update, restricted to open fares in the household", async () => {
   const calls = setup();
@@ -89,4 +95,21 @@ test("marking read uses authorized fare IDs and the caller's user ID", async () 
   const calls = setup();
   assert.equal((await unread.POST(req({ ids: ["fare", "foreign"] }))).status, 200);
   assert.deepEqual(calls.find((c) => c.action === "upsert").value, [{ deal_id: "fare", user_id: "me" }]);
+});
+
+test("group dismissal saves the same optional reason as an individual fare", async () => {
+  const calls = setup();
+  assert.equal((await group.POST(req({ ids: ["fare"], reason: "  Wrong week for us  " }))).status, 200);
+  assert.equal(calls.find((call) => call.action === "update").value.dismissed_reason, "Wrong week for us");
+  const fallback = setup();
+  await group.POST(req({ ids: ["fare"], reason: "" }));
+  assert.equal(fallback.find((call) => call.action === "update").value.dismissed_reason, "Cleared with email group");
+});
+
+test("a past stated deadline cannot be restored, while estimates can", async () => {
+  const calls = setup({ fare: { book_by: "2000-01-01" } });
+  assert.equal((await save({ status: "open" })).status, 409);
+  assert.equal(calls.some((call) => call.action === "update"), false);
+  setup({ fare: { book_by: "2000-01-01", book_by_inferred: true } });
+  assert.equal((await save({ status: "open" })).status, 200);
 });

@@ -19,17 +19,18 @@
 // refusal is a fact about this family that should still be true next month, and an
 // app that forgets it will show them the same fare next week.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/rewards";
-import { formatDay } from "@/lib/format";
+import { formatDay, homeToday } from "@/lib/format";
 import { monthsSaid } from "@/lib/someday/months";
 import { groupFareAlerts } from "@/lib/deals/groups";
 import { awardOptionLabel } from "@/lib/deals/award";
 import { fareOfferLabel, fareGroupCabinLabel } from "@/lib/deals/cabin";
 import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
 import { tripPath } from "@/lib/trips/route";
+import { fareDeadlinePassed, fareHasExpired, fareForToday, fareMatchesTrip } from "@/lib/deals/deadline";
 import ConfirmSheet from "./ConfirmSheet";
 
 function fareLine(deal) {
@@ -59,24 +60,69 @@ function money(value) {
  */
 export default function Deals({ deals = [], trips = [], places = [], tripId = null }) {
   const router = useRouter();
+  const [today, setToday] = useState(() => homeToday());
+  useEffect(() => {
+    function checkDay() {
+      const next = homeToday();
+      if (next !== today) { setToday(next); router.refresh(); }
+    }
+    const timer = setInterval(checkDay, 30_000);
+    window.addEventListener("focus", checkDay);
+    document.addEventListener("visibilitychange", checkDay);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", checkDay);
+      document.removeEventListener("visibilitychange", checkDay);
+    };
+  }, [today, router]);
+  const current = deals.map((deal) => fareForToday(deal, today));
   const mine = tripId
-    ? deals.filter((deal) => deal.status === "taken" ? deal.trip_id === tripId : deal.verdict?.trip?.id === tripId)
-    : deals;
+    ? current.filter((deal) => fareMatchesTrip(deal, tripId))
+    : current;
   const open = mine.filter((deal) => deal.status === "open");
   const refused = mine.filter((deal) => deal.status === "dismissed");
   const taken = mine.filter((deal) => deal.status === "taken");
-  // Retired by the watcher for having passed its book-by date. Not open, and not
-  // something the family turned down either: it simply ran out, and saying so is
-  // better than a card quietly disappearing off the screen.
-  const ran = mine.filter((deal) => deal.status === "expired");
+  const deadlineBadge = (deal) => fareDeadlinePassed(deal, today) ? (
+    <span className="chip mt-1 max-w-full text-left text-rose" style={{ whiteSpace: "normal" }}
+      title={`Book by ${formatDay(deal.book_by)}`}>
+      {deal.book_by_inferred ? "Estimated deadline passed" : "Deadline passed"} · {new Date(`${deal.book_by}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+    </span>
+  ) : null;
 
   const [error, setError] = useState("");
   const [acting, setActing] = useState(null);
-  const [reasoning, setReasoning] = useState(null);
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(null);
+  const [refreshing, startRefresh] = useTransition();
+  const [saved, setSaved] = useState(false);
   const writeLock = useRef(false);
   const readIds = useRef(new Set());
+
+  // A successful POST is not the end: keep the sheet and controls busy until
+  // the refreshed server tree (or destination trip) has finished committing.
+  useEffect(() => {
+    if (!saved || refreshing) return;
+    setConfirm(null);
+    setReason("");
+    setActing(null);
+    setSaved(false);
+    writeLock.current = false;
+  }, [saved, refreshing]);
+
+  function finish(destinationUrl) {
+    startRefresh(() => {
+      if (destinationUrl) router.push(destinationUrl);
+      router.refresh();
+      setSaved(true);
+    });
+  }
+
+  function askDismiss(selection) {
+    setError("");
+    setReason("");
+    setConfirm({ kind: "dismiss", ...selection });
+  }
+
   async function markRead(rows) {
     const ids = rows.map((row) => row.id).filter((id) => !readIds.current.has(id));
     if (!ids.length) return;
@@ -106,16 +152,9 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "That did not save.");
-      setReasoning(null);
-      setReason("");
-      setConfirm(null);
-      if (patch.status === "taken" && result.destinationUrl)
-        router.push(result.destinationUrl);
-      router.refresh();
+      finish(patch.status === "taken" ? result.destinationUrl : null);
     } catch (err) {
-      setConfirm(null);
       setError(err.message || "That did not save.");
-    } finally {
       setActing(null);
       writeLock.current = false;
     }
@@ -135,15 +174,13 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
     try {
       const res = await fetch("/api/deals/group", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: group.deals.map((deal) => deal.id) }),
+        body: JSON.stringify({ ids: group.deals.map((deal) => deal.id), reason: reason.trim() }),
       });
-      if (!res.ok) throw new Error();
-      setConfirm(null);
-      router.refresh();
-    } catch {
-      setConfirm(null);
-      setError("The group did not clear. Try again.");
-    } finally {
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "The group did not clear. Try again.");
+      finish();
+    } catch (err) {
+      setError(err.message || "The group did not clear. Try again.");
       setActing(null);
       writeLock.current = false;
     }
@@ -182,6 +219,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           ) : null}
         </div>
         {!compact ? <p className="mt-0.5 text-sm text-ink-soft">{fareLine(deal)}</p> : null}
+        {!compact ? deadlineBadge(deal) : null}
         {deal.award_pricing?.options?.length ? (
           <div className="mt-2 space-y-2 text-sm text-ink-soft">
             {deal.award_pricing.options.map((option, index) => (
@@ -230,49 +268,12 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           )}
         </p>
 
-        {reasoning === deal.id ? (
-          <div className="mt-2">
-            <label className="section-label block" htmlFor={`why-${deal.id}`}>
-              Why not, in a few words
-            </label>
-            <input
-              id={`why-${deal.id}`}
-              className="field mt-1 w-full"
-              value={reason}
-              maxLength={200}
-              placeholder="Wrong week for us"
-              onChange={(event) => setReason(event.target.value)}
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={acting === deal.id}
-                onClick={() =>
-                  decide(deal, { status: "dismissed", reason: reason.trim() })
-                }
-              >
-                {acting === deal.id ? "Saving…" : "Save it"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  setReasoning(null);
-                  setReason("");
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             {v.trip && live.some((trip) => trip.id === v.trip.id) ? (
               <button
                 type="button"
                 className="btn btn-primary px-3 py-1"
-                disabled={acting === deal.id}
+                disabled={Boolean(acting)}
                 onClick={() => chooseTrip(deal, live.find((trip) => trip.id === v.trip.id))}
               >
                 Put it on {v.trip.name}
@@ -285,7 +286,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                   aria-label={`Choose a trip for ${deal.destination}`}
                   className="field min-w-0 max-w-full py-1"
                   defaultValue=""
-                  disabled={acting === deal.id}
+                  disabled={Boolean(acting)}
                   onChange={(event) => {
                     if (!event.target.value) return;
                     const [kind, id] = event.target.value.split(":");
@@ -313,16 +314,12 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
             <button
               type="button"
               className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
-              disabled={acting === deal.id}
-              onClick={() => {
-                setReasoning(deal.id);
-                setReason("");
-              }}
+              disabled={Boolean(acting)}
+              onClick={() => askDismiss({ deal })}
             >
               Not for us
             </button>
           </div>
-        )}
       </>
     );
     return (
@@ -333,6 +330,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
             <summary className="cursor-pointer rounded-lg px-3 py-3 text-sm marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
               <span className="font-semibold">{deal.destination}</span>
               <span className="mt-1 block pl-4 text-ink-soft">{fareLine(deal)}</span>
+              {deadlineBadge(deal)}
             </summary>
             <div className="px-3 pb-4">{body}</div>
           </details>
@@ -344,20 +342,31 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   // Nothing on file, so there is nothing to say. The screen that holds this panel
   // explains how fares get here; a panel that announced its own emptiness would
   // be saying it twice.
-  if (!open.length && !refused.length && !taken.length && !ran.length)
+  if (!open.length && !refused.length && !taken.length)
     return null;
 
   return (
     <section id="fares">
       {confirm && <ConfirmSheet
-        title={confirm.kind === "attach" ? `Save this fare to ${confirm.name}?` : `Clear ${confirm.group.deals.length} fares?`}
-        body={confirm.kind === "attach"
-          ? `${confirm.deal.origin} to ${confirm.deal.destination}, ${fareOfferLabel(confirm.deal)}. This saves the offer for reference; it does not book a flight. ${confirm.patch.trip_id ? "The trip will open next." : "It will appear under Saved fares."}`
-          : "Move these fares to Fares you turned down. You can restore them later; saved fares will not change."}
-        onCancel={() => setConfirm(null)}
+        title={confirm.kind === "attach" ? `Save this fare to ${confirm.name}?` : "Move to fares you turned down?"}
+        body={<>
+          <p>{confirm.kind === "attach"
+            ? `${confirm.deal.origin} to ${confirm.deal.destination}, ${fareOfferLabel(confirm.deal)}. This saves the offer for reference; it does not book a flight. ${confirm.patch.trip_id ? "The trip will open next." : "It will appear under Saved fares."}`
+            : confirm.group ? `${confirm.group.deals.length} ${confirm.group.deals.length === 1 ? "fare" : "fares"} will leave the active list. You can move them back later if the deadline has not passed; saved fares will not change.`
+              : `${confirm.deal.origin} to ${confirm.deal.destination}, ${fareOfferLabel(confirm.deal)}, will ${confirm.deal.status === "taken" ? "be removed from its saved trip or place and moved to turned-down fares" : "leave the active list"}. You can move it back later if the deadline has not passed.`}</p>
+          {confirm.kind === "dismiss" && <label className="block pt-2" htmlFor="fare-dismiss-reason">
+            Why not? <span className="text-ink-faint">(optional)</span>
+            <input id="fare-dismiss-reason" className="field mt-1 w-full" value={reason}
+              maxLength={200} placeholder="Wrong week for us" disabled={Boolean(acting)}
+              onChange={(event) => setReason(event.target.value)} />
+          </label>}
+          {error && <p role="alert" className="text-rose">{error}</p>}
+        </>}
+        onCancel={() => { setConfirm(null); setError(""); }}
         busy={Boolean(acting)}
-        actions={[{ label: confirm.kind === "attach" ? "Save fare" : "Clear fares",
-          onPick: () => confirm.kind === "attach" ? decide(confirm.deal, confirm.patch) : clearGroup(confirm.group) }]}
+        actions={[{ label: acting ? (refreshing ? "Updating list…" : "Saving…") : confirm.kind === "attach" ? "Save fare" : "Confirm",
+          onPick: () => confirm.kind === "attach" ? decide(confirm.deal, confirm.patch)
+            : confirm.group ? clearGroup(confirm.group) : decide(confirm.deal, { status: "dismissed", reason: reason.trim() }) }]}
       />}
       {open.length ? (
         <>
@@ -390,11 +399,11 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                   <div className="px-4 pb-2">
                     <button type="button" className="btn btn-ghost min-h-11 text-xs"
                       disabled={Boolean(acting)}
-                      onClick={() => setConfirm({ kind: "clear", group })}>Clear this group</button>
+                      onClick={() => askDismiss({ group })}>Clear this group</button>
                     {group.deals[0]?.message_id && open.filter((deal) => deal.message_id === group.deals[0].message_id).length > group.deals.length ? (
                       <button type="button" className="btn btn-ghost min-h-11 text-xs"
                         disabled={Boolean(acting)}
-                        onClick={() => setConfirm({ kind: "clear", group: {
+                        onClick={() => askDismiss({ group: {
                           key: group.deals[0].message_id,
                           deals: open.filter((deal) => deal.message_id === group.deals[0].message_id),
                         } })}>Clear whole email</button>
@@ -407,7 +416,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           </ul>
         </>
       ) : null}
-      {error ? <p role="alert" className="mt-2 text-sm text-rose">{error}</p> : null}
+      {error && !confirm ? <p role="alert" className="mt-2 text-sm text-rose">{error}</p> : null}
 
       {taken.length ? (
         <div className="mt-6" id="saved-fares">
@@ -421,27 +430,19 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                   return target ? <> on <Link className="font-semibold text-teal underline" href={`${tripPath(target, "overview")}#fares`}>{target.name}</Link></> : " on a trip no longer available";
                 })() : places.find((place) => place.id === deal.someday_id)
                   ? ` on your bucket list: ${places.find((place) => place.id === deal.someday_id).place}` : ""}.
-                <button type="button" className="ml-2 min-h-11 px-2 text-teal underline"
-                  disabled={Boolean(acting)} onClick={() => decide(deal, { status: "open" })}>
-                  {acting === deal.id ? "Restoring…" : "Restore fare"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {ran.length ? (
-        <div className="mt-6">
-          <h3 className="section-label">Fares that ran out</h3>
-          <ul className="mt-2 space-y-1 text-sm text-ink-soft">
-            {ran.map((deal) => (
-              <li key={deal.id}>
-                {deal.origin} to {deal.destination}, {fareOfferLabel(deal)}
-                {deal.book_by
-                  ? ` — the book-by date was ${formatDay(deal.book_by) || deal.book_by}`
-                  : ""}
-                .
+                <div>{deadlineBadge(deal)}</div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                  <button type="button" className="min-h-11 text-left text-teal underline disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={Boolean(acting) || fareHasExpired(deal, today)}
+                    title={fareHasExpired(deal, today) ? "The booking deadline has passed." : undefined}
+                    onClick={() => decide(deal, { status: "open" })}>
+                    {acting === deal.id && !confirm ? "Moving…" : "Move to active fares"}
+                  </button>
+                  <button type="button" className="min-h-11 text-left text-ink-soft underline"
+                    disabled={Boolean(acting)} onClick={() => askDismiss({ deal })}>
+                    Move to turned-down fares
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -465,20 +466,21 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                   <p className="text-sm font-semibold text-ink">
                     {deal.origin} to {deal.destination}, {fareOfferLabel(deal)}
                   </p>
-                  {deal.dismissed_reason ? (
+                  {deadlineBadge(deal)}
+                  {deal.dismissed_reason && (deal.dismissed_reason !== "Deadline passed" || !fareDeadlinePassed(deal, today)) ? (
                     <p className="mt-0.5 text-sm text-ink-soft">
                       {deal.dismissed_reason}
                     </p>
                   ) : null}
                 </div>
-                <button
+                {!fareHasExpired(deal, today) && <button
                   type="button"
                   className="btn btn-ghost mt-2 w-full shrink-0 px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-60 sm:mt-0 sm:w-auto"
-                  disabled={acting === deal.id}
+                  disabled={Boolean(acting)}
                   onClick={() => decide(deal, { status: "open" })}
                 >
-                  {acting === deal.id ? "Restoring…" : "Restore fare"}
-                </button>
+                  {acting === deal.id ? "Moving…" : "Move to active fares"}
+                </button>}
               </li>
             ))}
           </ul>

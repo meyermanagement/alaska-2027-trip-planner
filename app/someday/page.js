@@ -8,9 +8,9 @@ import { SCREEN_INTROS } from "@/lib/screenCopy";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import { SOMEDAY_FOCUS } from "@/lib/agent/context";
 import SomedayList from "./SomedayList";
+import SomedayTabs from "./SomedayTabs";
 import Deals from "@/components/Deals";
 import ForwardFares from "@/components/ForwardFares";
-import ForwardFaresLink from "@/components/ForwardFaresLink";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { judged, readDealWorld } from "@/lib/deals/world";
 
@@ -105,34 +105,22 @@ export default async function SomedayPage() {
         <PageHeader
           title="Bucket list"
           count={(places || []).length || undefined}
-          subtitle={
-            <>
-              {SCREEN_INTROS.bucketList}{" "}
-              <ForwardFaresLink>How to forward flight deals</ForwardFaresLink>.
-            </>
-          }
+          subtitle={SCREEN_INTROS.bucketList}
         />
 
-        {fares.some((deal) => deal.status === "open") ? (
-          <div className="mb-8">
-            <Deals deals={fares} trips={trips || []} places={places || []} />
-          </div>
-        ) : null}
-
-        <SomedayList
-          familyId={familyId}
-          places={places || []}
-          travelers={people || []}
-          trips={trips || []}
+        <SomedayTabs
+          fareCount={fares.filter((deal) => deal.status === "open").length}
+          places={<SomedayList familyId={familyId} places={places || []}
+            travelers={people || []} trips={trips || []} />}
+          fares={<>
+            {fares.length ? <Deals deals={fares} trips={trips || []} places={places || []} />
+              : <div className="card p-5">
+                <h2 className="font-display text-lg font-semibold">No fare alerts yet</h2>
+                <p className="mt-1 text-sm text-ink-soft">Forward a flight deal to Aly. Matching fares will appear here.</p>
+              </div>}
+            <ForwardFares address={inboxAddressFor(household?.inbox_local_part)} />
+          </>}
         />
-
-        {fares.some((deal) => deal.status === "open") ? null : (
-          <div className="mt-8">
-            <Deals deals={fares} trips={trips || []} places={places || []} />
-          </div>
-        )}
-
-        <ForwardFares address={inboxAddressFor(household?.inbox_local_part)} />
       </main>
       <AskAlyGeneral focus={SOMEDAY_FOCUS} />
     </>
