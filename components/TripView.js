@@ -29,6 +29,8 @@ import Insurance from "./Insurance";
 import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
+import OnTripTips from "./OnTripTips";
+import { localDay, onTripWindow } from "@/lib/tips/onTrip";
 import TripChanges from "./TripChanges";
 import ClearedTips from "./ClearedTips";
 import { lookSummary } from "@/lib/tips/run";
@@ -557,6 +559,14 @@ export default function TripView({
   const autoEnd = dated[dated.length - 1] || null;
 
   const past = isPastTrip(info);
+  const [deviceToday, setDeviceToday] = useState(null);
+  useEffect(() => {
+    const update = () => setDeviceToday(localDay(Intl.DateTimeFormat().resolvedOptions().timeZone));
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+  const onTrip = Boolean(onTripWindow(info, deviceToday));
 
   // Whether opening this trip should ask Aly to check for pro tips on its own,
   // rather than waiting for somebody to press the button. Two ways in: a new
@@ -566,9 +576,8 @@ export default function TripView({
   // did not, and an itinerary change can invalidate advice that was true
   // against the old one. A trip that has never been looked at qualifies too.
   //
-  // Deliberately not on every open. A trip look is five grounded model calls
-  // and most of a minute, and the family opens the same trip several times a
-  // day; running it every time would spend the budget on the same answers.
+  // This gate is only for upcoming trips. On-trip visits use OnTripTips instead,
+  // with a fresh focused conditions check on every open and foreground return.
   // Draft and past trips are out: a draft has nothing to research yet, and
   // advice for a trip that is over is a footnote.
   const shouldAutoLook = (() => {
@@ -731,7 +740,7 @@ export default function TripView({
                     Edit trip
                   </button>
                 )}
-                <LookForTips
+                {onTrip ? <OnTripTips key={trip.id} tripId={trip.id} readOnly={readOnly} /> : <LookForTips
                   tripId={trip.id}
                   chain={lookAt}
                   scope="trip"
@@ -739,8 +748,8 @@ export default function TripView({
                   onLooked={setLanded}
                   onGo={setTab}
                   readOnly={readOnly}
-                  autoRun={shouldAutoLook}
-                />
+                  autoRun={Boolean(deviceToday) && shouldAutoLook}
+                />}
                 {/* Only on a trip that is over, and quieter than the two buttons
                     above it: tidying the shelf is not why anybody opened this
                     screen. Both directions live here, so the way out of the

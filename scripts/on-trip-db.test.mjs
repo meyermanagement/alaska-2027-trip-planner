@@ -1,0 +1,35 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const { PGlite } = await import(process.env.PGLITE_MODULE);
+const db = new PGlite();
+const id = n => `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
+await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
+create table trips(id uuid primary key); create table pro_tips(id uuid primary key);
+create table push_subscriptions(id uuid primary key);
+insert into trips values('${id(1)}'); insert into pro_tips values('${id(2)}'); insert into push_subscriptions values('${id(3)}');`);
+await db.exec(readFileSync(new URL("../supabase/migrations/20260923_on_trip_conditions.sql", import.meta.url), "utf8"));
+test("only the service may claim a trip; overlap coalesces, completion and expiry permit the next open", async () => {
+  await db.exec("set role authenticated");
+  await assert.rejects(db.exec(`select claim_trip_conditions('${id(1)}','${id(4)}')`), /permission denied/);
+  await db.exec("reset role; set role service_role");
+  const claim = token => db.query(`select claim_trip_conditions('${id(1)}','${token}') as claimed`);
+  assert.equal((await claim(id(4))).rows[0].claimed, true);
+  assert.notEqual((await claim(id(5))).rows[0].claimed, true);
+  await db.exec(`delete from trip_conditions_locks where trip_id='${id(1)}' and token='${id(5)}'`);
+  assert.notEqual((await claim(id(5))).rows[0].claimed, true);
+  await db.exec(`delete from trip_conditions_locks where trip_id='${id(1)}' and token='${id(4)}'`);
+  assert.equal((await claim(id(5))).rows[0].claimed, true);
+  await db.exec(`update trip_conditions_locks set expires_at=now()-interval '1 minute'`);
+  assert.equal((await claim(id(6))).rows[0].claimed, true);
+});
+test("push ledger blocks duplicates and client writes; deletions cascade", async () => {
+  await db.exec("reset role; set role authenticated");
+  await assert.rejects(db.exec("select * from trip_impact_pushes"), /permission denied/);
+  await db.exec("reset role; set role service_role");
+  const insert = () => db.exec(`insert into trip_impact_pushes(tip_id,subscription_id) values('${id(2)}','${id(3)}')`);
+  await insert(); await assert.rejects(insert(), /duplicate key/);
+  await db.exec(`reset role; delete from pro_tips where id='${id(2)}'`);
+  assert.equal((await db.query("select * from trip_impact_pushes")).rows.length, 0);
+});
+test.after(async () => db.close());
