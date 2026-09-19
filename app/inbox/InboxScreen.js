@@ -14,6 +14,7 @@ import PageHeader from "@/components/PageHeader";
 import { SCREEN_INTROS } from "@/lib/screenCopy";
 import InboxMessageBody from "@/components/InboxMessageBody";
 import { readVerification } from "@/lib/inbox/verification";
+import ReprocessEmail, { InboxReprocessHelp } from "@/components/ReprocessEmail";
 
 /**
  * The screen a family reads their inbox on.
@@ -295,6 +296,7 @@ export default function InboxScreen({
         summarizes insurance coverage. Deals keep their original source so you
         can check the price before booking.
       </p>
+      <InboxReprocessHelp />
 
       <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--line)] bg-sand p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -545,6 +547,11 @@ export default function InboxScreen({
                     </button>
                   </div>
                 </header>
+
+                {!verification && <div className="px-4 pb-4">
+                  <ReprocessEmail messageId={m.id} disabled={!!parsingPaused || busyId === m.id}
+                    onBusyChange={busy => setBusyId(current => busy ? m.id : current === m.id ? null : current)} />
+                </div>}
 
                 {isOpen && mode === "read" && (
                   <InboxMessageBody

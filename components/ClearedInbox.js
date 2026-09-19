@@ -7,6 +7,7 @@ import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
 import { stampDaySaid } from "@/lib/format";
 import { VERIFICATION_SENDERS } from "@/lib/inbox/verification";
+import ReprocessEmail from "@/components/ReprocessEmail";
 
 /**
  * The messages that have left the inbox, kept where they can be found again.
@@ -174,6 +175,12 @@ export default function ClearedInbox() {
                       "Thrown out. Anything attached to it was not kept."
                     )}
                   </p>
+
+                  {!wasVerification && <div className="mt-3">
+                    <ReprocessEmail messageId={message.id} disabled={working}
+                      onBusyChange={busy => setWorkingId(current => busy ? message.id : current === message.id ? null : current)}
+                      onApplied={load} />
+                  </div>}
 
                   {wasNoted && !wasVerification ? null : asking ? (
                     <div className="mt-3 rounded-lg border border-[var(--line-strong)] bg-sand p-3">
