@@ -16,7 +16,9 @@ import {
 } from "@/lib/agent/tools";
 import { toolsForRequest } from "@/lib/agent/toolset";
 import { resolveAccess } from "@/lib/travelers/access";
-import { consentIsCurrent, readConsent } from "@/lib/beta/consent";
+import { readConsent } from "@/lib/beta/consent";
+import { accountAge } from "@/lib/beta/accountAge";
+import { chatPermissionError } from "@/lib/beta/chatPermission";
 import { markSettled, noteAsked } from "@/lib/travelers/ledger";
 import { SLOT_BY_ID, slotFromWords } from "@/lib/travelers/slots";
 import {
@@ -215,27 +217,19 @@ export async function POST(request) {
   // Two different noes, said differently, because "Aly is turned off" sent to
   // somebody whose agreement simply went out of date sends them to a switch that
   // is already on.
-  const consentRow = await readConsent(supabase, user.id);
-  if (!consentIsCurrent(consentRow)) {
-    return NextResponse.json(
-      {
-        error:
-          "The beta agreement has been updated, so nothing is being sent until you have read it. Reload the app and it will ask you.",
-        consentStale: true,
-      },
-      { status: 403 },
-    );
+  let consentRow, age;
+  try {
+    [consentRow, age] = await Promise.all([
+      readConsent(supabase, user.id, { strict: true }),
+      accountAge(supabase, user.id),
+    ]);
+  } catch {
+    return NextResponse.json(chatPermissionError(null, { unavailable: true }), { status: 503 });
   }
-  if (!consentRow?.ai_processing) {
-    return NextResponse.json(
-      {
-        error:
-          "Aly is turned off for this account. Turn on AI assistance in Settings to ask her something.",
-        aiOff: true,
-      },
-      { status: 403 },
-    );
-  }
+  const permissionError = chatPermissionError(consentRow, age);
+  if (permissionError) return NextResponse.json(permissionError, {
+    status: age.unavailable ? 503 : 403,
+  });
 
   // Everything that only needs the signed-in user, asked for at once.
   //

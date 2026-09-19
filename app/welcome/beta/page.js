@@ -4,6 +4,7 @@ import { whoIs } from "@/lib/supabase/who";
 import { isTesterAccount } from "@/lib/beta/tester";
 import { consentGap, readConsent } from "@/lib/beta/consent";
 import BetaConsentFlow from "./BetaConsentFlow";
+import { accountAge } from "@/lib/beta/accountAge";
 
 export const metadata = { title: "Before you start \u00b7 Alyeska" };
 export const dynamic = "force-dynamic";
@@ -36,6 +37,9 @@ export default async function BetaConsentPage() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
   if (!user) redirect(`/login?next=/welcome/beta`);
+  const age = await accountAge(supabase, user.id);
+  if (age.minor) redirect("/welcome/parent");
+  if (age.unavailable) return <main className="screen px-5 py-10"><h1 className="text-xl font-semibold">We couldn’t check your account</h1><p className="mt-3">Nothing was accepted or sent to Aly. Please reload to try again.</p></main>;
 
   const existing = await readConsent(supabase, user.id);
   const gap = consentGap(existing);

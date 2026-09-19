@@ -200,6 +200,9 @@ export default async function PeoplePage() {
           </div>
           </details>
         </PageHeader>
+        {(travelers || []).some(t => t.date_of_birth) && (
+          <a href="/family/child-access" className="btn btn-secondary mb-4">Child access</a>
+        )}
         <InterviewLauncher
           progress={interviewProgress(
             {

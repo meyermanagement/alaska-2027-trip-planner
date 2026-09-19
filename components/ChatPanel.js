@@ -260,6 +260,7 @@ export default function ChatPanel({
   // and no rows to show. One line saying it happened.
   const [packingNote, setPackingNote] = useState("");
   const [error, setError] = useState("");
+  const [errorAction, setErrorAction] = useState(null);
   // The question to put again, when the last one never reached the model. Held
   // separately from the error text because most errors are not retryable: a
   // refusal, a problem with what was asked, or a save that may have half landed
@@ -481,6 +482,7 @@ export default function ChatPanel({
     if (!clean || busy) return;
 
     setError("");
+    setErrorAction(null);
     setRetryAsk(null);
     setPending(null);
     // On a retry the question is already the last thing in the thread, on the
@@ -540,10 +542,12 @@ export default function ChatPanel({
 
       if (!res.ok) {
         setError(data?.error || "The assistant is unavailable right now.");
-        // Nothing was answered, so the question is still worth asking. Almost
-        // every failure here is a model that was busy or slow, which is exactly
-        // the kind that comes good on a second go.
-        setRetryAsk(clean);
+        // Consent and sign-in need a different action, not another identical ask.
+        setRetryAsk(data?.retryable === false || [401, 403].includes(res.status) ? null : clean);
+        const safeActions = ["/welcome/beta", "/settings"];
+        setErrorAction(safeActions.includes(data?.actionHref)
+          ? { href: data.actionHref, label: data.actionLabel }
+          : null);
         setBusy(false);
         return;
       }
@@ -706,6 +710,7 @@ export default function ChatPanel({
     if (!sending.length) return;
     setApplyingKey(group.key);
     setError("");
+    setErrorAction(null);
     try {
       const res = await fetch("/api/chat/apply", {
         method: "POST",
@@ -1373,6 +1378,11 @@ export default function ChatPanel({
         {error && (
           <div className="rounded-xl bg-rose/10 px-3 py-2 text-sm text-rose">
             <p>{error}</p>
+            {errorAction && (
+              <a href={errorAction.href} className="btn btn-secondary mt-2">
+                {errorAction.label}
+              </a>
+            )}
             {/* The same question again, on one press. Without this the family has
                 to find what they typed, which is gone from the box, and type it
                 out a second time -- and a long question asked at a bad moment is

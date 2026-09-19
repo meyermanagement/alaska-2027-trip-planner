@@ -10,6 +10,11 @@ import PageHeader from "@/components/PageHeader";
 // account, and the survey row in the menu is open to every tester.
 const ROWS = [
   {
+    href: "/admin/child-access",
+    label: "Parent verification",
+    sub: "Review requests for parent-managed child access",
+  },
+  {
     href: "/admin/beta",
     label: "Beta desk",
     sub: "Invite codes, who spent one, and how far they got afterwards",

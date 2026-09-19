@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
+import { accountAge } from "@/lib/beta/accountAge";
 import {
   AGREEMENT_VERSION,
   AI_PROVIDER,
@@ -78,6 +79,12 @@ export async function POST(request) {
   if (!me) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const age = await accountAge(supabase, me.id);
+  if (age.unavailable || age.minor) return NextResponse.json({
+    error: age.minor
+      ? "A parent or guardian must manage child access. This agreement is for adults accepting for themselves."
+      : "Your account details could not be checked. Please try again.",
+  }, { status: age.unavailable ? 503 : 403 });
 
   let body = {};
   try {
