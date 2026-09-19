@@ -181,8 +181,11 @@ export default async function PeoplePage() {
       <main className="screen px-5 pb-16 pt-7">
         <PageHeader title="Family & pets" subtitle={SCREEN_INTROS.family}>
           <details className="optional-section" open={!household?.home_address}>
-          <summary>Household settings<span className="optional-section-hint">Home, airports & forwarding</span></summary>
+          <summary>Household settings<span className="optional-section-hint">Home, airports, forwarding & child access</span></summary>
           <div className="space-y-3 pt-3">
+          {(travelers || []).some(t => t.date_of_birth) && (
+            <a href="/family/child-access" className="btn btn-primary w-full sm:w-auto">Child access</a>
+          )}
           <HouseholdName familyId={familyId} name={household?.name || ""} />
           <HouseholdHome
             familyId={familyId}
@@ -210,9 +213,6 @@ export default async function PeoplePage() {
           </div>
           </details>
         </PageHeader>
-        {(travelers || []).some(t => t.date_of_birth) && (
-          <a href="/family/child-access" className="btn btn-secondary mb-4">Child access</a>
-        )}
         <InterviewLauncher
           progress={interviewProgress(
             {
