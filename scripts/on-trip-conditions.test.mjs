@@ -41,6 +41,19 @@ test("only grounded, current, relevant and actionable findings survive", () => {
   assert.deepEqual(parsePlanImpacts(response({}, { searched: false }), items, trip, window, now), []);
   assert.throws(() => parsePlanImpacts(response({}, { text: "broken" }), items, trip, window, now));
   assert.equal(parsePlanImpacts(response(), [{ ...items[0], status: "cancelled" }], trip, window, now).length, 0);
+  assert.equal(parsePlanImpacts(response(), [{ ...items[0], is_done: true }], trip, window, now).length, 0);
+});
+test("multi-day stays cover today and tomorrow without inventing an end time", () => {
+  const stay = [{ ...items[0], item_date: "2026-09-18", end_date: "2026-09-20" }];
+  const todayTip = parsePlanImpacts(response(), stay, trip, window, now)[0];
+  assert.equal(todayTip.act_by, "2026-09-19");
+  const tomorrowTip = parsePlanImpacts(response({ applies_on: "2026-09-20" }), stay, trip, window, now)[0];
+  assert.equal(tomorrowTip.act_by, "2026-09-20");
+  assert.notEqual(tomorrowTip.fingerprint, todayTip.fingerprint);
+  assert.equal(parsePlanImpacts(response({ applies_on: "2026-09-18" }), stay, trip, window, now).length, 0);
+  const route = readFileSync(new URL("../app/api/tips/on-trip/route.js", import.meta.url), "utf8");
+  assert.doesNotMatch(route, /end_time/);
+  assert.match(route, /end_date.gte/);
 });
 test("rewording deduplicates while material escalation gets a new key", () => {
   const first = parsePlanImpacts(response(), items, trip, window, now)[0];
