@@ -2,37 +2,13 @@
 import { useEffect, useState } from "react";
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
 import { MINOR_REVIEW_NOTICE, MINOR_REVIEW_NOTICE_VERSION } from "@/lib/beta/minorReview";
-
-async function request(body) {
-  const response = await fetch("/api/family/child-access", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Please try again.");
-  return data;
-}
-async function clearAdultBrowserState() {
-  for (const key of Object.keys(localStorage)) {
-    if (key !== "alyeska-child-handoff") localStorage.removeItem(key);
-  }
-  sessionStorage.clear();
-  if ("serviceWorker" in navigator) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    for (const registration of registrations) {
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) await subscription.unsubscribe();
-      await registration.unregister();
-    }
-  }
-  if ("caches" in window) {
-    await Promise.all((await caches.keys()).map(key => caches.delete(key)));
-  }
-}
+import { childAccessRequest as request, finishChildHandoff, openSavedChildView } from "@/lib/childView/client";
 export default function ChildAccessPanel({ initial = null }) {
   const [data, setData] = useState(initial);
   const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(null);
+  const [operation, setOperation] = useState("");
   const [editing, setEditing] = useState(null);
   const [choices, setChoices] = useState({ guardian: false, collection: false });
   async function load() {
@@ -62,29 +38,36 @@ export default function ChildAccessPanel({ initial = null }) {
     } finally { setBusy(null); }
   }
   async function open(child) {
+    setOperation("open");
     setBusy(child.id); setError("");
-    let handedOff = false;
     try {
       const payload = { travelerId: child.id, ...choices, noticeVersion: MINOR_REVIEW_NOTICE_VERSION };
       const { options } = await request({ ...payload, action: "open-options" });
       const response = await startAuthentication({ optionsJSON: options });
-      await clearAdultBrowserState();
-      const result = await request({ ...payload, action: "open-verify", response });
-      handedOff = true;
-      // Broadcast only after the server has revoked this browser's adult session.
-      localStorage.setItem("alyeska-child-handoff", String(Date.now()));
-      // Full navigation removes the adult React tree and router-prefetched data.
-      window.location.replace(result.next);
+      await finishChildHandoff({ ...payload, action: "open-verify", response });
     } catch (err) {
-      if (handedOff) window.location.replace("/child");
-      else {
-        setError(err.name === "NotAllowedError" ? "Parent verification was canceled. The trip view was not opened." : err.message);
-        setBusy(null);
-      }
+      setError(err.name === "NotAllowedError" ? "Parent verification was canceled. The trip view was not opened." : err.message);
+      setBusy(null);
     }
   }
-  async function closeViews(child) {
+  async function openSaved(child) {
+    setOperation("open");
     setBusy(child.id); setError("");
+    try { await openSavedChildView(child.id); }
+    catch (err) { setError(err.message); setBusy(null); }
+  }
+  async function revokeApproval(child) {
+    if (!window.confirm(`Revoke your approval for ${child.name}’s trip view? Their open views will close, and you’ll need to complete setup again.`)) return;
+    setOperation("revoke"); setBusy(child.id); setError("");
+    try {
+      await request({ action: "revoke-approval", travelerId: child.id });
+      setChoices({ guardian: false, collection: false }); setEditing(null);
+      await load();
+    } catch (err) { setError(err.message); }
+    finally { setBusy(null); }
+  }
+  async function closeViews(child) {
+    setOperation("close"); setBusy(child.id); setError("");
     try {
       await request({ action: "close-views", travelerId: child.id });
       await load();
@@ -113,6 +96,12 @@ export default function ChildAccessPanel({ initial = null }) {
     {data?.children?.map(child => <article key={child.id} className="card p-5" aria-busy={busy === child.id}>
       <h2 className="text-lg font-semibold">{child.name}</h2>
       {child.access_level !== "secondary" ? <p className="mt-3 text-sm">Set their access to Secondary traveler first.</p>
+        : child.canOpenDirectly ? <div>
+          <button className="btn btn-primary mt-4" disabled={Boolean(busy)} onClick={() => openSaved(child)}>
+            {busy === child.id && operation === "open" ? "Opening trip view…" : `Open ${child.name}’s trip view`}
+          </button>
+          <p className="mt-2 text-xs text-ink-soft">Setup complete. Your passkey protects the way back.</p>
+        </div>
         : editing !== child.id ? <button className="btn btn-primary mt-4" disabled={Boolean(busy) || !data.passkeyReady}
           onClick={() => { setEditing(child.id); setChoices({ guardian: false, collection: false }); }}>
           Open {child.name}’s trip view
@@ -145,7 +134,11 @@ export default function ChildAccessPanel({ initial = null }) {
           </fieldset>
         </form>}
       {data.views?.some(view => view.traveler_id === child.id) && <button className="btn btn-secondary mt-4"
-        disabled={Boolean(busy)} onClick={() => closeViews(child)}>Close their open trip views</button>}
+        disabled={Boolean(busy)} onClick={() => closeViews(child)}>
+        {busy === child.id && operation === "close" ? "Closing trip views…" : "Close their open trip views"}</button>}
+      {child.canOpenDirectly && <button className="btn btn-secondary mt-4 ml-2"
+        disabled={Boolean(busy)} onClick={() => revokeApproval(child)}>
+        {busy === child.id && operation === "revoke" ? "Revoking approval…" : "Revoke my approval"}</button>}
     </article>)}
   </section>;
 }

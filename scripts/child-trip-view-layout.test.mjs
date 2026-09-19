@@ -23,15 +23,17 @@ test("minor action is not duplicated by the adult access row", () => {
   assert.match(people, /canSetLevels && !minor && \(\s*<LevelPicker/);
 });
 
-test("prominent link preserves verification route and accessible context", () => {
+test("prominent button starts checked entry and retains accessible context", () => {
   assert.match(action, /btn btn-primary/);
   assert.match(action, /w-full/);
-  assert.match(action, /\/family\/child-access\?traveler=\$\{encodeURIComponent\(person.id\)\}/);
+  assert.match(action, /await openSavedChildView\(person.id\)/);
   assert.match(action, /Open \{person.name\}’s trip view/);
   assert.match(action, /aria-describedby=\{`child-view-note-\$\{person.id\}`\}/);
   assert.match(action, /id=\{`child-view-note-\$\{person.id\}`\}/);
-  assert.match(action, /Parent verification required · Their trips, packing/);
-  assert.doesNotMatch(action, /fetch\(|signIn|handoff/);
+  assert.match(action, /Parent passkey required to return/);
+  assert.match(action, /disabled=\{busy\} aria-busy=\{busy\}/);
+  assert.match(action, /if \(opening.current\) return/);
+  assert.doesNotMatch(action, /signIn/);
 });
 
 test("long explanation is collapsed by default and retains security context", () => {

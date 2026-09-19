@@ -400,4 +400,91 @@ test("held child interactions preserve the parent boundary",async t=>{
     await isolated(`${role} cannot read preferences`,async()=>{await as(parent,id(102),role);await assert.rejects(db.query("select * from child_view_preferences"),/permission denied/);});
   }
 });
+test("saved parent approval permits direct handoff without relaxing the boundary",async t=>{
+  await admin();
+  // The preceding test created a real v2 handoff. Migration carries its approval.
+  await db.exec(readFileSync(new URL("../supabase/migrations/20261005_saved_parent_view_approval.sql",import.meta.url),"utf8"));
+  const v2="2026-09-19-parent-view-2";
+  const approved=async(p=parent,n=v2)=>(await db.query("select * from parent_view_approved_children($1,$2)",[p,n])).rows;
+  const entry=(fresh=false,p=parent,c=seat,n=v2)=>db.query(
+    "select open_approved_parent_trip_view($1,$2,$3,$4,$5,$6) as result",
+    [p,c,id(950),"6".repeat(64),n,fresh]);
+  const isolated=async(name,fn)=>t.test(name,async()=>{
+    await admin();await db.exec("begin");
+    try { await db.exec(`insert into auth.sessions values('${id(950)}','${parent}')`);await fn(); }
+    finally {await db.exec("rollback; reset role;");}
+  });
+  await isolated("verified historical approval survives a finished view",async()=>{
+    assert.deepEqual(await approved(),[{traveler_id:seat}]);
+    await db.exec("update parent_trip_views set closed_at=now(),expires_at=now()-interval '1 day'");
+    assert.deepEqual(await approved(),[{traveler_id:seat}]);
+    assert.equal((await entry()).rows[0].result.skin,"frost");
+    assert.equal((await db.query("select * from auth.sessions where id=$1",[id(950)])).rows.length,0);
+    assert.equal((await read("6".repeat(64))).enabled,true);
+  });
+  await isolated("first verified setup persists approval atomically",async()=>{
+    await db.exec("delete from parent_view_approvals");
+    await entry(true);
+    assert.deepEqual(await approved(),[{traveler_id:seat}]);
+  });
+  await isolated("revoke closes active views and removes direct-entry eligibility",async()=>{
+    await db.query("select revoke_parent_view_approval($1,$2)",[parent,seat]);
+    assert.deepEqual(await approved(),[]);
+    assert.equal((await read("9".repeat(64))).enabled,false);
+    await assert.rejects(entry(),/setup required/);
+  });
+  await isolated("verified setup can renew a revoked approval",async()=>{
+    await db.query("select revoke_parent_view_approval($1,$2)",[parent,seat]);
+    await entry(true);
+    assert.deepEqual(await approved(),[{traveler_id:seat}]);
+  });
+  for(const [name,sql] of [
+    ["no approval","delete from parent_view_approvals"],
+    ["revoked approval","update parent_view_approvals set revoked_at=now()"],
+    ["old notice","update parent_view_approvals set notice_version='old'"],
+    ["changed birthday",`update travelers set date_of_birth=date_of_birth-interval '1 day' where id='${seat}'`],
+    ["changed user",`update travelers set user_id=null where id='${seat}'`],
+    ["changed household",`update travelers set family_id='${id(11)}' where id='${seat}'`],
+    ["adult child",`update travelers set date_of_birth=current_date-interval '18 years' where id='${seat}'`],
+    ["removed parent",`delete from family_members where user_id='${parent}'`],
+    ["secondary parent",`update travelers set access_level='secondary' where user_id='${parent}'`],
+    ["withdrawn beta","update beta_consents set withdrawn_at=now()"],
+    ["missing passkey","delete from parent_view_keys"],
+    ["banned parent",`update auth.users set banned_until=now()+interval '1 day' where id='${parent}'`],
+  ]) await isolated(`direct entry rejects ${name}`,async()=>{
+    await db.exec(sql);assert.deepEqual(await approved(),[]);
+    await assert.rejects(entry(),/setup required/);
+  });
+  await isolated("another parent cannot reuse this approval",async()=>{
+    assert.deepEqual(await approved(other),[]);
+    await assert.rejects(entry(false,other),/setup required/);
+  });
+  await isolated("another child cannot reuse this approval",async()=>{
+    await assert.rejects(entry(false,parent,id(23)),/setup required/);
+  });
+  await isolated("changed server notice requires setup",async()=>{
+    assert.deepEqual(await approved(parent,"new"),[]);
+    await assert.rejects(entry(false,parent,seat,"new"),/setup required/);
+  });
+  await isolated("stale parent session cannot open a view",async()=>{
+    await db.exec(`delete from auth.sessions where id='${id(950)}'`);
+    await assert.rejects(entry(),/verified/);
+  });
+  for(const role of ["anon","authenticated"]) {
+    await isolated(`${role} cannot read approval`,async()=>{
+      await as(parent,id(102),role);
+      await assert.rejects(db.query("select * from parent_view_approvals"),/permission denied/);
+    });
+    await isolated(`${role} cannot forge fresh verification`,async()=>{
+      await as(parent,id(102),role);await assert.rejects(entry(true),/permission denied/);
+    });
+    await isolated(`${role} cannot query saved approval`,async()=>{
+      await as(parent,id(102),role);await assert.rejects(approved(),/permission denied/);
+    });
+    await isolated(`${role} cannot revoke through RPC`,async()=>{
+      await as(parent,id(102),role);
+      await assert.rejects(db.query("select revoke_parent_view_approval($1,$2)",[parent,seat]),/permission denied/);
+    });
+  }
+});
 test.after(async()=>db.close());

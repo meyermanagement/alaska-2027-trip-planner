@@ -15,15 +15,19 @@ function reply(body, status = 200) { return NextResponse.json(body, { status, he
 export async function GET() {
   try {
     const { supabase, admin, access, user } = await parentContext();
-    const [{ data, error }, keys, views] = await Promise.all([
+    const [{ data, error }, keys, views, approvals] = await Promise.all([
       supabase.from("travelers").select("id,name,date_of_birth,access_level")
         .eq("family_id", access.familyId).eq("is_person", true).order("sort_order"),
       keysFor(admin, user.id),
       admin.from("parent_trip_views").select("traveler_id").eq("guardian_user_id", user.id)
         .is("closed_at", null).gt("expires_at", new Date().toISOString()),
+      admin.rpc("parent_view_approved_children", { parent_id: user.id, notice: CHILD_VIEW_NOTICE }),
     ]);
-    if (error || views.error) throw new Error("Child trip views could not be loaded.");
-    return reply({ children: (data || []).filter(row => isMinorTraveler(row)), passkeyReady: keys.length > 0, views: views.data || [] });
+    if (error || views.error || approvals.error) throw new Error("Child trip views could not be loaded.");
+    const approved = new Set((approvals.data || []).map(row => row.traveler_id));
+    return reply({ children: (data || []).filter(row => isMinorTraveler(row))
+      .map(row => ({ ...row, canOpenDirectly: approved.has(row.id) })),
+    passkeyReady: keys.length > 0, views: views.data || [] });
   } catch (error) { return reply({ error: error.message }, 403); }
 }
 export async function POST(request) {
@@ -71,8 +75,16 @@ export async function POST(request) {
       if (closeError) throw new Error("The views could not be closed. Please try again.");
       return reply({ ok: true });
     }
-    const problem = validateMinorReview(body);
-    if (problem) throw new Error(problem);
+    if (body.action === "revoke-approval") {
+      const { error: revokeError } = await admin.rpc("revoke_parent_view_approval", { parent_id: user.id, child_id: child.id });
+      if (revokeError) throw new Error("Approval could not be revoked. Please try again.");
+      return reply({ ok: true });
+    }
+    const savedEntry = body.action === "open-saved";
+    if (!savedEntry) {
+      const problem = validateMinorReview(body);
+      if (problem) throw new Error(problem);
+    }
     if (!keys.length) throw new Error("Set up your parent passkey first.");
     const binding = `${sessionId}:${child.id}:${CHILD_VIEW_NOTICE}`;
     if (body.action === "open-options") {
@@ -81,13 +93,19 @@ export async function POST(request) {
       await issueChallenge(admin, user.id, "open", options.challenge, binding);
       return reply({ options });
     }
-    if (body.action !== "open-verify") return reply({ error: "Unknown action." }, 400);
-    const challenge = await consumeChallenge(admin, user.id, "open", binding);
-    await verifyParentKey(admin, user.id, body.response, challenge, relyingParty);
+    if (!savedEntry) {
+      if (body.action !== "open-verify") return reply({ error: "Unknown action." }, 400);
+      const challenge = await consumeChallenge(admin, user.id, "open", binding);
+      await verifyParentKey(admin, user.id, body.response, challenge, relyingParty);
+    }
     const token = randomToken();
-    const { data: theme, error: openError } = await admin.rpc("open_parent_trip_view", {
+    const { data: theme, error: openError } = await admin.rpc("open_approved_parent_trip_view", {
       parent_id: user.id, child_id: child.id, old_session_id: sessionId, view_hash: hashToken(token), notice: CHILD_VIEW_NOTICE,
+      freshly_verified: !savedEntry,
     });
+    if (savedEntry && openError?.message === "Parent setup required.") {
+      return reply({ error: "Please review the child-view setup again.", setupRequired: true }, 409);
+    }
     if (openError) throw new Error("The trip view could not open. Check your current beta agreement and try again.");
     const jar = await cookies();
     for (const cookie of jar.getAll()) {
