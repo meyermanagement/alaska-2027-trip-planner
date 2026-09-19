@@ -5,7 +5,7 @@ import { createJiti } from "jiti";
 import { fileURLToPath } from "node:url";
 const jiti=createJiti(import.meta.url,{alias:{"@":fileURLToPath(new URL("..",import.meta.url))}});
 const { minorRouteAllowed }=jiti("../lib/beta/minorRoutes.js");
-const { validateMinorReview }=jiti("../lib/beta/minorReview.js");
+const { validateMinorReview, MINOR_REVIEW_NOTICE_VERSION }=jiti("../lib/beta/minorReview.js");
 const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
 test("minor route allowlist denies deep links, mutation, forged paths, and AI routes",()=>{
   assert.equal(minorRouteAllowed("/child"),true);
@@ -16,14 +16,16 @@ test("minor route allowlist denies deep links, mutation, forged paths, and AI ro
   assert.ok(middleware.indexOf("const age = await accountAge") < middleware.indexOf("const consentCookie ="));
 });
 test("new parent flow has no optional child AI permission",()=>{
-  assert.equal(validateMinorReview({guardian:true,collection:true}),null);
+  assert.equal(validateMinorReview({guardian:true,collection:true,noticeVersion:MINOR_REVIEW_NOTICE_VERSION}),null);
+  assert.ok(validateMinorReview({guardian:true,collection:true}));
   assert.ok(validateMinorReview({guardian:true,collection:true,askAly:true,aiDisclosure:true}));
   assert.ok(validateMinorReview({guardian:true,collection:false}));
   assert.doesNotMatch(read("app/family/child-access/ChildAccessPanel.js"),/choices.askAly|choices.aiDisclosure|Waiting for parent verification/);
 });
-test("minor surface has no adult chrome, writes, or model calls and clears stale data",()=>{
+test("minor surface has no adult chrome or model calls and clears stale data",()=>{
   const ui=read("app/child/MinorReview.js");
-  assert.doesNotMatch(ui,/TopBar|ChatPanel|geolocation|method: "(PATCH|DELETE)"|type="checkbox"/);
+  assert.doesNotMatch(ui,/TopBar|ChatPanel|geolocation|method: "(PATCH|DELETE)"/);
+  assert.match(ui,/type="checkbox"/);
   assert.match(ui,/\/api\/child\/return/);
   assert.match(ui,/setData\(null\)/);
   assert.match(ui,/visibilitychange/);

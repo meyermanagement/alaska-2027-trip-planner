@@ -154,7 +154,7 @@ export async function middleware(request) {
   if (request.cookies.get(CHILD_VIEW_COOKIE)) {
     if (!childViewRouteAllowed(path, request.method)) {
       if (path.startsWith("/api/") || !["GET", "HEAD"].includes(request.method)) {
-        return NextResponse.json({ error: "This is a read-only trip view. A parent must verify to return." },
+        return NextResponse.json({ error: "This is a restricted trip view. A parent must verify to return." },
           { status: 403, headers: { "Cache-Control": "private, no-store" } });
       }
       return NextResponse.redirect(new URL("/child", request.url));
@@ -171,7 +171,7 @@ export async function middleware(request) {
     invite.headers.set("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     return invite;
   }
-  if (["/child", "/api/child", "/api/child/return"].includes(path)) {
+  if (["/child", "/api/child", "/api/child/return", "/api/child/packing", "/api/child/theme", "/api/child/cover"].includes(path)) {
     const child = NextResponse.next({ request });
     child.headers.set("Cache-Control", "private, no-store");
     child.headers.set("Referrer-Policy", "no-referrer");

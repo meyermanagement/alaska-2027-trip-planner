@@ -11,7 +11,7 @@ export default function ChildTripViewAction({ person }) {
         <span className="min-w-0 break-words">Open {person.name}’s trip view</span>
       </a>
       <p id={`child-view-note-${person.id}`} className="mt-2 text-xs text-ink-soft">
-        Parent verification required · View-only access.
+        Parent verification required · Their trips, packing &amp; theme.
       </p>
       <details className="mt-2 text-xs text-ink-soft">
         <summary className="w-fit cursor-pointer rounded-md py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
@@ -19,7 +19,8 @@ export default function ChildTripViewAction({ person }) {
         </summary>
         <p className="mt-1 max-w-xl leading-relaxed">
           Assigned itineraries and their own packing lists, in their saved theme.
-          No independent child sign-in or editing. Opening the view signs you out
+          Only their packing checkmarks and theme can change. No independent child sign-in.
+          Opening the view signs you out
           in this browser. Your parent passkey is required to return, then you
           sign back in.
         </p>

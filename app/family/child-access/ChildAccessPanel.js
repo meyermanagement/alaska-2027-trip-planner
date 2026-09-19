@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
-import { MINOR_REVIEW_NOTICE } from "@/lib/beta/minorReview";
+import { MINOR_REVIEW_NOTICE, MINOR_REVIEW_NOTICE_VERSION } from "@/lib/beta/minorReview";
 
 async function request(body) {
   const response = await fetch("/api/family/child-access", {
@@ -65,7 +65,7 @@ export default function ChildAccessPanel({ initial = null }) {
     setBusy(child.id); setError("");
     let handedOff = false;
     try {
-      const payload = { travelerId: child.id, ...choices };
+      const payload = { travelerId: child.id, ...choices, noticeVersion: MINOR_REVIEW_NOTICE_VERSION };
       const { options } = await request({ ...payload, action: "open-options" });
       const response = await startAuthentication({ optionsJSON: options });
       await clearAdultBrowserState();

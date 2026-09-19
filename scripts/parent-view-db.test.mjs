@@ -330,4 +330,67 @@ test("adult invitation migration and lifecycle (isolated database only)", async 
     assert.equal((await db.query("select banned_until>now() as banned from auth.users where id=$1",[id(1203)])).rows[0].banned,true);
   });
 });
+test("held child interactions preserve the parent boundary",async t=>{
+  await admin();
+  await db.exec("alter table trips add column cover_image_url text; alter table trips add column cover_image_alt text;");
+  await db.exec(readFileSync(new URL("../supabase/migrations/20261004_child_trip_interactions.sql",import.meta.url),"utf8"));
+  const v2="2026-09-19-parent-view-2", h="9".repeat(64);
+  await db.exec(`insert into auth.sessions values('${id(900)}','${parent}')`);
+  await assert.rejects(open(parent,seat,id(900),h,notice),/verified/);
+  await open(parent,seat,id(900),h,v2);
+  const pack=(item=id(51),value=true,token=h)=>db.query("select set_child_packing($1,$2,$3) as result",[token,item,value]);
+  const theme=(skin="sodium",token=h)=>db.query("select set_child_theme($1,$2) as result",[token,skin]);
+  const isolated=async(name,fn)=>t.test(name,async()=>{await admin();await db.exec("begin");try{await fn();}finally{await db.exec("rollback; reset role;");}});
+  await isolated("only own packing flag changes, and can be unchecked",async()=>{
+    const before=(await db.query("select * from packing_items where id=$1",[id(51)])).rows[0];
+    assert.equal((await pack()).rows[0].result.is_packed,true);
+    const after=(await db.query("select * from packing_items where id=$1",[id(51)])).rows[0];
+    assert.deepEqual(after,{...before,is_packed:true});
+    assert.equal((await pack(id(51),false)).rows[0].result.is_packed,false);
+  });
+  // Each rejection runs in its own transaction because PostgreSQL aborts a
+  // transaction after a denied mutation.
+  for(const [name,sql,item] of [
+    ["another person's item","",id(52)],["stashed item","",id(53)],["missing item","",id(599)],
+    ["draft trip",`update trips set status='draft' where id='${id(31)}'`],
+    ["removed roster",`delete from trip_travelers where trip_id='${id(31)}'`],
+    ["foreign trip",`update trips set family_id='${id(11)}' where id='${id(31)}'`],
+    ["pet item",`update packing_items set pet_id='${id(22)}' where id='${id(51)}'`],
+    ["duplicate name",`insert into travelers(id,family_id,name,is_person) values('${id(599)}','${family}',' child ',true)`],
+    ["revoked consent","update beta_consents set withdrawn_at=now()"],
+    ["expired view","update parent_trip_views set expires_at=now()-interval '1 minute'"],
+    ["closed view","update parent_trip_views set closed_at=now()"],
+    ["old authorization","update parent_trip_views set notice_version='2026-09-19-parent-view-1'"],
+    ["changed child identity",`update travelers set date_of_birth=date_of_birth-interval '1 day' where id='${seat}'`],
+    ["parent removed",`delete from family_members where user_id='${parent}'`],
+  ]) await isolated(`packing rejects ${name}`,async()=>{
+    if(sql) await db.exec(sql);
+    await assert.rejects(pack(item),/unavailable/);
+  });
+  await isolated("theme is scoped to traveler, persists, and leaves parent unchanged",async()=>{
+    await theme();
+    assert.equal((await read(h)).skin,"sodium");
+    assert.equal((await db.query("select skin from profiles where id=$1",[parent])).rows[0].skin,"aurora");
+    await db.exec(`insert into auth.sessions values('${id(901)}','${parent}')`);
+    assert.equal((await open(parent,seat,id(901),"8".repeat(64),v2)).rows[0].result.skin,"sodium");
+  });
+  await isolated("theme also works for a child without a login profile",async()=>{
+    await db.exec(`update travelers set user_id=null where id='${seat}';
+      insert into auth.sessions values('${id(902)}','${parent}')`);
+    await open(parent,seat,id(902),"7".repeat(64),v2);
+    await theme("journal","7".repeat(64));
+    assert.equal((await read("7".repeat(64))).skin,"journal");
+  });
+  await isolated("invalid theme fails",async()=>{await assert.rejects(theme("unknown"),/Invalid theme/);});
+  for(const [name,sql] of [
+    ["closed","update parent_trip_views set closed_at=now()"],
+    ["old notice","update parent_trip_views set notice_version='2026-09-19-parent-view-1'"],
+    ["withdrawn parent","update beta_consents set withdrawn_at=now()"],
+  ]) await isolated(`theme denies ${name}`,async()=>{await db.exec(sql);await assert.rejects(theme(),/unavailable/);});
+  for(const role of ["anon","authenticated"]) {
+    await isolated(`${role} cannot invoke packing RPC`,async()=>{await as(parent,id(102),role);await assert.rejects(pack(),/permission denied/);});
+    await isolated(`${role} cannot invoke theme RPC`,async()=>{await as(parent,id(102),role);await assert.rejects(theme(),/permission denied/);});
+    await isolated(`${role} cannot read preferences`,async()=>{await as(parent,id(102),role);await assert.rejects(db.query("select * from child_view_preferences"),/permission denied/);});
+  }
+});
 test.after(async()=>db.close());

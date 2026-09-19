@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* Restricted child surface: presentation only, no adult navigation services. */
+.child-menu-row { width: 100%; justify-content: flex-start !important; text-align: left; min-height: 48px; }
+.child-menu-trigger.btn svg { width: 28px; height: 28px; }
+@media (min-width: 1024px) { .child-menu-trigger.btn { display: none; } }
+.child-menu-dialog {
+  margin: auto; width: min(22rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem); overflow-y: auto;
+  color: var(--color-ink); background: var(--color-sand);
+}
+.child-menu-dialog::backdrop { background: rgb(0 0 0 / .65); backdrop-filter: blur(5px); }
+.child-packing-items > li + li { border-top: 1px solid var(--line); }
+.child-packing-progress {
+  display: block; width: 100%; height: 8px; appearance: none;
+  border: 0; border-radius: 999px; overflow: hidden;
+  background: var(--color-sand-deep); color: var(--color-teal);
+}
+.child-packing-progress::-webkit-progress-bar { background: var(--color-sand-deep); }
+.child-packing-progress::-webkit-progress-value { background: var(--color-teal); border-radius: 999px; }
+.child-packing-progress::-moz-progress-bar { background: var(--color-teal); border-radius: 999px; }
+
 @theme {
   /* Field Journal: cream paper, brown-black ink, one deep spruce accent.
      Warm off-white stands in for pure white so cards sit on the paper rather

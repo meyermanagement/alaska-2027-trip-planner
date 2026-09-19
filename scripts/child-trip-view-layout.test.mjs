@@ -30,7 +30,7 @@ test("prominent link preserves verification route and accessible context", () =>
   assert.match(action, /Open \{person.name\}’s trip view/);
   assert.match(action, /aria-describedby=\{`child-view-note-\$\{person.id\}`\}/);
   assert.match(action, /id=\{`child-view-note-\$\{person.id\}`\}/);
-  assert.match(action, /Parent verification required · View-only access/);
+  assert.match(action, /Parent verification required · Their trips, packing/);
   assert.doesNotMatch(action, /fetch\(|signIn|handoff/);
 });
 
@@ -39,6 +39,7 @@ test("long explanation is collapsed by default and retains security context", ()
   assert.doesNotMatch(action, /<details[^>]*\bopen\b/);
   assert.match(action, /About this view/);
   assert.match(action, /saved theme/);
-  assert.match(action, /No independent child sign-in or editing/);
+  assert.match(action, /No independent child sign-in/);
+  assert.match(action, /Only their packing checkmarks and theme can change/);
   assert.match(action, /parent passkey is required to return/);
 });
