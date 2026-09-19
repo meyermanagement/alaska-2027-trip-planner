@@ -16,7 +16,9 @@ import ForwardFares from "@/components/ForwardFares";
  */
 export default function TripFares({ trip, deals = [], address, unbooked }) {
   const mine = (deals || []).filter(
-    (deal) => deal.verdict?.trip?.id === trip.id,
+    (deal) => deal.status === "taken"
+      ? deal.trip_id === trip.id
+      : deal.verdict?.trip?.id === trip.id,
   );
   if (!mine.length && !unbooked) return null;
 

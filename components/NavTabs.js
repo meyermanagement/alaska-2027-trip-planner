@@ -1639,7 +1639,7 @@ export default function NavTabs({
               {attention > 0 && !isActive("/now") && !open && (
                 <span className="absolute -right-0.5 -top-0.5 min-w-[1.15rem] rounded-full bg-rose px-1 text-2xs font-bold leading-[1.15rem] text-on-accent ring-2 ring-[var(--disc-face)]">
                   {attention}
-                  <span className="sr-only"> reminders needing attention</span>
+                  <span className="sr-only"> reminders and new fares needing attention</span>
                 </span>
               )}
               {/* And the quiet twin of it: while there is still something on

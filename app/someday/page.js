@@ -73,7 +73,7 @@ export default async function SomedayPage() {
       .order("sort_order", { ascending: true }),
     supabase
       .from("trips")
-      .select("id, name, slug")
+      .select("id, name, slug, public_id, status, start_date, end_date")
       .eq("family_id", familyId)
       .order("start_date", { ascending: true }),
     // The household's own forwarding address, so the drawer at the foot of this
@@ -115,7 +115,7 @@ export default async function SomedayPage() {
 
         {fares.some((deal) => deal.status === "open") ? (
           <div className="mb-8">
-            <Deals deals={fares} trips={trips || []} />
+            <Deals deals={fares} trips={trips || []} places={places || []} />
           </div>
         ) : null}
 
@@ -128,7 +128,7 @@ export default async function SomedayPage() {
 
         {fares.some((deal) => deal.status === "open") ? null : (
           <div className="mt-8">
-            <Deals deals={fares} trips={trips || []} />
+            <Deals deals={fares} trips={trips || []} places={places || []} />
           </div>
         )}
 

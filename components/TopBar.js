@@ -8,6 +8,8 @@ import CurrentTripBanner from "./CurrentTripBanner";
 import HeaderUpdates from "./HeaderUpdates";
 import NavTabs from "./NavTabs";
 import PassportWarning from "./PassportWarning";
+import { unreadFares } from "@/lib/deals/unread";
+import FareArrivalSync from "./FareArrivalSync";
 
 // Pass nothing and the button opens the Ask Aly drawer on the current screen,
 // which is what every signed-in screen does. `askHref` is kept for any screen
@@ -44,7 +46,10 @@ export default async function TopBar({ askHref, showAsk = true }) {
       .select("id", { count: "exact", head: true })
       .eq("status", "pending"),
   ]);
-  const attention = countNeedingAttention(rows || [], today);
+  const fareRows = access?.familyId && !access.can.isSecondary
+    ? await unreadFares(supabase, user?.id, access.familyId) : [];
+  const fareCount = fareRows.length;
+  const attention = countNeedingAttention(rows || [], today) + fareCount;
   const inboxCount = inboxPending?.count || 0;
 
   // A secondary traveler has no read access to travel documents -- probed as Veda,
@@ -134,6 +139,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
   // instead of the bottom of the window.
   return (
     <>
+      {!secondary && <FareArrivalSync count={fareCount} />}
       {current && (
         <header className="no-print sticky top-0 z-20">
           <CurrentTripBanner trip={current} today={today} />
@@ -154,7 +160,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
           trip is a trip-ending problem and belongs at the top; unfiled mail is
           one tap of work and should not shout over it. The banner hides itself
           when the person is already on /inbox. */}
-      <HeaderUpdates inboxCount={inboxCount} tips={urgent} today={today} readOnly={secondary} />
+      <HeaderUpdates inboxCount={inboxCount} fareCount={fareCount} tips={urgent} today={today} readOnly={secondary} />
     </>
   );
 }

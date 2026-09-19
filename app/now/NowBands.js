@@ -54,8 +54,8 @@ function Row({ href, lead, body, note }) {
   );
 }
 
-export default function NowBands({ pressing = [], clashes = [], waiting = 0 }) {
-  const nothing = !pressing.length && !clashes.length && !waiting;
+export default function NowBands({ pressing = [], clashes = [], waiting = 0, fares = 0 }) {
+  const nothing = !pressing.length && !clashes.length && !waiting && !fares;
 
   if (nothing) {
     return (
@@ -109,6 +109,11 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0 }) {
           />
         </Band>
       ) : null}
+      {fares > 0 && <Band title="New fares to review" count={fares}>
+        <Row href="/someday#fares"
+          lead={`${fares} new ${fares === 1 ? "fare" : "fares"} from your forwarded alerts`}
+          body="Open an email group to review its fares." />
+      </Band>}
     </>
   );
 }

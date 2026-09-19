@@ -19,13 +19,17 @@
 // refusal is a fact about this family that should still be true next month, and an
 // app that forgets it will show them the same fare next week.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/rewards";
 import { formatDay } from "@/lib/format";
 import { monthsSaid } from "@/lib/someday/months";
 import { groupFareAlerts } from "@/lib/deals/groups";
 import { farePriceLabel, awardOptionLabel } from "@/lib/deals/award";
+import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
+import { tripPath } from "@/lib/trips/route";
+import ConfirmSheet from "./ConfirmSheet";
 
 function fareLine(deal) {
   const bits = [farePriceLabel(deal)];
@@ -53,10 +57,10 @@ function money(value) {
  *   matched that trip are shown, and the heading says so. The bucket list passes
  *   nothing and gets the lot.
  */
-export default function Deals({ deals = [], trips = [], tripId = null }) {
+export default function Deals({ deals = [], trips = [], places = [], tripId = null }) {
   const router = useRouter();
   const mine = tripId
-    ? deals.filter((deal) => deal.verdict?.trip?.id === tripId)
+    ? deals.filter((deal) => deal.status === "taken" ? deal.trip_id === tripId : deal.verdict?.trip?.id === tripId)
     : deals;
   const open = mine.filter((deal) => deal.status === "open");
   const refused = mine.filter((deal) => deal.status === "dismissed");
@@ -70,8 +74,28 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
   const [acting, setActing] = useState(null);
   const [reasoning, setReasoning] = useState(null);
   const [reason, setReason] = useState("");
+  const [confirm, setConfirm] = useState(null);
+  const writeLock = useRef(false);
+  const readIds = useRef(new Set());
+  async function markRead(rows) {
+    const ids = rows.map((row) => row.id).filter((id) => !readIds.current.has(id));
+    if (!ids.length) return;
+    ids.forEach((id) => readIds.current.add(id));
+    try {
+      const res = await fetch("/api/deals/unread", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      ids.forEach((id) => readIds.current.delete(id));
+    }
+  }
 
   const decide = async (deal, patch) => {
+    if (writeLock.current) return;
+    writeLock.current = true;
     setError("");
     setActing(deal.id);
     try {
@@ -80,20 +104,50 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error();
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "That did not save.");
       setReasoning(null);
       setReason("");
+      setConfirm(null);
+      if (patch.status === "taken" && result.destinationUrl)
+        router.push(result.destinationUrl);
       router.refresh();
-    } catch {
-      setError("That did not save.");
+    } catch (err) {
+      setConfirm(null);
+      setError(err.message || "That did not save.");
     } finally {
       setActing(null);
+      writeLock.current = false;
     }
   };
 
-  const live = trips.filter(
-    (trip) => trip.status !== "complete" && trip.status !== "cancelled",
-  );
+  const live = trips.filter((trip) => canAttachFare(trip));
+  const bucket = places.filter(canAttachFareToPlace);
+  const chooseTrip = (deal, trip) => setConfirm({
+    kind: "attach", deal, name: trip.name,
+    patch: { status: "taken", trip_id: trip.id },
+  });
+  const clearGroup = async (group) => {
+    if (writeLock.current) return;
+    writeLock.current = true;
+    setActing(group.key);
+    setError("");
+    try {
+      const res = await fetch("/api/deals/group", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: group.deals.map((deal) => deal.id) }),
+      });
+      if (!res.ok) throw new Error();
+      setConfirm(null);
+      router.refresh();
+    } catch {
+      setConfirm(null);
+      setError("The group did not clear. Try again.");
+    } finally {
+      setActing(null);
+      writeLock.current = false;
+    }
+  };
 
   const card = (deal, compact = false) => {
     const v = deal.verdict || { facts: [] };
@@ -214,38 +268,45 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
           </div>
         ) : (
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            {v.trip ? (
+            {v.trip && live.some((trip) => trip.id === v.trip.id) ? (
               <button
                 type="button"
                 className="btn btn-primary px-3 py-1"
                 disabled={acting === deal.id}
-                onClick={() =>
-                  decide(deal, { status: "taken", trip_id: v.trip.id })
-                }
+                onClick={() => chooseTrip(deal, live.find((trip) => trip.id === v.trip.id))}
               >
                 Put it on {v.trip.name}
               </button>
-            ) : live.length ? (
-              <label className="flex flex-wrap items-center gap-2">
-                <span className="text-ink-soft">Put it on</span>
+            ) : null}
+            {live.length || bucket.length ? (
+              <label className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                <span className="text-ink-soft">{v.trip && live.some((trip) => trip.id === v.trip.id) ? "Or choose" : "Put it on"}</span>
                 <select
-                  className="field py-1"
+                  aria-label={`Choose a trip for ${deal.destination}`}
+                  className="field min-w-0 max-w-full py-1"
                   defaultValue=""
                   disabled={acting === deal.id}
                   onChange={(event) => {
                     if (!event.target.value) return;
-                    decide(deal, {
-                      status: "taken",
-                      trip_id: event.target.value,
-                    });
+                    const [kind, id] = event.target.value.split(":");
+                    event.target.value = "";
+                    if (kind === "trip") chooseTrip(deal, live.find((trip) => trip.id === id));
+                    else {
+                      const place = bucket.find((place) => place.id === id);
+                      setConfirm({ kind: "attach", deal, name: place.place,
+                        patch: { status: "taken", someday_id: place.id } });
+                    }
                   }}
                 >
-                  <option value="">a trip…</option>
-                  {live.map((trip) => (
-                    <option key={trip.id} value={trip.id}>
-                      {trip.name}
+                  <option value="">a trip or bucket-list place…</option>
+                  {live.length ? <optgroup label="Draft and upcoming trips">{live.map((trip) => (
+                    <option key={trip.id} value={`trip:${trip.id}`}>
+                      {trip.name}{trip.status === "draft" ? " (draft)" : ""}
                     </option>
-                  ))}
+                  ))}</optgroup> : null}
+                  {bucket.length ? <optgroup label="Bucket list">{bucket.map((place) => (
+                    <option key={place.id} value={`place:${place.id}`}>{place.place}</option>
+                  ))}</optgroup> : null}
                 </select>
               </label>
             ) : null}
@@ -265,7 +326,8 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
       </>
     );
     return (
-      <li key={deal.id} className={compact ? "border-t border-[var(--line)]" : "card p-3"}>
+      <li key={deal.id} onFocus={() => markRead([deal])} onClick={() => markRead([deal])}
+        className={compact ? "border-t border-[var(--line)]" : "card p-3"}>
         {compact ? (
           <details>
             <summary className="cursor-pointer rounded-lg px-3 py-3 text-sm marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
@@ -286,7 +348,17 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
     return null;
 
   return (
-    <section>
+    <section id="fares">
+      {confirm && <ConfirmSheet
+        title={confirm.kind === "attach" ? `Save this fare to ${confirm.name}?` : `Clear ${confirm.group.deals.length} fares?`}
+        body={confirm.kind === "attach"
+          ? `${confirm.deal.origin} to ${confirm.deal.destination}, ${farePriceLabel(confirm.deal)}. This saves the offer for reference; it does not book a flight. ${confirm.patch.trip_id ? "The trip will open next." : "It will appear under Saved fares."}`
+          : "Move these fares to Fares you turned down. You can restore them later; saved fares will not change."}
+        onCancel={() => setConfirm(null)}
+        busy={Boolean(acting)}
+        actions={[{ label: confirm.kind === "attach" ? "Save fare" : "Clear fares",
+          onPick: () => confirm.kind === "attach" ? decide(confirm.deal, confirm.patch) : clearGroup(confirm.group) }]}
+      />}
       {open.length ? (
         <>
           <h2 className="font-display text-lg font-semibold">
@@ -300,12 +372,14 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
           <ul className="mt-3 space-y-3">
             {tripId ? open.map((deal) => card(deal)) : groupFareAlerts(open).map((group) => (
               <li key={group.key} className="card min-w-0">
-                <details>
+                <details onToggle={(event) => {
+                  if (event.currentTarget.open) void markRead(group.deals);
+                }}>
                   <summary className="cursor-pointer rounded-xl p-3 marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
                     <span className="font-semibold">From {group.origin}</span>
                     <span className="ml-2 text-sm text-ink-soft">
                       {group.destinationCount} {group.destinationCount === 1 ? "destination" : "destinations"}
-                      {group.lowestPrice !== null ? <span className="inline-block"> · from {money(group.lowestPrice)} each</span> : ""}
+                      {group.lowestPrice !== null ? <span> · from {farePriceLabel(group.deals.find((deal) => !deal.award_pricing && Number(deal.price) === group.lowestPrice))}</span> : ""}
                       {group.awardCount ? <span> · {group.deals.length === 1 ? farePriceLabel(group.deals[0]) : `${group.awardCount} award ${group.awardCount === 1 ? "fare" : "fares"}`}</span> : null}
                     </span>
                     <span className="mt-1 block pl-4 text-xs text-ink-faint">
@@ -313,6 +387,19 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
                       {group.createdAt ? ` · received ${formatDay(group.createdAt.slice(0, 10))}` : ""}
                     </span>
                   </summary>
+                  <div className="px-4 pb-2">
+                    <button type="button" className="btn btn-ghost min-h-11 text-xs"
+                      disabled={Boolean(acting)}
+                      onClick={() => setConfirm({ kind: "clear", group })}>Clear this group</button>
+                    {group.deals[0]?.message_id && open.filter((deal) => deal.message_id === group.deals[0].message_id).length > group.deals.length ? (
+                      <button type="button" className="btn btn-ghost min-h-11 text-xs"
+                        disabled={Boolean(acting)}
+                        onClick={() => setConfirm({ kind: "clear", group: {
+                          key: group.deals[0].message_id,
+                          deals: open.filter((deal) => deal.message_id === group.deals[0].message_id),
+                        } })}>Clear whole email</button>
+                    ) : null}
+                  </div>
                   <ul className="mx-3 mb-1">{group.deals.map((deal) => card(deal, true))}</ul>
                 </details>
               </li>
@@ -323,13 +410,21 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
       {error ? <p role="alert" className="mt-2 text-sm text-rose">{error}</p> : null}
 
       {taken.length ? (
-        <div className="mt-6">
-          <h3 className="section-label">Fares you took</h3>
+        <div className="mt-6" id="saved-fares">
+          <h3 className="section-label">Saved fares</h3>
           <ul className="mt-2 space-y-1 text-sm text-ink-soft">
             {taken.map((deal) => (
               <li key={deal.id}>
                 {deal.origin} to {deal.destination}, {farePriceLabel(deal)}
-                {deal.verdict?.trip ? ` on ${deal.verdict.trip.name}` : ""}.
+                {deal.trip_id ? (() => {
+                  const target = trips.find((trip) => trip.id === deal.trip_id);
+                  return target ? <> on <Link className="font-semibold text-teal underline" href={`${tripPath(target, "overview")}#fares`}>{target.name}</Link></> : " on a trip no longer available";
+                })() : places.find((place) => place.id === deal.someday_id)
+                  ? ` on your bucket list: ${places.find((place) => place.id === deal.someday_id).place}` : ""}.
+                <button type="button" className="ml-2 min-h-11 px-2 text-teal underline"
+                  disabled={Boolean(acting)} onClick={() => decide(deal, { status: "open" })}>
+                  {acting === deal.id ? "Restoring…" : "Restore fare"}
+                </button>
               </li>
             ))}
           </ul>
@@ -382,7 +477,7 @@ export default function Deals({ deals = [], trips = [], tripId = null }) {
                   disabled={acting === deal.id}
                   onClick={() => decide(deal, { status: "open" })}
                 >
-                  {acting === deal.id ? "Asking…" : "Ask again"}
+                  {acting === deal.id ? "Restoring…" : "Restore fare"}
                 </button>
               </li>
             ))}

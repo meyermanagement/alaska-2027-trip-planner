@@ -16,6 +16,7 @@ import { assigneeOptions } from "@/lib/tasks/assignees";
 import { remindersDueToday } from "@/lib/tasks/dueToday";
 import { tripContradictions } from "@/lib/trips/contradictions";
 import { tripRef } from "@/lib/trips/route";
+import { unreadFares } from "@/lib/deals/unread";
 
 export const metadata = { title: "Now · Alyeska" };
 
@@ -42,6 +43,8 @@ export default async function NowPage() {
   const access = await resolveAccess(supabase, user);
   const familyIds = memberships.map((m) => m.family_id);
   const today = todayISO();
+  const fareRows = access?.familyId && !access.can.isSecondary
+    ? await unreadFares(supabase, user.id, access.familyId) : [];
 
   const [
     { data: rows },
@@ -197,6 +200,7 @@ export default async function NowPage() {
           pressing={pressing}
           clashes={clashes}
           waiting={waiting || 0}
+          fares={fareRows.length}
         />
         <MorningRun runs={runs || []} today={today} dueCount={dueCount} />
         <PushAlerts />
