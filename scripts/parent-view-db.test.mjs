@@ -341,6 +341,13 @@ test("held child interactions preserve the parent boundary",async t=>{
   const pack=(item=id(51),value=true,token=h)=>db.query("select set_child_packing($1,$2,$3) as result",[token,item,value]);
   const theme=(skin="sodium",token=h)=>db.query("select set_child_theme($1,$2) as result",[token,skin]);
   const isolated=async(name,fn)=>t.test(name,async()=>{await admin();await db.exec("begin");try{await fn();}finally{await db.exec("rollback; reset role;");}});
+  await isolated("filtered child projection includes status for standard trip grouping",async()=>{
+    await db.exec(`update trips set status='complete' where id='${id(31)}'`);
+    const result=await read(h);
+    assert.equal(result.trips.find(trip=>trip.id===id(31)).status,"complete");
+    await db.exec(`update trips set status='draft' where id='${id(31)}'`);
+    assert.equal((await read(h)).trips.some(trip=>trip.id===id(31)),false);
+  });
   await isolated("only own packing flag changes, and can be unchecked",async()=>{
     const before=(await db.query("select * from packing_items where id=$1",[id(51)])).rows[0];
     assert.equal((await pack()).rows[0].result.is_packed,true);

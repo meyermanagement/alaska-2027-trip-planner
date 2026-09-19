@@ -1,15 +1,41 @@
 @import "tailwindcss";
 
 /* Restricted child surface: presentation only, no adult navigation services. */
-.child-menu-row { width: 100%; justify-content: flex-start !important; text-align: left; min-height: 48px; }
-.child-menu-trigger.btn svg { width: 28px; height: 28px; }
-@media (min-width: 1024px) { .child-menu-trigger.btn { display: none; } }
-.child-menu-dialog {
-  margin: auto; width: min(22rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - 2rem); overflow-y: auto;
-  color: var(--color-ink); background: var(--color-sand);
+.child-menu-row { width: 100%; text-align: left; min-height: 48px; }
+.child-menu-row.kid { width: calc(100% - 2rem); }
+.child-menu-row.on .arc-count { color: inherit; opacity: .85; }
+.child-desktop-menu { display: none; }
+.child-bottom-navigation {
+  position: fixed; bottom: max(1rem, calc(env(safe-area-inset-bottom) + .4rem));
+  left: 1rem; z-index: 30;
 }
-.child-menu-dialog::backdrop { background: rgb(0 0 0 / .65); backdrop-filter: blur(5px); }
+.child-menu-dial {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 1px solid var(--disc-edge); background: var(--disc-face);
+  color: var(--color-ink); box-shadow: var(--disc-shadow);
+}
+.child-menu-dialog {
+  position: fixed; inset: 0; margin: 0; padding: 0; border: 0;
+  width: 100vw; height: 100dvh; max-width: none; max-height: none;
+  color: var(--color-ink); background: transparent;
+}
+.child-menu-panel {
+  position: absolute; left: 1rem; width: min(25rem, calc(100vw - 2rem));
+  bottom: max(5.1rem, calc(env(safe-area-inset-bottom) + 4.6rem));
+  max-height: calc(100dvh - 7rem); overflow-y: auto; padding: .5rem 0;
+}
+.child-menu-close { position: absolute; left: 1rem; bottom: max(1rem, calc(env(safe-area-inset-bottom) + .4rem)); }
+.child-menu-dialog::backdrop { background: var(--arc-scrim); backdrop-filter: blur(5px); }
+@media (min-width: 1100px) {
+  .child-trip-layout { padding-left: 17rem; }
+  .child-desktop-menu { display: block; position: fixed; left: 1.25rem; top: 3rem; width: 15rem; padding: 1rem; }
+  .child-desktop-menu .arc-sub { display: none; }
+  .child-desktop-menu .arc-label { font-size: 14px; white-space: nowrap; }
+  .child-desktop-menu .child-menu-row.kid { margin-left: .5rem; width: calc(100% - .5rem); }
+  .child-desktop-menu .arc-disc { width: 28px; height: 28px; }
+  .child-bottom-navigation { display: none; }
+}
 .child-packing-items > li + li { border-top: 1px solid var(--line); }
 .child-packing-progress {
   display: block; width: 100%; height: 8px; appearance: none;

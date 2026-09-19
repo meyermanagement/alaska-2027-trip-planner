@@ -52,7 +52,7 @@ begin
       and g.child_user_id is not distinct from c.user_id
       and private.parent_may_open_trip_view(g.guardian_user_id,c.id)
   ), visible as (
-    select distinct t.id,t.name,t.destination,t.start_date,t.end_date,t.cover_image_url,t.cover_image_alt
+    select distinct t.id,t.name,t.destination,t.start_date,t.end_date,t.status,t.cover_image_url,t.cover_image_alt
     from public.trips t join public.trip_travelers roster on roster.trip_id=t.id
     join allowed c on c.id=roster.traveler_id and c.family_id=t.family_id
     where t.status is not null and t.status<>'draft'
@@ -61,7 +61,7 @@ begin
     'skin',(select skin from allowed),'text_size',(select text_size from allowed),
     'trips',coalesce((select jsonb_agg(jsonb_build_object(
       'id',v.id,'name',v.name,'destination',v.destination,'start_date',v.start_date,'end_date',v.end_date,
-      'cover_image_url',v.cover_image_url,'cover_image_alt',v.cover_image_alt,
+      'status',v.status,'cover_image_url',v.cover_image_url,'cover_image_alt',v.cover_image_alt,
       'itinerary',coalesce((select jsonb_agg(jsonb_build_object(
         'id',i.id,'item_date',i.item_date,'end_date',i.end_date,'start_time',i.start_time,
         'title',i.title,'category',i.category,'location',i.location,'status',i.status

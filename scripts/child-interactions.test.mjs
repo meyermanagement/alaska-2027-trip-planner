@@ -2,11 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createJiti } from "jiti";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 const jiti=createJiti(import.meta.url,{alias:{"@":fileURLToPath(new URL("..",import.meta.url))}});
 const { validPacking, validTheme, coverPath, publicChildData }=jiti("../lib/childView/interactions.js");
 const { childViewRouteAllowed, CHILD_VIEW_NOTICE }=jiti("../lib/childView/constants.js");
 const { MINOR_REVIEW_NOTICE_VERSION, validateMinorReview }=jiti("../lib/beta/minorReview.js");
-const { tripDays, itemsOnDay }=jiti("../lib/childView/days.js");
+const { tripDays, itemsOnDay, groupChildTrips }=jiti("../lib/childView/days.js");
 const id="20000000-0000-0000-0000-000000000031";
 test("only exact own-item and theme payloads are accepted",()=>{
   assert.equal(validPacking({itemId:id,packed:true}),true);
@@ -45,4 +46,38 @@ test("day navigation includes empty days, ongoing stays, and undated items",()=>
   assert.deepEqual(tripDays(trip),["2027-08-12","2027-08-13","2027-08-14","Unscheduled"]);
   assert.deepEqual(itemsOnDay(trip,"2027-08-13").map(row=>row.id),["stay"]);
   assert.deepEqual(itemsOnDay(trip,"Unscheduled").map(row=>row.id),["undated"]);
+});
+test("child trips use regular past/upcoming rules with drafts excluded",()=>{
+  const row=(name,start,end,status="planning")=>({name,start_date:start,end_date:end,status});
+  const input=[
+    row("Future","2027-01-01","2027-01-02"), row("Now","2026-09-18","2026-09-19"),
+    row("Recent","2026-09-01","2026-09-02"), row("Older","2025-01-01",null),
+    row("Complete","2027-02-01","2027-02-02","complete"),
+    row("Archive",null,null,"archived"), row("Undated",null,null),
+    row("Draft","2026-01-01","2026-01-02","draft"),
+  ];
+  const before=structuredClone(input);
+  const groups=groupChildTrips(input,"2026-09-19");
+  assert.deepEqual(groups.upcoming.map(t=>t.name),["Now","Future","Undated"]);
+  assert.deepEqual(groups.past.map(t=>t.name),["Complete","Recent","Older","Archive"]);
+  assert.deepEqual(input,before);
+});
+test("a trip stays upcoming through its last day and moves the next day",()=>{
+  const trip={name:"One day",start_date:"2026-09-19",end_date:null};
+  assert.equal(groupChildTrips([trip],"2026-09-19").upcoming.length,1);
+  assert.equal(groupChildTrips([trip],"2026-09-20").past.length,1);
+  assert.deepEqual(groupChildTrips([],"2026-09-19"),{upcoming:[],past:[]});
+});
+test("normal-looking child navigation never mounts adult services or routes",()=>{
+  const nav=readFileSync(new URL("../app/child/ChildNavigation.js",import.meta.url),"utf8");
+  assert.match(nav,/className="child-menu-dial"/);
+  assert.match(nav,/arc-pill group/);
+  assert.match(nav,/Upcoming trips/);
+  assert.match(nav,/Past trips/);
+  assert.match(nav,/navigate\("settings"\)/);
+  assert.doesNotMatch(nav,/from.*NavTabs|fetch\(|href=|AskAlyTrigger|useRouter/);
+  const ui=readFileSync(new URL("../app/child/MinorReview.js",import.meta.url),"utf8");
+  assert.match(ui,/aria-label="Settings"/);
+  assert.match(ui,/setTripGroup\(destination\)/);
+  assert.match(ui,/tripGroup === "past" \? "Past trips" : "Upcoming trips"/);
 });

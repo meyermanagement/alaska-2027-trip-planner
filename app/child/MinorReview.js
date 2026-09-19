@@ -2,11 +2,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import AlyWordmark from "@/components/AlyWordmark";
-import AlyeskaMark from "@/components/AlyeskaMark";
 import TripBackdrop from "@/components/TripBackdrop";
+import ChildNavigation from "./ChildNavigation";
 import { SKINS, skinOr, paintChrome } from "@/lib/skins";
-import { formatTime } from "@/lib/format";
-import { tripDays, itemsOnDay } from "@/lib/childView/days";
+import { formatTime, homeToday } from "@/lib/format";
+import { tripDays, itemsOnDay, groupChildTrips } from "@/lib/childView/days";
 
 function dateLabel(date) {
   if (!date) return "Dates to come";
@@ -33,6 +33,7 @@ export default function MinorReview({ initial = null }) {
   const [tab, setTab] = useState("itinerary");
   const [selectedDay, setSelectedDay] = useState(null);
   const [themeOpen, setThemeOpen] = useState(false);
+  const [tripGroup, setTripGroup] = useState("upcoming");
   const [busy, setBusy] = useState("");
   const [saved, setSaved] = useState("");
   const [signingOut, setSigningOut] = useState(false);
@@ -156,30 +157,24 @@ export default function MinorReview({ initial = null }) {
   }
   const trip = data?.trips?.find(row => row.id === tripId);
   const days = trip ? tripDays(trip) : [];
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = homeToday();
+  const tripGroups = groupChildTrips(data?.trips || [], today);
   const day = days.includes(selectedDay) ? selectedDay : days.includes(today) ? today : days[0];
   const navigate = destination => {
     menuRef.current?.close(); setSaved("");
-    if (destination === "trips") { setTripId(null); setThemeOpen(false); }
-    else if (destination === "theme") setThemeOpen(true);
+    if (["trips", "upcoming", "past"].includes(destination)) {
+      setTripId(null); setThemeOpen(false);
+      if (destination !== "trips") setTripGroup(destination);
+    }
+    else if (destination === "settings") setThemeOpen(true);
     else { setThemeOpen(false); setTab(destination); }
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  const menuItems = <>
-    <button className="btn btn-ghost child-menu-row" onClick={() => navigate("trips")}>My trips</button>
-    {trip && <>
-      <button className="btn btn-ghost child-menu-row" onClick={() => navigate("itinerary")}>Itinerary</button>
-      <button className="btn btn-ghost child-menu-row" onClick={() => navigate("packing")}>My packing</button>
-    </>}
-    <button className="btn btn-ghost child-menu-row" onClick={() => navigate("theme")}>My theme</button>
-  </>;
   const packedCount = trip?.packing.filter(item => item.is_packed).length || 0;
-  return <div className="lg:pl-56">
-    {data?.enabled && <aside className="card fixed left-5 top-8 hidden w-48 space-y-3 p-4 lg:block" aria-label="Trip view menu">
-      <div className="mb-5 flex items-center gap-2"><AlyeskaMark className="h-8 w-8 shrink-0" bezel aurora /><AlyWordmark className="text-[14px]" /></div>
-      <nav className="space-y-2" aria-label="My menu">{menuItems}</nav>
-      <p className="pt-3 text-xs text-ink-soft">Parent-opened trip view</p>
-    </aside>}
+  return <div className="child-trip-layout">
+    {data?.enabled && <ChildNavigation menuRef={menuRef} navigate={navigate}
+      current={themeOpen ? "settings" : tripGroup}
+      counts={{ upcoming: tripGroups.upcoming.length, past: tripGroups.past.length }} />}
     <main className="mx-auto max-w-4xl px-5 pb-28 pt-7">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <AlyWordmark className="text-[24px]" />
@@ -189,7 +184,7 @@ export default function MinorReview({ initial = null }) {
       </header>
       <div className="mt-7 flex flex-wrap items-start justify-between gap-3">
         <div><p className="text-sm font-semibold text-teal">Your adventure</p>
-          <h1 className="mt-2 text-3xl font-semibold">{themeOpen && data?.enabled ? "My theme" : trip ? trip.name : "My trips"}</h1>
+          <h1 className="mt-2 text-3xl font-semibold">{themeOpen && data?.enabled ? "Settings" : trip ? trip.name : "My trips"}</h1>
           <p className="mt-2 text-sm text-ink-soft">{themeOpen ? "Your look, saved for next time." : "Your plans to explore. Your things to pack."}</p>
         </div>
         <button className="btn btn-secondary" disabled={loading || signingOut || !!busy} onClick={load}>
@@ -203,8 +198,9 @@ export default function MinorReview({ initial = null }) {
         <h2 className="text-xl font-semibold">A parent needs to open this view</h2>
         <p className="mt-3 text-sm text-ink-soft">This view is closed or has expired. A parent can open a fresh two-hour view from your Family profile. Children do not sign in separately.</p>
       </section>}
-      {data?.enabled && themeOpen && <section className="mt-3" aria-label="My theme">
+      {data?.enabled && themeOpen && <section className="mt-3" aria-label="Settings">
         <button className="btn btn-secondary mb-5" onClick={() => setThemeOpen(false)}>← {trip ? "Back to trip" : "My trips"}</button>
+        <h2 className="mb-4 text-xl font-semibold">Theme</h2>
         <div className="grid gap-3 sm:grid-cols-2">{SKINS.map(skin => <button key={skin.id}
           disabled={!!busy} aria-pressed={data.skin === skin.id}
           onClick={() => save("theme", { skin: skin.id }, "Theme")}
@@ -217,9 +213,15 @@ export default function MinorReview({ initial = null }) {
         </button>)}</div>
         <p className="mt-5 text-sm text-ink-soft">This changes only your trip view, not your parent’s theme.</p>
       </section>}
-      {data?.enabled && !themeOpen && !trip && <section className="mt-3 grid gap-5 sm:grid-cols-2" aria-label="Your trips">
-        {data.trips.length === 0 && <p className="card p-5">No trips here yet. Your parent can add you to a trip’s traveler list. Draft trips stay private.</p>}
-        {data.trips.map(row => <button key={row.id} className="trip-plate card on-photo min-h-[268px] w-full justify-end text-left"
+      {data?.enabled && !themeOpen && !trip && <section className="mt-3" aria-label="Your trips">
+        <div className="mb-5 flex flex-wrap gap-2" aria-label="Trip groups">
+          {["upcoming", "past"].map(group => <button key={group} className={`btn ${tripGroup === group ? "btn-primary" : "btn-secondary"}`}
+            aria-pressed={tripGroup === group} onClick={() => setTripGroup(group)}>
+            {group === "past" ? "Past trips" : "Upcoming trips"} · {tripGroups[group].length}
+          </button>)}
+        </div>
+        {!tripGroups[tripGroup].length && <p className="card p-5">{tripGroup === "past" ? "No past trips yet. Trips you’ve taken will be here." : "No upcoming trips yet. Your parent can add you to a trip’s traveler list."}</p>}
+        <div className="grid gap-5 sm:grid-cols-2">{tripGroups[tripGroup].map(row => <button key={row.id} className="trip-plate card on-photo min-h-[268px] w-full justify-end text-left"
           onClick={() => { setTripId(row.id); setSelectedDay(null); setTab("itinerary"); setSaved(""); }}>
           <TripBackdrop trip={row} />
           <span className="relative block p-5"><span className="block text-2xl font-semibold">{row.name}</span>
@@ -227,10 +229,10 @@ export default function MinorReview({ initial = null }) {
             <span className="mt-3 block text-sm">{dateLabel(row.start_date)}{row.end_date && row.end_date !== row.start_date ? ` – ${dateLabel(row.end_date)}` : ""}</span>
             <span className="mt-4 block text-sm font-semibold">Open trip →</span>
           </span>
-        </button>)}
+        </button>)}</div>
       </section>}
       {data?.enabled && !themeOpen && trip && <>
-        <button className="btn btn-secondary mb-4" onClick={() => navigate("trips")}>← My trips</button>
+        <button className="btn btn-secondary mb-4" onClick={() => navigate("trips")}>← {tripGroup === "past" ? "Past trips" : "Upcoming trips"}</button>
         <div className="trip-plate card on-photo min-h-[180px] justify-end">
           <TripBackdrop trip={trip} shape="head" />
           <div className="relative p-5"><p className="text-xl font-semibold">{trip.destination || trip.name}</p>
@@ -289,17 +291,5 @@ export default function MinorReview({ initial = null }) {
         </details>
       </footer>
     </main>
-    {data?.enabled && <>
-      <button className="btn btn-primary child-menu-trigger fixed bottom-5 left-5 z-30 flex min-h-14 items-center gap-3 rounded-full px-4 shadow-lg lg:hidden"
-        aria-label="Open menu" aria-haspopup="dialog" onClick={() => menuRef.current?.showModal()}>
-        <AlyeskaMark className="h-8 w-8" bezel /><span>Menu</span>
-      </button>
-      <dialog ref={menuRef} className="card child-menu-dialog p-5" aria-labelledby="child-menu-title">
-        <div className="mb-5 flex items-center justify-between gap-3"><h2 id="child-menu-title" className="text-xl font-semibold">My menu</h2>
-          <button className="btn btn-secondary" onClick={() => menuRef.current?.close()}>Close</button></div>
-        <nav className="space-y-3" aria-label="My menu">{menuItems}</nav>
-        <button className="btn btn-secondary mt-5 w-full" onClick={signOut}>Parent return</button>
-      </dialog>
-    </>}
   </div>;
 }

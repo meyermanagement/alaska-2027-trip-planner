@@ -7,7 +7,10 @@ Review only. No push, production migration, live account operation, or counsel-p
 | Claim or control | Functional check | Visual evidence |
 | --- | --- | --- |
 | Familiar trip cards and pictures | Open a card, return to My trips | Desktop and phone cards / trip |
-| Safe menu, no Ask Aly | Open/close, Escape, focus return; itinerary/packing/theme navigation | Phone menu and desktop rail |
+| Standard-style menu, no Ask Aly | Bottom compass, open/close, Escape, focus return; Trips and Settings | Phone menu and desktop rail |
+| Upcoming and past groups | Regular completion/date rules; counts; current trip stays upcoming; back keeps group | Both trip groups |
+| Settings contains theme | Menu to Settings, save theme, return to previous trip | Settings and themed itinerary |
+| Packing reached through a trip | Open upcoming or past card, choose My packing | Own packing checks |
 | Read-only day plans | Switch dates; empty days; continuing stays | Day tiles and activity cards |
 | Own packing checkmarks | Check, immediate saving, saved, uncheck; reload persists | Packing screen |
 | Theme saved for next visit | Change, saved, refresh; all five available | Theme picker and dark itinerary |
@@ -28,7 +31,7 @@ Real-device parent passkey / live staging end-to-end verification remains a rele
 
 ## Executed results
 
-- Full regression suite: 256 passing, zero failing.
+- Full regression suite after navigation revision: 260 passing, zero failing.
 - Production-mode Next build: passed with dummy database configuration and no service key.
 - Lint: zero errors; nine pre-existing inline-disable warnings.
 - Browser: actual component bundled with a fictional-data API simulator; zero JavaScript errors.
@@ -41,3 +44,12 @@ Real-device parent passkey / live staging end-to-end verification remains a rele
 - Visual inspection: Frostglass phone cards, itinerary, packing, theme picker; light and dark desktop; dark phone menu.
 - Found and corrected: desktop cascade displayed the phone menu button alongside the sidebar; explicit desktop hiding added.
 - No production push, migration, deployment, account change, or counsel-packet edit.
+
+## Normal navigation revision
+
+- Replaced the separate centered phone menu with the regular bottom-left compass and shared arc-menu styling. Desktop keeps the familiar rail.
+- Trips opens Upcoming trips and Past trips with counts; Settings holds the theme picker. Packing is reached from the selected trip.
+- Trip grouping uses the same completed/archived and last-day rules as the regular app. Ongoing trips remain upcoming through their last day. Back from a trip preserves its group.
+- Browser checks passed for menu grouping, past-trip packing save, retained return filter, Settings theme save, Escape focus return, empty packing, expired-view clearing, and 320/375/1280 layouts.
+- Isolated iframe test passed for menu, past trips, and theme save, without storage APIs or live accounts.
+- Final build passed. Database and regression suite: 260 tests passed. No authorization routes were added or relaxed.
