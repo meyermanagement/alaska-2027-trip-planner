@@ -13,6 +13,7 @@ import {
 import { BubbleIcon } from "@/components/AskAlyTrigger";
 import PayAsk, { PAY_ASK_EVENT } from "./PayAsk";
 import { ChevronDisc } from "@/components/ChevronDisc";
+import WalletLogo from "@/components/WalletLogo";
 import {
   CREDIT_PERIODS,
   KIND_ORDER,
@@ -666,8 +667,10 @@ export default function RewardsBoard({
                     }
                     label={`${open ? "Hide" : "Show"} details for ${row.brand}`}
                   >
-                    <div className="min-w-0">
-                      <h3 className="font-display text-lg font-semibold">
+                    <div className="flex min-w-0 flex-1 basis-60 items-start gap-3">
+                      <WalletLogo program={row} />
+                      <div className="min-w-0">
+                      <h3 className="break-words font-display text-lg font-semibold">
                         {row.brand}
                       </h3>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -698,6 +701,7 @@ export default function RewardsBoard({
                                 : `${formatMoney(Number(row.annual_fee))} a year`}
                             </span>
                           )}
+                      </div>
                       </div>
                     </div>
                     <div className="text-right">

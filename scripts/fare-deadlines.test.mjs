@@ -87,8 +87,8 @@ test("history separates still-valid refusals from auto-expired, declined-expired
     { id: "open", status: "open" },
   ];
   const lists = fareListsForToday(rows, today);
-  assert.deepEqual(lists.expired.map(d => d.id), ["active-expired", "declined-expired", "legacy"]);
-  assert.deepEqual(lists.refused.map(d => d.id), ["valid", "undated", "estimate"]);
+  assert.deepEqual(lists.expired.map(d => d.id), ["active-expired", "declined-expired", "legacy", "estimate"]);
+  assert.deepEqual(lists.refused.map(d => d.id), ["valid", "undated"]);
   assert.deepEqual(lists.taken.map(d => d.id), ["saved"]);
   assert.deepEqual(lists.open.map(d => d.id), ["open"]);
   assert.equal(lists.expired[1].dismissed_reason, "Wrong week");
@@ -99,4 +99,19 @@ test("a previously refused fare moves into expired history after the whole deadl
   const rows = [{ id: "refused", status: "dismissed", book_by: "2026-09-19" }];
   assert.equal(fareListsForToday(rows, "2026-09-19").refused.length, 1);
   assert.equal(fareListsForToday(rows, "2026-09-20").expired.length, 1);
+});
+
+test("past estimated dates fold declined fares away without retiring active or saved fares", () => {
+  const hawaii = { id: "hawaii", origin: "ORD", destination: "Hawaii",
+    status: "dismissed", book_by: "2026-09-17", book_by_inferred: true,
+    dismissed_reason: "Wrong time of year" };
+  const rows = [hawaii, { ...hawaii, id: "active", status: "open" },
+    { ...hawaii, id: "saved", status: "taken", trip_id: "trip" }];
+  const lists = fareListsForToday(judged(rows, {}, "2026-09-18"), "2026-09-18");
+  assert.deepEqual(lists.expired.map(d => d.id), ["hawaii"]);
+  assert.equal(lists.expired[0].book_by_inferred, true);
+  assert.equal(lists.expired[0].dismissed_reason, "Wrong time of year");
+  assert.deepEqual(lists.open.map(d => d.id), ["active"]);
+  assert.deepEqual(lists.taken.map(d => d.id), ["saved"]);
+  assert.equal(fareListsForToday([hawaii], "2026-09-17").refused.length, 1);
 });
