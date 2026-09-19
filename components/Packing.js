@@ -149,6 +149,40 @@ export default function Packing({
   // to add it, find it in the list, open the edit form, and press a pill.
   const [newTemplates, setNewTemplates] = useState(() => new Set());
   const [newNote, setNewNote] = useState("");
+  const addInput = useRef(null);
+  const draftAvailable = useRef(false);
+  const savingIds = useRef(new Set());
+  const [additions, setAdditions] = useState([]);
+  const [latestAddId, setLatestAddId] = useState(null);
+  const additionsById = new Map(additions.map((entry) => [entry.row.id, entry]));
+  const displayItems = useMemo(() => {
+    const known = new Set(items.map((item) => item.id));
+    return [
+      ...items,
+      ...additions
+        .filter((entry) => !entry.confirmed && !known.has(entry.row.id))
+        .map((entry) => entry.row),
+    ].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }, [items, additions]);
+
+  // Stop overlaying a row once the parent has observed it. A later removal must
+  // not resurrect the optimistic copy, even if refreshes finish out of order.
+  useEffect(() => {
+    const known = new Set(items.map((item) => item.id));
+    setAdditions((entries) => {
+      if (!entries.some((entry) => !entry.confirmed && known.has(entry.row.id)))
+        return entries;
+      return entries.map((entry) =>
+        known.has(entry.row.id) ? { ...entry, confirmed: true } : entry,
+      );
+    });
+  }, [items]);
+
+  function updateAddition(id, patch) {
+    setAdditions((entries) =>
+      entries.map((entry) => entry.row.id === id ? { ...entry, ...patch } : entry),
+    );
+  }
   // Which add-on lists this trip is built from. A trip is often several things
   // at once -- an Alaska cruise is an Alaska trip and a cruise -- and until this
   // could be said the app had to guess from the lines the list already carried,
@@ -316,11 +350,11 @@ export default function Packing({
     // retyped slightly differently.
     const list = Array.from(
       new Set(
-        items.map((i) => (i.category || "General").trim()).filter(Boolean),
+        displayItems.map((i) => (i.category || "General").trim()).filter(Boolean),
       ),
     );
     return list.sort((a, b) => a.localeCompare(b));
-  }, [items]);
+  }, [displayItems]);
 
   // One place that decides whether a line survives the filters, so the counts on
   // the chips and the list under them can never disagree.
@@ -349,7 +383,7 @@ export default function Packing({
   }
 
   const answers = { who, hidePacked, onlyAhead, onlyCategory, find };
-  const visible = items.filter((i) => keeps(i, answers));
+  const visible = displayItems.filter((i) => keeps(i, answers));
 
   // What a chip would show if you pressed it, with every other answer left
   // where it is. A count taken against the whole list instead would promise
@@ -927,6 +961,7 @@ export default function Packing({
    * would quietly keep the next line too.
    */
   function startAdd(category) {
+    draftAvailable.current = false;
     setAdding(category);
     setEditingId(null);
     setNewItem("");
@@ -938,94 +973,113 @@ export default function Packing({
     setNewNote("");
   }
 
-  async function add(e) {
+  function add(e) {
     e.preventDefault();
     const name = newItem.trim();
-    if (!name) return;
+    if (readOnly || !name || !draftAvailable.current) return;
+    // Clear the synchronous guard before React renders, so two submit events
+    // for the same draft cannot create two records.
+    draftAvailable.current = false;
     setNewNote("");
-
-    const category = (newCategory || "General").trim();
-    const petId = newPetId || null;
-    const { error } = await supabase.from("packing_items").insert({
+    const category = newCategory.trim() || "General";
+    const row = {
+      id: crypto.randomUUID(),
       trip_id: tripId,
       item: name,
       category,
       assignee: newAssignee,
-      pet_id: petId,
-      // Still guessed from the name, but the guess is on screen above this
-      // button, so what gets written is what the person saw and left alone.
+      pet_id: newPetId || null,
       last_minute: newIsLastMinute,
       sort_order: topOfCategory(category),
-    });
-    if (error) {
-      setNewNote("That did not save to this trip.");
-      return;
-    }
-
-    // Then the standing lists, if any were picked. Done after the trip row so a
-    // template failure never costs you the item you actually came here to add.
-    const wanted = templates.filter((t) => newTemplates.has(t.id));
-    const kept = [];
-    const failed = [];
-    for (const template of wanted) {
-      // Already on that list for that person? Say so rather than adding a
-      // second one — a template holding the same thing twice quietly puts it on
-      // every future trip twice.
-      const { data: already } = await supabase
-        .from("packing_template_items")
-        .select("id")
-        .eq("template_id", template.id)
-        .ilike("item", name)
-        .eq("assignee", newAssignee)
-        .limit(1);
-      if (already && already.length) {
-        kept.push(template.name);
-        setTemplateItems((rows) => [
-          ...rows,
-          { template_id: template.id, item: name, assignee: newAssignee },
-        ]);
-        continue;
-      }
-      const { error: templateError } = await supabase
-        .from("packing_template_items")
-        .insert({
-          template_id: template.id,
-          item: name,
-          category,
-          assignee: newAssignee,
-          // Which animal it is for travels with it, so a line invented mid-trip
-          // keeps its meaning on every trip after this one.
-          pet_id: petId,
-          sort_order: 999,
-          created_by: userId,
-        });
-      if (templateError) failed.push(template.name);
-      else {
-        kept.push(template.name);
-        // Kept in step with what was just written so the line under the item,
-        // and the pills in the edit form, tell the truth without another read.
-        setTemplateItems((rows) => [
-          ...rows,
-          { template_id: template.id, item: name, assignee: newAssignee },
-        ]);
-      }
-    }
-
-    // Left open on purpose, on the same category: remembering one forgotten
-    // thing is how you remember the next two.
+      is_packed: false,
+    };
+    const entry = {
+      row, status: "saving", confirmed: false,
+      wanted: templates.filter((t) => newTemplates.has(t.id)),
+    };
+    setAdditions((entries) => [...entries, entry]);
+    setLatestAddId(row.id);
+    // Only item-specific choices reset. Category and traveler stay put.
     setNewItem("");
     setNewPetId("");
     setNewTemplates(new Set());
     setNewLastMinute(false);
     setNewLastMinuteSet(false);
-    setNewNote(
-      failed.length
-        ? `Added to this trip. It did not save to ${failed.join(" or ")}.`
-        : kept.length
-          ? `Added, and kept on ${kept.join(" and ")}. Trips you build from ${kept.length > 1 ? "those templates" : "that template"} will start with it; trips you have already made do not change.`
-          : "",
+    addInput.current?.focus({ preventScroll: true });
+    void saveAddition(entry);
+  }
+
+  async function saveAddition(entry) {
+    const { row, wanted } = entry;
+    if (savingIds.current.has(row.id)) return;
+    savingIds.current.add(row.id);
+    updateAddition(row.id, { status: "saving" });
+    try {
+      // Stable client ID makes Retry safe even when the original write reached
+      // the server but its response was lost. Never overwrite an existing row.
+      const { error } = await supabase.from("packing_items")
+        .upsert(row, { onConflict: "id", ignoreDuplicates: true });
+      if (error) throw error;
+      updateAddition(row.id, {
+        status: "saved",
+        templateNote: wanted.length ? "Saving to templates…" : "",
+      });
+    } catch {
+      updateAddition(row.id, { status: "error" });
+      return;
+    } finally {
+      savingIds.current.delete(row.id);
+    }
+    // Refresh immediately, independently of slower optional template writes.
+    // A refresh failure is not an insert failure: retain the saved local row.
+    Promise.resolve().then(() => onChange()).catch(() => {});
+    const kept = [];
+    const failed = [];
+    for (const template of wanted) {
+      try {
+        const { data: already, error: lookupError } = await supabase
+          .from("packing_template_items").select("id")
+          .eq("template_id", template.id).ilike("item", row.item)
+          .eq("assignee", row.assignee).limit(1);
+        if (lookupError) throw lookupError;
+        if (!already?.length) {
+          const { error } = await supabase.from("packing_template_items").insert({
+            template_id: template.id, item: row.item, category: row.category,
+            assignee: row.assignee, pet_id: row.pet_id,
+            sort_order: 999, created_by: userId,
+          });
+          if (error) throw error;
+        }
+        kept.push(template.name);
+        setTemplateItems((rows) => [...rows, {
+          template_id: template.id, item: row.item, assignee: row.assignee,
+        }]);
+      } catch {
+        failed.push(template.name);
+      }
+    }
+    updateAddition(row.id, {
+      templateNote: [
+        kept.length ? `Kept on ${kept.join(" and ")}.` : "",
+        failed.length ? `Did not save to ${failed.join(" or ")}. Use Edit to try again.` : "",
+      ].filter(Boolean).join(" "),
+    });
+  }
+
+  function additionFeedback(entry) {
+    if (!entry) return null;
+    return (
+      <span role="status" className={`text-xs ${entry.status === "error" ? "text-rose" : "text-ink-soft"}`}>
+        {entry.status === "saving" ? "Saving…" :
+          entry.status === "error" ? "Could not save. " : "Saved to this trip."}
+        {entry.status === "error" && (
+          <button type="button" className="ml-1 min-h-9 px-2 font-semibold underline"
+            onClick={() => void saveAddition(entry)}
+            aria-label={`Retry saving ${entry.row.item}`}>Retry</button>
+        )}
+        {entry.status === "saved" && entry.templateNote ? ` ${entry.templateNote}` : ""}
+      </span>
     );
-    onChange();
   }
 
   // The list checked against the roster, every time it is drawn. A tap that took
@@ -1253,6 +1307,7 @@ export default function Packing({
           type="checkbox"
           className="mt-0.5 h-5 w-5 shrink-0 accent-teal"
           checked={item.is_packed}
+          disabled={additionsById.has(item.id) && additionsById.get(item.id).status !== "saved"}
           onChange={() => toggle(item)}
           aria-label={`Mark ${item.item} packed`}
         />
@@ -1294,6 +1349,9 @@ export default function Packing({
           {item.notes && (
             <p className="mt-0.5 text-xs text-ink-soft">{item.notes}</p>
           )}
+          {additionsById.has(item.id) && (
+            <div className="mt-1">{additionFeedback(additionsById.get(item.id))}</div>
+          )}
           {keptLine(item) && (
             <p className="mt-0.5 text-xs text-ink-faint">{keptLine(item)}</p>
           )}
@@ -1308,7 +1366,8 @@ export default function Packing({
           {!readOnly && (
             <button
               onClick={() => startEdit(item)}
-              className="flex h-9 items-center rounded-full px-2 text-xs font-bold uppercase tracking-wide text-teal transition hover:bg-teal-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+              disabled={additionsById.has(item.id) && additionsById.get(item.id).status !== "saved"}
+              className="flex h-9 items-center rounded-full px-2 text-xs font-bold uppercase tracking-wide text-teal transition hover:bg-teal-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:opacity-30 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
               aria-label={`Edit ${item.item}`}
             >
               Edit
@@ -1317,7 +1376,8 @@ export default function Packing({
           {!readOnly && (
             <button
               onClick={() => remove(item)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-soft/60 transition hover:bg-rose/10 hover:text-rose focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+              disabled={additionsById.has(item.id) && additionsById.get(item.id).status !== "saved"}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-soft/60 transition hover:bg-rose/10 hover:text-rose focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose disabled:opacity-30 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
               aria-label={`Remove ${item.item}`}
             >
               <svg
@@ -1390,6 +1450,9 @@ export default function Packing({
           }`}
         >
           <input
+            ref={addInput}
+            aria-label="Packing item"
+            enterKeyHint="enter"
             className="field"
             placeholder={
               category === NEW_CATEGORY
@@ -1397,7 +1460,14 @@ export default function Packing({
                 : `Something else for ${category}`
             }
             value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
+            onChange={(e) => {
+              draftAvailable.current = true;
+              setNewItem(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.repeat || e.nativeEvent.isComposing))
+                e.preventDefault();
+            }}
             autoFocus
             required
           />
@@ -1441,7 +1511,7 @@ export default function Packing({
             </select>
           )}
           <div className="flex gap-2">
-            <button className="btn btn-primary">Add</button>
+            <button type="submit" className="btn btn-primary" disabled={!newItem.trim()}>Add</button>
             <button
               type="button"
               className="btn btn-ghost"
@@ -1528,6 +1598,11 @@ export default function Packing({
           </div>
         )}
 
+        <div className="text-xs text-ink-soft">
+          {additionsById.has(latestAddId) ? (
+            <>{additionsById.get(latestAddId).row.item}: {additionFeedback(additionsById.get(latestAddId))}</>
+          ) : "Enter to add another item."}
+        </div>
         {newNote && (
           <p
             className={`text-xs ${
