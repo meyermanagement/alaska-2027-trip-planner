@@ -5,8 +5,6 @@ import { announceTipResolved } from "@/lib/tips/cleared";
 import { ChevronDisc } from "./ChevronDisc";
 import ClearedTipSearch from "./ClearedTipSearch";
 import ClearedTipCheck from "./ClearedTipCheck";
-import Link from "next/link";
-import { tripPath } from "@/lib/trips/route";
 
 /**
  * The tips you have put away, kept where they can be found again.
@@ -123,8 +121,6 @@ function ClearedCard({ tip, onRestore }) {
         >
           {restoring ? "Restoring…" : "Bring it back"}
         </button>
-        {tip.trip_id && tip.trips && <Link href={tripPath({ ...tip.trips, id: tip.trip_id }, "tips")}
-          className="btn btn-ghost ml-2 mt-3">Open original trip</Link>}
         <ClearedTipCheck tip={tip} />
       </div>
     </li>

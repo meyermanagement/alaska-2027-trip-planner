@@ -189,6 +189,12 @@ test("trip searches do not exclude past or upcoming trips and the UI has no scop
   assert.doesNotMatch(ui, /<select|All trips/);
   assert.match(read("components/ClearedTips.js"), /key=\{wallet \? "wallet" : tripId\}/);
 });
+test("trip-scoped cleared cards omit redundant trip navigation but keep restore and recheck", () => {
+  const card = read("components/ClearedTips.js");
+  assert.doesNotMatch(card, /Open original trip|tripPath|from "next\/link"/);
+  assert.match(card, /Bring it back/);
+  assert.match(card, /<ClearedTipCheck tip=\{tip\}/);
+});
 test("denied access never reaches a model or archive query", async () => {
   const { calls, log } = setup({ denied: true });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
