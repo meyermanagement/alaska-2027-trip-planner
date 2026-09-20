@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const moduleUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`;
 const helpers = await import(moduleUrl(read("lib/tips/archiveSearch.js")));
-const { searchTerms, archiveFilter, selectedMatches, checkedAnswer, safeSources, keywordRank } = helpers;
+const { searchTerms, archiveFilter, selectedMatches, checkedAnswer, safeSources, keywordRank, directMatches, mergeMatches } = helpers;
 const id = "11111111-1111-4111-8111-111111111111";
 const tip = { id, title: "Motion sickness on the crossing", body: "Plan for the ferry.", trips: { name: "Alaska cruise" } };
 
@@ -62,19 +62,20 @@ async function route(path, context, model, db) {
     const generate = globalThis.__archiveTest.generate;
     const resolveGroundingUrls = async sources => sources;
     const WALLET_SCOPES = ["wallet","offers"];
-    const {ARCHIVE_COLUMNS, ARCHIVE_LIMIT, UUID, readJson, searchTerms, archiveFilter, keywordRank,
+    const {ARCHIVE_COLUMNS, ARCHIVE_LIMIT, UUID, readJson, searchTerms, archiveFilter, keywordRank, directMatches, mergeMatches,
       selectedMatches, EXPAND_SYSTEM, RANK_SYSTEM, CHECK_SYSTEM, checkedAnswer} = globalThis.__archiveTest.helpers;
     ${code}
     // ${Math.random()}
   `));
 }
-function setup({ ai = true, denied = false, rows = [tip], outputs = [] } = {}) {
+function setup({ ai = true, denied = false, rows = [tip], rowBatches, outputs = [] } = {}) {
   const log = [], calls = [];
   const supabase = { from(table) {
+    const batch = rowBatches ? rowBatches.shift() || [] : rows;
     let single = false;
     const q = new Proxy({}, { get(_, method) {
       if (method === "then") return (resolve) => Promise.resolve({
-        data: table === "trips" ? [] : single ? rows[0] || null : rows, error: null,
+        data: table === "trips" ? [] : single ? batch[0] || null : batch, error: null,
       }).then(resolve);
       return (...args) => { log.push([table, method, ...args]); if (method === "maybeSingle") single = true; return q; };
     } });
@@ -87,6 +88,64 @@ function setup({ ai = true, denied = false, rows = [tip], outputs = [] } = {}) {
   return { log, calls };
 }
 const req = body => ({ text: async () => JSON.stringify(body) });
+const neckFanTip = {
+  id, title: "Leave neck fans off your packing list",
+  body: "Leaving bulky rechargeable neck fans behind saves valuable suitcase space.",
+  because: "Neck fans are on the packing list for a late-November itinerary.",
+};
+test("literal matches cover all stored searchable fields, without treating trip names as tip text", () => {
+  for (const field of ["title", "body", "because", "about"]) {
+    assert.equal(directMatches([{ id, [field]: "NECK FANS" }], ["fans"]).length, 1);
+  }
+  assert.deepEqual(directMatches([{ id, trips: { name: "Fans" } }], ["fans"]), []);
+  assert.deepEqual(directMatches([neckFanTip], ["ferry"]), []);
+});
+test("direct matches survive empty, invalid and unrelated semantic selections", async () => {
+  for (const ranking of [
+    '{"matches":[]}', "[]", "bad JSON",
+    '{"matches":[{"id":"fabricated"}]}',
+    '{"matches":[{"id":"other","reason":"Related cooling advice"}]}',
+    new Error("ranking unavailable"),
+  ]) {
+    setup({ rows: [neckFanTip, { id: "other", title: "Bring a cooling towel" }],
+      outputs: [{ text: '{"terms":["cooling"]}' }, ranking instanceof Error ? ranking : { text: ranking }] });
+    const { POST } = await route("app/api/tips/cleared/search/route.js");
+    const res = await POST(req({ query: "fans", scope: "trip", tripId: id }));
+    assert.equal(res.status, 200);
+    assert.equal(res.data.tips[0].id, id);
+    assert.equal(res.data.tips[0].title, neckFanTip.title);
+    if (ranking === '{"matches":[]}') assert.doesNotMatch(res.data.note, /unavailable/);
+  }
+});
+test("direct matches are not duplicated when also selected by meaning", () => {
+  const ranked = [{ ...neckFanTip, matchReason: "Neck fan advice" }];
+  const merged = mergeMatches([neckFanTip], ranked);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].matchReason, "Neck fan advice");
+});
+test("older direct matches survive more than 100 newer related hits with every query scoped", async () => {
+  const { log } = setup({
+    rowBatches: [[neckFanTip], Array.from({ length: 101 }, (_, n) => ({ id: `related-${n}`, title: "Cooling towel" }))],
+    outputs: [{ text: '{"terms":["cooling"]}' }, { text: '{"matches":[]}' }],
+  });
+  const { POST } = await route("app/api/tips/cleared/search/route.js");
+  const res = await POST(req({ query: "fans", scope: "trip", tripId: id }));
+  assert.equal(res.data.tips[0].id, id);
+  assert.equal(res.data.truncated, true);
+  for (const field of ["family_id", "trip_id"]) {
+    assert.equal(log.filter(row => row[1] === "eq" && row[2] === field).length, 2);
+  }
+  assert.equal(log.filter(row => row[1] === "in" && row[2] === "status").length, 2);
+});
+test("fans still finds neck fans with AI disabled, and genuine no-matches stay empty", async () => {
+  for (const rows of [[neckFanTip], []]) {
+    const { calls } = setup({ ai: false, rows });
+    const { POST } = await route("app/api/tips/cleared/search/route.js");
+    const res = await POST(req({ query: "fans", scope: "trip", tripId: id }));
+    assert.deepEqual(res.data.tips.map(row => row.id), rows.map(row => row.id));
+    assert.equal(calls.length, 0);
+  }
+});
 test("search route scopes database reads, expands and ranks actual archive IDs", async () => {
   const { log, calls } = setup({ outputs: [{ text: '{"terms":["motion sickness"]}' }, { text: JSON.stringify({ matches: [{ id, reason: "Seasickness advice" }] }) }] });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
