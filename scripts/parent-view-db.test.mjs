@@ -334,6 +334,18 @@ test("held child interactions preserve the parent boundary",async t=>{
   await admin();
   await db.exec("alter table trips add column cover_image_url text; alter table trips add column cover_image_alt text;");
   await db.exec(readFileSync(new URL("../supabase/migrations/20261004_child_trip_interactions.sql",import.meta.url),"utf8"));
+  await db.exec(`create table day_pack_items(
+    id uuid,trip_id uuid,item_date date,item text,is_packed boolean,sort_order int,
+    assignee text,from_packing_id uuid,why text,created_by uuid);
+    insert into day_pack_items values
+      ('${id(701)}','${id(31)}',null,'Water bottle',true,0,' child ','${id(51)}','PRIVATE','${parent}'),
+      ('${id(702)}','${id(31)}','2027-01-03','Rain jacket',false,1,'Child','${id(51)}','PRIVATE','${parent}'),
+      ('${id(703)}','${id(31)}','2027-01-03','Adult day pack',false,2,'Parent','${id(52)}','PRIVATE','${parent}'),
+      ('${id(704)}','${id(31)}','2027-01-03','Shared day pack',false,3,'Shared','${id(51)}','PRIVATE','${parent}'),
+      ('${id(705)}','${id(31)}','2027-01-03','Stashed day pack',false,4,'Child','${id(53)}','PRIVATE','${parent}'),
+      ('${id(706)}','${id(32)}','2027-01-03','Draft day pack',false,5,'Child','${id(51)}','PRIVATE','${parent}');
+  `);
+  await db.exec(readFileSync(new URL("../supabase/migrations/20261011_child_day_pack_view.sql",import.meta.url),"utf8"));
   const v2="2026-09-19-parent-view-2", h="9".repeat(64);
   await db.exec(`insert into auth.sessions values('${id(900)}','${parent}')`);
   await assert.rejects(open(parent,seat,id(900),h,notice),/verified/);
@@ -341,6 +353,36 @@ test("held child interactions preserve the parent boundary",async t=>{
   const pack=(item=id(51),value=true,token=h)=>db.query("select set_child_packing($1,$2,$3) as result",[token,item,value]);
   const theme=(skin="sodium",token=h)=>db.query("select set_child_theme($1,$2) as result",[token,skin]);
   const isolated=async(name,fn)=>t.test(name,async()=>{await admin();await db.exec("begin");try{await fn();}finally{await db.exec("rollback; reset role;");}});
+  await isolated("day pack projects only own active items and minimal read-only fields",async()=>{
+    const rows=(await read(h)).trips[0].day_pack;
+    assert.deepEqual(rows,[
+      {id:id(701),item_date:null,item:"Water bottle",is_packed:true},
+      {id:id(702),item_date:"2027-01-03",item:"Rain jacket",is_packed:false},
+    ]);
+    assert.doesNotMatch(JSON.stringify(await read(h)),/PRIVATE|Adult day pack|Shared day pack|Stashed day pack|Draft day pack/);
+    await db.exec(`update day_pack_items set assignee='Parent'`);
+    assert.deepEqual((await read(h)).trips[0].day_pack,[]);
+  });
+  for(const [name,sql] of [
+    ["ambiguous name",`insert into travelers(id,family_id,name,is_person) values('${id(599)}','${family}',' child ',true)`],
+    ["stashed suitcase item",`update packing_items set stashed_at=now() where id='${id(51)}'`],
+    ["pet suitcase item",`update packing_items set pet_id='${seat}' where id='${id(51)}'`],
+    ["cross-trip reference",`update day_pack_items set trip_id='${id(33)}'`],
+  ]) await isolated(`day pack hides ${name}`,async()=>{
+    await db.exec(sql); assert.deepEqual((await read(h)).trips[0].day_pack,[]);
+  });
+  for(const [name,sql] of [
+    ["roster loss",`delete from trip_travelers where trip_id='${id(31)}'`],
+    ["draft",`update trips set status='draft' where id='${id(31)}'`],
+    ["foreign household",`update trips set family_id='${id(11)}' where id='${id(31)}'`],
+    ["expired view","update parent_trip_views set expires_at=now()-interval '1 second'"],
+    ["revoked consent","update beta_consents set withdrawn_at=now()"],
+  ]) await isolated(`day pack access ends on ${name}`,async()=>{
+    await db.exec(sql); assert.deepEqual((await read(h)).trips,[]);
+  });
+  for(const role of ["anon","authenticated"]) await isolated(`${role} cannot call day-pack projection`,async()=>{
+    await as(parent,id(102),role); await assert.rejects(read(h),/permission denied/);
+  });
   await isolated("filtered child projection includes status for standard trip grouping",async()=>{
     await db.exec(`update trips set status='complete' where id='${id(31)}'`);
     const result=await read(h);

@@ -10,6 +10,11 @@ export const reviewFixture = {
       { id: "two", item_date: "2027-08-12", start_time: "16:00", title: "Check in at the lodge", location: "Denali National Park", status: "confirmed" },
       { id: "three", item_date: "2027-08-13", start_time: "08:00", title: "Morning wildlife walk", location: "Meet in the lobby", status: "planned" },
     ],
+    day_pack: [
+      { id: "day-water", item_date: null, item: "Water bottle", is_packed: true },
+      { id: "day-snack", item_date: "2027-08-12", item: "Train snacks", is_packed: false },
+      { id: "day-rain", item_date: "2027-08-13", item: "Rain jacket", is_packed: false },
+    ],
     packing: [
       { id: "rain", category: "Clothing", item: "Rain jacket", quantity: 1, is_packed: true },
       { id: "shirt", category: "Clothing", item: "Long-sleeve shirts", quantity: 3, is_packed: false },

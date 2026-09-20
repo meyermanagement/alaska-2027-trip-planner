@@ -7,7 +7,19 @@ const jiti=createJiti(import.meta.url,{alias:{"@":fileURLToPath(new URL("..",imp
 const { validPacking, validTheme, coverPath, publicChildData }=jiti("../lib/childView/interactions.js");
 const { childViewRouteAllowed, CHILD_VIEW_NOTICE }=jiti("../lib/childView/constants.js");
 const { MINOR_REVIEW_NOTICE_VERSION, validateMinorReview }=jiti("../lib/beta/minorReview.js");
-const { tripDays, itemsOnDay, groupChildTrips, childOpeningTab, childHomeTrip, childItineraryDay }=jiti("../lib/childView/days.js");
+const { tripDays, itemsOnDay, dayPackOnDay, groupChildTrips, childOpeningTab, childHomeTrip, childItineraryDay }=jiti("../lib/childView/days.js");
+test("child day pack follows selected date and includes everyday items, not unscheduled",()=>{
+  const trip={day_pack:[
+    {id:"every",item_date:null},{id:"first",item_date:"2027-08-12"},
+    {id:"next",item_date:"2027-08-13"},
+  ]};
+  assert.deepEqual(dayPackOnDay(trip,"2027-08-12").map(x=>x.id),["every","first"]);
+  assert.deepEqual(dayPackOnDay(trip,"2027-08-13").map(x=>x.id),["every","next"]);
+  assert.deepEqual(dayPackOnDay(trip,"2027-08-14").map(x=>x.id),["every"]);
+  assert.deepEqual(dayPackOnDay(trip,"Unscheduled"),[]);
+  assert.deepEqual(dayPackOnDay(trip,null),[]);
+  assert.deepEqual(dayPackOnDay({},"2027-08-12"),[]);
+});
 const id="20000000-0000-0000-0000-000000000031";
 test("only exact own-item and theme payloads are accepted",()=>{
   assert.equal(validPacking({itemId:id,packed:true}),true);

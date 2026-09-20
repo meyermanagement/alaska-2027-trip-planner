@@ -5,6 +5,7 @@ import AlyWordmark from "@/components/AlyWordmark";
 import TripBackdrop from "@/components/TripBackdrop";
 import ChildNavigation from "./ChildNavigation";
 import ChildCurrentTripBanner from "./ChildCurrentTripBanner";
+import ChildDayPack from "./ChildDayPack";
 import { SKINS, skinOr, paintChrome } from "@/lib/skins";
 import { formatTime, homeToday, localToday, isCurrentTrip } from "@/lib/format";
 import { tripDays, itemsOnDay, groupChildTrips, childOpeningTab, childHomeTrip, childItineraryDay } from "@/lib/childView/days";
@@ -321,6 +322,7 @@ export default function MinorReview({ initial = null }) {
               </button>)}
             </div>
             <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{day ? dateLabel(day) : "Itinerary"}</h2><span className="text-xs text-ink-soft">View only</span></div>
+            <ChildDayPack trip={trip} day={day} />
             {!itemsOnDay(trip, day).length && <p className="card p-5">No plans for this day yet.</p>}
             <ul className="space-y-3">{itemsOnDay(trip, day).map(item => <li key={item.id} className="card p-5">
               <p className="text-xs font-semibold text-teal">{item.item_date !== day ? "Continuing stay / activity" : formatTime(item.start_time) || "Time to come"}</p>
