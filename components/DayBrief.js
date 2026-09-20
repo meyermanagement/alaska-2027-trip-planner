@@ -212,7 +212,7 @@ export default function DayBrief({
       {next && nextLeg?.options?.length > 0 && (
         <WaysThere
           options={nextLeg.options}
-          title={nextLeg.fromHere ? "From where you are" : "Getting there"}
+          title={nextLeg.originLabel || (nextLeg.fromHere ? "From your current location" : "Getting there")}
           distance={distanceSaid(nextLeg)}
         />
       )}

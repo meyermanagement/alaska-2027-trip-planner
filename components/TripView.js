@@ -32,6 +32,7 @@ import AskAlyDrawer from "./AskAlyDrawer";
 import ProTips from "./ProTips";
 import LookForTips from "./LookForTips";
 import OnTripTips from "./OnTripTips";
+import LocationProTips from "./LocationProTips";
 import { localDay, onTripWindow } from "@/lib/tips/onTrip";
 import TripChanges from "./TripChanges";
 import ClearedTips from "./ClearedTips";
@@ -334,6 +335,7 @@ export default function TripView({
     setTab(openingTabForLink(trip, localToday(), wanted, tabs.map(t => t.id)));
   }, [trip, initialTab, tabs]);
   const [itinerary, setItinerary] = useState(initialItinerary);
+  const [liveLocation, setLiveLocation] = useState(null);
   const [packing, setPacking] = useState(initialPacking);
   // The bags carried on particular days. Held beside the suitcase list rather than
   // inside it because the two lists mean different things by "packed".
@@ -914,8 +916,11 @@ export default function TripView({
           </>
         )}
         {tab === "itinerary" && (
+          <>
+          <LocationProTips key={`${trip.id}:${userId}`} trip={info} onLocationChange={setLiveLocation} />
           <Itinerary
             items={itinerary}
+            liveLocation={liveLocation}
             tripId={trip.id}
             familyId={info.family_id}
             tripStart={info.start_date}
@@ -943,6 +948,7 @@ export default function TripView({
             readOnly={readOnly}
             today={today}
           />
+          </>
         )}
         {tab === "packing" && (
           <Packing

@@ -28,6 +28,12 @@ import {
 import { minutesOf } from "@/lib/day/phase";
 import { normalizeHere } from "@/lib/places/here";
 import { homeToday } from "@/lib/format";
+import { routingFix, journeyOrigin } from "@/lib/travel/locationOrigin";
+import { optionalFeatureOn } from "@/lib/beta/consent";
+import { accountAge } from "@/lib/beta/accountAge";
+import { localDay, onTripWindow } from "@/lib/tips/onTrip";
+import { LOCATION_NOTICE } from "@/lib/tips/location";
+import { CHILD_VIEW_COOKIE } from "@/lib/childView/constants";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -71,6 +77,19 @@ function nearHome(home, to) {
 }
 
 export async function GET(request) {
+  return readDay(request);
+}
+
+export async function POST(request) {
+  if (request.cookies?.get(CHILD_VIEW_COOKIE) ||
+      (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin))
+    return NextResponse.json({ error: "Location access is unavailable." }, { status: 403 });
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request." }, { status: 400 }); }
+  return readDay(request, body);
+}
+
+async function readDay(request, body = null) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -88,23 +107,28 @@ export async function GET(request) {
   if (!/^[0-9a-f-]{36}$/i.test(tripId) || !/^\d{4}-\d{2}-\d{2}$/.test(date))
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
 
-  // Where the family says they are, if they have said. Only ever used to measure
-  // the first journey of the day from, never stored.
-  const here = normalizeHere({
-    lat: params.get("lat"),
-    lon: params.get("lon"),
-    accuracy: params.get("acc"),
-    source: params.get("src") || "manual",
-  });
+  // Query-string coordinates cannot opt a traveler into live routing.
+  let here = null;
 
   // RLS decides whether this trip is theirs; a row coming back is the check.
   const { data: trip, error: tripError } = await supabase
     .from("trips")
-    .select("id, family_id, name, destination, start_date, end_date")
+    .select("id, family_id, name, destination, start_date, end_date, status")
     .eq("id", tripId)
     .maybeSingle();
   if (tripError || !trip)
     return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  if (body?.location) {
+    const age = await accountAge(supabase, user.id);
+    const { data: preference, error: preferenceError } = await supabase.from("location_tip_preferences")
+      .select("enabled,notice_version").eq("user_id", user.id).eq("trip_id", tripId).maybeSingle();
+    const today = localDay(body.timeZone);
+    if (!age.unavailable && !age.minor && !preferenceError && preference?.enabled &&
+        preference.notice_version === LOCATION_NOTICE && date === today &&
+        onTripWindow(trip, today) && await optionalFeatureOn(supabase, user.id, "location"))
+      here = routingFix(body.location, true);
+  }
 
   // Where the household leaves from. Only read when nobody has said where they
   // are, because a saved address is a fact about the family and a shared position
@@ -122,15 +146,12 @@ export async function GET(request) {
     lat: household?.home_lat,
     lon: household?.home_lon,
   };
-  let home = null;
-  if (!here) {
-    home = normalizeHere({
+  const home = normalizeHere({
       lat: household?.home_lat,
       lon: household?.home_lon,
       label: household?.home_address,
       source: "manual",
-    });
-  }
+  });
 
   const { data: rows } = await supabase
     .from("itinerary_items")
@@ -264,7 +285,7 @@ export async function GET(request) {
   // Between consecutive items that both have a point. The first leg is measured
   // from wherever the family said they are, when they have said, because on the
   // morning of a day the useful question is how long it takes from here.
-  const timed = items.filter((i) => minutesOf(i.start_time) !== null);
+  const timed = items.filter((i) => minutesOf(i.start_time) !== null || i.id === nextId);
   // Whether the day being asked about is the day it currently is where the family
   // is standing. The trip's own zone, not the one back home: on the Alaska sailing
   // those are three hours apart, and an Anchorage morning is still yesterday in
@@ -284,12 +305,15 @@ export async function GET(request) {
     // is. So it lets the distance decide: within an hour or so of the driveway,
     // leaving from home is the likeliest reading of the day; past that the
     // family is already away and the honest answer is no departure time at all.
-    const from = previous
-      ? points.get(previous.id)
-      : here || (nearHome(home, to) ? home : null);
+    const origin = journeyOrigin({
+      here, isToday: Boolean(here) || isToday, itemId: item.id, nextId,
+      previous: previous ? points.get(previous.id) : null,
+      home: !previous && nearHome(home, to) ? home : null,
+    });
+    const from = origin.point;
     if (!from) continue;
 
-    const departAt = departureFor(date, item.start_time, forecast?.timezone);
+    const departAt = origin.fromHere ? new Date() : departureFor(date, item.start_time, forecast?.timezone);
     const key = [
       from.lat.toFixed(4),
       from.lon.toFixed(4),
@@ -299,10 +323,11 @@ export async function GET(request) {
       String(item.start_time || "").slice(0, 2),
     ].join(":");
 
-    let leg = legs.get(key);
+    // Personal origins never enter the shared in-memory route cache.
+    let leg = origin.fromHere ? undefined : legs.get(key);
     if (leg === undefined) {
       leg = await travelBetween(from, to, { departAt });
-      legs.set(key, leg);
+      if (!origin.fromHere) legs.set(key, leg);
     }
 
     // The routed times we have for this leg, by mode. Driving is the one every leg
@@ -331,10 +356,10 @@ export async function GET(request) {
             ? new Date()
             : departAt;
         const modeKey = `${key}:${mode}${at && !departAt ? ":now" : ""}`;
-        let hop = legs.get(modeKey);
+        let hop = origin.fromHere ? undefined : legs.get(modeKey);
         if (hop === undefined) {
           hop = await travelBetween(from, to, { departAt: at, mode });
-          legs.set(modeKey, hop);
+          if (!origin.fromHere) legs.set(modeKey, hop);
         }
         routed[name] = hop.minutes;
       }
@@ -342,8 +367,9 @@ export async function GET(request) {
 
     journeys.push({
       itemId: item.id,
-      fromItemId: previous?.id ?? null,
-      fromHere: !previous,
+      fromItemId: origin.fromHere ? null : previous?.id ?? null,
+      fromHere: origin.fromHere,
+      originLabel: origin.originLabel,
       ...leg,
       // Each way of getting there carries its own directions link, so the chip
       // that says "12 min drive" opens a driving route and the one that says
@@ -417,7 +443,7 @@ export async function GET(request) {
     // So the page can say why it is or is not offering a train, rather than just
     // being quiet about it.
     transit: { quality: transit.quality, said: transit.said },
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 /**

@@ -44,8 +44,7 @@ import ItemDrag, { DragGrip } from "@/components/ItemDrag";
 import EarlyForecast from "@/components/EarlyForecast";
 import DayPack from "@/components/DayPack";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
-import { askQuietly, readStored } from "@/components/WhereIAm";
-import { nearerTruth } from "@/lib/places/here";
+import { routingFix } from "@/lib/travel/locationOrigin";
 
 const UNSCHEDULED = "unscheduled";
 const DAY_MS = 86400000;
@@ -711,6 +710,7 @@ export default function Itinerary({
   dayTips = [],
   people = [],
   userId = null,
+  liveLocation = null,
   onDayPackChange = () => {},
   readOnly = false,
   // Today, worked out on the server in the family's own zone and handed down so
@@ -890,8 +890,8 @@ export default function Itinerary({
   // Only ever for the day being looked at, and only when that day belongs to the
   // trip window -- an unscheduled column has no weather and no journeys.
   const [dayData, setDayData] = useState(null);
-  // The phone's own position, once, for the day being lived. See askQuietly.
-  const [phone, setPhone] = useState(null);
+  // Only the explicitly enabled trip location flow can supply this ephemeral fix.
+  const dayRequest = useRef(0);
   // The exact question last put to /api/day. Every answer it gives costs geocoding
   // and routing calls, so the same question is never asked twice: a re-render, a
   // clock tick that changes nothing, and React's double mount in development all
@@ -933,27 +933,24 @@ export default function Itinerary({
       }
       const params = new URLSearchParams({ trip: tripId, date });
       if (nextId) params.set("next", nextId);
-      // The phone first, then whatever was typed. "How long to the next thing"
-      // is a question about where somebody is standing, so a live fix beats a
-      // place set in the drawer an hour ago -- unless the fix is too coarse to
-      // measure from, which nearerTruth is the judge of.
-      const here = nearerTruth(phone, readStored());
-      // Only sent for the day being lived. Measuring the first leg of a day three
-      // days out from where somebody is standing now is a number about nothing.
-      if (here && date === today) {
-        params.set("lat", String(here.lat));
-        params.set("lon", String(here.lon));
-        if (here.accuracy) params.set("acc", String(here.accuracy));
-        if (here.source) params.set("src", here.source);
-      }
+      // No saved chat/typed origin can silently opt somebody into live routing.
+      const here = date === today && nextId ? routingFix(liveLocation, true) : null;
       // The same question as last time cannot have a different answer, so it is
       // not asked. force is for after a research pass, where the question is word
       // for word the same and the answer genuinely has changed.
-      const query = params.toString();
+      const query = params.toString() + (here ? JSON.stringify(here) : "");
       if (!force && query === lastAsked.current) return;
       lastAsked.current = query;
+      const requestId = ++dayRequest.current;
       try {
-        const res = await fetch(`/api/day?${query}`);
+        // Coordinates never enter URLs, browser history or URL access logs.
+        const res = await fetch(`/api/day?${params.toString()}`, here ? {
+          method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+          body: JSON.stringify({ location: {
+            source: "device", latitude: here.lat, longitude: here.lon,
+            accuracy: here.accuracy, timestamp: here.timestamp,
+          }, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        } : { cache: "no-store" });
         if (!res.ok) {
           // Forget it, so a day that failed can be asked for again rather than
           // being permanently the one question we refuse to repeat.
@@ -962,13 +959,13 @@ export default function Itinerary({
         }
         const data = await res.json();
         // A slow answer for a day nobody is looking at any more is not an answer.
-        setDayData((prev) => (data.date === date ? data : prev));
+        if (requestId === dayRequest.current) setDayData((prev) => (data.date === date ? data : prev));
       } catch {
         lastAsked.current = "";
         /* the day still renders; the extras are extras */
       }
     },
-    [tripId, today, phone],
+    [tripId, today, liveLocation],
   );
 
   // Clearing belongs to changing days, not to loading one. It used to run on every
@@ -979,7 +976,14 @@ export default function Itinerary({
     setDayData(null);
     setResearchError("");
     lastAsked.current = "";
+    dayRequest.current += 1;
   }, [selected]);
+
+  useEffect(() => {
+    // Do not show an old personal-origin answer while its replacement loads.
+    setDayData(null);
+    dayRequest.current += 1;
+  }, [liveLocation]);
 
   useEffect(() => {
     if (!withinReach) return;
@@ -990,20 +994,8 @@ export default function Itinerary({
     loadDay(selected, nextIdOnSelected);
   }, [selected, withinReach, loadDay, nextIdOnSelected, nowHM]);
 
-  // Ask the phone where it is, once, and only while looking at the day of a trip
-  // that is actually happening. The day is loaded first and reloaded when the fix
-  // arrives, so nothing on screen waits for satellites: the times appear measured
-  // from whatever was known, and correct themselves a moment later.
-  useEffect(() => {
-    if (!withinReach || selected !== today || phone) return;
-    let live = true;
-    askQuietly().then((found) => {
-      if (live && found) setPhone(found);
-    });
-    return () => {
-      live = false;
-    };
-  }, [withinReach, selected, today, phone]);
+  // Location Pro tips owns the explicit foreground permission flow. Opening an
+  // itinerary must not trigger a second, silent browser location request.
 
   // The research pass. Separate call because it is slow and because it costs
   // money, so it runs once per day per change of plan rather than on every load.
