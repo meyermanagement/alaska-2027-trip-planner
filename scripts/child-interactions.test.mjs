@@ -29,7 +29,7 @@ test("only exact own-item and theme payloads are accepted",()=>{
   for(const body of [{skin:"other"},{skin:"frost",travelerId:id},{skin:null},[]]) assert.equal(validTheme(body),false);
 });
 test("child lock only opens the exact new routes and methods",()=>{
-  for(const path of ["/api/child/packing","/api/child/theme","/api/child/return"]) {
+  for(const path of ["/api/child/packing","/api/child/day-pack","/api/child/theme","/api/child/return"]) {
     assert.equal(childViewRouteAllowed(path,"POST"),true);
     for(const method of ["GET","DELETE","PATCH"]) assert.equal(childViewRouteAllowed(path,method),false);
   }

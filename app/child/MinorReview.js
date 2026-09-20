@@ -129,9 +129,12 @@ export default function MinorReview({ initial = null }) {
     // "Saved"; on an uncertain failure reload the authoritative, filtered view.
     const previousSkin = data.skin;
     if (kind === "theme") { applySkin(body.skin); setData(value => ({ ...value, skin: body.skin })); }
-    else setData(value => ({ ...value, trips: value.trips.map(trip => ({
-      ...trip, packing: trip.packing.map(item => item.id === body.itemId ? { ...item, is_packed: body.packed } : item),
-    })) }));
+    else {
+      const collection = kind === "day-pack" ? "day_pack" : "packing";
+      setData(value => ({ ...value, trips: value.trips.map(trip => ({
+        ...trip, [collection]: (trip[collection] || []).map(item => item.id === body.itemId ? { ...item, is_packed: body.packed } : item),
+      })) }));
+    }
     try {
       const response = await fetch(`/api/child/${kind}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -321,8 +324,9 @@ export default function MinorReview({ initial = null }) {
                 </>}
               </button>)}
             </div>
-            <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{day ? dateLabel(day) : "Itinerary"}</h2><span className="text-xs text-ink-soft">View only</span></div>
-            <ChildDayPack trip={trip} day={day} />
+            <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{day ? dateLabel(day) : "Itinerary"}</h2><span className="text-xs text-ink-soft">Plans are view only</span></div>
+            <ChildDayPack key={`${trip.id}:${day}`} trip={trip} day={day} defaultOpen={day === today}
+              busy={busy} onToggle={(itemId, packed, label) => save("day-pack", { itemId, packed }, label)} />
             {!itemsOnDay(trip, day).length && <p className="card p-5">No plans for this day yet.</p>}
             <ul className="space-y-3">{itemsOnDay(trip, day).map(item => <li key={item.id} className="card p-5">
               <p className="text-xs font-semibold text-teal">{item.item_date !== day ? "Continuing stay / activity" : formatTime(item.start_time) || "Time to come"}</p>

@@ -346,6 +346,8 @@ test("held child interactions preserve the parent boundary",async t=>{
       ('${id(706)}','${id(32)}','2027-01-03','Draft day pack',false,5,'Child','${id(51)}','PRIVATE','${parent}');
   `);
   await db.exec(readFileSync(new URL("../supabase/migrations/20261011_child_day_pack_view.sql",import.meta.url),"utf8"));
+  await db.exec("alter table day_pack_items add column packed_at timestamptz, add column packed_by uuid, add column updated_at timestamptz, add column updated_by uuid;");
+  await db.exec(readFileSync(new URL("../supabase/migrations/20261012_child_day_pack_checkmarks.sql",import.meta.url),"utf8"));
   const v2="2026-09-19-parent-view-2", h="9".repeat(64);
   await db.exec(`insert into auth.sessions values('${id(900)}','${parent}')`);
   await assert.rejects(open(parent,seat,id(900),h,notice),/verified/);
@@ -353,6 +355,43 @@ test("held child interactions preserve the parent boundary",async t=>{
   const pack=(item=id(51),value=true,token=h)=>db.query("select set_child_packing($1,$2,$3) as result",[token,item,value]);
   const theme=(skin="sodium",token=h)=>db.query("select set_child_theme($1,$2) as result",[token,skin]);
   const isolated=async(name,fn)=>t.test(name,async()=>{await admin();await db.exec("begin");try{await fn();}finally{await db.exec("rollback; reset role;");}});
+  const dayPack=(item=id(702),value=true,token=h)=>db.query("select set_child_day_pack($1,$2,$3) as result",[token,item,value]);
+  await isolated("own day-pack checkmarks persist independently of suitcase packing",async()=>{
+    const before=(await db.query("select * from day_pack_items where id=$1",[id(702)])).rows[0];
+    const suitcase=(await db.query("select * from packing_items")).rows;
+    await dayPack();
+    assert.equal((await read(h)).trips[0].day_pack.find(row=>row.id===id(702)).is_packed,true);
+    const after=(await db.query("select * from day_pack_items where id=$1",[id(702)])).rows[0];
+    assert.deepEqual(after,{...before,is_packed:true,packed_at:after.packed_at,updated_at:after.updated_at});
+    assert.ok(after.packed_at);
+    await dayPack(id(702),false);
+    assert.equal((await read(h)).trips[0].day_pack.find(row=>row.id===id(702)).is_packed,false);
+    assert.equal((await db.query("select packed_at from day_pack_items where id=$1",[id(702)])).rows[0].packed_at,null);
+    await dayPack(id(701),false); // Everyday rows use the same persisted flag as the regular app.
+    assert.equal((await read(h)).trips[0].day_pack.find(row=>row.id===id(701)).is_packed,false);
+    assert.deepEqual((await db.query("select * from packing_items")).rows,suitcase);
+  });
+  for(const [name,sql,item] of [
+    ["another traveler","",id(703)],["shared assignment","",id(704)],
+    ["stashed item","",id(705)],["missing item","",id(799)],["draft item","",id(706)],
+    ["pet item",`update packing_items set pet_id='${seat}' where id='${id(51)}'`],
+    ["duplicate name",`insert into travelers(id,family_id,name,is_person) values('${id(599)}','${family}',' child ',true)`],
+    ["reassignment",`update day_pack_items set assignee='Parent'`],
+    ["removed roster",`delete from trip_travelers where trip_id='${id(31)}'`],
+    ["draft trip",`update trips set status='draft' where id='${id(31)}'`],
+    ["foreign trip",`update trips set family_id='${id(11)}' where id='${id(31)}'`],
+    ["closed view","update parent_trip_views set closed_at=now()"],
+    ["expired view","update parent_trip_views set expires_at=now()-interval '1 second'"],
+    ["revoked consent","update beta_consents set withdrawn_at=now()"],
+    ["old notice","update parent_trip_views set notice_version='old'"],
+    ["changed identity",`update travelers set date_of_birth=date_of_birth-interval '1 day' where id='${seat}'`],
+    ["removed parent",`delete from family_members where user_id='${parent}'`],
+  ]) await isolated(`day-pack check rejects ${name}`,async()=>{
+    if(sql) await db.exec(sql); await assert.rejects(dayPack(item),/unavailable/);
+  });
+  for(const role of ["anon","authenticated"]) await isolated(`${role} cannot invoke day-pack writes`,async()=>{
+    await as(parent,id(102),role); await assert.rejects(dayPack(),/permission denied/);
+  });
   await isolated("day pack projects only own active items and minimal read-only fields",async()=>{
     const rows=(await read(h)).trips[0].day_pack;
     assert.deepEqual(rows,[
