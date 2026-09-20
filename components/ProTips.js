@@ -57,6 +57,7 @@ export default function ProTips({
   chain = null,
   heading = "Pro tips",
   lookLabel = null,
+  againLabel = null,
   description = null,
   // Whether this place can be looked at at all. A trip can; so can the Wallet,
   // which has no trip behind it; an itinerary card cannot, because a trip has
@@ -417,7 +418,7 @@ export default function ProTips({
             ) : (
               <>
                 <BinocularsIcon />
-                {lookLabel || (shown.length
+                {lookLabel || ((looked || everLooked || shown.length) && againLabel) || (shown.length
                   ? "Check for pro tips again"
                   : "Check for pro tips")}
               </>
@@ -505,11 +506,11 @@ export default function ProTips({
             />
           ))}
         </ul>
-      ) : (
+      ) : (looked || everLooked ? emptyLooked : emptyFresh) ? (
         <p className="text-sm leading-relaxed text-ink-soft">
-          {looked ? emptyLooked : emptyFresh}
+          {looked || everLooked ? emptyLooked : emptyFresh}
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

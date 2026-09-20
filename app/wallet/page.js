@@ -130,8 +130,9 @@ export default async function RewardsPage() {
           lastLookedAt={family?.wallet_looked_at}
           autoLook={hasHeldPrograms && !programsError}
           heading="Pro tips"
-          description="For cards and programs you already have. Checks when you open Wallet, up to once a day."
-          emptyLooked={hasHeldPrograms ? "No new tips right now. Aly looks for unused benefits, expiring points, credits and fees on what you hold." : "Add a card or program to get tips specific to what you have."}
+          againLabel="Run again"
+          description="For cards and programs you already have."
+          emptyLooked={hasHeldPrograms ? "" : "Add a card or program to get tips specific to what you have."}
           emptyFresh={programsError ? "Your saved programs could not be loaded. Automatic tips are paused until they can be read." : hasHeldPrograms ? "Aly will check the benefits, points, credits and fees on your saved cards and programs." : "Add a card or program to get tips specific to what you have."}
         />
         <ProTips
@@ -144,7 +145,7 @@ export default async function RewardsPage() {
           autoLook={false}
           heading="Current offers"
           lookLabel="Find offers"
-          description="Explore current offers on cards you don’t already have. Only checked when you ask."
+          description="Explore current offers on cards you don’t already have."
           emptyLooked="No new offers worth flagging right now."
           emptyFresh="Choose Find offers to check current welcome bonuses, spending requirements and annual fees."
         />

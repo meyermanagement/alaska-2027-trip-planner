@@ -14,11 +14,17 @@ test("Wallet separates owned-program tips from manually requested offers", () =>
   assert.match(panels[0], /tip.scope === "wallet"/);
   assert.match(panels[0], /autoLook=\{hasHeldPrograms && !programsError\}/);
   assert.match(panels[0], /lastLookedAt=\{family\?\.wallet_looked_at\}/);
+  assert.match(panels[0], /againLabel="Run again"/);
+  assert.match(panels[0], /emptyLooked=\{hasHeldPrograms \? ""/);
   assert.match(panels[1], /tip.scope === "offers"/);
   assert.match(panels[1], /autoLook=\{false\}/);
   assert.match(panels[1], /lookLabel="Find offers"/);
   const component = readFileSync(new URL("../components/ProTips.js", import.meta.url), "utf8");
   assert.match(component, /scope === "offers" \? "Finding offers…" : "Looking…"/);
+  assert.match(component, /\(looked \|\| everLooked \|\| shown.length\) && againLabel/);
+  for (const removed of ["Only checked when you ask.", "Checks when you open Wallet, up to once a day.", "No new tips right now. Aly looks for unused benefits, expiring points, credits and fees on what you hold."]) {
+    assert.ok(!page.includes(removed));
+  }
   assert.doesNotMatch(page, /chain=/);
 });
 
