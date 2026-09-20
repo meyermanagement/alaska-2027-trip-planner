@@ -52,7 +52,7 @@ export async function POST(request) {
       archiveRows.length > ARCHIVE_LIMIT || combined.length > ARCHIVE_LIMIT || direct.length > 30;
     if (ai && candidates.length) {
       try {
-        const result = await generate({ feature: "tips.archive-rank", system: RANK_SYSTEM,
+        const result = await generate({ feature: "tips.archive-rank", system: RANK_SYSTEM, responseFormat: "json",
           messages: [{ role: "user", text: JSON.stringify({ query, records: candidates.map(tip => ({
             id: tip.id, title: tip.title, body: String(tip.body || "").slice(0, 1800),
             because: String(tip.because || "").slice(0, 400),
@@ -69,6 +69,7 @@ export async function POST(request) {
       } catch { /* Return visible fallback wording, not an invented semantic result. */ }
     }
     return reply({ tips, mode, truncated, aiAvailable: ai,
+      semanticStatus: !ai ? "disabled" : semanticChecked ? "complete" : candidates.length ? "unavailable" : "not_needed",
       note: mode === "meaning" ? "Matched by words and meaning. Original advice has not been rechecked."
         : semanticChecked ? "Showing keyword matches. Original advice has not been rechecked."
           : "Showing keyword matches. Intelligent matching was unavailable; original advice has not been rechecked." });

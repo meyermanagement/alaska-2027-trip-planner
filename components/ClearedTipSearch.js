@@ -53,7 +53,11 @@ export default function ClearedTipSearch({ tripId, wallet, renderTip, onRestore,
       </div>
       <p className="mb-3 text-xs text-ink-soft">{result.note}</p>
       {result.truncated && <p className="mb-3 text-sm text-ink-soft">There are more possible matches than this search can rank at once. Try a more specific topic or place.</p>}
-      {!result.tips.length ? <p className="text-sm text-ink-soft">No matching cleared tips found. Try the place or a different description.</p>
+      {!result.tips.length ? <p className="text-sm text-ink-soft">{result.semanticStatus === "unavailable"
+        ? "The meaning-based search could not finish, and no keyword matches were found. Please try again."
+        : result.semanticStatus === "disabled"
+          ? "No keyword matches found. Meaning-based search is off because Aly access is disabled."
+          : "No matching cleared tips found. Try the place or a different description."}</p>
         : <ul className="space-y-3">{result.tips.map(tip => renderTip(tip, restore))}</ul>}
     </section>}
     {!result && !busy && children}

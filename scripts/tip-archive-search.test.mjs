@@ -7,6 +7,17 @@ const helpers = await import(moduleUrl(read("lib/tips/archiveSearch.js")));
 const { searchTerms, archiveFilter, selectedMatches, checkedAnswer, safeSources, keywordRank, directMatches, mergeMatches } = helpers;
 const id = "11111111-1111-4111-8111-111111111111";
 const tip = { id, title: "Motion sickness on the crossing", body: "Plan for the ferry.", trips: { name: "Alaska cruise" } };
+// Exercise the real shared response pipeline, not just a mocked generate().
+// Only provider/network and tool-name discovery are replaced.
+const spokenUrl = moduleUrl(read("lib/agent/spoken.js").replace(
+  'import { allToolNames } from "./toolset";',
+  'const allToolNames = () => ["offer_followups", "show_places"];',
+));
+const chainCode = read("lib/agent/llm.js")
+  .replace('import { ModelError } from "./model-error";', `import { ModelError } from "${moduleUrl(read("lib/agent/model-error.js"))}";`)
+  .replace(/import \* as (anthropic|gemini|openai) from "[^"]+";/g, "const $1 = {};")
+  .replace('import { liftSpokenCalls } from "./spoken";', `import { liftSpokenCalls } from "${spokenUrl}";`);
+const { runChain } = await import(moduleUrl(chainCode));
 
 test("natural-language expansion preserves synonyms beyond original query terms", () => {
   const terms = searchTerms("that tip about getting seasick on the cruise", ["motion sickness", "ferry"]);
@@ -68,7 +79,7 @@ async function route(path, context, model, db) {
     // ${Math.random()}
   `));
 }
-function setup({ ai = true, denied = false, rows = [tip], rowBatches, outputs = [] } = {}) {
+function setup({ ai = true, denied = false, rows = [tip], rowBatches, outputs = [], throughChain = false } = {}) {
   const log = [], calls = [];
   const supabase = { from(table) {
     const batch = rowBatches ? rowBatches.shift() || [] : rows;
@@ -83,7 +94,15 @@ function setup({ ai = true, denied = false, rows = [tip], rowBatches, outputs = 
   } };
   globalThis.__archiveTest = { helpers,
     context: async () => denied ? { error: "No access", status: 403 } : { supabase, familyId: "family", ai },
-    generate: async args => { calls.push(args); const out = outputs.shift(); if (out instanceof Error) throw out; return out || { text: '{"matches":[]}' }; },
+    generate: async args => {
+      calls.push(args);
+      const provider = { generate: async () => {
+        const out = outputs.shift();
+        if (out instanceof Error) throw out;
+        return out || { text: '{"matches":[]}' };
+      } };
+      return throughChain ? runChain(["gemini"], { gemini: provider }, args) : provider.generate();
+    },
   };
   return { log, calls };
 }
@@ -110,6 +129,60 @@ test("literal protection requires the whole query topic, not shared words or sub
   assert.deepEqual(directMatches(unrelated, searchTerms("fans")), []);
   assert.deepEqual(directMatches([neckFanTip], searchTerms("neck fans")).map(row => row.id), [id]);
   assert.deepEqual(directMatches([neckFanTip], []), []);
+});
+test("singular and plural item words match both ways without broad substring matches", () => {
+  for (const query of ["fan", "fans", "neck fan", "neck fans"]) {
+    for (const title of ["Leave neck fans behind", "Leave the neck fan behind"]) {
+      assert.deepEqual(directMatches([{ id, title }], searchTerms(query)).map(row => row.id), [id]);
+    }
+  }
+  assert.match(archiveFilter(searchTerms("fans")), /title.ilike.%fan%/);
+  assert.deepEqual(directMatches([{ id, title: "Fantastic fantasy cruise" }], ["fan"]), []);
+});
+test("structured results retain exact IDs through the real shared model pipeline; chat stays sanitized", async () => {
+  const text = JSON.stringify({ matches: [{ id, reason: "Cooling advice" }] });
+  const provider = { generate: async () => ({ text }) };
+  const args = { deadline: Date.now() + 10000 };
+  const chat = await runChain(["gemini"], { gemini: provider }, args);
+  assert.match(chat.text, /that one/);
+  assert.doesNotMatch(chat.text, new RegExp(id));
+  assert.equal(selectedMatches(chat.text, [neckFanTip]), null);
+  for (const raw of [text, `\`\`\`json\n${text}\n\`\`\``]) {
+    const result = await runChain(["gemini"], { gemini: { generate: async () => ({ text: raw }) } },
+      { ...args, responseFormat: "json" });
+    assert.equal(result.text, raw);
+    assert.deepEqual(selectedMatches(result.text, [neckFanTip]).map(row => row.id), [id]);
+  }
+  assert.match(read("lib/agent/llm.js"), /const request = \{[\s\S]*?responseFormat,/);
+});
+test("cool and staying cool survive the actual model cleanup layer and restore real records", async () => {
+  for (const query of ["cool", "staying cool"]) {
+    const { calls } = setup({ throughChain: true, rowBatches: [[], [neckFanTip]],
+      outputs: [{ text: JSON.stringify({ matches: [{ id, reason: "Personal fan advice" }] }) }] });
+    const { POST } = await route("app/api/tips/cleared/search/route.js");
+    const res = await POST(req({ query, scope: "trip", tripId: id }));
+    assert.deepEqual(res.data.tips.map(row => row.id), [id]);
+    assert.equal(res.data.mode, "meaning");
+    assert.equal(res.data.semanticStatus, "complete");
+    assert.equal(calls[0].responseFormat, "json");
+  }
+});
+test("fan and fans remain useful even if the real model pipeline returns no selections", async () => {
+  for (const query of ["fan", "fans"]) {
+    setup({ throughChain: true, rows: [neckFanTip], outputs: [{ text: '{"matches":[]}' }] });
+    const { POST } = await route("app/api/tips/cleared/search/route.js");
+    const res = await POST(req({ query, scope: "trip", tripId: id }));
+    assert.deepEqual(res.data.tips.map(row => row.id), [id]);
+  }
+});
+test("unusable record IDs surface an incomplete search, not a successful zero-result search", async () => {
+  setup({ throughChain: true, rowBatches: [[], [neckFanTip]],
+    outputs: [{ text: '{"matches":[{"id":"that one","reason":"Cooling advice"}]}' }] });
+  const { POST } = await route("app/api/tips/cleared/search/route.js");
+  const res = await POST(req({ query: "cool", scope: "trip", tripId: id }));
+  assert.equal(res.data.semanticStatus, "unavailable");
+  assert.match(res.data.note, /unavailable/);
+  assert.match(read("components/ClearedTipSearch.js"), /The meaning-based search could not finish/);
 });
 test("staying cool reaches the neck-fan tip without shared words and drops generic staying hits", async () => {
   const unrelated = { id: "hotel", title: "Staying at a resort", body: "Check in online." };
