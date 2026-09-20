@@ -5,6 +5,7 @@ import { announceTipResolved, onTipResolved } from "@/lib/tips/cleared";
 import { useRouter } from "next/navigation";
 import { compareTips, lookedToday, tipWhen } from "@/lib/tips/tip";
 import { lookOpening, lookSummary, runLook } from "@/lib/tips/run";
+import { walletLookDue } from "@/lib/tips/walletAuto";
 import { formatFullDay } from "@/lib/format";
 import { offerDate, offerHost } from "@/lib/rewards-offers";
 import { Spinner } from "./LinkPending";
@@ -43,7 +44,7 @@ export default function ProTips({
   // "no tips" and "no tips yet" — two states that deserve different words.
   everLooked = false,
   // Whether opening this screen should run the look on its own, rather than
-  // waiting to be asked. Opt-in only; Wallet explicitly disables it.
+  // waiting to be asked. Opt-in only; Wallet offers never opt in.
   // An opted-in look is held to once a day by lastLookedAt below.
   autoLook = false,
   // When a look last ran here, so the once-a-day gate can be judged against the
@@ -55,6 +56,8 @@ export default function ProTips({
   // empty it just looks at this one scope.
   chain = null,
   heading = "Pro tips",
+  lookLabel = null,
+  description = null,
   // Whether this place can be looked at at all. A trip can; so can the Wallet,
   // which has no trip behind it; an itinerary card cannot, because a trip has
   // thirty of them and the trip-level look already walks the bookings.
@@ -266,10 +269,12 @@ export default function ProTips({
     }
   }, []);
 
-  const look = useCallback(async () => {
+  const look = useCallback(async ({ automatic = false } = {}) => {
     setBusy(true);
     setProblem("");
-    const steps = chain && chain.length ? chain : [{ scope, itemId }];
+    const steps = automatic && scope === "wallet"
+      ? [{ scope: "wallet", automatic: true }]
+      : chain && chain.length ? chain : [{ scope, itemId }];
     // Named for where it is going, so the wait says something about this trip
     // rather than about the software. See lookOpening.
     const opening = lookOpening(steps);
@@ -346,14 +351,14 @@ export default function ProTips({
   // is what keeps it once: this component is remounted by a route change but
   // re-rendered constantly, and a look that fires twice costs twice.
   useEffect(() => {
-    if (!autoLook) return;
+    if (!autoLook || scope === "offers") return;
     if (!offersLook) return;
     if (autoRanRef.current) return;
     if (busy) return;
-    if (lookedToday(lastLookedAt)) return;
+    if (scope === "wallet" ? !walletLookDue(lastLookedAt) : lookedToday(lastLookedAt)) return;
     autoRanRef.current = true;
-    look();
-  }, [autoLook, offersLook, busy, lastLookedAt, look]);
+    look({ automatic: true });
+  }, [autoLook, scope, offersLook, busy, lastLookedAt, look]);
 
   // After the hooks, so a person's level changing does not change how many of
   // them run.
@@ -395,7 +400,7 @@ export default function ProTips({
         {offersLook ? (
           <button
             type="button"
-            onClick={look}
+            onClick={() => look()}
             disabled={busy}
             className="btn btn-primary btn-sm disabled:opacity-70"
           >
@@ -412,14 +417,15 @@ export default function ProTips({
             ) : (
               <>
                 <BinocularsIcon />
-                {shown.length
+                {lookLabel || (shown.length
                   ? "Check for pro tips again"
-                  : "Check for pro tips"}
+                  : "Check for pro tips")}
               </>
             )}
           </button>
         ) : null}
       </div>
+      {description ? <p className="mb-3 text-sm text-ink-soft">{description}</p> : null}
 
       {problem ? (
         <p role="alert" className="mb-2 text-sm text-rose">

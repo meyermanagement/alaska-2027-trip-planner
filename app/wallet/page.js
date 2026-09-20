@@ -65,10 +65,7 @@ export default async function RewardsPage() {
     });
   }
 
-  // The Wallet's own advice: what to do about the programs they hold, and which
-  // welcome offer is worth opening for. Both scopes into one list, because a
-  // reader does not care which pass produced a tip, and the sort puts whatever is
-  // most pressing first regardless.
+  // Read together, display separately: owned-program advice is not a new offer.
   const { data: tips } = await supabase
     .from("pro_tips")
     .select("*")
@@ -93,11 +90,9 @@ export default async function RewardsPage() {
 
   // Has anybody ever asked? "No tips" and "not looked yet" want different words,
   // and a cleared tip still counts as having looked.
-  const { count: everLooked } = await supabase
-    .from("pro_tips")
-    .select("id", { count: "exact", head: true })
-    .eq("family_id", familyId)
-    .in("scope", WALLET_SCOPES);
+  const { data: family } = await supabase.from("families")
+    .select("wallet_looked_at").eq("id", familyId).maybeSingle();
+  const hasHeldPrograms = Boolean(programs?.some((program) => program.is_active !== false));
 
   return (
     <>
@@ -124,24 +119,34 @@ export default async function RewardsPage() {
           Passports and travel documents live with each person in{" "}
           <Link href="/family" className="text-teal underline underline-offset-2">Family & pets</Link>.
         </p>
-        {/* Opening Wallet only reads saved tips. A new look is always requested
-            explicitly with the manual button, including the offers pass. */}
+        {/* Only advice about active holdings can run automatically. */}
         <ProTips
-          tips={tips || []}
-          offers={openOffers}
+          tips={(tips || []).filter((tip) => tip.scope === "wallet")}
           today={today}
           scope="wallet"
-          canLook
-          everLooked={Boolean(everLooked)}
-          autoLook={false}
+          canLook={hasHeldPrograms && !programsError}
+          showEmpty
+          everLooked={Boolean(family?.wallet_looked_at)}
+          lastLookedAt={family?.wallet_looked_at}
+          autoLook={hasHeldPrograms && !programsError}
           heading="Pro tips"
-          chain={[{ scope: "wallet" }, { scope: "offers" }]}
-          emptyLooked="Nothing worth telling you about the Wallet right now. Tips appear when a credit is going unused, points are about to lapse, a fee is coming round, or a welcome bonus on a card you do not hold is worth the spending you already have planned."
-          emptyFresh={
-            programs?.length
-              ? "Nothing here yet. Ask for a look and Aly will go through what you hold — expiring points, unspent credits, fees against the perks you actually use — and check what today's welcome offers are on cards you do not have."
-              : "Nothing saved here yet, which is fine — ask for a look anyway. With an empty Wallet Aly answers the beginner's question instead: which travel card to open first, why that one, what the bonus is today and what it costs to keep, read off the issuer's own page rather than remembered."
-          }
+          description="For cards and programs you already have. Checks when you open Wallet, up to once a day."
+          emptyLooked={hasHeldPrograms ? "No new tips right now. Aly looks for unused benefits, expiring points, credits and fees on what you hold." : "Add a card or program to get tips specific to what you have."}
+          emptyFresh={programsError ? "Your saved programs could not be loaded. Automatic tips are paused until they can be read." : hasHeldPrograms ? "Aly will check the benefits, points, credits and fees on your saved cards and programs." : "Add a card or program to get tips specific to what you have."}
+        />
+        <ProTips
+          tips={(tips || []).filter((tip) => tip.scope === "offers")}
+          offers={openOffers}
+          today={today}
+          scope="offers"
+          canLook={!programsError}
+          showEmpty
+          autoLook={false}
+          heading="Current offers"
+          lookLabel="See offers"
+          description="Explore current offers on cards you don’t already have. Only checked when you ask."
+          emptyLooked="No new offers worth flagging right now."
+          emptyFresh="Choose See offers to check current welcome bonuses, spending requirements and annual fees."
         />
         {/* The live advice stays above the tabs, because it is the answer to the
             question people open this screen with, and a tab strip over the top of

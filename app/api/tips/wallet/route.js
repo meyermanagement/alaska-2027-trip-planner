@@ -8,9 +8,8 @@
 //
 // One model call per request, same as the trip route and for the same reason: a
 // grounded look-up takes tens of seconds and the platform stops listening. The
-// browser asks twice — once for the programs they hold, once for the offers on
-// cards they do not — and the loop that does the asking is the same one the trip
-// button uses.
+// browser asks each question separately: owned-program tips on open (daily),
+// current offers only on demand. The loop is also used by the trip button.
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -18,6 +17,7 @@ import { todayISO } from "@/lib/reminders";
 import { resolveAccess } from "@/lib/travelers/access";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
 import { walletTips } from "@/lib/tips/wallet";
+import { claimWalletLook } from "@/lib/tips/walletAuto";
 import { ledgerRow, staleOffers } from "@/lib/rewards-offers";
 
 export const runtime = "nodejs";
@@ -36,21 +36,8 @@ const MODEL_BUDGET_MS = 95000;
 const bad = (message, status = 400) =>
   NextResponse.json({ error: message }, { status });
 
-/**
- * Remember that the Wallet was looked at.
- *
- * The Wallet screen runs this look on open rather than waiting to be asked, and
- * this stamp is the only thing stopping it running on every open -- two grounded
- * model calls, several times a day, for answers that have not changed since
- * breakfast. It moves on any successful answer, including the honest "nothing
- * worth telling you" and the empty-Wallet reply, because the question the screen
- * asks is whether anybody looked today and not whether the look found something.
- *
- * Deliberately not fatal. A look that ran, found something and saved it, then
- * failed to move a timestamp, has done the useful part; the cost of the failure
- * is one extra look tomorrow, which is not worth throwing the answer away for.
- * It is logged so the once-a-day gate silently degrading is findable.
- */
+// Successful manual held-program checks also postpone the next automatic check.
+// Automatic requests claim atomically before research; offers never stamp this.
 async function stampLooked(supabase, familyId) {
   const { error } = await supabase
     .from("families")
@@ -93,13 +80,29 @@ export async function POST(request) {
   // record and the insert would be refused anyway. Said properly here rather than
   // left to fail somewhere less legible.
   const access = await resolveAccess(supabase, user);
-  if (access?.can.isSecondary)
+  if (!access || access.can.isSecondary)
     return bad("Only a primary traveler can look for wallet tips.", 403);
+
+  const automatic = body?.automatic === true;
+  if (automatic && scope === "offers")
+    return bad("Offers are only checked when you choose See offers.");
+  if (automatic) {
+    try {
+      if (!await claimWalletLook(supabase, familyId)) {
+        return NextResponse.json({
+          step: scope, done: true, added: 0,
+          note: "The daily Wallet check has already started or run. You can check again manually.",
+        });
+      }
+    } catch (error) {
+      return bad(error.message, 503);
+    }
+  }
 
   const today = todayISO();
 
   const [
-    { data: programs },
+    { data: programs, error: programsError },
     { data: travelers },
     { data: trips },
     { data: preferences },
@@ -135,6 +138,8 @@ export async function POST(request) {
     // November wearing the same terms.
     supabase.from("card_offers").select("*").eq("family_id", familyId),
   ]);
+  if (programsError)
+    return bad("Your saved cards and programs could not be read. Please try again.", 503);
 
   // Offers whose end date has gone by are no longer open, whatever the ledger
   // says. Done before the model is asked so the brief does not present a dead
@@ -148,19 +153,16 @@ export async function POST(request) {
   }
   const liveLedger = (ledger || []).filter((row) => !expired.includes(row.id));
 
-  // An empty Wallet stops only half the question. There is nothing to say about
-  // programs they do not have, but "which card should we open first" is exactly
-  // the question somebody with nothing asks, and the offers pass answers it -- the
-  // brief and the rules switch to a first-card footing rather than refusing.
-  if (!programs?.length && scope === "wallet") {
-    await stampLooked(supabase, familyId);
+  // Closed programs are not holdings. Offers are a separate, explicit request.
+  if (!programs?.some((program) => program.is_active !== false) && scope === "wallet") {
+    if (!automatic) await stampLooked(supabase, familyId);
     return NextResponse.json({
       step: scope,
       done: true,
       added: 0,
       considered: 0,
       dropped: [],
-      note: "Nothing is saved in the Wallet yet, so there was nothing to say about what you already hold. The card offers were still checked, and nothing on offer today was worth telling you to open — which happens, and is a real answer.",
+      note: "Add an active card or program to get tips about what you have. Current offers are only checked when you choose See offers.",
     });
   }
 
@@ -215,7 +217,7 @@ export async function POST(request) {
         error: error?.timedOut
           ? `${error.message} ${
               scope === "offers"
-                ? "Checking today's welcome offers means reading the issuers' own pages, which can run past what one request is allowed. Press Check for pro tips again."
+                ? "Checking today's welcome offers means reading the issuers' own pages, which can run past what one request is allowed. Press See offers to try again."
                 : "Press Check for pro tips again — anything already found is saved."
             }`
           : error?.message || "The assistant could not be reached.",
@@ -308,7 +310,7 @@ export async function POST(request) {
     } ms=${Date.now() - startedAt}`,
   );
 
-  await stampLooked(supabase, familyId);
+  if (scope === "wallet" && !automatic) await stampLooked(supabase, familyId);
 
   return NextResponse.json({
     step: scope,
