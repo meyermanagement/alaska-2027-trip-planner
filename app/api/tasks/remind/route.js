@@ -93,9 +93,12 @@ export async function GET(request) {
   }
 
   const parentKeyAlerts = await deliverParentKeyAlerts(supabase).catch(() => ({ sent: 0, pending: true }));
+  // Emails have already run independently. An audit/retention failure must
+  // still be visible to the scheduler instead of hiding behind an HTTP 200.
+  const ok = outcome.ok && retention.ok;
   return NextResponse.json(
-    { ...outcome, retention, deletions, parentKeyAlerts },
-    { status: outcome.ok ? 200 : 500 },
+    { ...outcome, ok, remindersOk: outcome.ok, retention, deletions, parentKeyAlerts },
+    { status: ok ? 200 : 500 },
   );
 }
 
