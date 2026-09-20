@@ -100,6 +100,57 @@ test("literal matches cover all stored searchable fields, without treating trip 
   assert.deepEqual(directMatches([{ id, trips: { name: "Fans" } }], ["fans"]), []);
   assert.deepEqual(directMatches([neckFanTip], ["ferry"]), []);
 });
+test("literal protection requires the whole query topic, not shared words or substrings", () => {
+  const unrelated = [
+    { id: "stay", title: "Staying at a resort", body: "Use online check-in." },
+    { id: "cool", title: "A cool restaurant", body: "Reserve dinner ahead." },
+    { id: "substring", title: "Fantastic restaurants", body: "Our fantasy itinerary." },
+  ];
+  assert.deepEqual(directMatches(unrelated, searchTerms("staying cool")), []);
+  assert.deepEqual(directMatches(unrelated, searchTerms("fans")), []);
+  assert.deepEqual(directMatches([neckFanTip], searchTerms("neck fans")).map(row => row.id), [id]);
+  assert.deepEqual(directMatches([neckFanTip], []), []);
+});
+test("staying cool reaches the neck-fan tip without shared words and drops generic staying hits", async () => {
+  const unrelated = { id: "hotel", title: "Staying at a resort", body: "Check in online." };
+  const { calls, log } = setup({
+    rowBatches: [[unrelated], [unrelated, neckFanTip]],
+    outputs: [{ text: JSON.stringify({ matches: [{ id, reason: "Advice about whether personal fans are needed for heat relief." }] }) }],
+  });
+  const { POST } = await route("app/api/tips/cleared/search/route.js");
+  const res = await POST(req({ query: "Staying cool", scope: "trip", tripId: id }));
+  assert.equal(res.data.mode, "meaning");
+  assert.deepEqual(res.data.tips.map(row => row.id), [id]);
+  assert.equal(res.data.truncated, false); // Rejecting irrelevant tips is not truncation.
+  const records = JSON.parse(calls[0].messages[0].text).records;
+  assert.ok(records.some(row => row.id === neckFanTip.id));
+  assert.equal(calls.length, 1); // No synonym-generation round trip.
+  assert.equal(log.filter(row => row[1] === "or").length, 1);
+});
+test("semantic outages and empty results never dump the broad archive or weak partial matches", async () => {
+  const unrelated = { id: "hotel", title: "Staying at a resort" };
+  for (const result of [{ text: '{"matches":[]}' }, { text: "invalid" }, new Error("unavailable")]) {
+    setup({ rowBatches: [[unrelated], [unrelated, neckFanTip]], outputs: [result] });
+    const { POST } = await route("app/api/tips/cleared/search/route.js");
+    const res = await POST(req({ query: "staying cool", scope: "trip", tripId: id }));
+    assert.deepEqual(res.data.tips, []);
+    if (result.text !== '{"matches":[]}') assert.match(res.data.note, /unavailable/);
+  }
+});
+test("AI-off natural-language search does not read the broad archive or claim related results", async () => {
+  const { calls, log } = setup({ ai: false, rows: [{ id: "hotel", title: "Staying at a resort" }] });
+  const { POST } = await route("app/api/tips/cleared/search/route.js");
+  const res = await POST(req({ query: "staying cool", scope: "trip", tripId: id }));
+  assert.deepEqual(res.data.tips, []);
+  assert.equal(calls.length, 0);
+  assert.equal(log.filter(row => row[1] === "select").length, 1);
+});
+test("semantic prompt distinguishes related negative advice from generic travel associations", () => {
+  assert.match(helpers.RANK_SYSTEM, /Read every supplied record/);
+  assert.match(helpers.RANK_SYSTEM, /advice AGAINST/);
+  assert.match(helpers.RANK_SYSTEM, /Exclude records/);
+  assert.match(helpers.RANK_SYSTEM, /untrusted data/);
+});
 test("direct matches survive empty, invalid and unrelated semantic selections", async () => {
   for (const ranking of [
     '{"matches":[]}', "[]", "bad JSON",
@@ -108,7 +159,7 @@ test("direct matches survive empty, invalid and unrelated semantic selections", 
     new Error("ranking unavailable"),
   ]) {
     setup({ rows: [neckFanTip, { id: "other", title: "Bring a cooling towel" }],
-      outputs: [{ text: '{"terms":["cooling"]}' }, ranking instanceof Error ? ranking : { text: ranking }] });
+      outputs: [ranking instanceof Error ? ranking : { text: ranking }] });
     const { POST } = await route("app/api/tips/cleared/search/route.js");
     const res = await POST(req({ query: "fans", scope: "trip", tripId: id }));
     assert.equal(res.status, 200);
@@ -126,7 +177,7 @@ test("direct matches are not duplicated when also selected by meaning", () => {
 test("older direct matches survive more than 100 newer related hits with every query scoped", async () => {
   const { log } = setup({
     rowBatches: [[neckFanTip], Array.from({ length: 101 }, (_, n) => ({ id: `related-${n}`, title: "Cooling towel" }))],
-    outputs: [{ text: '{"terms":["cooling"]}' }, { text: '{"matches":[]}' }],
+    outputs: [{ text: '{"matches":[]}' }],
   });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
   const res = await POST(req({ query: "fans", scope: "trip", tripId: id }));
@@ -146,21 +197,22 @@ test("fans still finds neck fans with AI disabled, and genuine no-matches stay e
     assert.equal(calls.length, 0);
   }
 });
-test("search route scopes database reads, expands and ranks actual archive IDs", async () => {
-  const { log, calls } = setup({ outputs: [{ text: '{"terms":["motion sickness"]}' }, { text: JSON.stringify({ matches: [{ id, reason: "Seasickness advice" }] }) }] });
+test("search route scopes database reads and ranks archive IDs without a keyword gate", async () => {
+  const { log, calls } = setup({ rowBatches: [[], [tip]], outputs: [{ text: JSON.stringify({ matches: [{ id, reason: "Seasickness advice" }] }) }] });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
   const res = await POST(req({ query: "getting seasick on the boat", scope: "trip", tripId: id }));
   assert.equal(res.status, 200); assert.equal(res.data.mode, "meaning"); assert.equal(res.data.tips[0].id, id);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
   assert.ok(log.some(row => row[0] === "pro_tips" && row[1] === "eq" && row[2] === "family_id"));
   assert.ok(log.some(row => row[0] === "pro_tips" && row[1] === "eq" && row[2] === "trip_id" && row[3] === id));
   assert.ok(!log.some(row => row[0] === "trips"));
   assert.ok(log.some(row => row[1] === "in" && row[2] === "status" && row[3].includes("cleared")));
-  assert.ok(log.some(row => row[1] === "or" && row[2].includes("motion sickness")));
+  assert.equal(log.filter(row => row[1] === "or").length, 1);
+  assert.match(calls[0].messages[0].text, /Motion sickness/);
   assert.ok(!log.some(row => ["insert", "update", "delete"].includes(row[1])));
 });
 test("AI-off search stays useful without any model call; large candidate sets are disclosed", async () => {
-  const { calls } = setup({ ai: false, rows: Array.from({ length: 101 }, (_, n) => ({ ...tip, id: String(n) })) });
+  const { calls } = setup({ ai: false, rows: Array.from({ length: 101 }, (_, n) => ({ ...tip, title: "Cruise motion sickness", id: String(n) })) });
   const { POST } = await route("app/api/tips/cleared/search/route.js");
   const res = await POST(req({ query: "cruise", scope: "trip", tripId: id }));
   assert.equal(res.data.mode, "keywords"); assert.equal(calls.length, 0);
