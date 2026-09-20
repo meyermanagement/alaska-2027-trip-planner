@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
+import BetterTogether from "@/components/BetterTogether";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import AskDemo from "@/components/home/AskDemo";
 import HeroFilm from "@/components/home/HeroFilm";
@@ -534,6 +535,8 @@ export default function HomeLanding() {
             </div>
           }
         />
+
+        <BetterTogether />
 
         <Scene
           label="When it changes"

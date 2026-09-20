@@ -9,6 +9,9 @@ import { FAMILY_FORM_COPY, OWN_GENDER_TERM, welcomeGender } from "@/lib/traveler
 import HomePicker, { locateHome } from "@/components/HomePicker";
 import AlyKnowsSidebar from "@/components/AlyKnowsSidebar";
 import { patchRun } from "@/lib/practice/session";
+import { welcomeAccess, wantsWelcomeInvite } from "@/lib/welcome/access";
+import TravelerAccessChoice from "./TravelerAccessChoice";
+import WelcomeInvitations from "./WelcomeInvitations";
 
 /**
  * The first-login form.
@@ -66,9 +69,15 @@ export default function WelcomeForm({
   // Populated in practice mode with what would have been written. Rendered
   // below the button in place of the real navigation.
   const [preview, setPreview] = useState(null);
+  const [savedPeople, setSavedPeople] = useState(null);
+  const [invitations, setInvitations] = useState(null);
 
   function setPerson(i, patch) {
-    setPeople((all) => all.map((r, n) => (n === i ? { ...r, ...patch } : r)));
+    setPeople((all) => all.map((r, n) => (n === i ? {
+      ...r, ...patch,
+      // A changed birthday invalidates a choice made for a different age.
+      ...(Object.hasOwn(patch, "dob") ? { accessChoice: undefined } : {}),
+    } : r)));
   }
   function addPerson() {
     setPeople((all) => [...all, { name: "", dob: "", gender: "" }]);
@@ -113,10 +122,11 @@ export default function WelcomeForm({
     if (practice) {
       const typed = address.trim().replace(/\s+/g, " ");
       const cleanPeople = people
-        .map((r) => ({
+        .map((r, i) => ({
           name: (r.name || "").trim(),
           dob: (r.dob || "").trim() || null,
           gender: welcomeGender(r),
+          access_level: i === 0 ? "primary" : welcomeAccess(r),
         }))
         .filter((r) => r.name.length > 0);
       if (cleanPeople.length === 0) {
@@ -189,9 +199,8 @@ export default function WelcomeForm({
     // Sort order runs from the top of the form so the primary is first on the
     // Family screen. The first non-empty row is the person filling this in --
     // primary, linked to the auth user, tagged with their email. Every other
-    // row is a secondary traveler: they belong to the family, they show up on
-    // trips, they can be given a seat later on the Family screen, but this
-    // form does not create logins for them.
+    // row defaults to secondary unless a known adult explicitly chose Help
+    // plan. Profiles still have no email/login; invitation review is separate.
     const clean = people
       .map((r, i) => ({
         name: (r.name || "").trim(),
@@ -201,6 +210,8 @@ export default function WelcomeForm({
         // Only the four canonical values reach here; "Another term" is a
         // Family-screen feature.
         gender: welcomeGender(r),
+        access_level: i === 0 ? "primary" : welcomeAccess(r),
+        invite: i > 0 && wantsWelcomeInvite(r),
         sort_order: i + 1,
       }))
       .filter((r) => r.name.length > 0);
@@ -216,17 +227,24 @@ export default function WelcomeForm({
       sort_order: r.sort_order,
       date_of_birth: r.dob,
       gender: r.gender,
-      access_level: idx === 0 ? "primary" : "secondary",
+      access_level: r.access_level,
       // The primary row is the person signing in, so it carries the auth
       // identity. Secondaries have no login yet.
       user_id: idx === 0 ? myUserId : null,
       email: idx === 0 ? myEmail || null : null,
     }));
-    const { error: peopleErr } = await supabase.from("travelers").insert(rows);
-    if (peopleErr) {
-      setBusy(false);
-      setError(peopleErr.message);
-      return;
+    let writtenPeople = savedPeople;
+    if (!writtenPeople) {
+      const { data, error: peopleErr } = await supabase.from("travelers")
+        .insert(rows).select("id, name, sort_order, access_level");
+      if (peopleErr || !data || data.length !== rows.length) {
+        setBusy(false);
+        setError(peopleErr?.message || "Your traveler profiles could not be confirmed. Refresh Family before retrying.");
+        return;
+      }
+      writtenPeople = data;
+      // A pet-save retry must not insert the travelers for a second time.
+      setSavedPeople(data);
     }
 
     // Pets. Same shape.
@@ -254,11 +272,22 @@ export default function WelcomeForm({
     }
 
     setBusy(false);
+    const inviteOrders = new Set(clean.filter(r => r.invite).map(r => r.sort_order));
+    const toInvite = writtenPeople.filter(r => inviteOrders.has(r.sort_order));
+    if (toInvite.length) {
+      setInvitations(toInvite);
+      return;
+    }
     // First-login chain: Welcome (this form) hands off to About-you with the
     // interview as its next stop, so the primary answers the paragraph about
     // themselves and then walks straight into the ten-question interview
     // without having to find either screen from the Family tab.
     router.push("/about-you?first=1&next=/interview");
+  }
+
+  if (invitations) {
+    return <WelcomeInvitations people={invitations}
+      onContinue={() => router.push("/about-you?first=1&next=/interview")} />;
   }
 
   return (
@@ -267,9 +296,13 @@ export default function WelcomeForm({
         className="space-y-6"
         onSubmit={(event) => {
           event.preventDefault();
-          save();
+          save().catch(() => {
+            setBusy(false);
+            setError("Saving was interrupted. Check your connection and try again.");
+          });
         }}
       >
+        <fieldset disabled={busy || !!savedPeople} className="space-y-6">
         <section className="card p-4">
           <label className="section-label block" htmlFor="welcome-family-name">
             {FAMILY_FORM_COPY.householdLabel} (optional)
@@ -313,7 +346,7 @@ export default function WelcomeForm({
           <p className="mt-1 text-xs text-ink-soft">
             Start with yourself, then add anyone you regularly travel with.
             Adding a person creates a profile, not a login. You can invite them
-            later from Family.
+            after saving, or later from Family.
           </p>
           <div className="mt-3 space-y-4">
             {people.map((row, i) => (
@@ -384,6 +417,8 @@ export default function WelcomeForm({
                   </label>
                 </div>
                 <p className="text-xs text-ink-soft">{FAMILY_FORM_COPY.genderHelp}</p>
+                {i > 0 && <TravelerAccessChoice person={row} index={i} disabled={busy}
+                  onChange={accessChoice => setPerson(i, { accessChoice })} />}
               </div>
             ))}
           </div>
@@ -459,6 +494,7 @@ export default function WelcomeForm({
           </button>
         </section>
 
+        </fieldset>
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
@@ -474,7 +510,9 @@ export default function WelcomeForm({
           )}
           {!practice && (
             <p className="text-xs text-ink-soft">
-              Next: About you. You can edit these details later in Family.
+              {people.slice(1).some(person => wantsWelcomeInvite(person))
+                ? "Next: optional invitation review, then About you. Nothing is sent when you save."
+                : "Next: About you. You can edit these details later in Family."}
             </p>
           )}
         </div>
@@ -489,6 +527,10 @@ export default function WelcomeForm({
         people={people}
         pets={pets}
       />
+      {preview && people.slice(1).some(person => wantsWelcomeInvite(person)) &&
+        <div className="lg:col-span-2"><WelcomeInvitations practice people={people.slice(1).filter(person => wantsWelcomeInvite(person)).map((person, i) => ({
+          id: `practice-${i}`, name: person.name.trim(), access_level: welcomeAccess(person),
+        }))} onContinue={() => router.push("/interview-check/about-you")} /></div>}
     </div>
   );
 }
@@ -526,6 +568,7 @@ function WelcomePreview({ preview }) {
             <li key={i}>
               {p.name}
               {i === 0 ? " (you)" : " (no login yet)"}
+              {i > 0 ? ` · ${p.access_level === "primary" ? "Help plan" : "Travel with us"}` : ""}
               {p.dob ? ` — born ${p.dob}` : ""}
               {p.gender ? ` — ${genderLabel(p.gender)}` : ""}
             </li>
