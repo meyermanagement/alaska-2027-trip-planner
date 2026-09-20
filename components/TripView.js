@@ -933,12 +933,11 @@ export default function TripView({
             people={goingNames}
             userId={userId}
             onDayPackChange={() => {
-              refetch("day_pack_items");
               // A day pack write can touch the case too: adding something puts it
               // on the list when it is not there, and taking it off can remove it
               // when the family says so. Refreshing only the one table left the
               // packing screen a version behind.
-              refetch("packing_items");
+              return Promise.all([refetch("day_pack_items"), refetch("packing_items")]);
             }}
             onChange={() => refetch("itinerary_items")}
             readOnly={readOnly}
@@ -955,8 +954,7 @@ export default function TripView({
             dayTips={tips.filter((tip) => tip.scope === "daypack")}
             onDayPackChange={() => {
               // Both tables, for the reason given on the itinerary above.
-              refetch("day_pack_items");
-              refetch("packing_items");
+              return Promise.all([refetch("day_pack_items"), refetch("packing_items")]);
             }}
             today={today}
             everLooked={everLooked}

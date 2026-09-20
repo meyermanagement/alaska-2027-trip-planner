@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dayPackLines, isThing, packedLabel } from "@/lib/daypack/pack";
+import { canCheckDayPack, saveDayPackCheck } from "@/lib/daypack/check";
 import { announceTipResolved } from "@/lib/tips/cleared";
 import { ensureCaseRow, matchCaseRow } from "@/lib/daypack/link";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
@@ -85,9 +86,23 @@ export default function DayPack({
   if (readOnly && !lines.length) return null;
 
   async function toggle(line) {
-    if (readOnly) return;
+    if (busy || !canCheckDayPack(line, { readOnly, userId })) return;
     setBusy(line.key);
     setError("");
+    if (line.kind === "row") {
+      try {
+        await saveDayPackCheck({
+          supabase, tripId, rowId: line.rowId,
+          packed: !line.isPacked, userId,
+        });
+        await onChange();
+      } catch {
+        setError("That could not be saved. Try again.");
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
     const now = new Date().toISOString();
     if (line.kind === "tip") {
       // Accepting advice and packing it are the same gesture, so the row is
@@ -140,19 +155,6 @@ export default function DayPack({
         .from("pro_tips")
         .update({ status: "done", resolved_by: userId, resolved_at: now })
         .eq("id", line.tipId);
-    } else {
-      const next = !line.isPacked;
-      const { error: writeError } = await supabase
-        .from("day_pack_items")
-        .update({
-          is_packed: next,
-          packed_by: next ? userId : null,
-          packed_at: next ? now : null,
-          updated_by: userId,
-          updated_at: now,
-        })
-        .eq("id", line.rowId);
-      if (writeError) setError("That could not be saved. Try again.");
     }
     setBusy(null);
     onChange();
@@ -326,7 +328,7 @@ export default function DayPack({
               <input
                 type="checkbox"
                 checked={line.isPacked}
-                disabled={readOnly || busy === line.key}
+                disabled={Boolean(busy) || !canCheckDayPack(line, { readOnly, userId })}
                 onChange={() => toggle(line)}
                 aria-label={`${line.isPacked ? "Take" : "Put"} “${line.item}” ${
                   line.isPacked ? "out of" : "in"
@@ -341,6 +343,9 @@ export default function DayPack({
                 >
                   {line.item}
                 </span>
+                {busy === line.key && (
+                  <span role="status" className="ml-2 text-xs text-ink-soft">Saving…</span>
+                )}
                 {line.assignee && line.assignee !== "Shared" && (
                   <span
                     className={`ml-2 whitespace-nowrap rounded-full px-1.5 py-0.5 align-middle text-xs ${assigneeColor(
