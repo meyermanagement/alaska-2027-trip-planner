@@ -16,7 +16,9 @@ test("Wallet separates owned-program tips from manually requested offers", () =>
   assert.match(panels[0], /lastLookedAt=\{family\?\.wallet_looked_at\}/);
   assert.match(panels[1], /tip.scope === "offers"/);
   assert.match(panels[1], /autoLook=\{false\}/);
-  assert.match(panels[1], /lookLabel="See offers"/);
+  assert.match(panels[1], /lookLabel="Find offers"/);
+  const component = readFileSync(new URL("../components/ProTips.js", import.meta.url), "utf8");
+  assert.match(component, /scope === "offers" \? "Finding offers…" : "Looking…"/);
   assert.doesNotMatch(page, /chain=/);
 });
 
@@ -128,7 +130,7 @@ test("empty and closed-only wallets never call the model; read errors are not em
     const q=setup({scopePrograms});
     const response=await q.send({scope:"wallet",automatic:true});
     assert.equal(response.status,200);
-    assert.match((await response.json()).note,/only checked when you choose See offers/);
+    assert.match((await response.json()).note,/only checked when you choose Find offers/);
     assert.equal(q.models.length,0);
   }
   const q=setup({readError:true});

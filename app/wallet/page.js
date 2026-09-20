@@ -143,10 +143,10 @@ export default async function RewardsPage() {
           showEmpty
           autoLook={false}
           heading="Current offers"
-          lookLabel="See offers"
+          lookLabel="Find offers"
           description="Explore current offers on cards you don’t already have. Only checked when you ask."
           emptyLooked="No new offers worth flagging right now."
-          emptyFresh="Choose See offers to check current welcome bonuses, spending requirements and annual fees."
+          emptyFresh="Choose Find offers to check current welcome bonuses, spending requirements and annual fees."
         />
         {/* The live advice stays above the tabs, because it is the answer to the
             question people open this screen with, and a tab strip over the top of

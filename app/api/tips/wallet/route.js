@@ -85,7 +85,7 @@ export async function POST(request) {
 
   const automatic = body?.automatic === true;
   if (automatic && scope === "offers")
-    return bad("Offers are only checked when you choose See offers.");
+    return bad("Offers are only checked when you choose Find offers.");
   if (automatic) {
     try {
       if (!await claimWalletLook(supabase, familyId)) {
@@ -162,7 +162,7 @@ export async function POST(request) {
       added: 0,
       considered: 0,
       dropped: [],
-      note: "Add an active card or program to get tips about what you have. Current offers are only checked when you choose See offers.",
+      note: "Add an active card or program to get tips about what you have. Current offers are only checked when you choose Find offers.",
     });
   }
 
@@ -217,7 +217,7 @@ export async function POST(request) {
         error: error?.timedOut
           ? `${error.message} ${
               scope === "offers"
-                ? "Checking today's welcome offers means reading the issuers' own pages, which can run past what one request is allowed. Press See offers to try again."
+                ? "Checking today's welcome offers means reading the issuers' own pages, which can run past what one request is allowed. Press Find offers to try again."
                 : "Press Check for pro tips again — anything already found is saved."
             }`
           : error?.message || "The assistant could not be reached.",
