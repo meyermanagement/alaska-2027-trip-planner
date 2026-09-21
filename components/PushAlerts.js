@@ -69,6 +69,23 @@ async function registrationWhenReady(waitMs = 5000) {
   return navigator.serviceWorker.getRegistration().catch(() => null);
 }
 
+// The subscription, once the worker hands it over. iOS restores a push
+// subscription some time after the worker is ready rather than with it, so a
+// single read on a cold launch can answer null on a phone that is subscribed and
+// being delivered to. One read was what made this panel ask an already-subscribed
+// iPhone to turn notifications on again.
+async function subscriptionWhenReady(registration, waitMs = 8000) {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const held = await registration.pushManager
+      .getSubscription()
+      .catch(() => null);
+    if (held) return held;
+    if (Date.now() >= deadline) return null;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+}
+
 function keyOf(subscription) {
   const json = subscription.toJSON();
   return {
@@ -148,7 +165,23 @@ export default function PushAlerts() {
       // every time the Now screen was opened -- and each granted ask is another
       // row for the sender to deliver to.
       const reg = await registrationWhenReady();
-      const existing = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+      let existing = reg ? await subscriptionWhenReady(reg) : null;
+
+      // Permission was granted at some point and the browser has no subscription
+      // to show for it. That is a subscription this phone lost -- a reinstall, a
+      // worker replaced, Apple dropping it -- and re-making it is not a question
+      // anybody needs to be asked, because the answer was already given. Nothing
+      // is prompted here: subscribe() only prompts when permission is 'default',
+      // and that case falls through to the button below. The POST then retires
+      // whatever row this device left behind on its old endpoint.
+      if (!existing && reg && info.key && Notification.permission === "granted") {
+        existing = await reg.pushManager
+          .subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(info.key),
+          })
+          .catch(() => null);
+      }
 
       if (!existing) {
         if (alive) setState("off");
