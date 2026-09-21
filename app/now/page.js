@@ -539,7 +539,6 @@ export default async function NowPage() {
           name={access?.travelerName || null}
           today={today}
           sentence={sentence}
-          count={pressing.length + clashes.length}
         />
         {/* What is due or contradictory today goes above the trip, unless a trip
             is being lived: on that one day the plan for the day is the more

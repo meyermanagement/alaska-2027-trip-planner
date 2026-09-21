@@ -13,26 +13,20 @@ import { formatFullDay } from "@/lib/format";
  * cannot say good morning to somebody's evening because the machine rendering it
  * sits in a different one.
  */
-export default function NowGreeting({ greeting, name, today, sentence, count }) {
+export default function NowGreeting({ greeting, name, today, sentence }) {
   return (
     <div className="mb-5">
       <div className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">
         Now · {formatFullDay(today)}
       </div>
-      <div className="mt-1 flex flex-wrap items-center gap-2.5">
-        <h1 className="font-display text-3xl font-semibold text-ink">
-          {greeting}
-          {name ? `, ${name}` : ""}
-        </h1>
-        {count ? (
-          <span
-            className="rounded-full bg-sand px-2 py-0.5 text-xs font-semibold text-ink-soft"
-            aria-label={`${count} needing you`}
-          >
-            {count}
-          </span>
-        ) : null}
-      </div>
+      {/* No count beside the name. The number lives on the Now row in the menu,
+          where it is worth having because that screen is not the one you are
+          looking at; here the bands underneath carry their own counts, and the
+          sentence below says the same thing in words. */}
+      <h1 className="mt-1 font-display text-3xl font-semibold text-ink">
+        {greeting}
+        {name ? `, ${name}` : ""}
+      </h1>
       {sentence && (
         <p className="mt-1 max-w-prose text-sm text-ink-soft">{sentence}</p>
       )}
