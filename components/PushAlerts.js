@@ -328,9 +328,9 @@ export default function PushAlerts() {
   return (
     <section className="card mb-5 mt-4 p-5">
       <h2 className="font-display text-xl font-semibold">Notifications</h2>
-      {/* This panel is now the second thing on the screen rather than the last,
-          so the copy is two lines instead of five: what it is for, and the
-          promise that it is twice per deadline and never more. */}
+      {/* This panel sits near the foot of the Now screen -- it is setup, not
+          news -- so the copy is two lines instead of five: what it is for, and
+          the promise that it is twice per deadline and never more. */}
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">
         A fare matching your home airports, a fare closing today, a card offer
         ending this week: none of those can wait for the morning email, so they
