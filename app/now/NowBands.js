@@ -24,7 +24,11 @@ function Band({ tone = "plain", title, count, children }) {
         ? "border-[color:var(--color-amber,#b4762a)]/40"
         : "border-[var(--line)]";
   return (
-    <section className={`card mt-4 border ${edge} p-0`}>
+    // Space under the band as well as over it. These bands sit between the
+    // greeting and the trips grid, and the grid carries only a bottom margin,
+    // so a band above it had nothing between the two. Adjacent margins
+    // collapse, so two bands in a row are still 16px apart.
+    <section className={`card my-4 border ${edge} p-0`}>
       <h2 className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-2.5 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
         <span>{title}</span>
         {count ? <span className="text-ink-soft">{count}</span> : null}

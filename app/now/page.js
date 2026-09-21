@@ -429,7 +429,13 @@ export default async function NowPage() {
         id: item.id,
         title: item.title,
         tripName: item.tripName,
-        note: item.note || null,
+        // The note is the stage a dateless task was placed by -- "Week before",
+        // "Day before" -- which is worth saying, because it explains why the
+        // task landed on today. "Book now" is not: it is the stage that always
+        // means today, so under a band headed "Needs attention today" it repeats
+        // the heading, and on a task that is not a booking it instructs somebody
+        // to do the wrong thing.
+        note: item.now ? null : item.note || null,
         href: item.tripRef ? `/trips/${item.tripRef}?tab=tasks` : null,
       });
     }
