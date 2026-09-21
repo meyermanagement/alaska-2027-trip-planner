@@ -2,6 +2,7 @@ import Link from "next/link";
 import TripBackdrop from "@/components/TripBackdrop";
 import { formatRange, formatShortDay } from "@/lib/format";
 import { countdownSaid } from "@/lib/now/ahead";
+import { DateWhy } from "./DateWhy";
 
 // The home screen when the next trip is still weeks out.
 //
@@ -111,28 +112,12 @@ function DatesBand({ dates }) {
             <span className="w-24 shrink-0 text-sm font-semibold text-rose">
               {formatShortDay(row.on)}
             </span>
-            <span className="min-w-0 flex-1">
-              {/* The trip drops under the line rather than beside it on a narrow
-                  screen: a name and a title competing for the same row leaves
-                  one word per line. */}
-              <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span className="text-sm font-medium text-ink">
-                  {row.href ? (
-                    <Link className="underline decoration-line-strong underline-offset-2" href={row.href}>
-                      {row.title}
-                    </Link>
-                  ) : (
-                    row.title
-                  )}
-                </span>
-                {row.scope && (
-                  <span className="text-xs text-ink-soft">{row.scope}</span>
-                )}
-              </span>
-              {row.why && (
-                <span className="mt-0.5 block text-xs text-ink-soft">{row.why}</span>
-              )}
-            </span>
+            <DateWhy
+              title={row.title}
+              href={row.href}
+              scope={row.scope}
+              why={row.why}
+            />
           </li>
         ))}
       </ul>
