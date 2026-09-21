@@ -25,6 +25,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { deviceIdentity } from "@/lib/push/devices";
+import { watchSentence } from "@/lib/watch/say";
+
+// The watch now runs itself when this panel mounts, so the screen says something
+// about the deadlines every time it is opened instead of waiting to be asked. Two
+// guards on that: the result is remembered for the tab, so moving away from Now
+// and back does not run the pass again, and the pass itself is idempotent -- each
+// deadline is warned about once per stage, whatever runs it.
+const RECHECK_AFTER_MS = 10 * 60 * 1000;
+let lastPassAt = 0;
+let lastPass = null;
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -78,6 +88,7 @@ export default function PushAlerts() {
   const [said, setSaid] = useState("");
   const [busy, setBusy] = useState(false);
   const [needsInstall, setNeedsInstall] = useState(false);
+  const [watch, setWatch] = useState({ phase: "running" });
 
   // What the browser can do, and what it has already agreed to. Read once on
   // mount; every later change goes through a button in here.
@@ -261,38 +272,25 @@ export default function PushAlerts() {
     }
   }, []);
 
-  const checkNow = useCallback(async () => {
-    setBusy(true);
-    setSaid("");
-    setProblem("");
-    try {
-      const res = await fetch("/api/tasks/watch", { method: "POST" });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setProblem(body?.error || "The check failed.");
-        return;
-      }
-      // Four genuinely different outcomes, and saying "done" for all of them is
-      // how somebody concludes the feature does not work.
-      if (body.nothing) {
-        setSaid(
-          `Nothing is close enough to warn about${body.expired ? `, and ${body.expired} fare${body.expired === 1 ? "" : "s"} past their book-by date were retired` : ""}.`,
-        );
-      } else if (body.sent) {
-        setSaid(
-          `${body.sent} warning${body.sent === 1 ? "" : "s"} sent by ${body.channel === "push" ? "notification" : "email"}.`,
-        );
-      } else if (body.already) {
-        setSaid(
-          `${body.already} deadline${body.already === 1 ? " is" : "s are"} close, and ${body.already === 1 ? "it has" : "they have"} already been warned about.`,
-        );
-      } else {
-        setProblem(body.error || "Nothing could be sent anywhere.");
-      }
-    } finally {
-      setBusy(false);
-    }
+  const runWatch = useCallback(async () => {
+    setWatch({ phase: "running" });
+    const res = await fetch("/api/tasks/watch", { method: "POST" }).catch(() => null);
+    const body = res ? await res.json().catch(() => ({})) : null;
+    const said = !res || !res.ok
+      ? { failed: true, text: body?.error || "The deadlines could not be checked." }
+      : watchSentence(body);
+    lastPass = said;
+    lastPassAt = Date.now();
+    setWatch({ phase: "done", ...said });
   }, []);
+
+  useEffect(() => {
+    if (lastPass && Date.now() - lastPassAt < RECHECK_AFTER_MS) {
+      setWatch({ phase: "done", ...lastPass });
+      return;
+    }
+    runWatch();
+  }, [runWatch]);
 
   return (
     <section className="card mb-5 mt-4 p-5">
@@ -368,18 +366,22 @@ export default function PushAlerts() {
       ) : null}
 
       <div className="mt-4 border-t border-[var(--line)] pt-4">
-        <p className="max-w-2xl text-sm text-ink-soft">
-          The watch runs on its own every evening, whether or not this browser
-          is open.
-        </p>
-        <button
-          type="button"
-          className="btn btn-ghost mt-3 px-4 py-2 text-sm font-semibold disabled:opacity-60"
-          disabled={busy}
-          onClick={checkNow}
-        >
-          {busy ? "Looking…" : "Check deadlines now"}
-        </button>
+        {watch.phase === "running" ? (
+          <p className="text-sm text-ink-soft">Checking the deadlines…</p>
+        ) : watch.failed ? (
+          <>
+            <p className="max-w-2xl text-sm text-rose">{watch.text}</p>
+            <button
+              type="button"
+              className="btn btn-ghost mt-3 px-4 py-2 text-sm font-semibold"
+              onClick={runWatch}
+            >
+              Check again
+            </button>
+          </>
+        ) : (
+          <p className="max-w-2xl text-sm text-ink-soft">{watch.text}</p>
+        )}
       </div>
 
       {said ? <p className="mt-3 text-sm text-ink">{said}</p> : null}

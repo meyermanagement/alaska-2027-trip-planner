@@ -112,3 +112,21 @@ test("what is not known is left out, down to the old wording", () => {
     "Business class · out of STL");
   assert.equal(cheapestFarePhrase([{ price: null }]), "");
 });
+
+const { watchSentence } = jiti("../lib/watch/say.js");
+
+test("the deadline pass says which of the four things happened", () => {
+  assert.deepEqual(watchSentence({ nothing: true, expired: 0 }),
+    { failed: false, text: "Nothing is close enough to warn about." });
+  assert.equal(watchSentence({ nothing: true, expired: 2 }).text,
+    "Nothing is close enough to warn about, and 2 fares past their book-by date were retired.");
+  assert.equal(watchSentence({ sent: 1, channel: "push" }).text, "1 warning sent by notification.");
+  assert.equal(watchSentence({ sent: 3, channel: "email" }).text, "3 warnings sent by email.");
+  assert.equal(watchSentence({ already: 1 }).text,
+    "1 deadline is close, and it has already been warned about.");
+  assert.equal(watchSentence({ already: 4 }).text,
+    "4 deadlines are close, and they have already been warned about.");
+  assert.deepEqual(watchSentence({ error: "No channel is set up." }),
+    { failed: true, text: "No channel is set up." });
+  assert.equal(watchSentence(null).failed, true);
+});
