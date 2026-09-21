@@ -8058,6 +8058,20 @@ html[data-skin="sodium"] .menu-arc {
   box-shadow: none;
 }
 
+/* The first row in the menu, and the screen the app opens on. Tinted in the
+   accent so the door you are meant to come back to does not read as the fourth
+   filing cabinet, but left as a row rather than promoted to a plate: it is still
+   level one, and the skin's own accent carries it on all five palettes. */
+.arc-pill.lead:not(.on) {
+  border-color: color-mix(in srgb, var(--color-teal) 34%, transparent);
+  background: color-mix(in srgb, var(--color-teal) 10%, var(--arc-face));
+}
+
+.arc-pill.lead:not(.on) .arc-disc {
+  background: color-mix(in srgb, var(--color-teal) 16%, transparent);
+  color: var(--color-teal);
+}
+
 /* The one row in the menu that is temporary. Tinted rather than merely present,
    because it is asking for something rather than answering a press, and it has
    to be distinguishable from the trip plate directly under it. */

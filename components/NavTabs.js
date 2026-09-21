@@ -229,9 +229,10 @@ const GROUPS_BASE = [
 const NOW_ROW = {
   href: "/now",
   label: "Now",
-  sub: "Reminders and updates",
+  sub: "Today, and what needs you",
   Icon: BellIcon,
   badge: true,
+  lead: true,
 };
 
 const SETTINGS = {
@@ -316,11 +317,13 @@ const ADMIN_ROW = {
 // draws: those three plus the More group (Settings, Our Pledge, Contact Us)
 // pinned to the bottom of the column. Kept as a computed constant rather
 // than mutating GROUPS_BASE so the two sets can never drift.
-// Level one, in reading order: the trips, what needs you about them, the file
-// Aly plans against, and the housekeeping. Now is a plain row rather than a
-// group because it opens nothing -- everything it has to say is on the screen at
-// the other end.
-const GROUPS = [GROUPS_BASE[0], NOW_ROW, GROUPS_BASE[1], MORE_GROUP];
+// Level one, in reading order: what needs you today, the trips, the file Aly
+// plans against, and the housekeeping. Now is a plain row rather than a group
+// because it opens nothing -- everything it has to say is on the screen at the
+// other end -- and it is first because it is where the app opens. It was second
+// when it was a list of reminders; it is the home screen now, and a home screen
+// filed under the trips is a home screen nobody presses.
+const GROUPS = [NOW_ROW, GROUPS_BASE[0], GROUPS_BASE[1], MORE_GROUP];
 
 // The same menu with one extra door in the More drawer, for people in the beta.
 // Built rather than mutated, for the same reason GROUPS is: a row added to a
@@ -359,17 +362,18 @@ const GROUPS_EVERY = withExtras([SURVEY_ROW, ADMIN_ROW]);
 // edit should not be unreachable.
 const SECONDARY_ROWS = [
   {
+    href: "/now",
+    label: "Now",
+    sub: "Today, and what needs you",
+    Icon: BellIcon,
+    badge: true,
+    lead: true,
+  },
+  {
     href: "/trips",
     label: "Trips",
     sub: "The trips you are on",
     Icon: SuitcaseIcon,
-  },
-  {
-    href: "/now",
-    label: "Now",
-    sub: "What needs you before you leave",
-    Icon: BellIcon,
-    badge: true,
   },
   SETTINGS,
 ];
@@ -1226,8 +1230,8 @@ export default function NavTabs({
             // instead of a child's filled disc, so all four doors read as the
             // same rank. band is the class that turns the disc off.
             className={`arc-pill ${row.kid ? "kid " : row.band ? "group " : ""}${
-              active ? "on" : ""
-            }`}
+              row.lead ? "lead " : ""
+            }${active ? "on" : ""}`}
           >
             <span className="arc-disc">
               <PendingSwap

@@ -77,8 +77,8 @@ export async function GET(request) {
       return markArrival(NextResponse.redirect(`${origin}${landing}`));
   }
 
-  const safeNext = next === "/trips" ? "/trips?arrival=1"
-    : next.startsWith("/") ? next : "/trips?arrival=1";
+  const safeNext = next === "/trips" ? "/now"
+    : next.startsWith("/") ? next : "/now";
   // Signed in, and on the way to the app: the page this lands on is owed the
   // full opening, and this is the only place that knows a sign-in just happened.
   return markArrival(NextResponse.redirect(`${origin}${safeNext}`));

@@ -34,5 +34,5 @@ export async function GET(request) {
     return markArrival(NextResponse.redirect(`${origin}${next}`));
 
   const landing = await landingPath(supabase, user.id);
-  return markArrival(NextResponse.redirect(`${origin}${landing || "/trips?arrival=1"}`));
+  return markArrival(NextResponse.redirect(`${origin}${landing || "/now"}`));
 }

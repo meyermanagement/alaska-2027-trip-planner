@@ -3,22 +3,49 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { resolveAccess } from "@/lib/travelers/access";
 import TopBar from "@/components/TopBar";
-import PageHeader from "@/components/PageHeader";
-import { SCREEN_INTROS } from "@/lib/screenCopy";
+import NowGreeting from "./NowGreeting";
+import NowTrips from "./NowTrips";
+import LocationProTips from "@/components/LocationProTips";
 import AskAlyGeneral from "@/components/AskAlyGeneral";
 import Reminders from "@/components/Reminders";
 import MorningRun from "@/components/MorningRun";
 import PushAlerts from "@/components/PushAlerts";
 import NowBands from "./NowBands";
-import { isPastTrip } from "@/lib/format";
+import {
+  formatDay,
+  formatTime,
+  isPastTrip,
+  tripDayNumber,
+  HOME_ZONE,
+} from "@/lib/format";
+import {
+  departureSaid,
+  greetingFor,
+  homeTrips,
+  progressOf,
+  todaysPlan,
+} from "@/lib/now/home";
+import { BASIC_SELECT } from "@/lib/trips/basics";
+import { canSeeTrip, visibleTripIds } from "@/lib/trips/visibility";
 import { todayISO } from "@/lib/reminders";
 import { assigneeOptions } from "@/lib/tasks/assignees";
 import { remindersDueToday } from "@/lib/tasks/dueToday";
 import { tripContradictions } from "@/lib/trips/contradictions";
-import { tripRef } from "@/lib/trips/route";
+import { tripPath, tripRef } from "@/lib/trips/route";
 import { unreadFares } from "@/lib/deals/unread";
 
 export const metadata = { title: "Now · Alyeska" };
+
+/** The hour where the family lives, for the greeting. */
+function homeHour(now = new Date()) {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: HOME_ZONE,
+      hour: "numeric",
+      hour12: false,
+    }).format(now),
+  );
+}
 
 // The screen the menu opens on the question a family actually has on a Tuesday:
 // what needs me. It is the old Reminders screen with the lines today is about
@@ -103,6 +130,120 @@ export default async function NowPage() {
     roster: roster || [],
   });
 
+  // The trips this screen leads with. Read from the trips table rather than from
+  // the trips that happen to have an outstanding task hanging off them: a trip
+  // whose list is finished is still the trip you are on.
+  const [{ data: tripRows }, allowedTripIds] = await Promise.all([
+    access?.familyId
+      ? supabase
+          .from("trips")
+          .select(
+            `id, name, slug, public_id, cover_emoji, status, cover_image_url, cover_image_alt, cover_image_status, lat, lon, family_id, ${BASIC_SELECT}`,
+          )
+          .eq("family_id", access.familyId)
+          .order("start_date", { ascending: true })
+      : Promise.resolve({ data: [] }),
+    visibleTripIds(supabase, access),
+  ]);
+
+  const visible = (tripRows || []).filter((trip) =>
+    canSeeTrip(trip, access, allowedTripIds),
+  );
+  const { current, soon } = homeTrips(visible, today);
+  const heroTrips = [...current, ...soon.map((one) => one.trip)];
+  const heroIds = heroTrips.map((trip) => trip.id);
+
+  const [
+    { data: packingRows },
+    { data: heroTasks },
+    { data: planRows },
+    { data: heroRoster },
+  ] = heroIds.length
+    ? await Promise.all([
+        supabase
+          .from("packing_items")
+          .select("trip_id, is_packed")
+          .in("trip_id", heroIds)
+          .is("stashed_at", null),
+        supabase
+          .from("predeparture_tasks")
+          .select("id, trip_id, title, due_date, is_done")
+          .in("trip_id", heroIds)
+          .eq("is_done", false)
+          // Dated first and soonest of those, because a folded card can only
+          // carry three and the three worth carrying are the ones with a
+          // deadline on them.
+          .order("due_date", { ascending: true, nullsFirst: false })
+          .order("sort_order", { ascending: true }),
+        current.length
+          ? supabase
+              .from("itinerary_items")
+              .select(
+                "id, trip_id, item_date, end_date, start_time, sort_order, title, location, status",
+              )
+              .in(
+                "trip_id",
+                current.map((trip) => trip.id),
+              )
+          : Promise.resolve({ data: [] }),
+        supabase
+          .from("trip_travelers")
+          .select("trip_id, traveler_id")
+          .in("trip_id", heroIds),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+
+  // One card, built the same way whether the trip is today's or next week's, so
+  // the two plates cannot drift apart on what a number means.
+  const buildCard = (trip, days = null) => {
+    const packing = progressOf(packingRows || [], trip.id);
+    const mineTasks = (heroTasks || []).filter((row) => row.trip_id === trip.id);
+    const going = (heroRoster || [])
+      .filter((row) => row.trip_id === trip.id)
+      .map(
+        (row) =>
+          (travelers || []).find((person) => person.id === row.traveler_id)?.name,
+      )
+      .filter(Boolean);
+    const span = tripDayNumber(trip, today);
+    return {
+      id: trip.id,
+      trip,
+      name: trip.name,
+      destination: trip.destination || null,
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      days,
+      dayNumber: span?.day || null,
+      dayCount: span?.of || null,
+      packing: packing.total,
+      packed: packing.done,
+      todo: mineTasks.length,
+      going,
+      href: tripPath(trip),
+      packingHref: tripPath(trip, "packing"),
+      tasksHref: tripPath(trip, "tasks"),
+      plan: todaysPlan(
+        (planRows || []).filter((row) => row.trip_id === trip.id),
+        today,
+      ).map((item) => ({
+        id: item.id,
+        when: item.start_time ? formatTime(item.start_time) : "",
+        title: item.title,
+        where: item.location || null,
+      })),
+      // Only the few a folded card can carry, and the soonest first.
+      tasks: mineTasks.slice(0, 3).map((task) => ({
+        id: task.id,
+        title: task.title,
+        due: task.due_date ? `due ${formatDay(task.due_date)}` : null,
+      })),
+    };
+  };
+
+  const currentCards = current.map((trip) => buildCard(trip));
+  const soonCards = soon.map((one) => buildCard(one.trip, one.days));
+
   // What the morning email would send right now, worked out with the rules the
   // run itself uses, so the band above cannot disagree with the mail.
   const batches = remindersDueToday({
@@ -131,6 +272,46 @@ export default async function NowPage() {
       });
     }
   }
+
+  // The sentence under the greeting, written from what the screen is already
+  // showing rather than from a query of its own: where today is, what is next,
+  // and how much is waiting.
+  const sentence = (() => {
+    const parts = [];
+    const lead = currentCards[0];
+    const next = soonCards[0];
+    if (lead) {
+      parts.push(
+        lead.dayNumber
+          ? `Day ${lead.dayNumber}${lead.dayCount ? ` of ${lead.dayCount}` : ""} of ${lead.name}`
+          : `On ${lead.name}`,
+      );
+      if (next) {
+        parts.push(`${next.name} ${departureSaid(next.days).toLowerCase()}`);
+      }
+    } else if (next) {
+      parts.push(`${next.name} ${departureSaid(next.days).toLowerCase()}`);
+      if (next.packing === 0) parts.push("no packing list yet");
+      else if (next.packed < next.packing) {
+        parts.push(`${next.packed} of ${next.packing} packed`);
+      }
+    }
+    if (pressing.length) {
+      parts.push(
+        pressing.length === 1
+          ? "one thing needs you today"
+          : `${pressing.length} things need you today`,
+      );
+    }
+    if (!parts.length) return null;
+    // "A, B and C" -- the last comma replaced, because three clauses in a row
+    // separated by commas reads like a list of nouns.
+    const said =
+      parts.length > 1
+        ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`
+        : parts[0];
+    return `${said.charAt(0).toUpperCase()}${said.slice(1)}.`;
+  })();
 
   // Contradictions, for the trips still ahead of us. Three queries for every
   // trip at once rather than three per trip, and the animals are fetched once:
@@ -191,11 +372,23 @@ export default async function NowPage() {
     <>
       <TopBar />
       <main className="screen px-5 pb-16 pt-7">
-        <PageHeader
-          title="Now"
-          count={tasks.length}
-          subtitle={SCREEN_INTROS.now}
+        <NowGreeting
+          greeting={greetingFor(homeHour())}
+          name={access?.travelerName || null}
+          today={today}
+          sentence={sentence}
+          count={pressing.length + clashes.length}
         />
+        <NowTrips current={currentCards} soon={soonCards} />
+        {/* Only the trip being lived, and only one of them: the prompt asks to
+            use where the phone is, and a question about two places at once has
+            no answer. */}
+        {currentCards[0] && (
+          <LocationProTips
+            key={`${currentCards[0].id}:${user.id}`}
+            trip={currentCards[0].trip}
+          />
+        )}
         <NowBands
           pressing={pressing}
           clashes={clashes}

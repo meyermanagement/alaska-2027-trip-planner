@@ -51,9 +51,12 @@ test("integration retains authorization and roster filtering before home selecti
   assert.match(server,/canSeeTrip\(\{ \.\.\.trip, family_id: familyId \}, access, allowedTripIds\)/);
   assert.match(server,/arrivalTrips=\{all.filter/);
   assert.match(server,/row.trip_id === trip.id && row.traveler_id === travelerId/);
-  assert.match(read("app/page.js"),/redirect\("\/trips\?arrival=1"\)/);
-  for (const path of ["app/auth/land/route.js","app/auth/callback/route.js"])
-    assert.match(read(path),/\/trips\?arrival=1/);
+  // Signing in lands on Now, the home screen. The automatic jump into a trip
+  // that ?arrival=1 used to trigger is retired with it: nothing in the app sends
+  // that parameter any more, and Now answers the question it was guessing at.
+  assert.match(read("app/page.js"),/redirect\("\/now"\)/);
+  for (const path of ["app/page.js","app/auth/land/route.js","app/auth/callback/route.js"])
+    assert.doesNotMatch(read(path),/"\/trips\?arrival=1"/);
   const view = read("components/TripView.js");
   assert.match(view,/openedTripRef.current === key/);
   assert.match(view,/openingTabForLink\(trip, localToday\(\), wanted, tabs.map/);

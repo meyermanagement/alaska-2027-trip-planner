@@ -12,7 +12,6 @@ const read = (file) =>
   );
 
 const screens = {
-  now: "app/now/page.js",
   trips: "app/trips/page.js",
   family: "app/family/page.js",
   preferences: "app/preferences/page.js",
@@ -28,7 +27,7 @@ const screens = {
   survey: "app/survey/page.js",
 };
 
-test("all 14 main-screen introductions are concise and connected to their screens", () => {
+test("all 13 main-screen introductions are concise and connected to their screens", () => {
   assert.deepEqual(
     Object.keys(SCREEN_INTROS).sort(),
     Object.keys(screens).sort(),

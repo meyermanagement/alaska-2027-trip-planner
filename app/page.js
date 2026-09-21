@@ -65,6 +65,9 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
-  if (user) redirect("/trips?arrival=1");
+  // Signed in: the home screen, which is Now. It used to be the trip board with
+  // ?arrival=1 on it, back when the board was the app's first screen; the
+  // question a family opens the app with is what today needs, and that is here.
+  if (user) redirect("/now");
   return <HomeLanding />;
 }
