@@ -15,6 +15,7 @@ import DeclinedOffers from "./DeclinedOffers";
 import WalletTabs from "./WalletTabs";
 import WalletAddButton from "@/components/WalletAddButton";
 import { homeToday } from "@/lib/format";
+import { offerListsForToday } from "@/lib/rewards-offers";
 
 export const metadata = { title: "Wallet · Alyeska" };
 
@@ -82,11 +83,23 @@ export default async function RewardsPage() {
     .from("card_offers")
     .select("*")
     .eq("family_id", familyId)
-    .in("status", ["open", "declined"])
+    .in("status", ["open", "declined", "expired"])
     .order("verified_on", { ascending: false });
-  const openOffers = (offerRows || []).filter((row) => row.status === "open");
-  const declinedOffers = (offerRows || []).filter(
-    (row) => row.status === "declined",
+  // Worked out against today rather than trusting the stored status. An offer is
+  // only written to 'expired' when a pass runs -- the evening deadline watch or a
+  // Find offers look -- so between the end date going by and the next pass this
+  // screen would otherwise present a bonus nobody can claim as a live one. Same
+  // projection the fares get, for the same reason.
+  const offerLists = offerListsForToday(offerRows || [], today);
+  const openOffers = offerLists.open;
+  const declinedOffers = offerLists.declined;
+  const expiredOffers = offerLists.expired;
+  const historyOffers = [...declinedOffers, ...expiredOffers];
+  // A sentence arguing for an offer that ended goes with the offer. The pass that
+  // retires the row also retires the tip, but this screen can be read before that
+  // pass runs, and a tip left standing would recommend a bonus that is gone.
+  const endedTipIds = new Set(
+    expiredOffers.map((row) => row.tip_id).filter(Boolean),
   );
 
   // Has anybody ever asked? "No tips" and "not looked yet" want different words,
@@ -137,7 +150,9 @@ export default async function RewardsPage() {
           emptyFresh={programsError ? "Your saved programs could not be loaded. Automatic tips are paused until they can be read." : hasHeldPrograms ? "Aly will check the benefits, points, credits and fees on your saved cards and programs." : "Add a card or program to get tips specific to what you have."}
         />
         <ProTips
-          tips={(tips || []).filter((tip) => tip.scope === "offers")}
+          tips={(tips || [])
+            .filter((tip) => tip.scope === "offers")
+            .filter((tip) => !endedTipIds.has(tip.id))}
           offers={openOffers}
           today={today}
           scope="offers"
@@ -156,13 +171,14 @@ export default async function RewardsPage() {
             is either what you hold or what you have already dealt with, which is
             a real fork and worth two doors.
 
-            historyCount counts only the refusals, which are read on the server
+            historyCount counts the refusals and the offers that ran out, both read
+            on the server
             here. The cleared tips are fetched by the browser the first time the
             tab is opened, so counting them would mean a second read of pro_tips
             on every load of a screen most people never take that turning on. A
             number that is sometimes short is better than a read nobody uses. */}
         <WalletTabs
-          historyCount={declinedOffers.length}
+          historyCount={historyOffers.length}
           cards={
             <RewardsBoard
               showAddAction={false}
@@ -174,7 +190,7 @@ export default async function RewardsPage() {
           }
           history={
             <div className="space-y-8">
-              <DeclinedOffers offers={declinedOffers} bare />
+              <DeclinedOffers offers={historyOffers} bare />
               <ClearedTips wallet bare />
             </div>
           }

@@ -18,7 +18,7 @@ import { resolveAccess } from "@/lib/travelers/access";
 import { WALLET_SCOPES } from "@/lib/tips/tip";
 import { walletTips } from "@/lib/tips/wallet";
 import { claimWalletLook } from "@/lib/tips/walletAuto";
-import { ledgerRow, staleOffers } from "@/lib/rewards-offers";
+import { ledgerRow, staleOffers, retireOffers } from "@/lib/rewards-offers";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -146,10 +146,10 @@ export async function POST(request) {
   // offer as one still on the table.
   const expired = staleOffers(ledger, today);
   if (expired.length) {
-    await supabase
-      .from("card_offers")
-      .update({ status: "expired", decided_on: today })
-      .in("id", expired);
+    // Through the shared helper so the tip that carried the terms is retired with
+    // the offer here too. This used to update card_offers alone, which left the
+    // sentence arguing for a bonus that had already run out.
+    await retireOffers(supabase, familyId, expired, today);
   }
   const liveLedger = (ledger || []).filter((row) => !expired.includes(row.id));
 

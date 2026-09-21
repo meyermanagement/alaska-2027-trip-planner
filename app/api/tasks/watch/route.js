@@ -88,12 +88,17 @@ export async function GET(request) {
       sent: pass.households.reduce((n, h) => n + (h.sent?.length || 0), 0),
       failed: pass.households.reduce((n, h) => n + (h.failed?.length || 0), 0),
       expired: pass.households.reduce((n, h) => n + (h.expired || 0), 0),
+      expiredOffers: pass.households.reduce(
+        (n, h) => n + (h.expiredOffers || 0),
+        0,
+      ),
       runs: pass.households.map((h) => ({
         familyId: h.familyId,
         considered: h.considered,
         sent: h.sent?.length || 0,
         failed: h.failed?.length || 0,
         expired: h.expired,
+        expiredOffers: h.expiredOffers,
         channel: h.channel,
         error: h.error || null,
       })),
@@ -161,6 +166,7 @@ export async function POST(request) {
     sent: outcome.sent.length,
     failed: outcome.failed.length,
     expired: outcome.expired,
+    expiredOffers: outcome.expiredOffers,
     channel: outcome.channel,
     // The most useful thing to say back to somebody who pressed the button and
     // saw nothing happen. Silence because everything close was already warned

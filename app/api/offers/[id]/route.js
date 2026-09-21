@@ -70,6 +70,10 @@ export async function POST(request, { params }) {
         : { status, decided_on: today, decided_note: note },
     )
     .eq("id", id)
+    // An offer that ran out cannot be put back on the table: the terms are gone,
+    // and quietly reopening it would have Aly weighing a bonus nobody can claim.
+    // The History row has no button for it, so this is the belt to that braces.
+    .neq("status", "expired")
     .select("id, card_name, status, tip_id")
     .maybeSingle();
 
@@ -77,7 +81,13 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: "That did not save." }, { status: 500 });
   }
   if (!offer) {
-    return NextResponse.json({ error: "That offer is gone." }, { status: 404 });
+    return NextResponse.json(
+      {
+        error:
+          "That offer is no longer on the table — it has either ended or been removed.",
+      },
+      { status: 404 },
+    );
   }
 
   // Not fatal if it fails. The refusal is the fact worth keeping, and a tip left

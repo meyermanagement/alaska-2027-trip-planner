@@ -1,6 +1,6 @@
 "use client";
 
-// The cards you said no to.
+// The cards you said no to, and the ones that ran out.
 //
 // A refusal has to be visible somewhere, or it is indistinguishable from the app
 // quietly forgetting to mention something. This is that somewhere: the terms you
@@ -37,6 +37,10 @@ function terms(offer) {
         : `${formatMoney(Number(offer.annual_fee))} a year`,
     );
   return parts.join(", ");
+}
+
+function ended(offer) {
+  return offer.status === "expired";
 }
 
 export default function DeclinedOffers({
@@ -89,15 +93,15 @@ export default function DeclinedOffers({
   return (
     <section className={bare ? "no-print" : "no-print mt-8"}>
       <h2 className="font-display text-lg font-semibold">
-        Offers you turned down
+        Offers you have dealt with
       </h2>
       <p className="mt-1 text-sm text-ink-soft">
         {rows.length
-          ? "Aly leaves these alone unless the terms genuinely improve — a bigger bonus, less spending, or a smaller fee. Put one back under Current offers to have her weigh it as a live question again."
-          : "No offers in history. Offers you turn down appear here."}
+          ? "Offers you turned down, and offers that ran out. Aly leaves a refusal alone unless the terms genuinely improve — a bigger bonus, less spending, or a smaller fee — and you can put one back under Current offers to have her weigh it as a live question again. An offer whose end date has passed stays here as a record; there is nothing left to put back."
+          : "No offers in history. Offers you turn down, and offers that run out, appear here."}
       </p>
       <HistoryRetentionNotice />
-      <HistoryGroups items={rows} shortHistory getDate={offer => offer.history_entered_at || offer.decided_on || offer.created_at}
+      <HistoryGroups items={rows} shortHistory getDate={offer => offer.history_entered_at || offer.decided_on || (ended(offer) ? offer.offer_ends_on : null) || offer.created_at}
         renderItems={periodOffers => <ul className="mt-3 space-y-2">
         {periodOffers.map((offer) => (
           <li
@@ -113,22 +117,36 @@ export default function DeclinedOffers({
                 <p className="mt-0.5 text-sm text-ink-soft">{terms(offer)}</p>
               ) : null}
               <p className="mt-1 text-xs text-ink-faint">
-                You passed on it
-                {offer.decided_on ? ` on ${offerDate(offer.decided_on)}` : ""}
+                {ended(offer)
+                  ? `The offer ended${
+                      offer.offer_ends_on
+                        ? ` on ${offerDate(offer.offer_ends_on)}`
+                        : ""
+                    }`
+                  : `You passed on it${
+                      offer.decided_on
+                        ? ` on ${offerDate(offer.decided_on)}`
+                        : ""
+                    }`}
                 {offer.source_url
                   ? `, read from ${offerHost(offer.source_url)}`
                   : ""}
                 .
               </p>
             </div>
-            <button
-              type="button"
-              disabled={busy === offer.id}
-              onClick={() => reconsider(offer)}
-              className="btn btn-ghost mt-3 w-full shrink-0 px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-60 sm:mt-0 sm:w-auto"
-            >
-              {busy === offer.id ? "Putting it back…" : "Consider it again"}
-            </button>
+            {/* No way back on an offer that ran out: the terms are gone, so a
+                button promising to weigh them again would be a button that
+                cannot keep its promise. The row stays as the record. */}
+            {ended(offer) ? null : (
+              <button
+                type="button"
+                disabled={busy === offer.id}
+                onClick={() => reconsider(offer)}
+                className="btn btn-ghost mt-3 w-full shrink-0 px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-60 sm:mt-0 sm:w-auto"
+              >
+                {busy === offer.id ? "Putting it back…" : "Consider it again"}
+              </button>
+            )}
           </li>
         ))}
       </ul>} />
