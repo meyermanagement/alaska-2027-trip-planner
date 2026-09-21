@@ -541,6 +541,12 @@ export default async function NowPage() {
           sentence={sentence}
           count={pressing.length + clashes.length}
         />
+        {/* What is due or contradictory today goes above the trip, unless a trip
+            is being lived: on that one day the plan for the day is the more
+            urgent thing, and the two bands follow it. */}
+        {!currentCards.length && (
+          <NowBands part="today" pressing={pressing} clashes={clashes} />
+        )}
         <NowTrips current={currentCards} soon={soonCards} />
         {ahead && (
           <NowAhead card={aheadCard} dates={aheadRows} pick={pick} />
@@ -561,7 +567,11 @@ export default async function NowPage() {
             trip={currentCards[0].trip}
           />
         )}
+        {currentCards.length > 0 && (
+          <NowBands part="today" pressing={pressing} clashes={clashes} />
+        )}
         <NowBands
+          part="queue"
           pressing={pressing}
           clashes={clashes}
           waiting={waiting || 0}

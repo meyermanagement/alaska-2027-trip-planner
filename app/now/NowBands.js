@@ -8,22 +8,21 @@ import Link from "next/link";
 // Deliberately not a fourth list of tasks. The standing list of everything due
 // is below these bands, drawn by the same Reminders component the menu used to
 // send you to -- these are only the lines pulled out of it that today is about.
+//
+// They are drawn in two parts because they are not one kind of thing. "today"
+// is what is due or contradictory now, and it goes above the trip: on a screen
+// where the next departure is two months off, a countdown and five dates are
+// not the answer to "what do I have to do". "queue" is what has arrived and not
+// been dealt with -- an inbox, some fares -- which can wait until after the
+// trip it might belong to.
 
-function Band({ tone = "plain", title, count, children, collapsible = false }) {
+function Band({ tone = "plain", title, count, children }) {
   const edge =
     tone === "hot"
       ? "border-rose/40"
       : tone === "warm"
         ? "border-[color:var(--color-amber,#b4762a)]/40"
         : "border-[var(--line)]";
-  if (collapsible) return (
-    <details className={`card mt-4 border ${edge} p-0`}>
-      <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold marker:text-teal">
-        {title}<span className="ml-2 text-ink-soft">{count}</span>
-      </summary>
-      <div className="divide-y divide-[var(--line)]">{children}</div>
-    </details>
-  );
   return (
     <section className={`card mt-4 border ${edge} p-0`}>
       <h2 className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-2.5 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft">
@@ -54,10 +53,21 @@ function Row({ href, lead, body, note }) {
   );
 }
 
-export default function NowBands({ pressing = [], clashes = [], waiting = 0, fares = 0 }) {
+export default function NowBands({
+  pressing = [],
+  clashes = [],
+  waiting = 0,
+  fares = 0,
+  part = "all",
+}) {
+  const today = part !== "queue";
+  const queue = part !== "today";
   const nothing = !pressing.length && !clashes.length && !waiting && !fares;
 
+  // The sentence belongs to the lower half, so a screen with nothing on it says
+  // this once, where the bands would have ended, rather than twice.
   if (nothing) {
+    if (!queue) return null;
     return (
       <p className="mt-4 max-w-prose text-sm text-ink-soft">
         A little breathing room. No reminders are due today or overdue, no trip
@@ -69,8 +79,8 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0, far
 
   return (
     <>
-      {pressing.length ? (
-        <Band tone="hot" title="Needs attention today" count={pressing.length} collapsible>
+      {today && pressing.length ? (
+        <Band tone="hot" title="Needs attention today" count={pressing.length}>
           {pressing.map((item) => (
             <Row
               key={item.id}
@@ -83,7 +93,7 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0, far
         </Band>
       ) : null}
 
-      {clashes.length ? (
+      {today && clashes.length ? (
         <Band tone="warm" title="Trip details to check" count={clashes.length}>
           {clashes.map((item) => (
             <Row
@@ -96,7 +106,7 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0, far
         </Band>
       ) : null}
 
-      {waiting ? (
+      {queue && waiting ? (
         <Band title="Inbox to review" count={waiting}>
           <Row
             href="/inbox"
@@ -109,7 +119,7 @@ export default function NowBands({ pressing = [], clashes = [], waiting = 0, far
           />
         </Band>
       ) : null}
-      {fares > 0 && <Band title="New fares to review" count={fares}>
+      {queue && fares > 0 && <Band title="New fares to review" count={fares}>
         <Row href="/someday#fares"
           lead={`${fares} new ${fares === 1 ? "fare" : "fares"} from your forwarded alerts`}
           body="Open an email group to review its fares." />
