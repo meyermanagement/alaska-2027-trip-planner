@@ -17,8 +17,8 @@ markup that produced its shipped file:
 | `apple-touch-icon.svg`  | `public/alyeska-touch.png`                                                             | Aurora Sky |
 | `email-mark.svg`        | `public/alyeska-mark.png`                                                              | Daybreak |
 
-The two tab files carry the first six characters of their own SHA-256 in the
-filename, currently `dee9cd` and `645b99`. That is deliberate and load-bearing:
+The two tab files carry the first six characters of the source's SHA-256 in the
+filename, currently `8a783d` for both. That is deliberate and load-bearing:
 Safari files an icon under its address in a database it reads before the network,
 so rewriting the bytes behind a name it already knows changes nothing it will
 look at, on any page it has already filed. Redraw the favicon and you must
@@ -26,24 +26,37 @@ rehash, rename both files and change the two `icons` lines in `app/layout.js`.
 `public/favicon.ico` keeps its conventional name on purpose, for anything that
 guesses rather than reads the tags.
 
-## Aurora Sky: the icon is not the in-app mark
+## Aurora Sky: the same needle, on a plate
 
-Since 2026-09-18 the four icon files draw a different picture from the one the
-app draws for itself. The in-app compass, the loading screens, the sign-in
-screen, Aly's panel header and the email mark all keep the gradient needle
-with its amber north tick and sixteen graduations. The saved-app icon and the
-browser tab do not: at 60 and 16 pixels the graduations turned to noise, so
-those two surfaces use **Aurora Sky**, chosen from a set of concepts on
-2026-09-18. The sources for the concepts and the build script live in the
-project file repo under `design/icon-aurora-sky-2026-09-18/`.
+The four icon files draw the app's own compass, on a night plate that the in-app
+mark does not need because the app is its own background. That plate is `#0b1322`
+lit by two radial washes -- teal `#2fd4b5` from the upper left, violet `#8a6cf0`
+from the lower right.
 
-Aurora Sky is the same hollow needle from `components/AlyeskaMark.js`, filled
-ivory `#f3f5f1`, on a night plate `#0b1322` lit by two radial washes: teal
-`#2fd4b5` from the upper left and violet `#8a6cf0` from the lower right. No
-ring, no ticks. The tiles are square-cornered because every launcher masks the
-square itself; the maskable copy scales the needle so its far tails sit inside
-radius 12.3 of the 32-unit box. The tab is the same picture with corners of
-radius 6, stronger washes and a larger needle so the arms survive 16 pixels.
+On it sits the needle from `components/AlyeskaMark.js`, painted the way the
+sign-in screen paints it: teal `#3fdfbe` at north falling through glacier
+`#7fb6e6` to plum `#c8a6ff` at the tails, with the west face tinted plum at 0.3
+so it reads as a blade catching light rather than an arrowhead. Above it is one
+graduation in amber `#efb35d`, the north mark.
+
+One graduation, not the dial's sixteen. That is the whole lesson of the first
+Aurora Sky attempt on 2026-09-18, which dropped the gradient, the west face and
+the tick together and ended up a different mark from the one in the app: it is
+the ring of sixteen that turned to noise at 60 and 16 pixels, not the color and
+not north. Concept sources from that round are in the project file repo under
+`design/icon-aurora-sky-2026-09-18/`.
+
+Three things are measured rather than chosen, and moving them breaks something:
+
+- The tiles are square-cornered, because every launcher masks the square itself.
+  Their graduation sits out at radius 14.4, where the dial puts it.
+- The maskable copy pulls the needle and the graduation in together, so nothing
+  that matters lies outside radius 12.3 of the 32-unit box. A graduation left at
+  the rim is cut to a stub by a circular mask.
+- The tab keeps a heavier needle of its own and a wider graduation, 2.8 units
+  against the tiles' 1.9. At 16 pixels the app's 2.5-unit counter scaled to
+  two-thirds leaves arms under a pixel wide, and a 2.2-unit amber stroke covers
+  one pixel and reads olive rather than amber.
 
 The email mark is Daybreak and unchanged, because `lib/email/palette.js` sets
 every message in that skin and the mark sits on its pale card with no tile.
@@ -51,8 +64,15 @@ every message in that skin and the mark sits on its pale card with no tile.
 The tab ships twice: as the SVG a modern browser reads, and as an `.ico` with
 sixteen, thirty-two and forty-eight pixel frames, because some browsers ask for
 that file by name and will keep showing whatever they cached there otherwise.
-`/tmp` scripts are not the build path -- these are rasterized by hand and
-committed, so a color change here means re-rendering every PNG below.
+Each frame in that container is its own render at its own size -- Pillow's
+`append_images` quietly redraws them all from the largest, and this needle
+shrunk from 48 to 16 is a smudge, so `scripts/render-icons.py` packs the
+container itself.
+
+Run `python scripts/render-icons.py` after any change here. It re-renders every
+PNG, rebuilds both `.ico` files and prints the new tab hash; renaming the tab
+files and editing the two `icons` lines in `app/layout.js` is left to you on
+purpose, so the rename shows up in the diff. Nothing generates these on deploy.
 
 The PNGs are these files rasterized at their declared size, transparent where
 the source has no tile. Any renderer that honors `linearGradient` and

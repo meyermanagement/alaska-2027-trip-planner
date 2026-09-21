@@ -62,10 +62,10 @@ export const metadata = {
   // get the right answer.
   icons: {
     icon: [
-      { url: "/alyeska-tab-dee9cd.svg", type: "image/svg+xml", sizes: "any" },
-      { url: "/alyeska-tab-645b99.ico", type: "image/x-icon", sizes: "48x48" },
+      { url: "/alyeska-tab-8a783d.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/alyeska-tab-8a783d.ico", type: "image/x-icon", sizes: "48x48" },
     ],
-    shortcut: "/alyeska-tab-645b99.ico",
+    shortcut: "/alyeska-tab-8a783d.ico",
     apple: { url: "/alyeska-touch.png", sizes: "180x180", type: "image/png" },
   },
 };
