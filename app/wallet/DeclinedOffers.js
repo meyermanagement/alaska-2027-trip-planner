@@ -15,6 +15,7 @@
 // tab having failed to load.
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { offerDate, offerHost } from "@/lib/rewards-offers";
 import { formatMoney } from "@/lib/rewards";
 import HistoryGroups from "@/components/HistoryGroups";
@@ -45,20 +46,42 @@ export default function DeclinedOffers({
 }) {
   const [rows, setRows] = useState(offers);
   const [busy, setBusy] = useState(null);
+  const [said, setSaid] = useState("");
+  const [problem, setProblem] = useState("");
+  const router = useRouter();
 
   if (!rows.length && !bare) return null;
 
-  const askAgain = async (offer) => {
+  // Where the card goes, said and then done. The old button was labelled "Ask
+  // again", which named neither who was being asked nor what would happen, and
+  // the press only dropped the row from this list: the offer really had gone
+  // back to Current offers, but that section is rendered on the server above
+  // these tabs and was not re-read, so the screen showed a card disappearing and
+  // nothing arriving. The refresh is the missing half, and the sentence says
+  // where to look while it happens.
+  const reconsider = async (offer) => {
     setBusy(offer.id);
+    setSaid("");
+    setProblem("");
     try {
       const res = await fetch(`/api/offers/${offer.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "open" }),
       });
-      if (!res.ok) throw new Error();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setProblem(body?.error || "That could not be put back.");
+        setBusy(null);
+        return;
+      }
       setRows((prev) => prev.filter((row) => row.id !== offer.id));
+      setSaid(
+        `${offer.card_name} is back under Current offers, where Aly will weigh it as a live question.`,
+      );
+      router.refresh();
     } catch {
+      setProblem("That could not be put back.");
       setBusy(null);
     }
   };
@@ -70,7 +93,7 @@ export default function DeclinedOffers({
       </h2>
       <p className="mt-1 text-sm text-ink-soft">
         {rows.length
-          ? "Aly leaves these alone unless the terms genuinely improve — a bigger bonus, less spending, or a smaller fee. Ask again and she will treat it as an open question at the next look."
+          ? "Aly leaves these alone unless the terms genuinely improve — a bigger bonus, less spending, or a smaller fee. Put one back under Current offers to have her weigh it as a live question again."
           : "No offers in history. Offers you turn down appear here."}
       </p>
       <HistoryRetentionNotice />
@@ -101,14 +124,16 @@ export default function DeclinedOffers({
             <button
               type="button"
               disabled={busy === offer.id}
-              onClick={() => askAgain(offer)}
+              onClick={() => reconsider(offer)}
               className="btn btn-ghost mt-3 w-full shrink-0 px-3 py-1 text-xs font-semibold uppercase tracking-[0.06em] disabled:opacity-60 sm:mt-0 sm:w-auto"
             >
-              {busy === offer.id ? "Asking…" : "Ask again"}
+              {busy === offer.id ? "Putting it back…" : "Consider it again"}
             </button>
           </li>
         ))}
       </ul>} />
+      {said ? <p className="mt-3 text-sm text-ink">{said}</p> : null}
+      {problem ? <p className="mt-3 text-sm text-rose">{problem}</p> : null}
     </section>
   );
 }
