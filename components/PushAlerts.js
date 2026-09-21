@@ -24,6 +24,7 @@
 // rather than built in, so the key can be set on a running deployment.
 
 import { useCallback, useEffect, useState } from "react";
+import { deviceIdentity } from "@/lib/push/devices";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -45,12 +46,29 @@ async function askServer() {
   return res.json().catch(() => null);
 }
 
+// The registration, once there is one. Resolves null when nothing registers in
+// time rather than hanging: a panel that never finishes checking is worse than one
+// that offers a button which would have worked anyway.
+async function registrationWhenReady(waitMs = 5000) {
+  const held = await navigator.serviceWorker.getRegistration().catch(() => null);
+  if (held) return held;
+  await Promise.race([
+    navigator.serviceWorker.ready.catch(() => null),
+    new Promise((resolve) => setTimeout(resolve, waitMs)),
+  ]);
+  return navigator.serviceWorker.getRegistration().catch(() => null);
+}
+
 function keyOf(subscription) {
   const json = subscription.toJSON();
   return {
     endpoint: json.endpoint,
     p256dh: json.keys?.p256dh || "",
     auth: json.keys?.auth || "",
+    // Lets the server retire the rows this phone left behind when its endpoint
+    // was last rotated, instead of sending the same alert once per old row.
+    device_id: deviceIdentity(),
+    label: typeof navigator === "undefined" ? null : navigator.userAgent || null,
   };
 }
 
@@ -111,16 +129,33 @@ export default function PushAlerts() {
         return;
       }
 
-      const reg = await navigator.serviceWorker
-        .getRegistration()
-        .catch(() => null);
-      // Both halves have to agree. A browser holding a subscription the server has
-      // no enabled row for is not signed up -- the sender reads rows, not
-      // browsers -- and saying "on" there is the screen telling somebody they will
-      // be warned about a deadline when nothing will warn them. Treated as off, so
-      // the button offers to sign up again and the next press repairs the row.
-      const existing = reg ? await reg.pushManager.getSubscription() : null;
-      if (alive) setState(existing && info.subscribed ? "on" : "off");
+      // Waiting for the worker before concluding anything. The registration is
+      // made by ServiceWorkerBoot, which mounts alongside this panel rather than
+      // before it, so on a cold load getRegistration() answers null while the
+      // registration is still in flight. Reading that as "not subscribed" is what
+      // made this panel ask an already-subscribed phone to turn notifications on
+      // every time the Now screen was opened -- and each granted ask is another
+      // row for the sender to deliver to.
+      const reg = await registrationWhenReady();
+      const existing = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+
+      if (!existing) {
+        if (alive) setState("off");
+        return;
+      }
+
+      // The browser holds a subscription. Sending it again is idempotent -- the
+      // row is upserted on the endpoint -- and it does three things at once: it
+      // switches a row the server had retired back on, it registers an endpoint
+      // the server never stored, and it retires the rows this phone left behind
+      // when its endpoint was last rotated. Silent on purpose: nothing was asked
+      // for, so nothing is announced unless the answer changes what the panel says.
+      const repaired = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(keyOf(existing)),
+      }).catch(() => null);
+      if (alive) setState(repaired?.ok || info.subscribed ? "on" : "off");
     })();
     return () => {
       alive = false;
@@ -180,7 +215,7 @@ export default function PushAlerts() {
         return;
       }
       setState("on");
-      setSaid("This browser will get deadline alerts. Send a test to be sure.");
+      setSaid("This browser will get notifications. Send a test to be sure.");
     } catch (err) {
       setProblem(String(err?.message || err) || "The browser refused.");
     } finally {
@@ -261,14 +296,15 @@ export default function PushAlerts() {
 
   return (
     <section className="card mb-5 mt-4 p-5">
-      <h2 className="font-display text-xl font-semibold">Deadline alerts</h2>
+      <h2 className="font-display text-xl font-semibold">Notifications</h2>
       {/* This panel is now the second thing on the screen rather than the last,
           so the copy is two lines instead of five: what it is for, and the
           promise that it is twice per deadline and never more. */}
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-        A fare closing today or a card offer ending this week cannot wait for
-        the morning email, so those two arrive as a notification instead: once
-        when the date comes into view, and once on the last day.
+        A fare matching your home airports, a fare closing today, a card offer
+        ending this week: none of those can wait for the morning email, so they
+        arrive as a notification instead. Deadlines are warned about twice at
+        most &mdash; once when the date comes into view, once on the last day.
       </p>
 
       {state === "loading" ? (

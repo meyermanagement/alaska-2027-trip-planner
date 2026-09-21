@@ -3,9 +3,11 @@
 // A push subscription belongs to a browser, not to a person: the same person on a
 // phone and a laptop is two rows, and turning notifications off in one must not
 // silence the other. The endpoint the browser hands us is unique on its own, so a
-// browser that re-subscribes -- which happens whenever the push service rotates
-// it -- lands on the row it already had instead of collecting duplicates that each
-// deliver the same notification.
+// browser that re-subscribes on the same endpoint lands on the row it already had.
+// A rotated endpoint is a new row, though, which is how one iPhone came to hold six
+// of them -- so the browser also sends an identifier of its own, and rows it
+// supersedes are retired here. See lib/push/devices.js for why the user agent is
+// not enough to decide that.
 //
 // GET answers the one question the client cannot answer for itself: the server's
 // public key, and whether push is configured at all. Keeping it behind a route
@@ -16,6 +18,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pushConfigured, pushProblem, pushPublicKey } from "@/lib/push/send";
 import { optionalFeatureDecision } from "@/lib/beta/consent";
+import { supersededSubscriptions } from "@/lib/push/devices";
 
 export const runtime = "nodejs";
 
@@ -125,6 +128,11 @@ export async function POST(request) {
       ? body.label.trim().slice(0, 120)
       : (request.headers.get("user-agent") || "").slice(0, 120) || null;
 
+  const deviceId =
+    typeof body?.device_id === "string" && body.device_id.trim()
+      ? body.device_id.trim().slice(0, 64)
+      : null;
+
   // Upsert on the endpoint. The keys can genuinely change under the same
   // endpoint, and a stale pair is a subscription that silently stops working, so
   // they are overwritten every time rather than left as first written.
@@ -137,6 +145,7 @@ export async function POST(request) {
       p256dh,
       auth,
       label,
+      device_id: deviceId,
       enabled: true,
       failures: 0,
       last_error: null,
@@ -147,7 +156,33 @@ export async function POST(request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
+
+  // Retiring what this subscription replaces. A failure here leaves a duplicate
+  // row, which sends one extra notification -- not worth failing a subscription
+  // the browser has already granted, so it is reported and swallowed.
+  let retired = 0;
+  if (deviceId) {
+    const { data: mine } = await supabase
+      .from("push_subscriptions")
+      .select("id, user_id, endpoint, device_id, label")
+      .eq("user_id", user.id);
+    const stale = supersededSubscriptions(mine || [], {
+      userId: user.id,
+      endpoint,
+      deviceId,
+      label,
+    });
+    if (stale.length) {
+      const { error: retireError } = await supabase
+        .from("push_subscriptions")
+        .delete()
+        .in("id", stale);
+      if (retireError) console.error("push subscribe: stale rows kept", retireError.message);
+      else retired = stale.length;
+    }
+  }
+
+  return NextResponse.json({ ok: true, retired });
 }
 
 export async function DELETE(request) {
