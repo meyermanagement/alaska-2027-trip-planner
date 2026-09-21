@@ -8,6 +8,7 @@ import { priorAnswersFrom } from "@/lib/travelers/interviewInference";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
 
 import InterviewBody from "./InterviewBody";
+import { homeToday } from "@/lib/format";
 
 // The interview screen. One question centred, no transcript, Compass between
 // questions. Only the primary can be here -- a secondary who reaches this URL
@@ -36,7 +37,7 @@ export default async function InterviewPage() {
   if (!familyId) redirect("/welcome");
   if (access.level !== PRIMARY) redirect("/family");
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = homeToday();
   const [
     { data: preferences },
     { data: facts },

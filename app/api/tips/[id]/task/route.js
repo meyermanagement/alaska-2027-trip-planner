@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { taskFromTip } from "@/lib/tips/task";
+import { homeToday } from "@/lib/format";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = homeToday();
   const row = taskFromTip(tip, { today });
   if (!row) {
     return NextResponse.json(

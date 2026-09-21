@@ -5,7 +5,8 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, { alias: { "@": fileURLToPath(new URL("..", import.meta.url)) } });
 const { newsletterFares } = jiti("../lib/deals/newsletter.js");
 const { checkCandidate } = jiti("../lib/deals/parse.js");
-const { hasAwardPricing, validateAwardPricing, farePriceLabel, fareIdentity, consolidateAwardRoutes } = jiti("../lib/deals/award.js");
+const { hasAwardPricing, validateAwardPricing, farePriceLabel, fareIdentity, consolidateAwardRoutes,
+  cheapestAwardOption, awardProgramNames, rankedAwardOptions } = jiti("../lib/deals/award.js");
 const { ceilingCheck, budgetCheck, dealVerdict, dealLines } = jiti("../lib/deals/verdict.js");
 const { groupFareAlerts } = jiti("../lib/deals/groups.js");
 const { deadlinesInView } = jiti("../lib/watch/deadlines.js");
@@ -115,4 +116,40 @@ test("deadline notifications keep miles and fees together", () => {
   assert.match(alert.title, /97,000.*\+ \$6/);
   assert.match(alert.body, /97,000.*\+ \$6/);
   assert.doesNotMatch(alert.title, /for \$6 to/);
+});
+
+const option = (program, points, overrides = {}) => ({
+  program, points_min: points, points_max: points, points_unit: "miles",
+  points_basis: "one_way", cash_amount: null, cash_currency: null,
+  cash_basis: "one_way", round_trip_cash: null, pricing_text: `${program} ${points}`,
+  route_text: null, ...overrides,
+});
+
+test("the headline leads with the cheapest seat and still names the other program", () => {
+  const deal = { award_pricing: { options: [option("British Airways", 88000, { points_unit: "avios" }), option("Japan Airlines Mileage Bank", 42000)] } };
+  const label = farePriceLabel(deal);
+  assert.match(label, /^42,000 Japan Airlines Mileage Bank miles/);
+  assert.match(label, /also British Airways$/);
+  assert.doesNotMatch(label, /booking options/);
+});
+test("a round-trip quote is halved before being called cheaper than a one-way one", () => {
+  const roundTrip = option("Japan Airlines Mileage Bank", 80000, { points_basis: "round_trip" });
+  const oneWay = option("British Airways", 50000);
+  assert.equal(cheapestAwardOption([oneWay, roundTrip]).program, "Japan Airlines Mileage Bank");
+  assert.equal(cheapestAwardOption([option("A", 39000), roundTrip]).program, "A");
+});
+test("one option names no alternative, and a sole program is never listed twice", () => {
+  assert.doesNotMatch(farePriceLabel({ award_pricing: { options: [option("British Airways", 99000)] } }), /also/);
+  assert.deepEqual(awardProgramNames([option("British Airways", 99000), option("British Airways", 120000)]), ["British Airways"]);
+});
+test("programs and options are ordered cheapest first, and empty input is safe", () => {
+  const options = [option("Dear", 99000), option("Cheap", 42000), option("Middle", 60000)];
+  assert.deepEqual(awardProgramNames(options), ["Cheap", "Middle", "Dear"]);
+  assert.deepEqual(rankedAwardOptions(options).map(o => o.program), ["Cheap", "Middle", "Dear"]);
+  assert.equal(cheapestAwardOption([]), null);
+  assert.equal(cheapestAwardOption(undefined), null);
+  assert.deepEqual(awardProgramNames(undefined), []);
+  assert.deepEqual(rankedAwardOptions(null), []);
+  assert.deepEqual(rankedAwardOptions(options), rankedAwardOptions(options));
+  assert.deepEqual(options.map(o => o.program), ["Dear", "Cheap", "Middle"]);
 });

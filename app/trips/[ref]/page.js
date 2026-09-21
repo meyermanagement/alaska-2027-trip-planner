@@ -11,7 +11,7 @@ import { isDraftTrip, isPastTrip } from "@/lib/format";
 import { parseTripRef, tripRef, needsCanonical } from "@/lib/trips/route";
 import TripFares from "@/components/TripFares";
 import { inboxAddressFor } from "@/lib/inbox/address";
-import { judged, readDealWorld } from "@/lib/deals/world";
+import { FARE_SELECT, judged, readDealWorld } from "@/lib/deals/world";
 import {
   circumstanceSnapshot,
   changesBetween,
@@ -255,7 +255,7 @@ export default async function TripPage({ params, searchParams }) {
     // where the dates and the budget it was judged against live.
     supabase
       .from("flight_deals")
-      .select("*")
+      .select(FARE_SELECT)
       .eq("family_id", trip.family_id)
       .order("created_at", { ascending: false }),
     // The household's forwarding address, so a trip with flights still to buy

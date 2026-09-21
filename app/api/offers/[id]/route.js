@@ -25,6 +25,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { homeToday } from "@/lib/format";
 
 export const runtime = "nodejs";
 
@@ -57,7 +58,7 @@ export async function POST(request, { params }) {
       ? body.note.trim().slice(0, 300)
       : null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = homeToday();
   // Row-level security does the ownership check: the update matches nothing at
   // all for a family this person is not in, and a secondary traveler is refused
   // outright, so there is no need to read the row first to decide.

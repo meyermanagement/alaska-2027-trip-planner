@@ -65,7 +65,9 @@ test("destination-headed awards retain program-specific route prices, not headli
     assert.equal(checked.row.price, null);
     assert.ok(checked.row.award_pricing.options.every(o => o.cash_amount === null));
   }
-  assert.match(farePriceLabel(ord), /88,000 British Airways Avios/);
+  // The email lists Avios first; the household cares which seat is cheapest.
+  assert.match(farePriceLabel(ord), /^42,000 Japan Airlines Mileage Bank miles/);
+  assert.match(farePriceLabel(ord), /also British Airways/);
 });
 test("cash destination headers and collapsed Markdown headings do not reverse routes", () => {
   const result = newsletterFares(cash, airports);

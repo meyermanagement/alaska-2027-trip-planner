@@ -31,6 +31,7 @@ import {
   totalCreditValue,
   totalEstimatedValue,
 } from "@/lib/rewards";
+import { homeToday } from "@/lib/format";
 
 const SPENDS = [
   { key: "flights", label: "Flights" },
@@ -323,7 +324,7 @@ export default function RewardsBoard({
       .from("rewards_programs")
       .update({
         points_balance: Number.isFinite(value) ? value : null,
-        points_checked_on: new Date().toISOString().slice(0, 10),
+        points_checked_on: homeToday(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id)

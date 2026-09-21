@@ -3,6 +3,7 @@ import { archiveContext } from "@/lib/tips/archiveAccess";
 import { generate } from "@/lib/agent/llm";
 import { resolveGroundingUrls } from "@/lib/tips/groundingUrls";
 import { ARCHIVE_COLUMNS, UUID, CHECK_SYSTEM, checkedAnswer } from "@/lib/tips/archiveSearch";
+import { homeDayOf } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -27,7 +28,7 @@ export async function POST(request) {
     const checkedAt = new Date().toISOString();
     const result = await generate({ feature: "tips.archive-check", system: CHECK_SYSTEM,
       messages: [{ role: "user", text: JSON.stringify({
-        today: checkedAt.slice(0, 10), question: body.question || "Is this still true today?",
+        today: homeDayOf(checkedAt), question: body.question || "Is this still true today?",
         original: { title: tip.title, body: tip.body, because: tip.because, clearedAt: tip.resolved_at,
           sources: tip.sources, trip: tip.trips },
       }) }], grounded: true, temperature: 0.1, thinking: "low", deadline: started + 90000 });

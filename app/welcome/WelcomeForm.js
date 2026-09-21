@@ -12,6 +12,7 @@ import { patchRun } from "@/lib/practice/session";
 import { welcomeAccess, wantsWelcomeInvite } from "@/lib/welcome/access";
 import TravelerAccessChoice from "./TravelerAccessChoice";
 import WelcomeInvitations from "./WelcomeInvitations";
+import { homeToday } from "@/lib/format";
 
 /**
  * The first-login form.
@@ -386,7 +387,7 @@ export default function WelcomeForm({
                       className="field mt-1 text-base"
                       value={row.dob || ""}
                       onChange={(e) => setPerson(i, { dob: e.target.value })}
-                      max={new Date().toISOString().slice(0, 10)}
+                      max={homeToday()}
                     />
                   </label>
                   <label className="block text-xs font-semibold text-ink-soft">

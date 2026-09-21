@@ -27,6 +27,7 @@ import { aboutLines } from "@/lib/travelers/profile";
 import { placeMatches } from "@/lib/deals/verdict";
 import { placeExpectation } from "@/lib/someday/expect";
 import { parseMonths } from "@/lib/someday/months";
+import { homeDayOf } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
@@ -61,7 +62,7 @@ function faresFor(deals, place, region) {
       award_pricing: deal.award_pricing,
       airline: deal.airline,
       source_name: deal.source_name,
-      seen: String(deal.created_at || "").slice(0, 10),
+      seen: homeDayOf(deal.created_at),
     }));
 }
 

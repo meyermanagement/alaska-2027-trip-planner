@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ensurePetTemplate, renamePetTemplate } from "@/lib/pets/template";
-import { formatDayYear, isPastTrip } from "@/lib/format";
+import { formatDayYear, homeToday, isPastTrip } from "@/lib/format";
 import {
   PAPERS,
   SPECIES,
@@ -523,7 +523,7 @@ export function PetForm({ pet, busy, onCancel, onSave }) {
             Date of birth (optional)
             <input
               type="date"
-              max={new Date().toISOString().slice(0, 10)}
+              max={homeToday()}
               className="field mt-1 text-base"
               value={form.date_of_birth}
               onChange={set("date_of_birth")}

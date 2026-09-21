@@ -23,10 +23,10 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/rewards";
-import { formatDay, homeToday } from "@/lib/format";
+import { formatDay, homeDayOf, homeToday } from "@/lib/format";
 import { monthsSaid } from "@/lib/someday/months";
 import { groupFareAlerts } from "@/lib/deals/groups";
-import { awardOptionLabel } from "@/lib/deals/award";
+import { awardOptionLabel, rankedAwardOptions } from "@/lib/deals/award";
 import { fareOfferLabel, fareGroupCabinLabel } from "@/lib/deals/cabin";
 import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
 import { tripPath } from "@/lib/trips/route";
@@ -209,7 +209,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                 <span className="font-semibold">From {group.origin}</span>
                 <span className="ml-2 text-ink-soft">{group.deals.length} {group.deals.length === 1 ? "fare" : "fares"}</span>
                 <span className="mt-1 block pl-4 text-xs text-ink-faint">
-                  {group.sourceName}{group.createdAt ? ` · received ${formatDay(group.createdAt.slice(0, 10))}` : ""}
+                  {group.sourceName}{group.receivedAt ? ` · received ${formatDay(homeDayOf(group.receivedAt))}` : ""}
                 </span>
               </summary>
               <ul className="space-y-2 pb-3">
@@ -278,7 +278,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
         {!compact ? deadlineBadge(deal) : null}
         {deal.award_pricing?.options?.length ? (
           <div className="mt-2 space-y-2 text-sm text-ink-soft">
-            {deal.award_pricing.options.map((option, index) => (
+            {rankedAwardOptions(deal.award_pricing.options).map((option, index) => (
               <div key={`${option.program}-${index}`}>
                 {deal.award_pricing.options.length > 1 ? <p>{awardOptionLabel(option)} per person</p> : null}
                 {option.round_trip_cash !== null ? (
@@ -445,11 +445,11 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                     <span className="ml-2 text-sm text-ink-soft">
                       {group.destinationCount} {group.destinationCount === 1 ? "destination" : "destinations"}
                       {group.lowestPrice !== null ? <span> · from {fareOfferLabel(group.deals.find((deal) => !deal.award_pricing && Number(deal.price) === group.lowestPrice))}</span> : ""}
-                      {group.awardCount ? <span> · {group.deals.length === 1 ? fareOfferLabel(group.deals[0]) : `${group.awardCount} award ${group.awardCount === 1 ? "fare" : "fares"} · ${fareGroupCabinLabel(group.deals.filter((deal) => deal.award_pricing))}`}</span> : null}
+                      {group.awardCount ? <span> · {group.deals.length === 1 ? fareOfferLabel(group.deals[0]) : `${group.awardCount} award ${group.awardCount === 1 ? "fare" : "fares"}${group.awardPrograms?.length ? ` · ${group.awardPrograms.join(", ")}` : ""} · ${fareGroupCabinLabel(group.deals.filter((deal) => deal.award_pricing))}`}</span> : null}
                     </span>
                     <span className="mt-1 block pl-4 text-xs text-ink-faint">
                       {group.sourceName}
-                      {group.createdAt ? ` · received ${formatDay(group.createdAt.slice(0, 10))}` : ""}
+                      {group.receivedAt ? ` · received ${formatDay(homeDayOf(group.receivedAt))}` : ""}
                     </span>
                   </summary>
                   <div className="px-4 pb-2">

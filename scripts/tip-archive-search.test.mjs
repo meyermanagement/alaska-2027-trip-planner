@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const moduleUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`;
 const helpers = await import(moduleUrl(read("lib/tips/archiveSearch.js")));
+// The routes format dates in the household's own zone, so the real helper is
+// supplied rather than stubbed: a UTC day would be tomorrow every evening.
+const { homeDayOf } = await import(moduleUrl(read("lib/format.js")));
 const { searchTerms, archiveFilter, selectedMatches, checkedAnswer, safeSources, keywordRank, directMatches, mergeMatches } = helpers;
 const id = "11111111-1111-4111-8111-111111111111";
 const tip = { id, title: "Motion sickness on the crossing", body: "Plan for the ferry.", trips: { name: "Alaska cruise" } };
@@ -72,6 +75,7 @@ async function route(path, context, model, db) {
     const archiveContext = globalThis.__archiveTest.context;
     const generate = globalThis.__archiveTest.generate;
     const resolveGroundingUrls = async sources => sources;
+    const homeDayOf = globalThis.__archiveTest.homeDayOf;
     const WALLET_SCOPES = ["wallet","offers"];
     const {ARCHIVE_COLUMNS, ARCHIVE_LIMIT, UUID, readJson, searchTerms, archiveFilter, keywordRank, directMatches, mergeMatches,
       selectedMatches, EXPAND_SYSTEM, RANK_SYSTEM, CHECK_SYSTEM, checkedAnswer} = globalThis.__archiveTest.helpers;
@@ -92,7 +96,7 @@ function setup({ ai = true, denied = false, rows = [tip], rowBatches, outputs = 
     } });
     return q;
   } };
-  globalThis.__archiveTest = { helpers,
+  globalThis.__archiveTest = { helpers, homeDayOf,
     context: async () => denied ? { error: "No access", status: 403 } : { supabase, familyId: "family", ai },
     generate: async args => {
       calls.push(args);

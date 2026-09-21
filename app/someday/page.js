@@ -12,7 +12,7 @@ import SomedayTabs from "./SomedayTabs";
 import Deals from "@/components/Deals";
 import ForwardFares from "@/components/ForwardFares";
 import { inboxAddressFor } from "@/lib/inbox/address";
-import { judged, readDealWorld } from "@/lib/deals/world";
+import { FARE_SELECT, judged, readDealWorld } from "@/lib/deals/world";
 
 export const metadata = { title: "Bucket list & fares · Alyeska" };
 
@@ -92,7 +92,7 @@ export default async function SomedayPage() {
   // the hotel goes on, and a card that says otherwise is worse than no card.
   const { data: deals } = await supabase
     .from("flight_deals")
-    .select("*")
+    .select(FARE_SELECT)
     .eq("family_id", familyId)
     .order("created_at", { ascending: false });
   const world = deals?.length ? await readDealWorld(supabase, familyId) : null;

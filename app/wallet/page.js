@@ -14,6 +14,7 @@ import RewardsBoard from "./RewardsBoard";
 import DeclinedOffers from "./DeclinedOffers";
 import WalletTabs from "./WalletTabs";
 import WalletAddButton from "@/components/WalletAddButton";
+import { homeToday } from "@/lib/format";
 
 export const metadata = { title: "Wallet · Alyeska" };
 
@@ -35,7 +36,7 @@ export default async function RewardsPage() {
   if (access?.can.isSecondary) redirect("/trips");
   const familyId = memberships[0].family_id;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = homeToday();
 
   const [{ data: travelers }, { data: programs, error: programsError }] =
     await Promise.all([

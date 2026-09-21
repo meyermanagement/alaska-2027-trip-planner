@@ -41,15 +41,7 @@ import {
 // The value the select uses for "a term of their own". Not a stored value: it
 // only ever means "show the box", and what gets saved is whatever is typed in it.
 const OWN_TERM = OWN_GENDER_TERM;
-import {
-  DOC_TYPES,
-  docType,
-  formatDayYear,
-  formatRange,
-  isDraftTrip,
-  isPastTrip,
-  monthsUntil,
-} from "@/lib/format";
+import { DOC_TYPES, docType, formatDayYear, formatRange, homeToday, isDraftTrip, isPastTrip, monthsUntil } from "@/lib/format";
 
 export default function People({
   familyId,
@@ -1848,7 +1840,7 @@ export function PersonForm({
             Date of birth (optional)
             <input
               type="date"
-              max={new Date().toISOString().slice(0, 10)}
+              max={homeToday()}
               className="field mt-1 text-base"
               value={form.date_of_birth}
               onChange={set("date_of_birth")}

@@ -9,6 +9,7 @@ import { TEMPLATES_FOCUS } from "@/lib/agent/context";
 import { FIRST_NAME, templateRequest } from "@/lib/packing/newTemplate";
 import { houseListOnto } from "@/lib/tasks/onto";
 import { Spinner } from "./LinkPending";
+import { homeToday } from "@/lib/format";
 
 /**
  * Moves a finished draft into Upcoming trips, and builds its packing list on the
@@ -212,7 +213,7 @@ export default function PromoteDraft({ trip, onDone, hasPacking = false }) {
       );
       return;
     }
-    const today = new Date().toISOString().slice(0, 10);
+    const today = homeToday();
     if (trip.end_date < today) {
       setProblem(
         "Those dates are in the past, so this trip would go straight to your Trip log. Update the dates first.",

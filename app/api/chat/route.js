@@ -72,6 +72,7 @@ import {
   recallOtherConversations,
   toModelMessages,
 } from "@/lib/agent/thread";
+import { homeToday } from "@/lib/format";
 
 export const runtime = "nodejs";
 // Sixty seconds was the whole request, and one grounded question no longer fits
@@ -903,7 +904,7 @@ export async function POST(request) {
           .select("id, item_date")
           .eq("trip_id", resolved.look.tripId)
           .not("item_date", "is", null)
-          .gte("item_date", new Date().toISOString().slice(0, 10))
+          .gte("item_date", homeToday())
           .order("item_date", { ascending: true })
           .limit(3);
         upcoming = data || [];

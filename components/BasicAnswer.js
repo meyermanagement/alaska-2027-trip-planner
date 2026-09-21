@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { adoptRequest, settledDisagreement } from "@/lib/trips/settled";
+import { homeDayOf } from "@/lib/format";
 
 /**
  * One of the seven answers, shown against what the trip has actually become.
@@ -106,7 +107,7 @@ export default function BasicAnswer({
                   {h.created_at && (
                     <span className="whitespace-nowrap text-ink-faint">
                       {" · "}
-                      {String(h.created_at).slice(0, 10)}
+                      {homeDayOf(h.created_at)}
                     </span>
                   )}
                 </li>
