@@ -6,12 +6,12 @@ const source=readFileSync(new URL("../lib/inbox/parser.js",import.meta.url),"utf
 // adapters. No real model calls, private emails or production database writes.
 const stripped=source.replace(/^import .* from .*;\n/gm,"");
 const adapters=`
+const fareSourceFor=e=>globalThis.inboxTest.fareSender?"Thrifty Traveler":null;
 const createAdminClient=()=>null;
 const householdAiAllowed=async()=>globalThis.inboxTest.consent;
 const usageFrom=m=>m||{};
 const recordUsage=async(_db,usage)=>{globalThis.inboxTest.usage.push(usage)};
 const normalizeCovers=x=>Array.isArray(x)?x:[];
-const fareSourceFor=()=>null;
 const readableFareText=x=>x;
 `;
 const { extractInboxReview }=await import(`data:text/javascript;base64,${Buffer.from(adapters+stripped).toString("base64")}`);
@@ -58,6 +58,44 @@ test("missing source and foreign attachments fail without a provider call",async
   await assert.rejects(extractInboxReview({supabase:fakeDb(),message:{...message,text_body:null},comment:""}),/no retained email/);
   await assert.rejects(extractInboxReview({supabase:fakeDb([{storage_path:"foreign/policy.pdf",mime_type:"application/pdf"}]),message,comment:""}),/could not be verified/);
   assert.equal(calls.length,0);
+});
+test("a fare alert is reread by the fare reader instead of the booking schema",async()=>{
+  // A known fare newsletter never reaches the booking read at all.
+  globalThis.inboxTest.fareSender=true;
+  const seen=[];
+  const readFares=async args=>{seen.push(args);return {saved:2,why:""}};
+  const fare={...message,from_email:"deals@thriftytraveler.com",from_name:"Thrifty Traveler",
+    text_body:"STL to LHR from 30,000 points",received_at:"2026-09-16T12:00:00Z"};
+  const known=await extractInboxReview({supabase:fakeDb(),message:fare,comment:"Find the London fare.",readFares});
+  assert.equal(known.result.kind,"fare_alert");
+  assert.equal(known.result.saved,2);
+  assert.deepEqual(known.result.items,[]);
+  assert.equal(known.result.policy,null);
+  assert.equal(calls.length,0);
+  // The comment is never folded into the text a fare is verified against.
+  assert.match(seen[0].text,/STL to LHR from 30,000 points/);
+  assert.doesNotMatch(seen[0].text,/Find the London fare/);
+  assert.equal(seen[0].messageId,"message");
+  assert.equal(seen[0].familyId,"family");
+  assert.equal(seen[0].receivedAt,"2026-09-16T12:00:00Z");
+  assert.equal(seen[0].consentFor,"user");
+  // An unknown sender the model recognizes as a fare alert takes the same door,
+  // rather than failing with "No booking or insurance details were found".
+  globalThis.inboxTest.fareSender=false;
+  global.fetch=async()=>new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify({
+    kind:"fare_alert",items:[],passenger_names:[],
+  })}]}}]}));
+  const guessed=await extractInboxReview({supabase:fakeDb(),message:fare,comment:"",
+    readFares:async()=>({saved:0,why:"it leaves from LHR, which is not an airport you fly from"})});
+  assert.equal(guessed.result.kind,"fare_alert");
+  assert.match(guessed.result.why,/not an airport you fly from/);
+});
+test("a fare alert with no retained text says so rather than reading nothing",async()=>{
+  globalThis.inboxTest.fareSender=true;
+  await assert.rejects(extractInboxReview({supabase:fakeDb([
+    {storage_path:"family/inbox/message/deal.pdf",mime_type:"application/pdf",size_bytes:20},
+  ]),message:{...message,text_body:null,subject:null},comment:"",
+    readFares:async()=>{throw new Error("must not read fares without text")}}),/no retained email text to read fares/);
 });
 test("route requires verified session, primary access and mail consent before starting",()=>{
   const route=readFileSync(new URL("../app/api/inbox/[id]/reprocess/route.js",import.meta.url),"utf8");

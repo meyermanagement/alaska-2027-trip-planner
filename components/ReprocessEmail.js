@@ -7,7 +7,7 @@ import { Spinner } from "@/components/LinkPending";
 export function InboxReprocessHelp() {
   return (
     <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand p-4 text-sm text-ink-soft">
-      <p><strong className="text-ink">Missing or incorrect booking or insurance details?</strong>{" "}
+      <p><strong className="text-ink">Missing or incorrect booking, insurance or fare details?</strong>{" "}
         Choose <strong>Reprocess email</strong>, tell Aly what was missed, then review the new reading before saving.</p>
       <p className="mt-1">Already filed it? Open <strong>Messages that have left the inbox</strong> below.
         Reprocessing leaves your saved details unchanged until you approve an update.</p>
@@ -97,6 +97,9 @@ export default function ReprocessEmail({ messageId, disabled = false, onBusyChan
     } catch (e) { setError(e.message); }
     finally { requestLock.current = false; setBusy(false); }
   }
+  // A fare alert has no staged proposal to choose between: the fares it produced
+  // are already on the fare list waiting to be taken or refused.
+  const fareAlert = run?.result?.kind === "fare_alert";
   const insurance = run?.result?.kind === "insurance";
   const records = insurance ? saved.savedPolicies : saved.savedItems;
   const results = insurance ? [run.result.policy] : run?.result?.items || [];
@@ -140,7 +143,15 @@ export default function ReprocessEmail({ messageId, disabled = false, onBusyChan
       {run?.status === "running" && <p role="status" className="mt-3 text-ink-soft">Reading the email and attachments. Your existing details are safe; this can take a minute.</p>}
       {(error || run?.status === "failed") && <p role="alert" className="mt-3 text-rose">{error || run.error}</p>}
       {success && <p role="status" className="mt-3 font-medium text-teal">{success}</p>}
-      {run?.status === "ready" && <>
+      {run?.status === "ready" && fareAlert && <div className="mt-4 rounded-xl border border-[var(--line)] bg-white p-3">
+        <h4 className="font-semibold">Read as a fare alert</h4>
+        <p className="mt-1 text-ink-soft">{run.result.saved
+          ? `${run.result.saved} fare${run.result.saved === 1 ? "" : "s"} saved. Open Bucket list to take or refuse ${run.result.saved === 1 ? "it" : "them"}.`
+          : `No fare was saved${run.result.why ? `: ${run.result.why}` : ""}.`}</p>
+        <p className="mt-1 text-xs text-ink-faint">A fare is only saved when its route and price are printed in the email, so your comment is not used here.</p>
+        {(run.result.warnings || []).map((warning, i) => <p key={i} role="note" className="mt-2 text-rose">{warning}</p>)}
+      </div>}
+      {run?.status === "ready" && !fareAlert && <>
         <h4 className="mt-5 font-semibold">Review the new reading</h4>
         <p className="mt-1 text-ink-soft">Only the details shown below will update. Missing values and your personal notes are kept.
           Choose an existing record to correct it, or send a genuinely new item to File it. No saved record will be removed.</p>
