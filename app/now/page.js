@@ -11,6 +11,8 @@ import Reminders from "@/components/Reminders";
 import MorningRun from "@/components/MorningRun";
 import PushAlerts from "@/components/PushAlerts";
 import NowBands from "./NowBands";
+import NowAhead from "./NowAhead";
+import NowEmpty from "./NowEmpty";
 import {
   formatDay,
   formatTime,
@@ -25,6 +27,11 @@ import {
   progressOf,
   todaysPlan,
 } from "@/lib/now/home";
+import { aheadDates, nextAhead, seasonAhead } from "@/lib/now/ahead";
+import { monthsSaid } from "@/lib/someday/months";
+import { farePriceLabel } from "@/lib/deals/award";
+import { fareHasExpired } from "@/lib/deals/deadline";
+import { offerEnded } from "@/lib/rewards-offers";
 import { BASIC_SELECT } from "@/lib/trips/basics";
 import { canSeeTrip, visibleTripIds } from "@/lib/trips/visibility";
 import { todayISO } from "@/lib/reminders";
@@ -150,7 +157,16 @@ export default async function NowPage() {
     canSeeTrip(trip, access, allowedTripIds),
   );
   const { current, soon } = homeTrips(visible, today);
-  const heroTrips = [...current, ...soon.map((one) => one.trip)];
+  // The nearest trip that is further out than the two-week window. Past that
+  // range packing and today's plan are both false comfort, so the screen leads
+  // with a countdown and the dates that will not wait instead.
+  const ahead = current.length || soon.length ? null : nextAhead(visible, today);
+  const emptyHanded = !current.length && !soon.length && !ahead;
+  const heroTrips = [
+    ...current,
+    ...soon.map((one) => one.trip),
+    ...(ahead ? [ahead.trip] : []),
+  ];
   const heroIds = heroTrips.map((trip) => trip.id);
 
   const [
@@ -243,6 +259,152 @@ export default async function NowPage() {
 
   const currentCards = current.map((trip) => buildCard(trip));
   const soonCards = soon.map((one) => buildCard(one.trip, one.days));
+
+  // The two long-range states. Both of them want the saved places and the open
+  // deadlines, so the reads are shared and only happen at those ranges: a family
+  // leaving tomorrow should not pay for a query about next spring.
+  const longRange = Boolean(ahead) || emptyHanded;
+  const [{ data: placeRows }, { data: dealRows }, { data: offerRows }] =
+    longRange && access?.familyId
+      ? await Promise.all([
+          supabase
+            .from("someday_places")
+            .select("id, place, why, months, status, priority")
+            .eq("family_id", access.familyId),
+          supabase
+            .from("flight_deals")
+            .select(
+              "id, destination, destination_code, price, price_basis, currency, award_pricing, book_by, book_by_inferred, source_name, status",
+            )
+            .eq("family_id", access.familyId)
+            .eq("status", "open"),
+          supabase
+            .from("card_offers")
+            .select("id, issuer, card_name, bonus_text, offer_ends_on, status")
+            .eq("family_id", access.familyId)
+            .eq("status", "open"),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+  // Deadlines worked out against today rather than trusting the stored status:
+  // a row is only written to expired when a pass runs, and this screen can be
+  // read in between.
+  const liveDeals = (dealRows || []).filter(
+    (deal) => deal.book_by && !fareHasExpired(deal, today),
+  );
+  const liveOffers = (offerRows || []).filter(
+    (offer) => offer.offer_ends_on && !offerEnded(offer, today),
+  );
+
+  // The dates band: every dated thing in view, across every trip, plus the fares
+  // and card bonuses that run out. One band, because when something is running
+  // out a family thinks in the order the dates land, not in trips.
+  const aheadCard = ahead ? buildCard(ahead.trip, ahead.days) : null;
+  if (aheadCard) {
+    aheadCard.budgetHref = tripPath(ahead.trip, "budget");
+    aheadCard.needs = (heroTasks || [])
+      .filter((row) => row.trip_id === ahead.trip.id && row.due_date)
+      .slice(0, 3)
+      .map((row) => ({ id: row.id, on: row.due_date, title: row.title }));
+  }
+  const aheadRows = ahead
+    ? aheadDates(
+        [
+          ...tasks
+            .filter((task) => task.due_date)
+            .map((task) => ({
+              id: `task-${task.id}`,
+              on: task.due_date,
+              title: task.title,
+              why: task.detail || null,
+              scope: task.trip?.name || null,
+              href: task.trip ? tripPath(task.trip, "tasks") : null,
+            })),
+          ...liveDeals.map((deal) => ({
+            id: `fare-${deal.id}`,
+            on: deal.book_by,
+            title: `${deal.destination} · ${farePriceLabel(deal)}`,
+            why: deal.book_by_inferred
+              ? `${deal.source_name || "The sender"} expects this fare to go around then.`
+              : "Last day to book at that price.",
+            scope: "Fares",
+            href: "/someday",
+          })),
+          ...liveOffers.map((offer) => ({
+            id: `offer-${offer.id}`,
+            on: offer.offer_ends_on,
+            title: `${offer.card_name} bonus ends`,
+            why: offer.bonus_text || offer.issuer || null,
+            scope: "Wallet",
+            href: "/wallet",
+          })),
+        ],
+        today,
+      )
+    : [];
+
+  // The saved places whose season comes round next. One of them at this range,
+  // chosen rather than listed; all of them on the empty screen, where there is
+  // nothing else to decide.
+  const seasons = longRange ? seasonAhead(placeRows || [], today) : [];
+  const pick = seasons[0]
+    ? {
+        title: seasons[0].place.place,
+        why:
+          seasons[0].place.why ||
+          `Your window opens in ${seasons[0].monthName}${
+            seasons[0].months.length > 1
+              ? ` — you ticked ${monthsSaid(seasons[0].months)}.`
+              : "."
+          }`,
+        planHref: `/trips/new?from=${seasons[0].place.id}`,
+      }
+    : null;
+
+  // The empty-handed screen. No trip on the calendar at all, so it asks for a
+  // week rather than a destination, then shows what is already being watched and
+  // what the family has done before.
+  const emptySeason = seasons.length
+    ? {
+        heading: "In season before spring",
+        rows: seasons.slice(0, 4).map((one) => ({
+          id: one.place.id,
+          months: monthsSaid(one.months),
+          place: one.place.place,
+          why: one.place.why || null,
+        })),
+        planHref: `/trips/new?from=${seasons[0].place.id}`,
+        more: Math.max(0, seasons.length - 4),
+        total: seasons.length,
+      }
+    : null;
+  const watching = emptyHanded
+    ? {
+        chips: [
+          { count: liveDeals.length, label: liveDeals.length === 1 ? "fare" : "fares" },
+          {
+            count: liveOffers.length,
+            label: liveOffers.length === 1 ? "card bonus" : "card bonuses",
+          },
+          { count: waiting || 0, label: "emails to file" },
+        ],
+        sentence:
+          "Forward a fare alert or a booking to your inbox address and Aly reads it against the places you have saved.",
+      }
+    : null;
+  const pastTrips = emptyHanded
+    ? visible
+        .filter((trip) => isPastTrip(trip, today))
+        .sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)))
+        .slice(0, 2)
+        .map((trip) => ({
+          id: trip.id,
+          name: trip.name,
+          when: trip.start_date ? formatDay(trip.start_date) : "",
+          note: trip.destination || null,
+          href: tripPath(trip),
+        }))
+    : [];
 
   // What the morning email would send right now, worked out with the rules the
   // run itself uses, so the band above cannot disagree with the mail.
@@ -380,6 +542,16 @@ export default async function NowPage() {
           count={pressing.length + clashes.length}
         />
         <NowTrips current={currentCards} soon={soonCards} />
+        {ahead && (
+          <NowAhead card={aheadCard} dates={aheadRows} pick={pick} />
+        )}
+        {emptyHanded && (
+          <NowEmpty
+            season={emptySeason}
+            watching={watching}
+            log={pastTrips}
+          />
+        )}
         {/* Only the trip being lived, and only one of them: the prompt asks to
             use where the phone is, and a question about two places at once has
             no answer. */}
