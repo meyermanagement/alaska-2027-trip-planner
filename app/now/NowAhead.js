@@ -126,34 +126,34 @@ function DatesBand({ dates }) {
 }
 
 /**
- * One thing worth doing, chosen rather than listed: the saved place whose season
- * comes round soonest, with the months the family themselves ticked.
+ * One saved place, chosen rather than listed: the one whose season comes round
+ * soonest, with the months the family themselves ticked.
+ *
+ * No heading over it. "Worth doing now" was the app grading its own suggestion,
+ * and on a screen whose first line reads NOW, "now" means due today -- which a
+ * season next June is not. The card's own first line says where it came from,
+ * and the why says which season, so the heading only repeated them.
  */
 function WorthDoing({ pick }) {
   if (!pick) return null;
   return (
-    <>
-      <h2 className="mt-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-        Worth doing now
-      </h2>
-      <section className="card p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-teal">
-          From your someday list
-        </div>
-        <h3 className="font-display mt-1 text-lg font-semibold text-ink">
-          {pick.title}
-        </h3>
-        <p className="mt-1 text-sm text-ink-soft">{pick.why}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link className="btn btn-primary" href={pick.planHref}>
-            Plan this trip
-          </Link>
-          <Link className="btn btn-ghost" href="/someday">
-            Open the someday list
-          </Link>
-        </div>
-      </section>
-    </>
+    <section className="card p-4">
+      <div className="text-xs font-semibold uppercase tracking-wide text-teal">
+        From your bucket list
+      </div>
+      <h3 className="font-display mt-1 text-lg font-semibold text-ink">
+        {pick.title}
+      </h3>
+      <p className="mt-1 text-sm text-ink-soft">{pick.why}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Link className="btn btn-primary" href={pick.planHref}>
+          Plan this trip
+        </Link>
+        <Link className="btn btn-ghost" href="/someday">
+          Open the bucket list
+        </Link>
+      </div>
+    </section>
   );
 }
 

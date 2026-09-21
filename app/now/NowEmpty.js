@@ -72,7 +72,7 @@ function Invitation({ knows }) {
             Start a trip
           </Link>
           <Link className="btn btn-ghost" href="/someday">
-            Open the someday list
+            Open the bucket list
           </Link>
           <Link className="btn btn-ghost" href="/reviews">
             Log a past trip
