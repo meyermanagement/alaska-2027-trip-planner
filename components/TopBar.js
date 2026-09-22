@@ -11,6 +11,7 @@ import PassportWarning from "./PassportWarning";
 import { unreadFares } from "@/lib/deals/unread";
 import FareArrivalSync from "./FareArrivalSync";
 import { tripMenuCounts } from "@/lib/trips/menuCounts";
+import { messagesNeedingTrip } from "@/lib/inbox/newTrip";
 
 // Pass nothing and the button opens the Ask Aly drawer on the current screen,
 // which is what every signed-in screen does. `askHref` is kept for any screen
@@ -42,16 +43,18 @@ export default async function TopBar({ askHref, showAsk = true }) {
     // there is no family_id filter on the query itself for the same reason.
     // Anonymous callers get an error from RLS rather than a real count; the
     // banner reads zero either way and does not draw.
-    supabase
-      .from("inbox_messages")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
+    // Ids rather than a head count, because the banner also has to say when one
+    // of these messages is a booking for a trip the family has not entered --
+    // and that needs the messages' dates, not just how many there are. A
+    // pending inbox is a handful of rows; reading their ids costs nothing.
+    supabase.from("inbox_messages").select("id").eq("status", "pending"),
   ]);
   const fareRows = access?.familyId && !access.can.isSecondary
     ? await unreadFares(supabase, user?.id, access.familyId) : [];
   const fareCount = fareRows.length;
   const attention = countNeedingAttention(rows || [], today) + fareCount;
-  const inboxCount = inboxPending?.count || 0;
+  const inboxMessages = inboxPending?.data || [];
+  const inboxCount = inboxMessages.length;
 
   // A secondary traveler has no read access to travel documents -- probed as Veda,
   // traveler_documents returns nothing at all -- so the passport check sees an
@@ -88,6 +91,28 @@ export default async function TopBar({ askHref, showAsk = true }) {
       : Promise.resolve({ data: [] }),
   ]);
   const tripCounts = tripMenuCounts(tripRows?.data || [], today);
+
+  // How many of the waiting messages are about a week none of their trips
+  // covers. A booking with nowhere to go needs a different sentence from "file
+  // this": there is nothing to file it onto until a trip exists. Read only when
+  // there is mail waiting, so the usual render makes no extra query.
+  let inboxNeedsTrip = 0;
+  if (inboxCount > 0 && !secondary) {
+    const { data: itemRows } = await supabase
+      .from("inbox_parsed_items")
+      .select("message_id, item_date, end_date")
+      .in(
+        "message_id",
+        inboxMessages.map((m) => m.id),
+      )
+      .eq("status", "pending");
+    inboxNeedsTrip = messagesNeedingTrip({
+      messages: inboxMessages,
+      items: itemRows || [],
+      trips: tripRows?.data || [],
+      todayISO: today,
+    }).size;
+  }
   const warnings = secondary ? [] : notices.warnings;
   const urgent = notices.urgent;
 
@@ -159,7 +184,7 @@ export default async function TopBar({ askHref, showAsk = true }) {
           trip is a trip-ending problem and belongs at the top; unfiled mail is
           one tap of work and should not shout over it. The banner hides itself
           when the person is already on /inbox. */}
-      <HeaderUpdates inboxCount={inboxCount} fareCount={fareCount} tips={urgent} today={today} readOnly={secondary} />
+      <HeaderUpdates inboxCount={inboxCount} inboxNeedsTrip={inboxNeedsTrip} fareCount={fareCount} tips={urgent} today={today} readOnly={secondary} />
     </>
   );
 }

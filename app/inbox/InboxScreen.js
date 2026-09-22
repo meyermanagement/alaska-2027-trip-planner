@@ -8,7 +8,7 @@ import { FARE_NEWSLETTERS } from "@/lib/deals/senders";
 import { matchInsured } from "@/lib/insurance/insured";
 import { Spinner } from "@/components/LinkPending";
 import { tripPath } from "@/lib/trips/route";
-import { stampSaid } from "@/lib/format";
+import { formatRange, stampSaid } from "@/lib/format";
 import ClearedInbox from "@/components/ClearedInbox";
 import PageHeader from "@/components/PageHeader";
 import { SCREEN_INTROS } from "@/lib/screenCopy";
@@ -48,6 +48,9 @@ export default function InboxScreen({
   autoFiled = [],
   upcomingTrips,
   pastTrips,
+  // Message id -> {start, end} for the messages whose dates fall outside every
+  // trip this family has. Worked out on the server; see lib/inbox/newTrip.js.
+  needTrip = {},
   travelers,
 }) {
   const router = useRouter();
@@ -179,7 +182,10 @@ export default function InboxScreen({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          trip_id: tripId,
+          // NEW_TRIP is the picker's way of saying "none of these -- make the
+          // one this email is for". The dates come off the parse on the
+          // server, so nothing about the trip is decided in the browser.
+          ...(tripId === NEW_TRIP ? { new_trip: true } : { trip_id: tripId }),
           traveler_id: travelerId,
           approve_item_ids: approveItemIds || [],
         }),
@@ -473,6 +479,15 @@ export default function InboxScreen({
                       note={m.parse_error}
                       items={parsedByMessage.get(m.id) || []}
                     />
+                    {needTrip[m.id] && !verification ? (
+                      <div className="mt-2 text-xs text-amber">
+                        {formatRange(
+                          needTrip[m.id].start,
+                          needTrip[m.id].end,
+                        )}{" "}
+                        is not inside any of your trips.
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
@@ -509,6 +524,25 @@ export default function InboxScreen({
                       </button>
                     ) : (
                       <>
+                        {/* A booking for a week none of their trips covers has
+                            nowhere to be filed, so the offer it needs is the
+                            trip itself. Leads the row when it applies, and
+                            opens the same picker with that trip chosen -- so
+                            this button and File it end in one place rather than
+                            two panels that do the same work. */}
+                        {needTrip[m.id] ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenId(isOpen && mode === "file" ? null : m.id);
+                              setMode("file");
+                            }}
+                            className="rounded-lg border border-teal bg-teal/10 px-3 py-1.5 text-sm font-semibold text-teal transition hover:bg-teal/15"
+                            disabled={busyId === m.id}
+                          >
+                            Start a trip from it
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => {
@@ -567,6 +601,7 @@ export default function InboxScreen({
                     travelers={travelers}
                     parsedItems={parsedByMessage.get(m.id) || []}
                     policy={policyByMessage.get(m.id) || null}
+                    newTripSpan={needTrip[m.id] || null}
                     needsTraveler={isUnknown && !m.attributed_traveler_id}
                     initialTravelerId={m.attributed_traveler_id || ""}
                     busy={busyId === m.id}
@@ -606,11 +641,20 @@ export default function InboxScreen({
   );
 }
 
+// The value the trip <select> carries for "a trip that does not exist yet".
+// Not a uuid, so it can never collide with a real trip id.
+const NEW_TRIP = "__new";
+
 function FilePicker({
   upcoming,
   past,
   travelers,
   parsedItems,
+  // The dates this message is about, when they belong to no trip yet. Adds a
+  // first option to the picker that makes the trip, and is preselected --
+  // "none of these" is the right answer on a message the server has already
+  // worked out has no home.
+  newTripSpan = null,
   // A staged insurance policy, when the extractor decided the mail was one.
   // Its presence changes what filing means: the trip becomes optional,
   // because an annual plan bought in January belongs to the family before it
@@ -624,7 +668,7 @@ function FilePicker({
   onConfirm,
   onConfirmPolicy,
 }) {
-  const [tripId, setTripId] = useState("");
+  const [tripId, setTripId] = useState(newTripSpan ? NEW_TRIP : "");
   const [travelerId, setTravelerId] = useState(initialTravelerId);
   // Parsed items are ticked by default. The whole point of staging is that a
   // person looked at them before they became real itinerary rows -- but the
@@ -685,6 +729,13 @@ function FilePicker({
         <option value="">
           {policy ? "Not yet — just save the policy" : "Pick a trip"}
         </option>
+        {newTripSpan && !policy && (
+          <option value={NEW_TRIP}>
+            {/* Short on purpose: a native select on a 360px phone clips its
+                option text, and the year is the part that would go. */}
+            New trip, {formatRange(newTripSpan.start, newTripSpan.end)}
+          </option>
+        )}
         {upcoming.length > 0 && (
           <optgroup label="Upcoming">
             {upcoming.map((t) => (
@@ -704,6 +755,13 @@ function FilePicker({
           </optgroup>
         )}
       </select>
+
+      {tripId === NEW_TRIP && newTripSpan ? (
+        <p className="mt-2 text-xs text-ink-soft">
+          Aly makes the trip from this email&apos;s dates and files the booking
+          on it. You can rename it and change the dates afterwards.
+        </p>
+      ) : null}
 
       {needsTraveler && !policy && (
         <>
@@ -863,9 +921,11 @@ function FilePicker({
               ? tripId
                 ? "Save the policy on this trip"
                 : "Save the policy"
-              : approvedCount > 0
-                ? `File and add ${approvedCount} ${approvedCount === 1 ? "item" : "items"}`
-                : "File on this trip"}
+              : tripId === NEW_TRIP
+                ? "Make the trip and file it"
+                : approvedCount > 0
+                  ? `File and add ${approvedCount} ${approvedCount === 1 ? "item" : "items"}`
+                  : "File on this trip"}
         </button>
       </div>
     </div>

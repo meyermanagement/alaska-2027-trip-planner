@@ -10,7 +10,7 @@ import { needsProminence } from "@/lib/ui/notices";
 import { onTipHeaderHidden } from "@/lib/tips/header";
 import { visibleHeaderTips } from "@/lib/tips/update";
 
-export default function HeaderUpdates({ inboxCount = 0, fareCount = 0, tips = [], today, readOnly = false }) {
+export default function HeaderUpdates({ inboxCount = 0, inboxNeedsTrip = 0, fareCount = 0, tips = [], today, readOnly = false }) {
   const pathname = usePathname() || "";
   const [resolved, setResolved] = useState({});
   const [hidden, setHidden] = useState({});
@@ -39,7 +39,7 @@ export default function HeaderUpdates({ inboxCount = 0, fareCount = 0, tips = []
             {count} {count === 1 ? "update" : "updates"} to review
             <span>Show details</span>
           </summary>
-          <InboxBanner count={mail} />
+          <InboxBanner count={mail} needsTrip={mail ? inboxNeedsTrip : 0} />
           {fares > 0 && <Link href="/someday#fares" className="block px-4 py-3 text-sm font-semibold text-teal">
             {fares} new {fares === 1 ? "fare" : "fares"} to review
           </Link>}

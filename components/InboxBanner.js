@@ -22,12 +22,18 @@ import { usePathname } from "next/navigation";
  * so it can read the pathname; the count itself is passed down from TopBar,
  * which is the one place in the app that already reads every screen's header.
  */
-export default function InboxBanner({ count = 0 }) {
+export default function InboxBanner({ count = 0, needsTrip = 0 }) {
   const pathname = usePathname() || "";
   if (!count || count <= 0) return null;
   if (pathname.startsWith("/inbox")) return null;
 
   const noun = count === 1 ? "message" : "messages";
+  // A booking for dates none of their trips covers is a different errand from
+  // filing, so it gets said rather than folded into a count. "Waiting to be
+  // filed" is wrong about it twice: there is nothing to file it onto yet, and
+  // the work is a decision rather than a tap.
+  const stranded = Math.min(Math.max(needsTrip, 0), count);
+  const strandedNoun = stranded === 1 ? "booking is" : "bookings are";
 
   return (
     <section
@@ -51,10 +57,29 @@ export default function InboxBanner({ count = 0 }) {
           <path d="M3.5 7.5l8.5 6 8.5-6" />
         </svg>
         <p className="min-w-0 flex-1 text-sm leading-relaxed">
-          <span className="font-semibold">
-            {count} {noun}
-          </span>{" "}
-          <span className="text-ink-soft">waiting to be filed.</span>{" "}
+          {stranded > 0 ? (
+            <>
+              <span className="font-semibold">
+                {stranded} {strandedNoun}
+              </span>{" "}
+              <span className="text-ink-soft">
+                for a trip you do not have yet.
+              </span>{" "}
+              {stranded < count ? (
+                <span className="text-ink-soft">
+                  {count - stranded} {count - stranded === 1 ? "other" : "others"}{" "}
+                  waiting to be filed.{" "}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <span className="font-semibold">
+                {count} {noun}
+              </span>{" "}
+              <span className="text-ink-soft">waiting to be filed.</span>{" "}
+            </>
+          )}
           <Link
             href="/inbox"
             className="whitespace-nowrap font-semibold text-teal underline decoration-teal/40 underline-offset-2 hover:decoration-teal"

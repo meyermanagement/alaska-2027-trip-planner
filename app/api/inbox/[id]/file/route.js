@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
+import { freeTripSlug } from "@/lib/trips/route";
+import { pushHouseTasks } from "@/lib/tasks/house";
+import { datedSpan, tripFromItems } from "@/lib/inbox/newTrip";
 
 export const runtime = "nodejs";
 
@@ -22,8 +25,15 @@ export const runtime = "nodejs";
  * did not tick are left in place with status='pending': they can still be
  * approved later, and rejecting one is a separate DELETE.
  *
+ * A confirmation can also arrive for a trip the family has not entered yet --
+ * a cruise booked for a week that is on no calendar. `new_trip: true` makes
+ * that trip out of the parsed dates first and then files onto it, so the
+ * booking does not have to sit in the inbox waiting for somebody to go and
+ * create a trip by hand and come back.
+ *
  * Body:
- *   trip_id           uuid                    required
+ *   trip_id           uuid                    required unless new_trip
+ *   new_trip          boolean                 optional (make the trip first)
  *   traveler_id       uuid                    optional (overwrites attribution)
  *   approve_item_ids  uuid[]                  optional (empty = file only)
  */
@@ -49,7 +59,8 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const tripId = body?.trip_id;
+  let tripId = body?.trip_id;
+  const wantsNewTrip = body?.new_trip === true;
   const travelerId = body?.traveler_id || null;
   // A list of parsed-item ids to promote alongside filing. Non-array or absent
   // means "just file"; the message still moves to filed and the staged items
@@ -58,7 +69,7 @@ export async function POST(request, { params }) {
     ? body.approve_item_ids.filter((v) => typeof v === "string" && v.length > 0)
     : [];
 
-  if (!tripId) {
+  if (!tripId && !wantsNewTrip) {
     return NextResponse.json(
       { error: "Which trip should this be filed under?" },
       { status: 400 },
@@ -75,6 +86,23 @@ export async function POST(request, { params }) {
     .maybeSingle();
   if (!message) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
+  // The trip the booking is for, made here when the family has not entered it.
+  // Built from the parsed dates rather than from anything the caller sent, so
+  // a hand-rolled request cannot plant a trip with dates the email never had.
+  let madeTrip = null;
+  if (wantsNewTrip) {
+    const made = await makeTripFromMessage(supabase, {
+      messageId: id,
+      familyId: message.family_id,
+      userId: user.id,
+    });
+    if (made.error) {
+      return NextResponse.json({ error: made.error }, { status: 400 });
+    }
+    tripId = made.trip.id;
+    madeTrip = made.trip;
   }
 
   // Confirm the trip is on the same family, so filing a message from one
@@ -113,7 +141,7 @@ export async function POST(request, { params }) {
   // If nothing to approve, the file-it is the whole job. Return early rather
   // than making the round trips for an empty set.
   if (approveIds.length === 0) {
-    return NextResponse.json({ ok: true, approved: 0 });
+    return NextResponse.json({ ok: true, approved: 0, trip: madeTrip });
   }
 
   const approved = await approveParsedItems(supabase, {
@@ -123,7 +151,84 @@ export async function POST(request, { params }) {
     parsedIds: approveIds,
   });
 
-  return NextResponse.json({ ok: true, approved });
+  return NextResponse.json({ ok: true, approved, trip: madeTrip });
+}
+
+/**
+ * Make a trip out of one message's parsed dates.
+ *
+ * The parsed rows are re-read here rather than trusted from the request: the
+ * name, the destination and both dates come off rows the parser wrote and RLS
+ * scopes to this family. A message whose rows carry no date at all cannot say
+ * which week a trip would cover, so it is refused rather than guessed at.
+ *
+ * The roster and the household's departure tasks are written the same way trip
+ * creation writes them everywhere else, so a trip that arrives this way is not
+ * a second-class one: everybody in the house is on it and the travel-day list
+ * is attached. Both are best effort -- a trip that lands without the bins on it
+ * is still the trip the confirmation was for.
+ */
+async function makeTripFromMessage(supabase, { messageId, familyId, userId }) {
+  const { data: items } = await supabase
+    .from("inbox_parsed_items")
+    .select("id, category, title, location, item_date, end_date, sort_order")
+    .eq("message_id", messageId)
+    .eq("status", "pending")
+    .order("sort_order", { ascending: true });
+
+  const span = datedSpan(items || []);
+  if (!span) {
+    return { error: "This message has no dates to build a trip from." };
+  }
+  const draft = tripFromItems({ items: items || [], span });
+
+  const row = {
+    ...draft,
+    family_id: familyId,
+    created_by: userId,
+    slug: await freeTripSlug(supabase, familyId, draft.name, null),
+  };
+
+  const { data: trip, error } = await supabase
+    .from("trips")
+    .insert(row)
+    .select("id, name, slug, public_id, start_date, end_date")
+    .single();
+  if (error || !trip?.id) {
+    return { error: error?.message || "The trip could not be created." };
+  }
+
+  const { data: people } = await supabase
+    .from("travelers")
+    .select("id, name, is_person")
+    .eq("family_id", familyId);
+  // "Shared" is a traveler row so that things can be assigned to nobody in
+  // particular. It is not a person and never belongs on a roster.
+  const roster = (people || []).filter((p) => p.name !== "Shared");
+  if (roster.length) {
+    await supabase
+      .from("trip_travelers")
+      .insert(roster.map((p) => ({ trip_id: trip.id, traveler_id: p.id })));
+  }
+
+  try {
+    await pushHouseTasks({
+      supabase,
+      familyId,
+      trip: {
+        id: trip.id,
+        status: draft.status,
+        start_date: draft.start_date,
+      },
+      going: roster.map((p) => p.name),
+      household: (people || []).filter((p) => p.is_person).map((p) => p.name),
+      userId,
+    });
+  } catch {
+    // Nothing to say. The list is available on the Packing page either way.
+  }
+
+  return { trip };
 }
 
 /**

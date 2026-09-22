@@ -11,6 +11,8 @@ import { parseInboxMessage } from "@/lib/inbox/parser";
 import { householdAiAllowed } from "@/lib/beta/consent";
 import InboxScreen from "./InboxScreen";
 import { isPastTrip } from "@/lib/format";
+import { messagesNeedingTrip } from "@/lib/inbox/newTrip";
+import { todayISO } from "@/lib/reminders";
 
 export const metadata = { title: "Inbox · Alyeska" };
 
@@ -160,7 +162,7 @@ export default async function InboxPage() {
       supabase
         .from("inbox_parsed_items")
         .select(
-          "id, message_id, category, title, item_date, confidence, status",
+          "id, message_id, category, title, item_date, end_date, confidence, status",
         )
         .in("message_id", ids)
         .eq("status", "pending")
@@ -213,6 +215,16 @@ export default async function InboxPage() {
   const upcoming = (trips || []).filter((t) => !isPastTrip(t));
   const past = (trips || []).filter((t) => isPastTrip(t));
 
+  // Which messages are about a week none of these trips covers. Worked out
+  // here, from rows already read, so the card can say so and the file-it picker
+  // can offer to make the trip rather than only listing trips that exist.
+  const needTrip = messagesNeedingTrip({
+    messages: pending || [],
+    items: parsedItems,
+    trips: trips || [],
+    todayISO: todayISO(),
+  });
+
   return (
     <>
       <TopBar />
@@ -227,6 +239,7 @@ export default async function InboxPage() {
           autoFiled={autoFiledWithDate}
           upcomingTrips={upcoming}
           pastTrips={past}
+          needTrip={Object.fromEntries(needTrip)}
           travelers={travelers || []}
         />
       </main>
