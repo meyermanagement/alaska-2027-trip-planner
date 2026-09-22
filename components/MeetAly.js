@@ -452,12 +452,17 @@ export default function MeetAly({
             in with the button below it on a fixed delay, so a third line moves
             the button and pushes the privacy line under the fold. Measured on
             the rendered page: two lines at 390, 360 and 320 pixels wide. Any
-            rewrite past about seventy-eight characters breaks that at 320. */}
+            rewrite past about seventy-eight characters breaks that at 320.
+
+            Said in the first person, like everything else on this screen. The
+            company's tagline is "Aly has your back"; here she is the one
+            talking, so it is "I have your back", and the line under the button
+            says what she knows rather than naming the app's records. */}
         <p
           className="ma-in mt-6 font-display text-xl leading-snug text-ink"
           style={{ animationDelay: "0.05s" }}
         >
-          Aly has your back. You stay in control.
+          I have your back. You stay in control.
         </p>
         <p
           className="ma-in mt-1.5 text-sm leading-relaxed text-ink-soft"
@@ -476,7 +481,7 @@ export default function MeetAly({
           className="ma-in mt-4 text-sm leading-relaxed text-ink-soft"
           style={{ animationDelay: "0.2s" }}
         >
-          Review and edit your travel details in Family and Preferences.{" "}
+          You can review and change what I know in Family and Preferences.{" "}
           <PledgeLink />.
         </p>
       </div>
