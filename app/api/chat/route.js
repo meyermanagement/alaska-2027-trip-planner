@@ -56,6 +56,7 @@ import {
   needsReasons,
   wordlessLine,
 } from "@/lib/agent/asked";
+import { finishFeature, finishTools } from "@/lib/agent/finish";
 import {
   splitRecallCalls,
   matchLessons,
@@ -411,6 +412,10 @@ export async function POST(request) {
     clock(lookUp ? GROUNDED_TURN_MS : PLAIN_TURN_MS) ||
     Date.now() + MIN_TURN_MS;
   const gaveMs = firstBy - Date.now();
+  // Whether the call that produced the answer was grounded. The finishing turn
+  // copies it so its request starts with the same tools and shares the cached
+  // prefix; only the rescue, which drops the search to save time, turns it off.
+  let answeredGrounded = lookUp;
   try {
     result = await generate({
       feature: "chat.answer",
@@ -432,6 +437,7 @@ export async function POST(request) {
     const rescueBy = first?.timedOut && lookUp ? clock(RESCUE_TURN_MS) : null;
     if (rescueBy) {
       try {
+        answeredGrounded = false;
         result = await generate({
           feature: "chat.rescue",
           system,
@@ -672,9 +678,19 @@ export async function POST(request) {
     // same pages to say the same thing.
     const lookAgain = needWords && lookUp && !result.searched;
     const finishBy = clock(lookAgain ? EXTRA_TURN_MS : REWORD_TURN_MS);
+    // The same grounding as the call that answered, so the request starts with
+    // the same tools. Where searching again is not wanted, she is told so,
+    // because the search tool being there is now a matter of the cache and not
+    // an invitation. See lib/agent/finish.js.
+    const finishGrounded = lookAgain || answeredGrounded;
+    const mayCall = finishTools({
+      silent,
+      needCards,
+      shortlistCount: shortlist.length,
+    });
     try {
       const finished = await generate({
-        feature: "chat.finish",
+        feature: finishFeature({ silent, owesReasons, owesWords, needCards }),
         system: [
           system,
           // What she proposed, handed back to her. The confirmation cards' own
@@ -694,28 +710,30 @@ export async function POST(request) {
             : "",
           owesWords ? writeTheWords(said, shortlistAll) : "",
           needCards ? showThePlaces(said, result.text) : "",
+          finishGrounded && !lookAgain
+            ? "Do not search the web on this turn. What the answer needed from the web is already in it."
+            : "",
+          mayCall.length
+            ? ""
+            : "Do not call any tool on this turn. Reply in words only.",
         ]
           .filter(Boolean)
           .join("\n\n"),
         messages,
-        // Only show_places, and only when cards are owed or there is no
-        // shortlist yet. Asked the same trip twice, a model does not repeat
-        // itself exactly -- it offers "Quinta da Regaleira" and then "Quinta da
-        // Regaleira Guided Tour" -- and the family gets the same place on two
-        // cards. Every change tool is withheld so what she has already proposed
-        // cannot be proposed twice, and offer_followups is withheld because a
-        // model asked for words, given any tool at all, can answer by calling it
-        // and writing nothing. A silent turn with no cards owed is given nothing
-        // to call: silence is silence, and it is caught below.
-        tools:
-          silent && !needCards
-            ? []
-            : tools.filter(
-                (tool) =>
-                  tool.name === "show_places" &&
-                  (needCards || !shortlist.length),
-              ),
-        grounded: lookAgain,
+        // The first turn's tools, all of them, and its grounding: the tool
+        // list is the front of the prompt, and a shorter one here made every
+        // token a cache miss. What she may actually call is narrowed by
+        // allowedTools instead -- show_places when cards are owed or there is
+        // no shortlist yet, nothing otherwise. Asked the same trip twice, a
+        // model does not repeat itself exactly -- it offers "Quinta da
+        // Regaleira" and then "Quinta da Regaleira Guided Tour" -- and the
+        // family gets the same place on two cards. Every change tool is
+        // withheld so what she has already proposed cannot be proposed twice,
+        // and offer_followups is withheld because a model asked for words,
+        // given any tool at all, can answer by calling it and writing nothing.
+        tools,
+        allowedTools: mayCall,
+        grounded: finishGrounded,
         thinking: THINKING,
         deadline: finishBy,
         // The same model that just answered, one attempt, a little warmer. See
@@ -726,7 +744,12 @@ export async function POST(request) {
         consent,
       });
       const finish = withIds(finished);
-      const { places: named } = splitPlaceCalls(finish?.calls || []);
+      // Only the calls it was allowed. The API limits them already; this is
+      // the second lock, for a call spoken in the text or a model that ignores
+      // the config, and it is what the tests hold the route to.
+      const { places: named } = splitPlaceCalls(
+        (finish?.calls || []).filter((call) => mayCall.includes(call?.name)),
+      );
       // Words are taken only when there are some, and -- where the debt was a
       // roll call of the cards -- only when they are not the same roll call
       // again. Thin words above the cards beat no words above the cards. Where
