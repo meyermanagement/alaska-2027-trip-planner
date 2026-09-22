@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { HERO_CONVERSATION } from "@/lib/home/heroConversation";
 import { useBooted } from "@/components/reveal";
+import { followStep } from "@/lib/home/follow";
 
 /**
  * The conversation on the front door, played rather than printed.
@@ -399,7 +400,7 @@ export default function AskDemo() {
         const target = node.scrollHeight - node.clientHeight;
         const gap = target - node.scrollTop;
         if (gap > 0.5) {
-          const next = node.scrollTop + Math.max(0.4, gap * 0.055);
+          const next = node.scrollTop + followStep(gap);
           mineRef.current = next;
           node.scrollTop = next;
         }
