@@ -3,7 +3,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, { alias: { "@": fileURLToPath(new URL("..", import.meta.url)) } });
-const { groupFareAlerts } = jiti("../lib/deals/groups.js");
+const { groupFareAlerts, groupFareEmails } = jiti("../lib/deals/groups.js");
 const { homeDayOf } = jiti("../lib/format.js");
 const { judged } = jiti("../lib/deals/world.js");
 const fare = (id, overrides = {}) => ({
@@ -101,4 +101,52 @@ test("the group names every program it holds, cheapest first", () => {
 });
 test("a cash-only group names no programs", () => {
   assert.deepEqual(groupFareAlerts([fare("a")])[0].awardPrograms, []);
+});
+
+// The fares screen draws one card per email, with the departure airports as
+// chips inside it: two sibling cards from one alert read as unrelated messages,
+// and "clear whole email" then appeared to reach fares that card never showed.
+test("one email keeps its airports inside one group", () => {
+  const groups = groupFareEmails([
+    fare("a"), fare("b", { origin: "ATL", destination: "Rome" }), fare("c", { destination: "Dublin" }),
+  ]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].fareCount, 3);
+  assert.deepEqual(groups[0].airports.map(one => one.origin), ["ORD", "ATL"]);
+  assert.deepEqual(groups[0].airports.map(one => one.deals.length), [2, 1]);
+  assert.deepEqual(groups[0].deals.map(one => one.id), ["a", "c", "b"]);
+});
+test("separate emails stay separate cards, in the order they arrive", () => {
+  const groups = groupFareEmails([
+    fare("a", { message_id: "email-two" }), fare("b"), fare("c", { message_id: "email-two" }),
+  ]);
+  assert.deepEqual(groups.map(one => one.key), ["email-two", "email-one"]);
+  assert.deepEqual(groups.map(one => one.fareCount), [2, 1]);
+});
+test("a fare with no message identity is never merged with another", () => {
+  const groups = groupFareEmails([fare("a", { message_id: null }), fare("b", { message_id: "" })]);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups.map(one => one.messageId), [null, null]);
+  assert.equal(groups[0].key.startsWith("unlinked:"), true);
+});
+test("the card says the sender, the arrival date and the cheapest cash fare", () => {
+  const [group] = groupFareEmails([
+    fare("a", { price: 908, email_received_at: "2026-09-18T16:04:21+00:00" }),
+    fare("b", { price: 640, destination: "Dublin", email_received_at: "2026-09-18T16:04:21+00:00" }),
+  ]);
+  assert.equal(group.sourceName, "Thrifty Traveler");
+  assert.equal(homeDayOf(group.receivedAt), "2026-09-18");
+  assert.equal(group.lowestPrice, 640);
+});
+test("award fares are counted and their programs named, cash prices left alone", () => {
+  const award = { options: [{ program: "British Airways", points_min: 60000, points_max: 60000,
+    points_unit: "miles", points_basis: "one_way", cash_amount: null, cash_basis: "one_way", round_trip_cash: null }] };
+  const [group] = groupFareEmails([fare("a", { price: 908 }), fare("b", { destination: "London", price: null, award_pricing: award })]);
+  assert.equal(group.awardCount, 1);
+  assert.deepEqual(group.awardPrograms, ["British Airways"]);
+  assert.equal(group.lowestPrice, 908);
+});
+test("empty input gives no cards", () => {
+  assert.deepEqual(groupFareEmails(), []);
+  assert.deepEqual(groupFareEmails([]), []);
 });

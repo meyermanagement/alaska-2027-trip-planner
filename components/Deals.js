@@ -25,9 +25,9 @@ import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/rewards";
 import { formatDay, homeDayOf, homeToday } from "@/lib/format";
 import { monthsSaid } from "@/lib/someday/months";
-import { groupFareAlerts } from "@/lib/deals/groups";
-import { awardOptionLabel, rankedAwardOptions } from "@/lib/deals/award";
-import { fareOfferLabel, fareGroupCabinLabel } from "@/lib/deals/cabin";
+import { groupFareAlerts, groupFareEmails } from "@/lib/deals/groups";
+import { awardOptionLabel, farePriceLabel, rankedAwardOptions } from "@/lib/deals/award";
+import { fareOfferLabel } from "@/lib/deals/cabin";
 import { canAttachFare, canAttachFareToPlace } from "@/lib/deals/targets";
 import { tripPath } from "@/lib/trips/route";
 import { fareDeadlinePassed, fareHasExpired, fareForToday, fareListsForToday, fareMatchesTrip } from "@/lib/deals/deadline";
@@ -94,6 +94,13 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   const [acting, setActing] = useState(null);
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(null);
+  // Which departure airport an email's card is showing. Keyed by email so two
+  // cards open at once do not fight over one choice; an airport that is cleared
+  // away falls back to the first one still on the email.
+  const [airport, setAirport] = useState({});
+  const airportOf = (email) =>
+    email.airports.find((one) => one.key === airport[email.key]) ||
+    email.airports[0];
   const [refreshing, startRefresh] = useTransition();
   const [saved, setSaved] = useState(false);
   const writeLock = useRef(false);
@@ -432,43 +439,66 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           <p className="mt-1 max-w-2xl text-sm text-ink-soft">
             {tripId
               ? "Read out of the alerts you forwarded, and measured against this trip's dates, party and budget."
-              : "Your forwarded alerts, grouped by departure airport. Open one to compare destinations and see how each fare fits."}
+              : "One card per alert you forwarded. Open one, pick a departure airport, and see how each fare fits."}
           </p>
           <ul className="mt-3 space-y-3">
-            {tripId ? open.map((deal) => card(deal)) : groupFareAlerts(open).map((group) => (
-              <li key={group.key} className="card min-w-0">
-                <details onToggle={(event) => {
-                  if (event.currentTarget.open) void markRead(group.deals);
-                }}>
-                  <summary className="cursor-pointer rounded-xl p-3 marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
-                    <span className="font-semibold">From {group.origin}</span>
-                    <span className="ml-2 text-sm text-ink-soft">
-                      {group.destinationCount} {group.destinationCount === 1 ? "destination" : "destinations"}
-                      {group.lowestPrice !== null ? <span> · from {fareOfferLabel(group.deals.find((deal) => !deal.award_pricing && Number(deal.price) === group.lowestPrice))}</span> : ""}
-                      {group.awardCount ? <span> · {group.deals.length === 1 ? fareOfferLabel(group.deals[0]) : `${group.awardCount} award ${group.awardCount === 1 ? "fare" : "fares"}${group.awardPrograms?.length ? ` · ${group.awardPrograms.join(", ")}` : ""} · ${fareGroupCabinLabel(group.deals.filter((deal) => deal.award_pricing))}`}</span> : null}
-                    </span>
-                    <span className="mt-1 block pl-4 text-xs text-ink-faint">
-                      {group.sourceName}
-                      {group.receivedAt ? ` · received ${formatDay(homeDayOf(group.receivedAt))}` : ""}
-                    </span>
-                  </summary>
-                  <div className="px-4 pb-2">
-                    <button type="button" className="btn btn-ghost min-h-11 text-xs"
-                      disabled={Boolean(acting)}
-                      onClick={() => askDismiss({ group })}>Clear this group</button>
-                    {group.deals[0]?.message_id && open.filter((deal) => deal.message_id === group.deals[0].message_id).length > group.deals.length ? (
+            {tripId ? open.map((deal) => card(deal)) : groupFareEmails(open).map((email) => {
+              // One alert quoting ORD and ATL used to arrive as two cards that
+              // looked unrelated, and the only thing telling them apart was a
+              // pair of clear buttons. The email is the card; the airports are
+              // chips inside it, and each clear says exactly what it reaches.
+              const chosen = airportOf(email);
+              return (
+                <li key={email.key} className="card min-w-0">
+                  <details onToggle={(event) => {
+                    if (event.currentTarget.open) void markRead(chosen.deals);
+                  }}>
+                    <summary className="cursor-pointer rounded-xl p-3 marker:text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
+                      <span className="font-semibold">{email.sourceName}</span>
+                      <span className="ml-2 text-sm text-ink-soft">
+                        {email.fareCount} {email.fareCount === 1 ? "fare" : "fares"}
+                        {email.airports.length === 1 ? <span> · from {email.airports[0].origin}</span> : null}
+                        {/* The header stays short: each fare row below states its
+                            own cabin, so the card names only the cheapest cash
+                            price and how many award fares came with it. */}
+                        {email.lowestPrice !== null ? <span> · from {farePriceLabel(email.deals.find((deal) => !deal.award_pricing && Number(deal.price) === email.lowestPrice))}</span> : ""}
+                        {email.awardCount ? <span> · {email.awardCount} award {email.awardCount === 1 ? "fare" : "fares"}{email.awardPrograms?.length ? ` · ${email.awardPrograms.join(", ")}` : ""}</span> : null}
+                      </span>
+                      <span className="mt-1 block pl-4 text-xs text-ink-faint">
+                        {email.receivedAt ? `Received ${formatDay(homeDayOf(email.receivedAt))}` : "Arrival date not stated"}
+                      </span>
+                    </summary>
+                    {email.airports.length > 1 ? (
+                      <div className="flex flex-wrap gap-2 px-4 pb-2" role="group" aria-label="Departure airport">
+                        {email.airports.map((airport) => (
+                          <button key={airport.key} type="button" aria-pressed={airport.key === chosen.key}
+                            className={`chip min-h-9 ${airport.key === chosen.key ? "bg-teal/15 font-semibold text-teal" : "text-ink-soft"}`}
+                            onClick={() => {
+                              setAirport((all) => ({ ...all, [email.key]: airport.key }));
+                              void markRead(airport.deals);
+                            }}>
+                            {airport.origin} · {airport.deals.length}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="px-4 pb-2">
+                      {email.airports.length > 1 ? (
+                        <button type="button" className="btn btn-ghost min-h-11 text-xs"
+                          disabled={Boolean(acting)}
+                          onClick={() => askDismiss({ group: chosen })}>Clear {chosen.origin}</button>
+                      ) : null}
                       <button type="button" className="btn btn-ghost min-h-11 text-xs"
                         disabled={Boolean(acting)}
-                        onClick={() => askDismiss({ group: {
-                          key: group.deals[0].message_id,
-                          deals: open.filter((deal) => deal.message_id === group.deals[0].message_id),
-                        } })}>Clear whole email</button>
-                    ) : null}
-                  </div>
-                  <ul className="mx-3 mb-1">{group.deals.map((deal) => card(deal, true))}</ul>
-                </details>
-              </li>
-            ))}
+                        onClick={() => askDismiss({ group: { key: email.key, deals: email.deals } })}>
+                        Clear whole email
+                      </button>
+                    </div>
+                    <ul className="mx-3 mb-1">{chosen.deals.map((deal) => card(deal, true))}</ul>
+                  </details>
+                </li>
+              );
+            })}
           </ul>
         </>
       ) : null}

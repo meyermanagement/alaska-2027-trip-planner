@@ -194,27 +194,44 @@ export default function Reminders({
 
   return (
     <section>
-      <p className="mb-4 text-sm text-ink-soft">
-        {rows.length === 0 ? (
-          "Nothing outstanding on any upcoming trip."
-        ) : (
-          <>
-            <span className="font-semibold text-ink">
-              {rows.length} still open
-            </span>
+      {/* The list used to open on a bare tally, so a screen that already holds
+          the day, the trips and three bands gave no clue what the next 48 rows
+          were. The heading says what they are for, and carries the count that
+          line was there to say -- said once, not twice. */}
+      <h2
+        className={`font-display text-lg font-semibold${
+          rows.length > 0 && openHigh === 0 && overdue === 0 ? " mb-4" : ""
+        }`}
+      >
+        Before you go
+        {rows.length > 0 && (
+          <span className="ml-2 align-middle text-sm font-normal text-ink-soft">
+            {rows.length} still open
+          </span>
+        )}
+      </h2>
+      {rows.length === 0 ? (
+        <p className="mb-4 mt-1 text-sm text-ink-soft">
+          Nothing outstanding on any upcoming trip.
+        </p>
+      ) : (
+        (openHigh > 0 || overdue > 0) && (
+          <p className="mb-4 mt-2 text-sm">
             {openHigh > 0 && (
-              <span className="ml-2 chip bg-rose/12 text-rose">
+              <span className="chip bg-rose/12 text-rose">
                 {openHigh} high priority
               </span>
             )}
             {overdue > 0 && (
-              <span className="ml-2 chip bg-rose/15 text-rose">
+              <span
+                className={`chip bg-rose/15 text-rose${openHigh > 0 ? " ml-2" : ""}`}
+              >
                 {overdue} past due
               </span>
             )}
-          </>
-        )}
-      </p>
+          </p>
+        )
+      )}
 
       {/* The same bar as every other list in the app: the tally said once at the
           top, a count on every chip, and the chip with nothing behind it held in
