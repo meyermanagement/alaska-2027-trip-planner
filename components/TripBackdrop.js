@@ -181,7 +181,9 @@ function TripBackdrop({ trip, shape = "card", plain = false }) {
 
   return (
     <div
-      className="trip-media"
+      // has-photo, so the flipped plate can give a real cover a band of its own
+      // and leave a map-only card the whole frame to draw its coast across.
+      className={`trip-media${url ? " has-photo" : ""}`}
       aria-hidden={url ? undefined : "true"}
       // Painted on the server, in the first frame, before anything is fetched.
       // --trip-hue is the same choice as one flat color, for the wash below.
