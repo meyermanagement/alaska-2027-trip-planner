@@ -58,13 +58,12 @@ import { NAV_STYLE_EVENT, readNavigationStyle } from "./NavigationPreference";
  * them apart, and that is the point: two identical discs, one of them the app's
  * single accent, because one of them is the thing you came to do.
  *
- * One exception inside a single trip: the first row in the sheet stops naming
- * where you already are and becomes the way out — an arrow, and the words
- * "All trips". Filling it in like a current page made it look like a label
- * rather than a door. That row is the only place the way out lives; it briefly
- * had a third disc of its own on the bar, which made a two-control corner into a
- * cluster and put the least considered decision on the screen at the same weight
- * as the two most common ones.
+ * One exception inside a single trip: the All trips row inside the Trips group
+ * becomes the way out, wearing a back arrow and saying "Back out of this trip".
+ * It is the only place the way out lives. It briefly had a third disc of its own
+ * on the bar, which made a two-control corner into a cluster; then it was welded
+ * onto the right end of the Trips band, which offered one destination twice the
+ * moment the three trip rows collapsed into this single All trips row.
  *
  * Every row here, and the arrow beside the pill, turns its icon into a spinner
  * while the screen it asks for is on its way. The sheet closes on the press, so
@@ -796,21 +795,6 @@ export default function NavTabs({
       here: onThisTrip,
     });
   }
-  if (insideTrip) {
-    // The way out of a trip. It is no longer a row of its own: it is the right
-    // end of the Travel Journal band, because that band already opens onto
-    // Planned Trips, which is the same board -- so inside a trip the column was
-    // offering one destination twice, at two very different weights. Still
-    // named in the payload so a person can type "get me out of here" and have
-    // the model answer with it; the filter turns that key into the band that
-    // now carries it.
-    menuPayload.push({
-      key: "wayout",
-      kind: "link",
-      label: "All trips",
-      sub: "Back out of this trip",
-    });
-  }
   if (secondary) {
     for (const row of SECONDARY_ROWS) {
       pushRow(
@@ -890,9 +874,6 @@ export default function NavTabs({
           countElsewhere: g.kids.some(
             (k) => k.badge && !onScreen(k.href, pathname),
           ),
-          // The Travel Journal band carries the way out of a trip on its right
-          // end while you are inside one.
-          wayOut: insideTrip && g.key === "journal",
         },
         {
           key: `group:${g.key}`,
@@ -902,6 +883,12 @@ export default function NavTabs({
         },
       );
       g.kids.forEach((kid, n) => {
+        // Inside a single trip, the All trips row is also the way out of the one
+        // you are standing in -- it is the same screen, so it says so and turns
+        // its suitcase into a back arrow. It used to be a second target welded
+        // onto the right end of the Trips band, which offered one destination
+        // twice the moment the three trip rows collapsed into this single row.
+        const wayOut = insideTrip && kid.href === "/trips";
         pushRow(
           {
             kind: "link",
@@ -910,7 +897,12 @@ export default function NavTabs({
             key: kid.href,
             groupKey: g.key,
             ...kid,
-            sub: kid.draftCount ? draftsSub(drafts, kid.sub) : kid.sub,
+            Icon: wayOut ? BackArrowIcon : kid.Icon,
+            sub: wayOut
+              ? "Back out of this trip"
+              : kid.draftCount
+                ? draftsSub(drafts, kid.sub)
+                : kid.sub,
             // The quiet numeral on the right of the row, in the same style the
             // group bands use for how many screens are behind them. Not the rose
             // dot: a draft is not late, it is simply unfinished.
@@ -931,7 +923,12 @@ export default function NavTabs({
             kind: "link",
             parent: `group:${g.key}`,
             label: kid.label || "",
-            sub: (kid.draftCount ? draftsSub(drafts, kid.sub) : kid.sub) || "",
+            sub:
+              (wayOut
+                ? "Back out of this trip"
+                : kid.draftCount
+                  ? draftsSub(drafts, kid.sub)
+                  : kid.sub) || "",
             here: currentPathKey === kid.href,
           },
         );
@@ -950,7 +947,6 @@ export default function NavTabs({
   // group's key is not, the group header is added back so the kid does not
   // appear parentless in the column.
   const includedKeys = filterReady ? new Set(navFilter.keys) : null;
-  if (includedKeys?.has("wayout")) includedKeys.add("group:journal");
   if (includedKeys) {
     for (const row of allRows) {
       if (row.kind === "link" && row.kid && !includedKeys.has(row.key))
@@ -1121,46 +1117,6 @@ export default function NavTabs({
               </span>
             </>
           );
-
-          /* Inside a trip, one band with two targets: the left of it
-                       opens the group, the right end leaves the trip. The
-                       animation and the band face belong to the container, so
-                       the two halves are bare buttons sharing one surface with a
-                       hairline between them. */
-          if (row.wayOut) {
-            return (
-              <div
-                key={row.key}
-                style={{ "--arc-i": row.i }}
-                className={`arc-pill group split ${isOpen ? "open" : ""}`}
-              >
-                <button
-                  type="button"
-                  aria-expanded={isOpen}
-                  onClick={toggle}
-                  className="arc-band-main"
-                >
-                  {face}
-                </button>
-                <Link
-                  href="/trips"
-                  className="arc-band-out"
-                  onPointerEnter={() => router.prefetch("/trips")}
-                  onPointerDown={() => router.prefetch("/trips")}
-                  onFocus={() => router.prefetch("/trips")}
-                  onClick={() => setOpen(false)}
-                >
-                  <span>All trips</span>
-                  <PendingSwap
-                    href="/trips"
-                    className="h-[13px] w-[13px] shrink-0"
-                  >
-                    <ArrowIcon className="h-[13px] w-[13px] shrink-0" />
-                  </PendingSwap>
-                </Link>
-              </div>
-            );
-          }
 
           return (
             <button
@@ -2001,6 +1957,15 @@ function MailIcon({ className }) {
 // app uses and does not need a second one beside it.
 
 // The way into the trip on the plate.
+// The way out of a trip: the same stroke as ArrowIcon, pointing back.
+function BackArrowIcon({ className }) {
+  return (
+    <svg {...iconProps(className)}>
+      <path d="M16 10H5M9.6 5.4 5 10l4.6 4.6" />
+    </svg>
+  );
+}
+
 function ArrowIcon({ className }) {
   return (
     <svg {...iconProps(className)}>

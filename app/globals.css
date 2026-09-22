@@ -5721,8 +5721,7 @@ html[data-route="3"] .quick-tall .quick-heading {
 @media (min-width: 1100px) and (max-width: 1499.98px) {
   .nav-rail-find,
   .nav-rail-word,
-  .nav-rail-ask-wide,
-  .nav-rail .arc-band-out {
+  .nav-rail-ask-wide {
     display: none;
   }
 
@@ -5851,29 +5850,6 @@ html[data-route="3"] .quick-tall .quick-heading {
     display: none;
   }
 
-  /* The band that also carries the way out of a trip, stacked. It is the same
-     trade the narrowest phone makes: 19rem split between a heading in small caps
-     and All trips leaves the heading about 60 pixels, which came out as "Trav…".
-     The divider turns on its side instead -- group on the top line, way out on
-     the bottom, still one object with two targets. */
-  .nav-rail .arc-pill.group.split {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .nav-rail .arc-band-out {
-    justify-content: flex-start;
-    gap: 0.4rem;
-    min-height: 40px;
-    padding: 0 0.6rem 0 42px;
-    border-left: 0;
-    border-top: 1px solid var(--arc-band-edge);
-  }
-
-  .nav-rail .arc-band-out > :last-child {
-    margin-left: auto;
-  }
-
   .nav-rail .arc-pill.group .arc-label {
     /* Clear of the attention badge, which is pinned to the corner of the disc
        and overhangs it. In the arc the same badge has the pill's own padding to
@@ -5989,9 +5965,6 @@ span.chip { cursor: default; }
   html:not([data-aly="docked"]) .nav-rail :is(.nav-rail-ask-narrow) { display: none; }
   html:not([data-aly="docked"]) .nav-rail-tip { display: none; }
   html:not([data-aly="docked"]) .nav-rail .arc-hero { border-radius: 0.75rem; gap: 0.5rem; }
-  html:not([data-aly="docked"]) .nav-rail .arc-band-out { display: flex; }
-  html:not([data-aly="docked"]) .nav-rail .arc-pill.group.split { flex-direction: column; align-items: stretch; }
-  html:not([data-aly="docked"]) .nav-rail .arc-band-out { min-height: 44px; border-left: 0; border-top: 1px solid var(--line); }
 }
 
 html[data-aly="docked"] body {
@@ -8272,83 +8245,6 @@ html[data-skin="sodium"] .arc-pill.group.on {
   font-size: var(--fs-xs);
   color: var(--color-ink-soft);
   opacity: 0.7;
-}
-
-/* Inside a trip, the way out lives on the right end of the Travel Journal band
-   rather than in a large round pill of its own above it. That band already
-   opens onto Planned Trips, which is the same board, so the column was offering
-   one destination twice at two very different weights -- and with the groups
-   gone flat, the louder of the two was the one whose only job is to leave. One
-   band, two targets, a hairline between them, each the height of the band so
-   both are a thumb's worth of row. */
-.arc-pill.group.split {
-  padding: 0;
-  overflow: hidden;
-}
-
-.arc-band-main {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  align-self: stretch;
-  padding: 0.35rem 0.6rem 0.35rem 0.5rem;
-  text-align: left;
-  color: inherit;
-}
-
-.arc-band-out {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.35rem;
-  flex: 0 0 auto;
-  align-self: stretch;
-  padding: 0 0.7rem;
-  border-left: 1px solid var(--arc-band-edge);
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--color-teal);
-}
-
-.arc-band-out:active {
-  transform: translateY(1px);
-}
-
-/* The band that carries the way out does not also count itself. On a 320px
-   phone the two right-hand things together ate enough of the row to cut
-   "Travel Journal" off mid-word, and of the pair the count is the one nobody
-   came for. */
-.arc-pill.group.split .arc-count {
-  display: none;
-}
-
-/* On the narrowest phone the two halves cannot share a line: "Travel Journal"
-   in small caps wants 122px and a row split with the way out leaves it 102, so
-   the name was cut to "Travel Jou..." -- a heading that cannot say its own name
-   is worse than a taller band. Below 360px the same band turns the divider on
-   its side: the group on the top line, the way out on the bottom one, still one
-   object, still two targets, both a full thumb high. */
-@media (max-width: 359px) {
-  .arc-pill.group.split {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .arc-band-out {
-    justify-content: flex-start;
-    gap: 0.4rem;
-    min-height: 40px;
-    /* Left edge lined up with the group's name above it, not with its icon. */
-    padding: 0 0.6rem 0 42px;
-    border-left: 0;
-    border-top: 1px solid var(--arc-band-edge);
-  }
-  .arc-band-out > :last-child {
-    margin-left: auto;
-  }
 }
 
 /* A group that is deliberately quieter than the three travel groups above
