@@ -106,6 +106,9 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   const [acting, setActing] = useState(null);
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(null);
+  // Which airport and city a person has picked on an alert that prices neither
+  // pairing for them, kept per alert so two open cards do not share a choice.
+  const [pairing, setPairing] = useState({});
   // Which departure airport an email's card is showing. Keyed by email so two
   // cards open at once do not fight over one choice; an airport that is cleared
   // away falls back to the first one still on the email.
@@ -175,6 +178,31 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "That did not save.");
       finish(patch.status === "taken" ? result.destinationUrl : null);
+    } catch (err) {
+      setError(err.message || "That did not save.");
+      setActing(null);
+      writeLock.current = false;
+    }
+  };
+
+  // An alert the reader saved no row for, kept as a fare anyway. The origin,
+  // points and program are read again on the server from the stored email, so
+  // what goes up the wire is only which email and which trip.
+  const fromAlert = async (mention, patch) => {
+    if (writeLock.current) return;
+    writeLock.current = true;
+    setError("");
+    setNotice("");
+    setActing(mention.id);
+    try {
+      const res = await fetch("/api/deals/from-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: mention.id, ...patch }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "That did not save.");
+      finish(patch.status === "dismissed" ? null : result.destinationUrl);
     } catch (err) {
       setError(err.message || "That did not save.");
       setActing(null);
@@ -424,13 +452,16 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   return (
     <section id="fares">
       {confirm && <ConfirmSheet
-        title={confirm.kind === "attach" ? `Save this fare to ${confirm.name}?` : "Move to fares you turned down?"}
+        title={confirm.kind === "attach" || confirm.kind === "alert"
+          ? `Save this fare to ${confirm.name}?` : "Move to fares you turned down?"}
         body={<>
-          <p>{confirm.kind === "attach"
+          <p>{confirm.kind === "alert" || confirm.kind === "alert-dismiss"
+            ? `${confirm.said}, from ${confirm.mention.sourceName || "the alert"}. ${confirm.kind === "alert-dismiss" ? "It will be filed under fares you turned down." : "This saves the offer for reference; it does not book a flight." + (confirm.tripId ? " The trip will open next." : "")}`
+            : confirm.kind === "attach"
             ? `${confirm.deal.origin} to ${confirm.deal.destination}, ${fareOfferLabel(confirm.deal)}. This saves the offer for reference; it does not book a flight. ${confirm.patch.trip_id ? "The trip will open next." : "It will appear under Saved fares."}`
             : confirm.group ? `${confirm.group.deals.length} ${confirm.group.deals.length === 1 ? "fare" : "fares"} will leave the active list. You can move them back later if the deadline has not passed; saved fares will not change.`
               : `${confirm.deal.origin} to ${confirm.deal.destination}, ${fareOfferLabel(confirm.deal)}, will ${confirm.deal.status === "taken" ? "be removed from its saved trip or place and moved to turned-down fares" : "leave the active list"}. You can move it back later if the deadline has not passed.`}</p>
-          {confirm.kind === "dismiss" && <label className="block pt-2" htmlFor="fare-dismiss-reason">
+          {(confirm.kind === "dismiss" || confirm.kind === "alert-dismiss") && <label className="block pt-2" htmlFor="fare-dismiss-reason">
             Why not? <span className="text-ink-faint">(optional)</span>
             <input id="fare-dismiss-reason" className="field mt-1 w-full" value={reason}
               maxLength={200} placeholder="Wrong week for us" disabled={Boolean(acting)}
@@ -440,8 +471,11 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
         </>}
         onCancel={() => { setConfirm(null); setError(""); }}
         busy={Boolean(acting)}
-        actions={[{ label: acting ? (refreshing ? "Updating list…" : "Saving…") : confirm.kind === "attach" ? "Save fare" : "Confirm",
-          onPick: () => confirm.kind === "attach" ? decide(confirm.deal, confirm.patch)
+        actions={[{ label: acting ? (refreshing ? "Updating list…" : "Saving…")
+          : confirm.kind === "attach" || confirm.kind === "alert" ? "Save fare" : "Confirm",
+          onPick: () => confirm.kind === "alert" ? fromAlert(confirm.mention, confirm.patch)
+            : confirm.kind === "alert-dismiss" ? fromAlert(confirm.mention, { status: "dismissed", reason: reason.trim() })
+            : confirm.kind === "attach" ? decide(confirm.deal, confirm.patch)
             : confirm.group ? clearGroup(confirm.group) : decide(confirm.deal, { status: "dismissed", reason: reason.trim() }) }]}
       />}
       {open.length || mentions.length ? (
@@ -462,8 +496,158 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
               // it is a match on the two things they judge one on, and it belongs
               // in date order with the rest rather than nowhere.
               <li key={entry.key} className="card p-3">
+                {entry.mention.fare ? (() => {
+                  const fare = entry.mention.fare;
+                  const wished = new Set(entry.mention.places.map((place) => place.city).filter(Boolean));
+                  // Their own places first: twelve cities is a list, two of them
+                  // are the reason this card is on the screen at all.
+                  const cities = [
+                    ...fare.destinations.filter((city) => wished.has(city.city)),
+                    ...fare.destinations.filter((city) => !wished.has(city.city)),
+                  ];
+                  const pick = pairing[entry.mention.id] || {};
+                  const chosenFrom = fare.departures.find((row) => row.code === pick.origin)
+                    || (fare.departures.length === 1 ? fare.departures[0] : null);
+                  const chosenTo = cities.find((city) => city.code === pick.to) || null;
+                  const points = (row) => `${Math.round(row.points / 1000)}k`;
+                  return (
+                    <>
+                      <p className="text-sm font-semibold">
+                        {entry.mention.places.map((place) => place.place).join(" & ")}
+                        {" — "}
+                        {fare.departures.map((row) => `${row.city} (${row.code}) ${points(row)}`).join(", ")}
+                        {" "}{fare.program || "points"} each way
+                      </p>
+                      <p className="mt-0.5 text-sm text-ink-soft">
+                        {[fare.airline, fare.cabin ? `${fare.cabin} class` : null]
+                          .filter(Boolean).join(" ")}
+                        {fare.nonstop ? `, nonstop to ${fare.nonstop}` : ""}
+                        {`. Travel ${entry.mention.monthsSaid}, which fits the months you saved.`}
+                      </p>
+                      <p className="mt-1 text-sm text-ink-soft">
+                        {/* Twelve cities is a list nobody reads. The two on their
+                            bucket list are why this card is here, so those are
+                            named and the rest are counted. */}
+                        Cities in the offer: {cities.slice(0, 3).map((city) => city.city).join(", ")}
+                        {cities.length > 3 ? `, and ${cities.length - 3} more` : ""}.
+                      </p>
+                      <p className="mt-1 text-xs text-ink-faint">
+                        The points are the departure price. The email lists these cities without a
+                        price of its own{fare.headPoints ? `, and says the offer starts at ${fare.headPoints}k points` : ""}.
+                        Availability varies by city and program.
+                      </p>
+                      <p className="mt-2 text-xs text-ink-faint">
+                        {entry.mention.subject}
+                        {entry.mention.sourceName ? ` · ${entry.mention.sourceName}` : ""}
+                        {entry.at ? ` · received ${formatDay(homeDayOf(entry.at))}` : ""}
+                      </p>
+                      {pick.open ? (
+                        <div className="mt-3 space-y-3 rounded-xl border border-[var(--line)] p-3">
+                          {fare.departures.length > 1 ? (
+                            <fieldset>
+                              <legend className="text-sm text-ink-soft">Leaving from</legend>
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {fare.departures.map((row) => (
+                                  <button key={row.code} type="button"
+                                    className={`chip ${pick.origin === row.code ? "bg-teal/15 font-semibold text-teal" : "text-ink-soft"}`}
+                                    onClick={() => setPairing((was) => ({ ...was,
+                                      [entry.mention.id]: { ...pick, origin: row.code } }))}>
+                                    {row.code} · {points(row)}
+                                  </button>
+                                ))}
+                              </div>
+                            </fieldset>
+                          ) : null}
+                          <fieldset>
+                            <legend className="text-sm text-ink-soft">
+                              Going to
+                              {cities.some((city) => wished.has(city.city)) ? <span className="ml-2 text-xs text-ink-faint">★ on your bucket list</span> : null}
+                            </legend>
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              {cities.map((city) => (
+                                <button key={city.code} type="button"
+                                  className={`chip ${pick.to === city.code ? "bg-teal/15 font-semibold text-teal" : "text-ink-soft"}`}
+                                  onClick={() => setPairing((was) => ({ ...was,
+                                    [entry.mention.id]: { ...pick, to: city.code } }))}>
+                                  {city.city}{wished.has(city.city) ? " ★" : ""}
+                                </button>
+                              ))}
+                            </div>
+                          </fieldset>
+                          <label className="flex min-w-0 max-w-full flex-wrap items-center gap-2 text-sm">
+                            <span className="text-ink-soft">Put it on</span>
+                            <select
+                              aria-label="Choose a trip for this fare"
+                              className="field min-w-0 max-w-full py-1"
+                              value={pick.trip || ""}
+                              disabled={Boolean(acting)}
+                              onChange={(event) => setPairing((was) => ({ ...was,
+                                [entry.mention.id]: { ...pick, trip: event.target.value } }))}
+                            >
+                              <option value="">a trip or bucket-list place…</option>
+                              {live.length ? <optgroup label="Draft and upcoming trips">{live.map((trip) => (
+                                <option key={trip.id} value={`trip:${trip.id}`}>
+                                  {trip.name}{trip.status === "draft" ? " (draft)" : ""}
+                                </option>
+                              ))}</optgroup> : null}
+                              {bucket.length ? <optgroup label="Bucket list">{bucket.map((place) => (
+                                <option key={place.id} value={`place:${place.id}`}>{place.place}</option>
+                              ))}</optgroup> : null}
+                            </select>
+                          </label>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                            <button type="button" className="btn btn-primary px-3 py-1"
+                              disabled={Boolean(acting) || !chosenFrom || !chosenTo || !pick.trip}
+                              onClick={() => {
+                                const [kind, id] = String(pick.trip).split(":");
+                                const target = kind === "trip"
+                                  ? live.find((trip) => trip.id === id)
+                                  : bucket.find((place) => place.id === id);
+                                setConfirm({ kind: "alert", mention: entry.mention,
+                                  name: kind === "trip" ? target.name : target.place,
+                                  tripId: kind === "trip" ? id : null,
+                                  said: `${chosenFrom.code} to ${chosenTo.city}, ${points(chosenFrom)} ${fare.program || "points"} each way`,
+                                  patch: { origin: chosenFrom.code, destination_code: chosenTo.code,
+                                    ...(kind === "trip" ? { trip_id: id } : { someday_id: id }) } });
+                              }}>
+                              Save this fare
+                            </button>
+                            <button type="button"
+                              className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
+                              disabled={Boolean(acting)}
+                              onClick={() => setPairing((was) => ({ ...was, [entry.mention.id]: { ...pick, open: false } }))}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                          <button type="button" className="btn btn-primary px-3 py-1"
+                            disabled={Boolean(acting) || !(live.length || bucket.length)}
+                            onClick={() => setPairing((was) => ({ ...was,
+                              [entry.mention.id]: { ...pick, open: true } }))}>
+                            Put it on a trip
+                          </button>
+                          <button type="button"
+                            className="text-ink-soft underline decoration-[var(--line)] underline-offset-2 hover:text-ink"
+                            disabled={Boolean(acting)}
+                            onClick={() => { setReason(""); setError("");
+                              setConfirm({ kind: "alert-dismiss", mention: entry.mention,
+                                said: `${fare.departures[0].code} to ${(fare.destinations.find((city) => city.code === fare.nonstop) || fare.destinations[0]).city}, ${points(fare.departures[0])} ${fare.program || "points"} each way` }); }}>
+                            Not for us
+                          </button>
+                        </div>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                        <Link href="/someday#places" className="text-teal underline">Your bucket list</Link>
+                        <Link href="/inbox" className="text-teal underline">Read the email</Link>
+                      </div>
+                    </>
+                  );
+                })() : (
+                <>
                 <p className="text-sm font-semibold">
-                  {entry.mention.places.map((place) => place.place).join(" & ")} — no price in the email
+                  {entry.mention.places.map((place) => place.place).join(" & ")} — no fare priced for your airports
                 </p>
                 <p className="mt-0.5 text-sm text-ink-soft">
                   {(() => {
@@ -481,6 +665,8 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                   <Link href="/someday#places" className="text-teal underline">Your bucket list</Link>
                   <Link href="/inbox" className="text-teal underline">Read the email</Link>
                 </div>
+                </>
+                )}
               </li>
             ) : (() => {
               const email = entry.email;

@@ -110,6 +110,12 @@ export default async function SomedayPage() {
     .eq("status", "noted")
     .order("received_at", { ascending: false, nullsFirst: false })
     .limit(60);
+  // The airports they fly from, so a card can price the one departure in the
+  // email that is theirs rather than every city the newsletter quotes.
+  const { data: homeAirports } = await supabase
+    .from("home_airports")
+    .select("code")
+    .eq("family_id", familyId);
   const priced = new Set();
   if (noted?.length) {
     const { data: rows } = await supabase
@@ -122,7 +128,7 @@ export default async function SomedayPage() {
   const mentions = (noted || [])
     .filter((row) => row.text_body && !priced.has(row.id))
     .map((row) => {
-      const match = fittingMentions(row.text_body, places || []);
+      const match = fittingMentions(row.text_body, places || [], { airports: homeAirports || [] });
       return match ? {
         id: row.id,
         subject: row.subject || "A fare alert",
@@ -130,6 +136,7 @@ export default async function SomedayPage() {
         receivedAt: row.received_at,
         places: match.places,
         monthsSaid: match.monthsSaid,
+        fare: match.fare,
       } : null;
     })
     .filter(Boolean);

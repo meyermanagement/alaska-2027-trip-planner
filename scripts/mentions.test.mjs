@@ -10,7 +10,7 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, {
   alias: { "@": new URL("..", import.meta.url).pathname.replace(/\/$/, "") },
 });
-const { alertMonths, fittingMentions, namedSomeday } = await jiti.import("../lib/deals/mentions.js");
+const { alertMonths, fareChoices, fittingMentions, namedSomeday } = await jiti.import("../lib/deals/mentions.js");
 
 const someday = [
   { id: "norway", place: "Norway", status: "open", watch: true },
@@ -23,7 +23,15 @@ const someday = [
 
 const northernEurope = `Northern Europe from 47k points
 
+Flying Finnair in biz class
+
 Departure Cities
+
+(All fares one-way, *nonstop to HEL)
+
+Pricing is in Finnair
+
+Avios
 
 Dallas (DFW) - 63k*
 New York (JFK) - 63k*
@@ -133,4 +141,33 @@ test("an alert with no destinations list is not a place match on the fares list"
   const rows = [{ id: "sf", place: "San Francisco, California", status: "open", watch: true, months: [8] }];
   assert.equal(fittingMentions(departuresOnly, rows), null);
   assert.ok(namedSomeday(departuresOnly, rows).length);
+});
+
+test("the choices an alert leaves open are its priced airports and its listed cities", () => {
+  const choices = fareChoices(dated, [{ code: "DFW" }, { code: "STL" }]);
+  assert.deepEqual(choices.departures.map((row) => row.code), ["DFW"]);
+  assert.equal(choices.departures[0].points, 63000);
+  assert.equal(choices.program, "Finnair Avios");
+  assert.equal(choices.unit, "avios");
+  assert.equal(choices.airline, "Finnair");
+  assert.equal(choices.cabin, "business");
+  assert.equal(choices.nonstop, "HEL");
+  assert.ok(choices.destinations.some((city) => city.code === "OSL"));
+  assert.deepEqual(choices.others, ["JFK"]);
+});
+
+test("an airport the family does not fly from is not a fare they can take", () => {
+  assert.equal(fareChoices(dated, [{ code: "STL" }]), null);
+  assert.equal(fareChoices(dated, []), null);
+});
+
+test("no departure list and no destinations list means nothing to pair", () => {
+  assert.equal(fareChoices("Northern Europe from 47k points\n", [{ code: "DFW" }]), null);
+});
+
+test("a matched alert carries the choices onto the card", () => {
+  const match = fittingMentions(dated, withMonths, { airports: [{ code: "DFW" }] });
+  assert.equal(match.fare.departures[0].code, "DFW");
+  assert.equal(fittingMentions(dated, withMonths, { airports: [{ code: "STL" }] }).fare, null);
+  assert.equal(fittingMentions(dated, withMonths).fare, null);
 });
