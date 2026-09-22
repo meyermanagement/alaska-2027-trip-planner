@@ -13,6 +13,7 @@ import Deals from "@/components/Deals";
 import ForwardFares from "@/components/ForwardFares";
 import { inboxAddressFor } from "@/lib/inbox/address";
 import { FARE_SELECT, judged, readDealWorld } from "@/lib/deals/world";
+import { fittingMentions } from "@/lib/deals/mentions";
 
 export const metadata = { title: "Bucket list & fares · Alyeska" };
 
@@ -98,6 +99,41 @@ export default async function SomedayPage() {
   const world = deals?.length ? await readDealWorld(supabase, familyId) : null;
   const fares = world ? judged(deals, world) : [];
 
+  // Alerts that saved no fare but still name a place on this list in a season
+  // this list asked for. Nothing here is a fare -- no price was printed, so none
+  // is claimed -- but a match on place and month is what the family would have
+  // judged anyway, and it belongs on the fares list rather than only in history.
+  const { data: noted } = await supabase
+    .from("inbox_messages")
+    .select("id, subject, from_name, from_email, received_at, text_body")
+    .eq("family_id", familyId)
+    .eq("status", "noted")
+    .order("received_at", { ascending: false, nullsFirst: false })
+    .limit(60);
+  const priced = new Set();
+  if (noted?.length) {
+    const { data: rows } = await supabase
+      .from("flight_deals")
+      .select("message_id")
+      .eq("family_id", familyId)
+      .in("message_id", noted.map((row) => row.id));
+    for (const row of rows || []) if (row.message_id) priced.add(row.message_id);
+  }
+  const mentions = (noted || [])
+    .filter((row) => row.text_body && !priced.has(row.id))
+    .map((row) => {
+      const match = fittingMentions(row.text_body, places || []);
+      return match ? {
+        id: row.id,
+        subject: row.subject || "A fare alert",
+        sourceName: row.from_name || row.from_email || "",
+        receivedAt: row.received_at,
+        places: match.places,
+        monthsSaid: match.monthsSaid,
+      } : null;
+    })
+    .filter(Boolean);
+
   return (
     <>
       <TopBar />
@@ -109,11 +145,11 @@ export default async function SomedayPage() {
         />
 
         <SomedayTabs
-          fareCount={fares.filter((deal) => deal.status === "open").length}
+          fareCount={fares.filter((deal) => deal.status === "open").length + mentions.length}
           places={<SomedayList familyId={familyId} places={places || []}
             travelers={people || []} trips={trips || []} />}
           fares={<>
-            {fares.length ? <Deals deals={fares} trips={trips || []} places={places || []} />
+            {fares.length || mentions.length ? <Deals deals={fares} trips={trips || []} places={places || []} mentions={mentions} />
               : <div className="card p-5">
                 <h2 className="font-display text-lg font-semibold">No fare alerts yet</h2>
                 <p className="mt-1 text-sm text-ink-soft">Forward a flight deal to Aly. Matching fares will appear here.</p>

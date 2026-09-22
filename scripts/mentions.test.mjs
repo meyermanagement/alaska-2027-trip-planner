@@ -10,7 +10,7 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, {
   alias: { "@": new URL("..", import.meta.url).pathname.replace(/\/$/, "") },
 });
-const { namedSomeday } = await jiti.import("../lib/deals/mentions.js");
+const { alertMonths, fittingMentions, namedSomeday } = await jiti.import("../lib/deals/mentions.js");
 
 const someday = [
   { id: "norway", place: "Norway", status: "open", watch: true },
@@ -79,4 +79,58 @@ test("an email with no destination codes names nothing", () => {
   assert.deepEqual(namedSomeday("A newsletter with no airports in it.", someday), []);
   assert.deepEqual(namedSomeday("", someday), []);
   assert.deepEqual(namedSomeday(northernEurope, []), []);
+});
+
+// The same alert, with the season line it really carries, and months on the
+// wishes so a place-and-date match can be worked out without a price.
+const dated = northernEurope.replace(
+  "(Availability varies)",
+  "(Full availability: Aug - Sep — Varies by city & miles used to book)",
+);
+const withMonths = someday.map((row) => ({
+  ...row,
+  months: { norway: [6, 7, 8], copenhagen: [5, 6, 7, 8], markets: [12] }[row.id] || null,
+}));
+
+test("reads the season off the alert's own availability line", () => {
+  assert.deepEqual(alertMonths(dated), [8, 9]);
+  assert.deepEqual(alertMonths(northernEurope), []);
+});
+
+test("a no-price alert matches on place and month", () => {
+  const match = fittingMentions(dated, withMonths);
+  assert.deepEqual(match.places.map((row) => row.id).sort(), ["copenhagen", "norway"]);
+  assert.deepEqual(match.months, [8, 9]);
+  assert.equal(match.monthsSaid, "Aug, Sep");
+});
+
+test("a place whose months the alert misses is not a match", () => {
+  const winter = fittingMentions(
+    dated,
+    [{ id: "markets", place: "Copenhagen", status: "open", watch: true, months: [12] }],
+  );
+  assert.equal(winter, null);
+});
+
+test("a place with no months saved takes any season", () => {
+  const match = fittingMentions(
+    dated,
+    [{ id: "open", place: "Copenhagen", status: "open", watch: true, months: null }],
+  );
+  assert.deepEqual(match.places.map((row) => row.id), ["open"]);
+});
+
+test("an alert that names no season is not a date match", () => {
+  assert.equal(fittingMentions(northernEurope, withMonths), null);
+  assert.equal(fittingMentions(dated, []), null);
+});
+
+test("an alert with no destinations list is not a place match on the fares list", () => {
+  // A cash alert for one city lists its departure airports and nothing else. The
+  // history line may report a mention; a fares card may not, or a Switzerland
+  // offer ends up claiming to be about Montreal.
+  const departuresOnly = `Ireland under $578\n\nDeparture Cities\n\nSan Francisco (SFO) - $578\nToronto (YYZ) - $604\n\n(Full availability: Aug - Sep)\n`;
+  const rows = [{ id: "sf", place: "San Francisco, California", status: "open", watch: true, months: [8] }];
+  assert.equal(fittingMentions(departuresOnly, rows), null);
+  assert.ok(namedSomeday(departuresOnly, rows).length);
 });

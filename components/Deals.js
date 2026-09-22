@@ -61,7 +61,7 @@ function money(value) {
  *   matched that trip are shown, and the heading says so. The bucket list passes
  *   nothing and gets the lot.
  */
-export default function Deals({ deals = [], trips = [], places = [], tripId = null }) {
+export default function Deals({ deals = [], trips = [], places = [], tripId = null, mentions = [] }) {
   const router = useRouter();
   const [today, setToday] = useState(() => homeToday());
   useEffect(() => {
@@ -82,6 +82,18 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
     ? deals.filter((deal) => fareMatchesTrip(fareForToday(deal, today), tripId))
     : deals;
   const { open, refused, expired, taken } = fareListsForToday(mine, today);
+
+  // Priced alerts and no-price matches in one list, newest first, so the family
+  // reads their mail in the order it arrived instead of by how well it parsed.
+  const listed = [
+    ...groupFareEmails(open).map((email) => ({
+      kind: "email", key: email.key, at: email.receivedAt || email.createdAt, email,
+    })),
+    ...mentions.map((mention) => ({
+      kind: "mention", key: `mention:${mention.id}`, at: mention.receivedAt, mention,
+    })),
+  ].sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+
   const deadlineBadge = (deal) => fareDeadlinePassed(deal, today) ? (
     <span className="chip mt-1 max-w-full text-left text-rose" style={{ whiteSpace: "normal" }}
       title={`Book by ${formatDay(deal.book_by)}`}>
@@ -405,7 +417,8 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
   // Nothing on file, so there is nothing to say. The screen that holds this panel
   // explains how fares get here; a panel that announced its own emptiness would
   // be saying it twice.
-  if (!open.length && !refused.length && !expired.length && !taken.length)
+  if (!open.length && !refused.length && !expired.length && !taken.length
+    && !mentions.length)
     return null;
 
   return (
@@ -431,7 +444,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
           onPick: () => confirm.kind === "attach" ? decide(confirm.deal, confirm.patch)
             : confirm.group ? clearGroup(confirm.group) : decide(confirm.deal, { status: "dismissed", reason: reason.trim() }) }]}
       />}
-      {open.length ? (
+      {open.length || mentions.length ? (
         <>
           <h2 className="font-display text-lg font-semibold">
             {tripId ? "Fares for this trip" : "Fares that came in"}
@@ -442,7 +455,35 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
               : "One card per alert you forwarded. Open one, pick a departure airport, and see how each fare fits."}
           </p>
           <ul className="mt-3 space-y-3">
-            {tripId ? open.map((deal) => card(deal)) : groupFareEmails(open).map((email) => {
+            {tripId ? open.map((deal) => card(deal)) : listed.map((entry) => entry.kind === "mention" ? (
+              // An alert can name a place they wrote down, say when it can be
+              // flown, and still price nothing worth saving. That is not a fare,
+              // so it gets no price, no verdict and no "put it on a trip" -- but
+              // it is a match on the two things they judge one on, and it belongs
+              // in date order with the rest rather than nowhere.
+              <li key={entry.key} className="card p-3">
+                <p className="text-sm font-semibold">
+                  {entry.mention.places.map((place) => place.place).join(" & ")} — no price in the email
+                </p>
+                <p className="mt-0.5 text-sm text-ink-soft">
+                  {(() => {
+                    const cities = [...new Set(entry.mention.places.map((place) => place.city).filter(Boolean))];
+                    return cities.length ? `Named in it as ${cities.join(", ")}. ` : "";
+                  })()}
+                  Travel {entry.mention.monthsSaid}, which fits the months you saved.
+                </p>
+                <p className="mt-2 text-xs text-ink-faint">
+                  {entry.mention.subject}
+                  {entry.mention.sourceName ? ` · ${entry.mention.sourceName}` : ""}
+                  {entry.at ? ` · received ${formatDay(homeDayOf(entry.at))}` : ""}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                  <Link href="/someday#places" className="text-teal underline">Your bucket list</Link>
+                  <Link href="/inbox" className="text-teal underline">Read the email</Link>
+                </div>
+              </li>
+            ) : (() => {
+              const email = entry.email;
               // One alert quoting ORD and ATL used to arrive as two cards that
               // looked unrelated, and the only thing telling them apart was a
               // pair of clear buttons. The email is the card; the airports are
@@ -498,7 +539,7 @@ export default function Deals({ deals = [], trips = [], places = [], tripId = nu
                   </details>
                 </li>
               );
-            })}
+            })())}
           </ul>
         </>
       ) : null}
