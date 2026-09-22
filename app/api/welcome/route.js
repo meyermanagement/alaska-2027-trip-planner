@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { extractAboutMePriors } from "@/lib/travelers/extractAboutMePriors";
 
 import { createClient } from "@/lib/supabase/server";
 import { resolveAccess } from "@/lib/travelers/access";
+import { priorsForSave } from "@/lib/travelers/priorsForSave";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -68,18 +68,18 @@ export async function PATCH(request) {
   // existing family -- the only people who reach this route -- gets the same
   // pre-picked interview as the primary instead of being asked everything
   // cold. Best-effort: an extraction that throws still saves the paragraph.
-  let priors = {};
-  if (nextValue) {
-    try {
-      priors = await extractAboutMePriors(nextValue, {
-        supabase,
-        userId: user.id,
-      });
-    } catch (err) {
-      console.warn("welcome about_me: extraction threw", err?.message || err);
-      priors = {};
-    }
-  }
+  // Words already read keep their priors without another Gemini call.
+  const { data: current } = await supabase
+    .from("travelers")
+    .select("about_me_priors")
+    .eq("family_id", familyId)
+    .eq("user_id", user.id)
+    .eq("is_person", true)
+    .maybeSingle();
+  const { priors } = await priorsForSave(nextValue, current?.about_me_priors, {
+    supabase,
+    userId: user.id,
+  });
 
   const { data, error } = await supabase
     .from("travelers")

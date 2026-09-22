@@ -6,6 +6,7 @@ import { ledgerFor } from "@/lib/travelers/ledger";
 import { nextQuestion, questionsFor } from "@/lib/travelers/interview";
 import { priorAnswersFrom } from "@/lib/travelers/interviewInference";
 import { personalizationContext } from "@/lib/travelers/interviewPersonalize";
+import { slotPriors } from "@/lib/travelers/priorsForSave";
 
 import InterviewBody from "./InterviewBody";
 import { homeToday } from "@/lib/format";
@@ -116,11 +117,7 @@ export default async function InterviewPage() {
     (travelers || []).find(
       (t) => (t.access_level || "").toLowerCase() === "primary",
     ) || null;
-  const aboutMePriors =
-    primaryRow?.about_me_priors &&
-    typeof primaryRow.about_me_priors === "object"
-      ? primaryRow.about_me_priors
-      : {};
+  const aboutMePriors = slotPriors(primaryRow?.about_me_priors);
 
   const context = personalizationContext({
     travelers: travelers || [],

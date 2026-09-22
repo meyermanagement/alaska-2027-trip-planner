@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
-import { extractAboutMePriors } from "@/lib/travelers/extractAboutMePriors";
+import { priorsForSave, slotPriors } from "@/lib/travelers/priorsForSave";
 
 /**
  * Save one traveler's About-you paragraph, and refresh the interview priors
@@ -46,19 +46,19 @@ export async function POST(request) {
     return NextResponse.json({ error: "Missing traveler." }, { status: 400 });
   }
 
-  // Extract priors first so the update writes the paragraph and the priors
-  // together. If extraction throws we still save the paragraph -- the priors
-  // are best-effort and never block a person from writing about themselves.
-  let priors = {};
-  try {
-    priors = await extractAboutMePriors(paragraph, {
-      supabase,
-      userId: me.id,
-    });
-  } catch (err) {
-    console.warn("about-you save: extraction threw", err?.message || err);
-    priors = {};
-  }
+  // Priors first, so the update writes the paragraph and the priors together.
+  // Words already read keep their priors without another Gemini call; the
+  // row is read through the caller's client, so RLS still decides what is
+  // visible.
+  const { data: current } = await supabase
+    .from("travelers")
+    .select("about_me_priors")
+    .eq("id", travelerId)
+    .maybeSingle();
+  const { priors } = await priorsForSave(paragraph, current?.about_me_priors, {
+    supabase,
+    userId: me.id,
+  });
 
   const { data, error } = await supabase
     .from("travelers")
@@ -86,6 +86,6 @@ export async function POST(request) {
 
   return NextResponse.json({
     ok: true,
-    priors_count: Object.keys(priors).length,
+    priors_count: Object.keys(slotPriors(priors)).length,
   });
 }
