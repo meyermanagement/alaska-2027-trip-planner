@@ -133,6 +133,13 @@ function DatesBand({ dates }) {
  * and on a screen whose first line reads NOW, "now" means due today -- which a
  * season next June is not. The card's own first line says where it came from,
  * and the why says which season, so the heading only repeated them.
+ *
+ * Two lines under the name, and they answer different questions. The first is
+ * why the app is raising this place today -- the season, always, because that is
+ * what put it above everything else on the list. The second is the family's own
+ * note about the place, if they wrote one. The note used to stand in for the
+ * reason whenever it existed, which left the card looking like it had chosen a
+ * place for reasons of its own.
  */
 function WorthDoing({ pick }) {
   if (!pick) return null;
@@ -145,6 +152,9 @@ function WorthDoing({ pick }) {
         {pick.title}
       </h3>
       <p className="mt-1 text-sm text-ink-soft">{pick.why}</p>
+      {pick.note ? (
+        <p className="mt-1 text-sm italic text-ink-faint">{pick.note}</p>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <Link className="btn btn-primary" href={pick.planHref}>
           Plan this trip

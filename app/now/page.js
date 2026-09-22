@@ -27,7 +27,12 @@ import {
   progressOf,
   todaysPlan,
 } from "@/lib/now/home";
-import { aheadDates, nextAhead, seasonAhead } from "@/lib/now/ahead";
+import {
+  aheadDates,
+  nextAhead,
+  seasonAhead,
+  seasonReason,
+} from "@/lib/now/ahead";
 import { monthsSaid } from "@/lib/someday/months";
 import { farePriceLabel } from "@/lib/deals/award";
 import { fareHasExpired } from "@/lib/deals/deadline";
@@ -347,16 +352,15 @@ export default async function NowPage() {
   // chosen rather than listed; all of them on the empty screen, where there is
   // nothing else to decide.
   const seasons = longRange ? seasonAhead(placeRows || [], today) : [];
+  // The reason is always the season, because that is why this place and not one
+  // of the others is on the screen. It used to be the family's own note when a
+  // place had one, which explained why they want to go and left why the app
+  // brought it up today unsaid.
   const pick = seasons[0]
     ? {
         title: seasons[0].place.place,
-        why:
-          seasons[0].place.why ||
-          `Your window opens in ${seasons[0].monthName}${
-            seasons[0].months.length > 1
-              ? ` — you ticked ${monthsSaid(seasons[0].months)}.`
-              : "."
-          }`,
+        why: seasonReason(seasons[0], seasons.length),
+        note: seasons[0].place.why || null,
         planHref: `/trips/new?from=${seasons[0].place.id}`,
       }
     : null;
@@ -582,8 +586,24 @@ export default async function NowPage() {
           waiting={waiting || 0}
           fares={fareRows.length}
         />
-        <MorningRun runs={runs || []} today={today} dueCount={dueCount} />
-        <PushAlerts />
+        {/* The loud version above the band; the calm one-line version inside
+            it. See the note on MorningRun. */}
+        <MorningRun
+          runs={runs || []}
+          today={today}
+          dueCount={dueCount}
+          only="loud"
+        />
+        <PushAlerts
+          morning={
+            <MorningRun
+              runs={runs || []}
+              today={today}
+              dueCount={dueCount}
+              only="calm"
+            />
+          }
+        />
         <Reminders
           readOnly={Boolean(access?.can.isSecondary)}
           tasks={tasks}

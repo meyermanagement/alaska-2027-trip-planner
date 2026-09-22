@@ -24,6 +24,7 @@
 // rather than built in, so the key can be set on a running deployment.
 
 import { useCallback, useEffect, useState } from "react";
+import { ChevronDisc } from "@/components/ChevronDisc";
 import { deviceIdentity } from "@/lib/push/devices";
 import { watchSentence } from "@/lib/watch/say";
 
@@ -99,13 +100,30 @@ function keyOf(subscription) {
   };
 }
 
-export default function PushAlerts() {
+// What the shut band says on its right, so the two questions somebody comes to
+// this panel with -- is this switched on, and did it have anything to say --
+// are both answered without opening it.
+function statusLine({ state, needsInstall, watch }) {
+  if (state === "loading") return "Checking this browser…";
+  if (needsInstall) return "Add to Home Screen first";
+  if (state === "unavailable") return "Not set up";
+  if (state === "unsupported") return "Not available here";
+  if (state === "blocked") return "Blocked in this browser";
+  if (state === "off") return "Off";
+  if (watch.phase === "running") return "On · checking deadlines";
+  if (watch.failed) return "On · the check failed";
+  if (watch.quiet) return "On · nothing close";
+  return "On";
+}
+
+export default function PushAlerts({ morning = null }) {
   const [state, setState] = useState("loading");
   const [problem, setProblem] = useState("");
   const [said, setSaid] = useState("");
   const [busy, setBusy] = useState(false);
   const [needsInstall, setNeedsInstall] = useState(false);
   const [watch, setWatch] = useState({ phase: "running" });
+  const [open, setOpen] = useState(false);
 
   // What the browser can do, and what it has already agreed to. Read once on
   // mount; every later change goes through a button in here.
@@ -325,22 +343,55 @@ export default function PushAlerts() {
     runWatch();
   }, [runWatch]);
 
+  // Opened by itself only when there is something to do in here: notifications
+  // off, blocked, not set up, or a pass that failed. A working panel with
+  // nothing close stays shut, because on most days this is the least
+  // interesting thing on the screen.
+  const wants =
+    state === "off" ||
+    state === "blocked" ||
+    state === "unavailable" ||
+    needsInstall ||
+    Boolean(watch.failed) ||
+    Boolean(problem);
+  useEffect(() => {
+    if (wants) setOpen(true);
+  }, [wants]);
+
   return (
-    <section className="card mb-5 mt-4 p-5">
-      <h2 className="font-display text-xl font-semibold">Notifications</h2>
+    /* A band rather than a panel. This is setup, not news: on a normal day the
+       only things worth reading are whether notifications are on and whether
+       the deadline pass found anything, and both of those fit on the shut band
+       beside the heading. Everything else -- what it interrupts you about, the
+       buttons, the pass in full -- is behind the disclosure. The morning email
+       line rides underneath, because "did the app tell anybody anything today"
+       is one question and the two answers to it belong together. */
+    <section className="card my-4 overflow-hidden">
+      <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            Notifications
+          </h2>
+          <span className="flex items-center gap-3">
+            <span className="text-right text-xs text-ink-soft">
+              {statusLine({ state, needsInstall, watch })}
+            </span>
+            {/* The band would otherwise be a row of text with nothing saying it
+                opens: the default disclosure marker is suppressed by list-none. */}
+            <ChevronDisc open={open} quiet />
+          </span>
+        </summary>
+
+        <div className="border-t border-[var(--line)] px-4 pb-4 pt-3">
       {/* This panel sits near the foot of the Now screen -- it is setup, not
           news -- so the copy is two lines instead of five: what it is for, and
           the promise that it is twice per deadline and never more. */}
-      <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+      <p className="max-w-2xl text-sm text-ink-soft">
         A fare matching your home airports, a fare closing today, a card offer
         ending this week: none of those can wait for the morning email, so they
         arrive as a notification instead. Deadlines are warned about twice at
         most &mdash; once when the date comes into view, once on the last day.
       </p>
-
-      {state === "loading" ? (
-        <p className="mt-3 text-sm text-ink-soft">Checking this browser…</p>
-      ) : null}
 
       {needsInstall ? (
         <p className="mt-3 max-w-2xl text-sm text-ink">
@@ -420,6 +471,12 @@ export default function PushAlerts() {
       {said ? <p className="mt-3 text-sm text-ink">{said}</p> : null}
       {problem ? (
         <p className="mt-3 max-w-2xl text-sm text-rose">{problem}</p>
+      ) : null}
+        </div>
+      </details>
+
+      {morning ? (
+        <div className="border-t border-[var(--line)] px-4 py-2">{morning}</div>
       ) : null}
     </section>
   );

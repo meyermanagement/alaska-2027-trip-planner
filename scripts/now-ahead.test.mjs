@@ -14,6 +14,7 @@ const {
   countdownSaid,
   nextAhead,
   seasonAhead,
+  seasonReason,
 } = jiti("../lib/now/ahead.js");
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -218,4 +219,24 @@ test("the page shows each long-range state only at its own range", () => {
   assert.ok(src.includes("const emptyHanded = !current.length && !soon.length && !ahead"));
   assert.ok(src.includes("{ahead && ("));
   assert.ok(src.includes("{emptyHanded && ("));
+});
+
+test("the bucket-list card says why this place, not why they want to go", () => {
+  const found = seasonAhead(
+    [place({ why: "Steph has wanted the geysers since college" }), place({ id: "p2", place: "Iceland", months: [2] })],
+    today,
+  );
+  const said = seasonReason(found[0], found.length);
+  assert.match(said, /Its season is on now, through September/);
+  assert.match(said, /you ticked/);
+  assert.match(said, /nothing else on your bucket list comes round sooner/);
+  // The family's own note is not the reason and is not folded into it.
+  assert.ok(!said.includes("geysers"));
+});
+
+test("one place in view does not claim to beat a list of one", () => {
+  const found = seasonAhead([place({ id: "p2", place: "Iceland", months: [2] })], today);
+  const said = seasonReason(found[0], found.length);
+  assert.match(said, /Its season opens in February, 5 months off/);
+  assert.ok(!said.includes("nothing else"));
 });

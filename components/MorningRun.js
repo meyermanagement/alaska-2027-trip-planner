@@ -23,8 +23,21 @@ import { HOME_ZONE } from "@/lib/format";
  * banner nobody reads on the day it turns red. It raises its voice for exactly
  * two situations: a run that failed, and a run that never happened after the hour
  * it was due.
+ *
+ * The two voices are rendered in two different places, which is what `only` is
+ * for. The calm line lives inside the Notifications band -- whether the email
+ * went out and whether notifications are on are one question with two answers,
+ * and the answers belong beside each other. The loud one stays a panel of its
+ * own above it, because a morning that failed is not a thing to fold into a
+ * band about settings. Each call renders one voice and nothing for the other.
  */
-export default function MorningRun({ runs, today, dueCount = 0, hour }) {
+export default function MorningRun({
+  runs,
+  today,
+  dueCount = 0,
+  hour,
+  only = "both",
+}) {
   const status = runStatus({
     runs,
     today,
@@ -38,12 +51,16 @@ export default function MorningRun({ runs, today, dueCount = 0, hour }) {
   // A state with nothing to report renders nothing at all, rather than a line of
   // grey text holding a space open for news that has not happened.
   if (!status.headline) return null;
+  if (only === "calm" && !calm) return null;
+  if (only === "loud" && calm) return null;
 
   return (
     <section
       className={
         calm
-          ? "mb-5 text-xs leading-relaxed text-ink-faint"
+          ? // No bottom margin in the calm case: it is a row inside the
+            // Notifications band, and the band provides its own padding.
+            "text-xs leading-relaxed text-ink-faint"
           : "mb-5 rounded-xl border border-amber/50 bg-amber/10 p-3 text-sm leading-relaxed"
       }
       aria-live="polite"

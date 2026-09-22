@@ -32,6 +32,13 @@ export default function manifest() {
     short_name: "Alyeska",
     description:
       "Travel, Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
+    // The one documented way a tap inside an installed iOS app lands in Safari
+    // instead is a navigation judged out of scope. With no scope declared, the
+    // scope is inferred from start_url, and an inference is a thing that can be
+    // read differently by a launcher than by us. Both are stated, so every path
+    // on the site is in scope by declaration rather than by default.
+    id: "/",
+    scope: "/",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",
