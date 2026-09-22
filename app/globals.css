@@ -6946,58 +6946,67 @@ input[type="month"]::-webkit-date-and-time-value {
   );
 }
 
-/* A real cover gets a band across the top of the flipped plate, and the words
-   get the paper below it.
+/* A cover on a flipped plate: printed at its own proportions, top-aligned, and
+   faded out underneath the words.
    ------------------------------------------------------------------
-   It used to be a full-bleed backdrop faded out under the text: masked to the
-   top third of the frame and washed to near-solid paper by the scrim. Both of
-   those are fractions of the plate's height, and the plate's height is whatever
-   its content needs -- so on a phone, where the buttons wrap and a countdown
-   plate carries a list of dates, the words started inside the third the picture
-   was supposed to own and there was nothing left of the cover to see. The Disney
-   countdown plate showed no picture at all at 320px.
+   This plate has always shown the picture behind the top of the card and faded
+   it into the paper the words sit on. What broke it was the frame: .trip-photo
+   fills the plate and is object-fit: cover, and the plate is as tall as its
+   content. On a phone -- title wrapping to three lines, buttons wrapping to two
+   rows, a countdown plate carrying a list of dates -- the frame became 286 by
+   563, and covering a box that shape with a 1376 by 768 drawing means showing a
+   sliver of its middle at three and a half times the size. The Disney cover came
+   out as an unrecognizable green field; nothing was wrong with the file.
 
-   A band is a fixed height, so the crop is the same whatever the plate holds:
-   the cover is cropped to it by object-fit, printed at full strength, and the
-   words sit underneath on the plate's own paper where nothing has to be dimmed
-   to keep them readable.
+   So where there is a real cover the picture keeps its own aspect ratio and is
+   pinned to the top of the plate: full width, natural height, no zoom, the whole
+   width of the drawing in view. The fade is a fraction of the picture's own box
+   rather than of the plate's, so it lands in the same place on the drawing at
+   every width, and the words below it sit on paper.
 
-   Only when there is a cover to crop. A trip with no picture draws its coastline
-   instead, and that is drawn to fill a plate, not a strip -- so those plates keep
-   the frame they had. Which is also the fallback where :has() is not supported:
-   the old full-bleed treatment, unchanged. */
-.trip-plate.plate-invert:has(.trip-media.has-photo) {
-  --plate-band: 136px;
-  padding-top: var(--plate-band);
+   Only where there is a cover. A contour drawing is generated to the plate's
+   proportions and is meant to fill it, so map-only plates keep the frame and the
+   fade they had -- which is also what an engine without :has() renders. */
+.plate-invert .trip-media.has-photo {
+  /* Strong enough to read as a photograph. 0.62 was set when the picture was
+     only ever a ghost behind the top of the card. */
+  --photo-opacity: 0.9;
+  /* A quarter of the trip's hue turned every cover into the same teal field. A
+     tenth still ties the plate to the trip's color. */
+  --trip-wash: 0.1;
+  /* The scrim is what holds the words, and the words start below the picture, so
+     it begins where the picture ends. In pixels, on the same axis as the picture:
+     a plate that grows taller grows into paper rather than over the cover. */
+  --scrim: linear-gradient(
+    180deg,
+    transparent 0px,
+    color-mix(in srgb, var(--map-water) 42%, transparent) 84px,
+    color-mix(in srgb, var(--map-water) 88%, transparent) 180px,
+    color-mix(in srgb, var(--map-water) 96%, transparent) 280px
+  );
 }
 
-@media (min-width: 640px) {
-  .trip-plate.plate-invert:has(.trip-media.has-photo) {
-    --plate-band: 176px;
-  }
-}
-
-.plate-invert:has(.trip-media.has-photo) .trip-media {
+.plate-invert .trip-media.has-photo .trip-photo {
+  /* Its own height, not the plate's. */
   inset: 0 0 auto 0;
-  height: var(--plate-band);
-  /* Full strength: nothing is written over it. */
-  --photo-opacity: 1;
-  /* And the gradient that used to hold the words -- half of why the picture
-     disappeared -- has no job. */
-  --scrim: none;
-  /* A hint of the trip's hue rather than a quarter of it. The cover is the thing
-     being shown; this only has to tie the band to the trip's color. */
-  --trip-wash: 0.08;
-}
-
-.plate-invert:has(.trip-media.has-photo) .trip-media .trip-photo {
-  /* A cover is drawn wide, and the half worth seeing is usually the upper one --
-     a skyline, a coast, a castle -- so the band takes its crop just above the
-     middle. */
-  object-position: center 42%;
-  /* No mask: the band's own edge is the crop. */
-  -webkit-mask-image: none;
-  mask-image: none;
+  height: auto;
+  object-fit: contain;
+  /* Faded out over its own lower third, so the same part of the drawing is lost
+     at every width and the words below always have paper under them. */
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 46%,
+    rgba(0, 0, 0, 0.38) 74%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 46%,
+    rgba(0, 0, 0, 0.38) 74%,
+    transparent 100%
+  );
 }
 
 /* One hairline of the app's accent round the flipped plate, since a card whose
