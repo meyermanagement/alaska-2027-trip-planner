@@ -33,6 +33,7 @@ import {
   seasonAhead,
   seasonReason,
 } from "@/lib/now/ahead";
+import { draftsWaiting } from "@/lib/now/drafts";
 import { monthsSaid } from "@/lib/someday/months";
 import { farePriceLabel } from "@/lib/deals/award";
 import { fareHasExpired } from "@/lib/deals/deadline";
@@ -396,6 +397,10 @@ export default async function NowPage() {
           "Forward a fare alert or a booking to your inbox address and Aly reads it against the places you have saved.",
       }
     : null;
+  // A draft is deliberately kept off the calendar, so it never leads the screen
+  // -- but on the screen with nothing else on it, an unfinished trip is the most
+  // useful thing the app is holding.
+  const drafts = emptyHanded ? draftsWaiting(visible) : null;
   const pastTrips = emptyHanded
     ? visible
         .filter((trip) => isPastTrip(trip, today))
@@ -562,6 +567,7 @@ export default async function NowPage() {
         )}
         {emptyHanded && (
           <NowEmpty
+            drafts={drafts}
             season={emptySeason}
             watching={watching}
             log={pastTrips}

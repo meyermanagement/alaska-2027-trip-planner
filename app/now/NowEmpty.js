@@ -37,8 +37,31 @@ function Crossing() {
   );
 }
 
+/**
+ * What the invitation says about a trip already started, and where the first
+ * button goes. One draft is named and opened; several are counted and handed to
+ * the trips screen with the drafts filter already on.
+ */
+function draftLine(drafts) {
+  if (!drafts) return null;
+  if (drafts.count > 1) {
+    return {
+      text: `You have ${drafts.count} trips in progress.`,
+      cta: "Pick up a draft",
+      href: drafts.href,
+    };
+  }
+  return {
+    name: drafts.name,
+    progress: drafts.progress,
+    cta: "Pick up the draft",
+    href: drafts.href,
+  };
+}
+
 /** The invitation: one question, and the three doors out of it. */
-function Invitation({ knows }) {
+function Invitation({ knows, drafts }) {
+  const draft = draftLine(drafts);
   return (
     <section className="card on-photo relative overflow-hidden border-transparent p-0">
       <div
@@ -67,16 +90,45 @@ function Invitation({ knows }) {
           around it
         </h2>
         {knows && <p className="mt-1.5 max-w-lg text-sm opacity-90">{knows}</p>}
+        {draft && (
+          <p className="mt-2 max-w-lg text-sm opacity-90">
+            {draft.text || (
+              <>
+                You already started one:{" "}
+                <Link
+                  className="font-semibold underline underline-offset-2"
+                  href={draft.href}
+                >
+                  {draft.name}
+                </Link>
+                {draft.progress ? ` \u2014 ${draft.progress}.` : "."}
+              </>
+            )}
+          </p>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link className="btn btn-primary" href="/trips/new">
-            Start a trip
-          </Link>
+          {draft ? (
+            <>
+              <Link className="btn btn-primary" href={draft.href}>
+                {draft.cta}
+              </Link>
+              <Link className="btn btn-ghost" href="/trips/new">
+                Start a different trip
+              </Link>
+            </>
+          ) : (
+            <Link className="btn btn-primary" href="/trips/new">
+              Start a trip
+            </Link>
+          )}
           <Link className="btn btn-ghost" href="/someday">
             Open the bucket list
           </Link>
-          <Link className="btn btn-ghost" href="/reviews">
-            Log a past trip
-          </Link>
+          {!draft && (
+            <Link className="btn btn-ghost" href="/reviews">
+              Log a past trip
+            </Link>
+          )}
         </div>
       </div>
     </section>
@@ -170,10 +222,16 @@ function TripLog({ log }) {
   );
 }
 
-export default function NowEmpty({ knows = null, season = null, watching, log = [] }) {
+export default function NowEmpty({
+  knows = null,
+  drafts = null,
+  season = null,
+  watching,
+  log = [],
+}) {
   return (
     <div className="mb-7 grid gap-3">
-      <Invitation knows={knows} />
+      <Invitation knows={knows} drafts={drafts} />
       <div className="grid items-start gap-3 md:grid-cols-2">
         {season && <InSeason season={season} />}
         {watching && <Watching watching={watching} />}
