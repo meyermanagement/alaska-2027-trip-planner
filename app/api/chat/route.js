@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadEverything } from "@/lib/agent/load";
-import { generate, ModelError } from "@/lib/agent/llm";
+import { consentOnce, generate, ModelError } from "@/lib/agent/llm";
 import {
   buildSystemPrompt,
   isKnownFocus,
   NEW_TRIP_FOCUS,
   LOG_TRIP_FOCUS,
+  expandAliases,
 } from "@/lib/agent/context";
 import {
   validateAction,
@@ -133,6 +134,11 @@ const THINKING = "low";
 // the family sees when this one is cut off is the card without the sentence,
 // which is the same thing they saw before these turns existed.
 const REWORD_TURN_MS = 20000;
+// The second go at a turn that came back with nothing, or with a card and no
+// words. Warmer than the 0.2 the first turn runs at, because a second sample at
+// the same temperature from the same model is mostly the same answer; not so
+// warm that the words wander from the record.
+const RETRY_TEMPERATURE = 0.5;
 
 // The last thing said when there is nothing to say. Named because two places
 // need it: the sentence itself, and the flag that tells the screen this is the
@@ -313,7 +319,27 @@ export async function POST(request) {
     people: ctx.travelerNames,
     // Whose blanks are being filled in, when that is what this screen is for.
     intervieweeName: ctx.intervieweeName,
+    // Today's date and the notes ranked by this question, printed after the
+    // record so the long stable part of the prompt is the same from turn to turn.
+    tail: ctx.tail,
   });
+  // The record prints every id as a short handle (see shortenIds in the
+  // context). Every tool call that comes back is turned into real ids here,
+  // before anything reads, validates or saves it.
+  const withIds = (out) =>
+    out && Array.isArray(out.calls) && ctx.known?.alias?.size
+      ? {
+          ...out,
+          calls: out.calls.map((call) => ({
+            ...call,
+            args: expandAliases(call.args, ctx.known.alias),
+          })),
+        }
+      : out;
+  // The consent check once for the whole request. Every model call used to make
+  // it again -- the same two rows read three or four times a question -- and it
+  // sits on the path before the first byte comes back.
+  const consent = consentOnce();
   // Whether this turn is one question of an interview. Set when the screen asked
   // for a person's blanks and there is still a blank to fill.
   const interviewing = Boolean(ctx.interviewSlot && ctx.intervieweeId);
@@ -394,7 +420,9 @@ export async function POST(request) {
       grounded: lookUp,
       thinking: THINKING,
       deadline: firstBy,
+      consent,
     });
+    result = withIds(result);
   } catch (first) {
     failed = first;
     // Out of time on a question that was searching the web. The search is the
@@ -412,7 +440,9 @@ export async function POST(request) {
           grounded: false,
           thinking: THINKING,
           deadline: rescueBy,
+          consent,
         });
+        result = withIds(result);
         failed = null;
       } catch {
         // Keep the first failure. It is the one worth reporting: it says the
@@ -503,11 +533,12 @@ export async function POST(request) {
         // request being cut off with nothing written down.
         thinking: THINKING,
         deadline: extraBy,
+        consent,
       });
       // Only take the second answer if there is one: a reply that came back empty
       // would throw away a perfectly good first attempt.
       if (second && (second.text || (second.calls || []).length))
-        result = second;
+        result = withIds(second);
     } catch {
       // Keep the first reply. Its text will not mention the notes, which is
       // a worse answer rather than a broken one.
@@ -530,9 +561,13 @@ export async function POST(request) {
   // not refused anything; it has just not answered, and the cheapest fix is to
   // ask again.
   //
-  // Asked of a different model, for the same reason the retries below are: the
-  // same model given the same question at the same temperature mostly produces
-  // the same nothing.
+  // Asked of the same model again, one attempt, a little warmer. This used to
+  // walk the ladder to a different model on the theory that the same model at
+  // the same temperature produces the same nothing; the ledger showed what that
+  // cost -- every silent turn went to the slower model next in line and paid its
+  // full prompt again. A turn that came back with nothing is not a broken model,
+  // it is a sample that landed on nothing, and the temperature is the knob for
+  // that. A real error on the first turn still walks the ladder as before.
   if (
     answeredNothing(result) &&
     clock(lookUp ? EXTRA_TURN_MS : REWORD_TURN_MS)
@@ -547,13 +582,16 @@ export async function POST(request) {
         grounded: lookUp,
         thinking: THINKING,
         deadline: againBy,
-        avoid: result.model ? [result.model] : [],
+        models: result.model ? [result.model] : undefined,
+        attempts: 1,
+        temperature: RETRY_TEMPERATURE,
+        consent,
       });
       // Only if it is actually an answer this time. Two empty turns leave the
       // first one standing, which changes nothing but costs nothing either.
       if (!answeredNothing(again)) {
         result = {
-          ...again,
+          ...withIds(again),
           // The first turn's refusals are still worth recording even though its
           // words are being thrown away: they are why this second turn happened.
           refusals: (result.refusals || []).concat(again.refusals || []),
@@ -587,204 +625,131 @@ export async function POST(request) {
   // Lisbon" is answered in cards.
   let shortlistAll = shortlist;
   const wantsAdvice = asksAdvice(said);
-  // Silence with nothing beside it. A turn that proposes something and says
-  // nothing was already retried below; a turn that came back with no words and
-  // no card at all was not, because every gate here counts the calls first. That
-  // is the turn the family sees as an empty reply -- and in an interview it is
-  // the worst one, because the question they were sitting there waiting for
-  // never arrived. It owes a retry more than any of the others.
+
+  // The photographs, prices, maps and ratings for whatever the first turn
+  // already named. Started now, so the lookups run while any finishing turn
+  // below is still being written rather than after it.
+  const floors = ratingFloors(ctx.preferences || []);
+  const enriching = enrich(withPrograms(shortlist, ctx.rewards), {
+    bias: bias(here),
+  });
+
+  // One finishing turn, where there used to be up to three in a row.
+  //
+  // The three things a first turn can leave undone are all the same debt seen
+  // from different sides. Silence with nothing beside it -- no words and no
+  // card, the turn the family sees as an empty reply, and in an interview the
+  // worst one, because the question they were waiting for never arrived. A
+  // change with a card and no words, when they had asked something: "What do
+  // you recommend?" came back as a change to the trip's getting-around line and
+  // nothing else, right answer and none of the answering; the thin version
+  // ("Updated for you.") is caught alongside the silent one because it passes
+  // any test for having spoken while saying nothing a person could weigh. Cards
+  // with nothing worth reading above them -- the names read out again, or
+  // nothing at all, when "Which of these should we add?" was a question asking
+  // to be advised. And the reverse: real recommendations written out as a bold
+  // list with nothing underneath to tap.
+  //
+  // Each used to be its own turn, each paying the whole prompt again, and a
+  // turn that owed both words and cards paid twice. The prompts are the same
+  // ones; they are handed over together now, and she settles the whole debt in
+  // one go.
   const silent = saidNothing(result.text);
-  if (
-    (silent ||
-      // Silent, or a handful of words restating the card. "What do you recommend?"
-      // came back as a change to the trip's getting-around line and nothing else:
-      // right answer, none of the answering. The thin version is caught alongside
-      // the silent one because "Updated for you." passes any test for having
-      // spoken while saying nothing a person could weigh.
-      // An interview turn is the other kind of reply that cannot be a card on its
-      // own. Nobody asked a question -- they answered one -- so asksSomething is
-      // false, and the ladder used to walk straight past the turn that most needs
-      // words: five answers in a row were saved silently and Veda was never asked
-      // anything again. Whichever it is, the turn owes a sentence.
-      (needsReasons(result.text, changeCalls) &&
-        (asksSomething(said) || interviewing))) &&
-    clock(REWORD_TURN_MS)
-  ) {
+  const owesReasons =
+    needsReasons(result.text, changeCalls) &&
+    (asksSomething(said) || interviewing);
+  const owesWords = needsWords(result.text, shortlistAll);
+  const needWords = silent || owesReasons || owesWords;
+  // Nothing proposed. A change she has just carried out reads like a
+  // recommendation -- it names the place, the day and the time -- and cards for
+  // somewhere they have already asked to add are noise sitting under a receipt.
+  const needCards =
+    needsCards(said, result.text, shortlistAll) && !changeCalls.length;
+  if ((needWords || needCards) && clock(REWORD_TURN_MS)) {
     // Searching again is only worth waiting for if the first turn never got to
-    // look. Where it did, its sources are already on this answer and the second
-    // turn would spend ten seconds fetching the same pages to say the same
-    // thing -- which is most of why a proposal used to take most of a minute to
-    // come back with a sentence on top of it.
-    const lookAgain = lookUp && !result.searched;
-    const wordsBy = clock(lookAgain ? EXTRA_TURN_MS : REWORD_TURN_MS);
+    // look, and only when words are owed. Where it did, its sources are already
+    // on this answer and the second turn would spend ten seconds fetching the
+    // same pages to say the same thing.
+    const lookAgain = needWords && lookUp && !result.searched;
+    const finishBy = clock(lookAgain ? EXTRA_TURN_MS : REWORD_TURN_MS);
     try {
-      const words = await generate({
-        feature: "chat.reasons",
+      const finished = await generate({
+        feature: "chat.finish",
         system: [
           system,
-          // What she proposed, handed back to her. The confirmation cards'
-          // own summaries are built further down the route, so this turn was
-          // being told "you already proposed something" without being told
-          // what -- which is a hard thing to write two paragraphs about.
-          // Nothing to hand back when the turn proposed nothing: this prompt
-          // exists to tell her what she just did, and telling a silent turn it
-          // proposed something is worse than saying nothing about it.
-          changeCalls.length
-            ? answerAsWell(said, gistOf(changeCalls), { advice: wantsAdvice })
-            : "Your last turn came back empty. Answer what was just said, in words, and if the context hands you a question to ask, ask it.",
+          // What she proposed, handed back to her. The confirmation cards' own
+          // summaries are built further down the route, so this turn was being
+          // told "you already proposed something" without being told what.
+          // Nothing to hand back when the turn proposed nothing.
+          needWords && !owesWords
+            ? changeCalls.length
+              ? answerAsWell(said, gistOf(changeCalls), { advice: wantsAdvice })
+              : "Your last turn came back empty. Answer what was just said, in words, and if the context hands you a question to ask, ask it."
+            : "",
           // The interview's own version of the same debt: what she saved is on a
           // card, and the person is still sitting there waiting to be asked
           // something. The slot to ask about is in the context above.
-          interviewing
+          needWords && interviewing
             ? "You are getting to know somebody, and you have just saved what they told you. Say in one line what you took from it, then put the one question the context hands you next, in words. Do not describe the card."
             : "",
+          owesWords ? writeTheWords(said, shortlistAll) : "",
+          needCards ? showThePlaces(said, result.text) : "",
         ]
           .filter(Boolean)
           .join("\n\n"),
         messages,
-        // Only show_places, and only when there is no shortlist yet. Asked the
-        // same trip twice, a model does not repeat itself exactly -- it offers
-        // "Quinta da Regaleira" and then "Quinta da Regaleira Guided Tour" --
-        // and the family gets the same place on two cards.
-        //
-        // offer_followups used to be in reach here as well, and that is what put
-        // "That is what I would do -- it is on the card above. I did not manage to
-        // write out why this time" on the screen. A model asked for words, given
-        // any tool at all, can answer by calling it and writing nothing; a call
-        // with no words is a legitimate answer everywhere else in the app, so the
-        // ladder hands that turn back as a success instead of moving on, and the
-        // empty text falls straight through to the line above. So this turn is
-        // given nothing it can hide behind. Where the filter leaves nothing at
-        // all, silence is silence and the ladder walks to the next model itself.
-        // A silent turn is given nothing at all to call: silence is what makes
-        // the ladder walk to the next model by itself, and a tool in reach is how
-        // a model answers "say something" without saying anything.
-        tools: silent
-          ? []
-          : tools.filter(
-              (tool) => tool.name === "show_places" && !shortlist.length,
-            ),
+        // Only show_places, and only when cards are owed or there is no
+        // shortlist yet. Asked the same trip twice, a model does not repeat
+        // itself exactly -- it offers "Quinta da Regaleira" and then "Quinta da
+        // Regaleira Guided Tour" -- and the family gets the same place on two
+        // cards. Every change tool is withheld so what she has already proposed
+        // cannot be proposed twice, and offer_followups is withheld because a
+        // model asked for words, given any tool at all, can answer by calling it
+        // and writing nothing. A silent turn with no cards owed is given nothing
+        // to call: silence is silence, and it is caught below.
+        tools:
+          silent && !needCards
+            ? []
+            : tools.filter(
+                (tool) =>
+                  tool.name === "show_places" &&
+                  (needCards || !shortlist.length),
+              ),
         grounded: lookAgain,
         thinking: THINKING,
-        deadline: wordsBy,
-        // Not the model that just answered wordlessly. Asking the same one the
-        // same thing again is how this retry quietly did nothing: a model that
-        // treated the card as the whole answer treats it that way twice.
-        avoid: result.model ? [result.model] : [],
+        deadline: finishBy,
+        // The same model that just answered, one attempt, a little warmer. See
+        // the retry above for why this no longer walks to a different model.
+        models: result.model ? [result.model] : undefined,
+        attempts: 1,
+        temperature: RETRY_TEMPERATURE,
+        consent,
       });
-      if (words?.text || (words?.calls || []).length) {
-        const { places: more } = splitPlaceCalls(words.calls);
-        shortlistAll = mergePlaces(shortlist, more);
+      const finish = withIds(finished);
+      const { places: named } = splitPlaceCalls(finish?.calls || []);
+      // Words are taken only when there are some, and -- where the debt was a
+      // roll call of the cards -- only when they are not the same roll call
+      // again. Thin words above the cards beat no words above the cards. Where
+      // the first turn's words were fine and only cards were owed, they stand:
+      // anything written on this turn is a second copy of what they have read.
+      const betterText =
+        needWords && finish?.text && !(owesWords && needsWords(finish.text, shortlistAll))
+          ? finish.text
+          : null;
+      if (betterText || named.length) {
+        if (named.length) shortlistAll = mergePlaces(shortlistAll, named);
         result = {
           ...result,
-          text: words.text || result.text,
-          searched: result.searched || words.searched,
-          sources: (result.sources || []).concat(words.sources || []),
-          refusals: (result.refusals || []).concat(words.refusals || []),
+          text: betterText || result.text,
+          searched: result.searched || finish.searched,
+          sources: (result.sources || []).concat(finish.sources || []),
+          refusals: (result.refusals || []).concat(finish.refusals || []),
         };
       }
     } catch {
-      // The change still stands. It arrives without words, which is the same
-      // answer they got before and no worse for having tried.
-    }
-  }
-
-  // Cards, and nothing worth reading above them. Either she wrote the shortlist
-  // out again -- the names are already on the cards and the button is already on
-  // every card, so that reply says nothing -- or she wrote nothing at all and
-  // treated the cards as the whole answer, which is worse: "Which of these
-  // should we add?" is a question asking to be advised, and it came back as ten
-  // names. One more turn for the words alone, with show_places taken away so a
-  // third listing is not available to her, and with every change tool still
-  // withheld for the same reason as above.
-  if (needsWords(result.text, shortlistAll) && clock(REWORD_TURN_MS)) {
-    const betterBy = clock(REWORD_TURN_MS);
-    try {
-      const better = await generate({
-        feature: "chat.words",
-        system: [system, writeTheWords(said, shortlistAll)].join("\n\n"),
-        messages,
-        // No tool at all, which is the whole point of this turn and was the bug
-        // in it. It used to leave offer_followups within reach, and a model given
-        // any tool can answer "write the words" by calling it and writing
-        // nothing -- which is not silence as far as the ladder is concerned, so
-        // the ladder returned that turn as a success, the empty text failed the
-        // check below, the retry was thrown away, and one card arrived under a
-        // line apologising for having no words. With nothing to call, an answer
-        // with no words in it is silence, and silence is what makes the ladder go
-        // on to the next model by itself. The cost is the follow-up questions
-        // this turn might have offered; whatever the first turn offered stands.
-        tools: [],
-        // The words are the point of this turn and the searching is not: she is
-        // being asked to say something about a shortlist that is already on the
-        // screen. Taking the search away is what makes it affordable at the end
-        // of a request that has already spent most of its allowance.
-        grounded: false,
-        thinking: THINKING,
-        deadline: betterBy,
-        // Not the model that just read the names out. This retry existed before
-        // and kept failing: the same model, the same question, the same
-        // temperature, and so the same roll call a second time. Asking a
-        // different one is the difference between a retry and a repeat.
-        avoid: result.model ? [result.model] : [],
-      });
-      // Only if the second try is actually an answer. A model that comes back
-      // with the same roll call, or with nothing, leaves the first reply alone:
-      // thin words above the cards beat no words above the cards.
-      if (better?.text && !needsWords(better.text, shortlistAll)) {
-        result = {
-          ...result,
-          text: better.text,
-          searched: result.searched || better.searched,
-          sources: (result.sources || []).concat(better.sources || []),
-          refusals: (result.refusals || []).concat(better.refusals || []),
-        };
-      }
-    } catch {
-      // The cards still stand, and so does the thin line above them.
-    }
-  }
-
-  // The same failure the other way round: real recommendations, written out in
-  // the reply as a bold list, and nothing underneath to tap. Her words were fine;
-  // what went missing was the photograph, the price, the map, the link and the
-  // Add to itinerary button on each place. One more turn with show_places as the
-  // only tool she is given, and her words left exactly as they are.
-  if (
-    needsCards(said, result.text, shortlistAll) &&
-    // Nothing proposed. A change she has just carried out reads like a
-    // recommendation -- it names the place, the day and the time -- and cards for
-    // somewhere they have already asked to add are noise sitting under a receipt.
-    !changeCalls.length &&
-    clock(REWORD_TURN_MS)
-  ) {
-    const cardsBy = clock(REWORD_TURN_MS);
-    try {
-      const carded = await generate({
-        feature: "chat.cards",
-        system: [system, showThePlaces(said, result.text)].join("\n\n"),
-        messages,
-        tools: tools.filter((tool) => tool.name === "show_places"),
-        // The places are already named in the answer above. This turn is putting
-        // them on cards, not researching them again.
-        grounded: false,
-        thinking: THINKING,
-        deadline: cardsBy,
-      });
-      const { places: named } = splitPlaceCalls(carded?.calls || []);
-      if (named.length) {
-        shortlistAll = mergePlaces(shortlistAll, named);
-        result = {
-          ...result,
-          // Her answer stands. Anything she wrote on this turn is a second copy
-          // of what they have already read, so it is dropped.
-          sources: (result.sources || []).concat(carded.sources || []),
-          refusals: (result.refusals || []).concat(carded.refusals || []),
-        };
-      }
-    } catch {
-      // The answer stands without them. They have the names and have to add
-      // them by hand, which is what happened before this existed.
+      // Whatever the first turn produced still stands: the change without its
+      // words, the cards under a thin line, or the names with no cards. The
+      // same answer they got before, and no worse for having tried.
     }
   }
 
@@ -792,7 +757,9 @@ export async function POST(request) {
   // offer Hilton Honors breakfast to somebody with no Hilton account, and a perk
   // that turns out not to exist is worse than none, because it was a reason to
   // book. So every program named is checked against the family's own rows here,
-  // once, after the shortlist has finished being assembled.
+  // once, after the shortlist has finished being assembled. Places the first
+  // turn named were looked up while the finishing turn ran; only the ones it
+  // added are looked up now.
   // The floors are checked here and not by the model, because the model does
   // not know the ratings: it picks the names, Google answers with the number,
   // and only then can anybody tell whether a card clears the 4.5 the family
@@ -804,15 +771,15 @@ export async function POST(request) {
   // asked to be above a number. So a card under the floor comes out, and the
   // reply says which ones went and what Google gave them -- a name that
   // disappears silently is a filter nobody can argue with.
-  const floors = ratingFloors(ctx.preferences || []);
+  const firstNames = new Set(shortlist.map((p) => p?.name).filter(Boolean));
+  const added = shortlistAll.filter((p) => !firstNames.has(p?.name));
+  const enrichedFirst = await enriching;
+  const enrichedAdded = added.length
+    ? await enrich(withPrograms(added, ctx.rewards), { bias: bias(here) })
+    : [];
   const { places, dropped: belowFloor } = applyFloors(
     withRatingFloor(
-      withDistance(
-        await enrich(withPrograms(shortlistAll, ctx.rewards), {
-          bias: bias(here),
-        }),
-        here,
-      ),
+      withDistance(mergePlaces(enrichedFirst, enrichedAdded), here),
       floors,
     ),
     floors,
