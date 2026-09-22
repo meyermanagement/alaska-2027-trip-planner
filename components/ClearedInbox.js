@@ -187,6 +187,35 @@ export default function ClearedInbox() {
                     )}
                   </p>
 
+                  {/* An alert that saved nothing can still have named places the
+                      family is watching for -- said here, because "none were
+                      kept" on its own reads as though the email was irrelevant. */}
+                  {wasNoted && !wasVerification && message.named_places?.length ? (
+                    <div className="mt-3">
+                      <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                        Named in it, from your bucket list
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {message.named_places.map((place) => (
+                          <Link
+                            key={place.id}
+                            href="/someday#places"
+                            className="rounded-full border border-[var(--line-strong)] bg-sand px-2.5 py-1 text-xs font-semibold text-ink-soft transition hover:text-teal"
+                          >
+                            {place.said}
+                          </Link>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-sm leading-relaxed text-ink-faint">
+                        {/* What is provable here is that nothing was saved, not
+                            why: only the reason above can say that. */}
+                        {message.named_places.length > 1
+                          ? "No fare was saved for them."
+                          : "No fare was saved for it."}
+                      </p>
+                    </div>
+                  ) : null}
+
                   {!wasVerification && <div className="mt-3">
                     <ReprocessEmail messageId={message.id} disabled={working}
                       onBusyChange={busy => setWorkingId(current => busy ? message.id : current === message.id ? null : current)}

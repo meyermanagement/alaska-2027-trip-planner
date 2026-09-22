@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { decodeInboxCursor, encodeInboxCursor, inboxCursorFilter } from "@/lib/history/inboxCursor";
+import { namedSomeday } from "@/lib/deals/mentions";
 
 export const runtime = "nodejs";
 
@@ -105,12 +106,41 @@ export async function GET(request) {
     }
   }
 
+  // Bucket-list places named in an alert that yielded no fares. A hub-priced
+  // award newsletter prices Helsinki and then lists Oslo and Copenhagen with no
+  // price against either, so nothing can be saved -- but the family wrote those
+  // places down, and the card should say so rather than only saying no.
+  const named = new Map();
+  const unread = noted.filter((row) => !fares.get(row.id));
+  if (unread.length) {
+    const [{ data: bodies }, { data: places }] = await Promise.all([
+      supabase
+        .from("inbox_messages")
+        .select("id, text_body")
+        .eq("family_id", familyId)
+        .in(
+          "id",
+          unread.map((row) => row.id),
+        ),
+      supabase
+        .from("someday_places")
+        .select("id, place, region, status, watch")
+        .eq("family_id", familyId),
+    ]);
+    for (const row of bodies || []) {
+      // Purged originals have no text left to read, and say nothing.
+      const hits = row.text_body ? namedSomeday(row.text_body, places || []) : [];
+      if (hits.length) named.set(row.id, hits);
+    }
+  }
+
   return NextResponse.json({
     nextCursor: fetched?.length > 60 ? encodeInboxCursor(rows.at(-1)) : null,
     messages: (rows || []).map((row) => ({
       ...row,
       itinerary_rows: removable.get(row.id) || 0,
       fares: fares.get(row.id) || 0,
+      named_places: named.get(row.id) || [],
     })),
   });
 }
