@@ -21,6 +21,7 @@ import TripBackLink from "./TripBackLink";
 import { PencilIcon } from "./Icons";
 import TripOverview from "./TripOverview";
 import TripForm from "./TripForm";
+import { destinationMoved } from "@/lib/places/photon";
 import { houseListOnto } from "@/lib/tasks/onto";
 import Itinerary from "./Itinerary";
 import Packing from "./Packing";
@@ -522,6 +523,15 @@ export default function TripView({
     if (error) return error.message;
     if (data) setInfo(data);
     setEditing(false);
+    // A trip that moved needs its point worked out again: the coordinates were
+    // read off the old destination's words, and the contour drawing behind the
+    // plates is the one thing that uses them. Nothing waits for this -- the
+    // answer arrives on the row, and the next paint picks it up.
+    if (destinationMoved(info, values)) {
+      fetch(`/api/trips/${trip.id}/locate`, { method: "POST" })
+        .then(() => refetch("trips"))
+        .catch(() => {});
+    }
     // And the second of the three ways is also the second place the house list
     // has to be attached: a trip whose status field was changed from Draft by
     // hand is out of Drafts just as surely as one moved with the button, and
