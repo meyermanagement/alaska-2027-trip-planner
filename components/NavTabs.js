@@ -13,7 +13,6 @@ import {
 } from "@/lib/format";
 import { coverToken } from "@/lib/covers/tint";
 import { parseTripRef, tripPath } from "@/lib/trips/route";
-import { TRIPS_VIEW_EVENT } from "@/lib/trips/viewEvent";
 import { MENU_EVENT } from "@/lib/feedback/shared";
 import AlyeskaMark from "./AlyeskaMark";
 import AskAlyTrigger, { BubbleIcon } from "./AskAlyTrigger";
@@ -88,7 +87,8 @@ import { NAV_STYLE_EVENT, readNavigationStyle } from "./NavigationPreference";
 // Settings stays a door of its own, off the bottom of the column, because it is
 // not travel at all.
 //
-// The three trip rows are the same screen with a different group showing. That
+// The trips row is one door to a screen that shows planned, drafts and the log
+// as its own tabs. It used to be three rows. That
 // is deliberate: a draft, a booked trip and a finished one are the same object at
 // three ages, and the board already sorted them into three tabs. The address
 // carries the group -- /trips?view=drafts -- so a row can point straight at one.
@@ -118,29 +118,22 @@ const TRIP_ROWS = [
     Icon: BucketIcon,
   },
   {
-    href: "/trips?view=drafts",
-    view: "drafts",
-    label: "Trip drafts",
-    sub: "Nothing in progress",
-    Icon: PencilIcon,
-    // Carries the count of unfinished drafts, the way Reminders carries the
-    // count of late tasks: a draft you cannot see from the menu is a draft you
-    // start again.
-    draftCount: true,
-  },
-  {
-    href: "/trips?view=upcoming",
-    view: "upcoming",
-    label: "Planned trips",
-    sub: "Your upcoming trips",
+    // One door, where there were three -- Trip drafts, Planned trips and Trip
+    // log. All three were the same screen with a different group showing, and
+    // that screen opens carrying its own Planned / Drafts / Trip log strip with
+    // the counts on it. So the menu was asking which view you wanted, and then
+    // the screen asked again. The strip is the better place for the question:
+    // it is beside the trips themselves, and switching there costs no
+    // navigation.
+    href: "/trips",
+    label: "All trips",
+    sub: "Planned, drafts and log",
     Icon: SuitcaseIcon,
-  },
-  {
-    href: "/trips?view=past",
-    view: "past",
-    label: "Trip log",
-    sub: "Trips already taken",
-    Icon: CameraIcon,
+    // The one number the three rows were really buying: a draft nobody can see
+    // from the menu is a draft that gets started again. It rides in the
+    // subtitle rather than as a numeral on the end, because a bare "2" beside a
+    // row called All trips reads as the number of trips.
+    draftCount: true,
   },
   {
     // The reusable lists, in with the trips rather than under a checklist. A
@@ -166,12 +159,12 @@ const TRIP_ROWS = [
 // What the drafts row says under its name. The number belongs in the subtitle as
 // well as in the numeral at the end of the row, because the numeral is hidden on
 // the collapsed icon strip and the count is the whole point of the row.
-function draftsSub(n) {
+function draftsSub(n, otherwise = "Nothing in progress") {
   // Short on purpose: the labeled rail is 20.5rem wide and truncates a subtitle
   // longer than about twenty characters, and a count that reads "2 trips still
   // being worked ..." has lost the only word that mattered.
   if (n > 0) return `${n} in progress`;
-  return "Nothing in progress";
+  return otherwise;
 }
 
 const GROUPS_BASE = [
@@ -877,7 +870,12 @@ export default function NavTabs({
           // the band only while it is shut, for the reason the reminders count
           // is: a mark nobody can see until they open the right door is not a
           // mark.
-          marked: g.kids.some((k) => setupMarks.has(k.href)),
+          marked: g.kids.some(
+            (k) =>
+              setupMarks.has(k.href) ||
+              (k.href === "/trips" &&
+                [...setupMarks].some((m) => m.startsWith("/trips?"))),
+          ),
           // How many screens are behind the band, said on the band. A heading
           // that opens should say how much it opens; it is also the only
           // number that replaces the sentence the group used to carry.
@@ -912,7 +910,7 @@ export default function NavTabs({
             key: kid.href,
             groupKey: g.key,
             ...kid,
-            sub: kid.draftCount ? draftsSub(drafts) : kid.sub,
+            sub: kid.draftCount ? draftsSub(drafts, kid.sub) : kid.sub,
             // The quiet numeral on the right of the row, in the same style the
             // group bands use for how many screens are behind them. Not the rose
             // dot: a draft is not late, it is simply unfinished.
@@ -920,14 +918,20 @@ export default function NavTabs({
             active:
               onScreen(kid.href, pathname, Boolean(kid.view)) &&
               (!kid.view || (view || "upcoming") === kid.view),
-            marked: setupMarks.has(kid.href),
+            // A checklist item can point at a view -- logging a past trip is
+            // /trips?view=past -- and no row spells a view out any more. Match
+            // on the screen, so the mark still lands on the row that reaches it.
+            marked:
+              setupMarks.has(kid.href) ||
+              (kid.href === "/trips" &&
+                [...setupMarks].some((m) => m.startsWith("/trips?"))),
           },
           {
             key: kid.href,
             kind: "link",
             parent: `group:${g.key}`,
             label: kid.label || "",
-            sub: (kid.draftCount ? draftsSub(drafts) : kid.sub) || "",
+            sub: (kid.draftCount ? draftsSub(drafts, kid.sub) : kid.sub) || "",
             here: currentPathKey === kid.href,
           },
         );
@@ -1198,29 +1202,7 @@ export default function NavTabs({
             onPointerEnter={() => router.prefetch(row.href)}
             onPointerDown={() => router.prefetch(row.href)}
             onFocus={() => router.prefetch(row.href)}
-            onClick={(e) => {
-              setOpen(false);
-              // Already on the board: the three groups are all here, so
-              // the router has nothing to fetch and a press through it
-              // changed the address and drew no skeleton. Hand the
-              // request to the board instead, which puts its skeleton up
-              // and then draws the group. Modified clicks are left alone
-              // so a row can still be opened in a new tab.
-              const plain =
-                !e.metaKey &&
-                !e.ctrlKey &&
-                !e.shiftKey &&
-                !e.altKey &&
-                e.button === 0;
-              if (row.view && pathname === "/trips" && plain) {
-                e.preventDefault();
-                window.dispatchEvent(
-                  new CustomEvent(TRIPS_VIEW_EVENT, {
-                    detail: { view: row.view },
-                  }),
-                );
-              }
-            }}
+            onClick={() => setOpen(false)}
             style={{
               // Its place in the stagger, counted from the plate.
               "--arc-i": row.i,
@@ -1841,14 +1823,6 @@ function FolderIcon({ className }) {
 }
 
 // A pencil: a trip still being written.
-function PencilIcon({ className }) {
-  return (
-    <svg {...iconProps(className)}>
-      <path d="M13.4 3.9l2.7 2.7-8.2 8.2-3.4.7.7-3.4 8.2-8.2Z" />
-      <path d="M11.7 5.6l2.7 2.7" />
-    </svg>
-  );
-}
 
 // A plus in a ring: the one row in this menu that makes something rather than
 // showing something that already exists.
@@ -1882,14 +1856,6 @@ function BucketIcon({ className }) {
 // and it sat one row under a suitcase and two under an open book, both of which
 // said far more about what they were. A book with a bookmark would have said
 // "log" more plainly and collided with the journal book at the top of the group.
-function CameraIcon({ className }) {
-  return (
-    <svg {...iconProps(className)}>
-      <path d="M3.6 6.9h2.8l1.2-1.8h4.8l1.2 1.8h2.8c.6 0 1.1.5 1.1 1.1v6.4c0 .6-.5 1.1-1.1 1.1H3.6c-.6 0-1.1-.5-1.1-1.1V8c0-.6.5-1.1 1.1-1.1Z" />
-      <path d="M10 13.9a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6Z" />
-    </svg>
-  );
-}
 
 // A speech bubble with a line in it: what somebody said about a place. The Ask
 // Aly bubble is filled and this one is not, and this one carries a rule, so the

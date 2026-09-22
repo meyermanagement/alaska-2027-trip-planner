@@ -46,8 +46,11 @@ test("all 13 main-screen introductions are concise and connected to their screen
 test("navigation, trip groups, and draft promotion use the same trip names", () => {
   const nav = read("components/NavTabs.js");
   const board = read("app/trips/TripBoard.js");
+  // The menu has one trips row; the board keeps the three names, on the strip
+  // and on its group headings, which is now the only place they are said.
+  assert.ok(nav.includes('label: "All trips"'), "menu row");
   for (const label of ["Planned trips", "Trip drafts", "Trip log"]) {
-    assert.ok(nav.includes(`label: "${label}"`), label);
+    assert.ok(!nav.includes(`label: "${label}"`), `${label} left in the menu`);
     assert.ok(board.includes(`title="${label}"`), label);
   }
   assert.match(read("components/PromoteDraft.js"), /Move to Planned trips/);
