@@ -304,16 +304,6 @@ export default function HomeLanding() {
                 >
                   See how it works
                 </a>
-                <Link
-                  href="/login"
-                  className="rounded-full px-5 py-2.5 text-[15px] font-semibold"
-                  style={{
-                    border: "1px solid rgba(246,243,236,0.34)",
-                    color: "#f6f3ec",
-                  }}
-                >
-                  Sign in
-                </Link>
               </div>
               <p
                 className="mt-5 text-[13px]"

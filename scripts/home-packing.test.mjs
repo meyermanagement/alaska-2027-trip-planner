@@ -9,8 +9,8 @@ const pack = HERO_CONVERSATION.find((turn) => turn.pack).pack;
 
 test("home demo proposes individual packing names separately from explanations", () => {
   assert.deepEqual(pack.items.map(({ item }) => item), [
-    "Long-sleeve shirts", "Fleeces", "Dani's motion sickness tablets",
-    "Mia's hat", "Sunscreen", "Water", "Snacks", "Binoculars", "Phone",
+    "Fleeces", "Dani's motion sickness tablets",
+    "Mia's hat", "Sunscreen", "Water", "Snacks", "Binoculars",
   ]);
   for (const { item, reason } of pack.items) {
     assert.ok(item && reason);

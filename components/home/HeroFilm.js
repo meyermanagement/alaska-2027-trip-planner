@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useBooted } from "@/components/reveal";
 
 /**
- * The moving picture behind the headline: a road, a town, a beach, a table at
+ * The moving picture behind the headline: a road, a beach, a town, a table at
  * sunset, and then round again.
  *
  * A still photograph of a coastline says "somewhere nice". Twenty-one seconds
@@ -24,6 +25,11 @@ import { useEffect, useRef, useState } from "react";
  * browser reports rather than from a media query on a <source>, because source
  * selection is only consulted on first load and a phone rotated into landscape
  * would otherwise start fetching four megabytes.
+ *
+ * The film loads behind the opening screen but does not start until that
+ * screen is gone. Started on load, it was already into the town by the time a
+ * stranger could see it, and the drive -- the start of the day -- played to
+ * nobody.
  */
 
 const FILM = "/landing/maui-film.mp4";
@@ -34,6 +40,8 @@ export default function HeroFilm() {
   const ref = useRef(null);
   const [src, setSrc] = useState(null);
   const [ready, setReady] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const booted = useBooted();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -55,15 +63,20 @@ export default function HeroFilm() {
 
     // canplaythrough, not canplay: the point is to avoid starting something
     // that will stall a second later, which is more distracting than a still.
-    const onReady = () => {
-      const started = el.play();
-      if (started?.catch) started.catch(() => {});
-      setReady(true);
-    };
+    const onReady = () => setLoaded(true);
     el.addEventListener("canplaythrough", onReady);
     el.load();
     return () => el.removeEventListener("canplaythrough", onReady);
   }, [src]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !loaded || !booted || ready) return;
+    el.currentTime = 0;
+    const started = el.play();
+    if (started?.catch) started.catch(() => {});
+    setReady(true);
+  }, [loaded, booted, ready]);
 
   if (!src) return null;
 
