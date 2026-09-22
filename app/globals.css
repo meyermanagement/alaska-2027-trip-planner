@@ -6682,8 +6682,8 @@ input[type="month"]::-webkit-date-and-time-value {
  *
  *   1. the contour SVG, which is real coastline and carries the card on
  *      its own when there is no picture yet
- *   2. the illustration Aly drew, blended as luminosity so it takes its
- *      color from the layer below rather than bringing its own
+ *   2. the illustration Aly drew, printed in its own colors over a light
+ *      wash of the ground
  *   3. a scrim, dark at the bottom, so white type over the picture is
  *      readable whatever the picture turned out to be
  *
@@ -6701,9 +6701,9 @@ input[type="month"]::-webkit-date-and-time-value {
      desaturation for the picture to belong to the plate (the ground and words
      were tuned assuming a muted photo) but leaves the trip's own color through,
      so covers actually look like different places. The other four skins already
-     do their own version of this -- Aurora runs no grayscale, Sodium a mild
-     sepia, and both light skins drop the luminosity blend entirely -- so this
-     change lands only on Field Journal, which was the outlier. */
+     do their own version of this -- Aurora runs no grayscale and Sodium a mild
+     sepia -- so this change lands only on Field Journal, which was the
+     outlier. */
   --photo-filter: grayscale(0.6) sepia(0.15) contrast(1.06) brightness(1.02);
   --photo-opacity: 0.74;
   --scrim: linear-gradient(
@@ -6763,7 +6763,7 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 
 /* The plate is its own compositing layer, and blending stops at its edge.
-   Without isolation the luminosity blend below reaches out to whatever is
+   Without isolation the wash blend below reaches out to whatever is
    painted behind the plate, so the browser has to re-blend it whenever anything
    in the same stacking context changes -- which on a trip screen is every tab
    press. contain: paint tells it nothing inside can spill out, so the finished
@@ -6796,7 +6796,12 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 
 .trip-media .trip-photo {
-  mix-blend-mode: luminosity;
+  /* Normal, on every skin. Luminosity threw the photograph's own color away and
+     reprinted it in the ground's hue, which is what made a castle and a reef the
+     same violet card; the light skins had already dropped the blend for exactly
+     that reason. The picture belongs to the plate through the wash and the
+     scrim, not through having its color taken. */
+  mix-blend-mode: normal;
   filter: var(--photo-filter);
   -webkit-mask-image: radial-gradient(
     138% 128% at 74% -4%,
@@ -7032,7 +7037,11 @@ input[type="month"]::-webkit-date-and-time-value {
    fraction sets --trip-wash-photo. The flipped Current plate keeps its own,
    lower, figure, which a more specific rule below still wins. */
 .trip-media.has-photo {
-  --trip-wash: var(--trip-wash-photo, 0.2);
+  --trip-wash: var(--trip-wash-photo, 0.06);
+  /* And the picture carried nearly whole. Every skin held it at 0.58-0.76, set
+     when a cover was a ghost behind a card rather than the thing the card is
+     about. */
+  --photo-opacity: 0.88;
 }
 
 .trip-media .trip-scrim {
@@ -7320,11 +7329,12 @@ input[type="month"]::-webkit-date-and-time-value {
 
 html[data-skin="aurora"] {
   /* Near-black water leaves the blend very little lightness to carry chroma on,
-     so at the default strength amber and teal both arrived as the same grey.
-     Raised until the five grounds are told apart at a glance. */
+     so at the default strength the ground arrived as grey. Raised until the
+     cover reads as the app's own color where no picture covers it. */
   --trip-wash: 0.66;
-  /* And a quarter of that over a photograph, which needs no help being seen. */
-  --trip-wash-photo: 0.26;
+  /* And a fraction of that over a photograph, which needs no help being seen.
+     A quarter was a duotone; this is a tint at the edges of the picture. */
+  --trip-wash-photo: 0.06;
   color-scheme: dark;
 
   /* A card has to be visibly lighter than the page it sits on, and on a dark
@@ -7505,9 +7515,9 @@ html[data-skin="daybreak"] {
      says over dark water. */
   --trip-wash-blend: multiply;
   --trip-wash: 0.55;
-  /* Multiply over a photograph is a tint, not a duotone, so it can be lower
-     still than a dark skin's figure and the picture keeps its own light. */
-  --trip-wash-photo: 0.22;
+  /* Multiply over a photograph is a tint, not a duotone, and at this strength
+     it is barely that: the picture keeps its own light and its own color. */
+  --trip-wash-photo: 0.06;
   --scrim: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.06) 0%,
@@ -7658,7 +7668,7 @@ html[data-skin="frost"] {
   --trip-wash-blend: multiply;
   --trip-wash: 0.58;
   /* Same reasoning as daybreak: a tint over the picture, not a duotone. */
-  --trip-wash-photo: 0.24;
+  --trip-wash-photo: 0.06;
   --scrim: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.1) 0%,
@@ -7737,11 +7747,11 @@ html[data-skin="frost"] #boot-stage {
  * ----------------------------------------------------------------------- */
 html[data-skin="sodium"] {
   /* Near-black water leaves the blend very little lightness to carry chroma on,
-     so at the default strength amber and teal both arrived as the same grey.
-     Raised until the five grounds are told apart at a glance. */
+     so at the default strength the ground arrived as grey. Raised until the
+     cover reads as the app's own color where no picture covers it. */
   --trip-wash: 0.66;
-  /* And a quarter of that over a photograph, as on aurora. */
-  --trip-wash-photo: 0.26;
+  /* And the same light fraction over a photograph, as on aurora. */
+  --trip-wash-photo: 0.06;
   color-scheme: dark;
 
   /* Same correction as aurora: the card steps up off the page far enough to
