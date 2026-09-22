@@ -81,9 +81,16 @@ export default async function NowPage() {
   if (!memberships || memberships.length === 0) redirect("/join");
 
   const access = await resolveAccess(supabase, user);
+  // A secondary traveler is here for the trips they are on. Everything else this
+  // screen assembles -- the household's mail, the morning mailer, the saved
+  // places, the fares and the card bonuses -- is either refused to them by the
+  // database or a door that redirects them back to Trips, so it is not read and
+  // not drawn. Two of those reads are family-member-wide rather than
+  // secondary-gated in RLS, which is exactly why the gate has to be here.
+  const secondary = Boolean(access?.can.isSecondary);
   const familyIds = memberships.map((m) => m.family_id);
   const today = todayISO();
-  const fareRows = access?.familyId && !access.can.isSecondary
+  const fareRows = access?.familyId && !secondary
     ? await unreadFares(supabase, user.id, access.familyId) : [];
 
   const [
@@ -106,18 +113,22 @@ export default async function NowPage() {
       )
       .in("family_id", familyIds)
       .order("sort_order", { ascending: true }),
-    supabase
-      .from("reminder_runs")
-      .select("ran_for, ran_at, source, considered, sent, failed, error")
-      .order("ran_at", { ascending: false })
-      .limit(6),
+    secondary
+      ? Promise.resolve({ data: [] })
+      : supabase
+          .from("reminder_runs")
+          .select("ran_for, ran_at, source, considered, sent, failed, error")
+          .order("ran_at", { ascending: false })
+          .limit(6),
     // Only the number. The list of what arrived lives on the Inbox screen; a
     // band that reprinted it here would be a second inbox to keep in step.
-    supabase
-      .from("inbox_messages")
-      .select("id", { count: "exact", head: true })
-      .in("family_id", familyIds)
-      .eq("status", "pending"),
+    secondary
+      ? Promise.resolve({ count: 0 })
+      : supabase
+          .from("inbox_messages")
+          .select("id", { count: "exact", head: true })
+          .in("family_id", familyIds)
+          .eq("status", "pending"),
   ]);
 
   const tasks = (rows || [])
@@ -269,7 +280,7 @@ export default async function NowPage() {
   // The two long-range states. Both of them want the saved places and the open
   // deadlines, so the reads are shared and only happen at those ranges: a family
   // leaving tomorrow should not pay for a query about next spring.
-  const longRange = Boolean(ahead) || emptyHanded;
+  const longRange = !secondary && (Boolean(ahead) || emptyHanded);
   const [{ data: placeRows }, { data: dealRows }, { data: offerRows }] =
     longRange && access?.familyId
       ? await Promise.all([
@@ -307,7 +318,7 @@ export default async function NowPage() {
   // out a family thinks in the order the dates land, not in trips.
   const aheadCard = ahead ? buildCard(ahead.trip, ahead.days) : null;
   if (aheadCard) {
-    aheadCard.budgetHref = tripPath(ahead.trip, "budget");
+    if (!secondary) aheadCard.budgetHref = tripPath(ahead.trip, "budget");
     aheadCard.needs = (heroTasks || [])
       .filter((row) => row.trip_id === ahead.trip.id && row.due_date)
       .slice(0, 3)
@@ -567,6 +578,7 @@ export default async function NowPage() {
         )}
         {emptyHanded && (
           <NowEmpty
+            secondary={secondary}
             drafts={drafts}
             season={emptySeason}
             watching={watching}
@@ -587,27 +599,42 @@ export default async function NowPage() {
         )}
         <NowBands
           part="queue"
+          secondary={secondary}
           pressing={pressing}
           clashes={clashes}
           waiting={waiting || 0}
           fares={fareRows.length}
         />
+        {/* Said once, where the household's queue and mailer would have been, so
+            that what is missing reads as somebody else's job rather than a screen
+            that failed to load. */}
+        {secondary && (
+          <p className="mt-4 max-w-prose text-sm text-ink-soft">
+            Bookings, fares and the household&rsquo;s reminders are looked after by
+            whoever is planning these trips. Ask Aly if you need something that
+            isn&rsquo;t here.
+          </p>
+        )}
         {/* The loud version above the band; the calm one-line version inside
             it. See the note on MorningRun. */}
-        <MorningRun
-          runs={runs || []}
-          today={today}
-          dueCount={dueCount}
-          only="loud"
-        />
+        {!secondary && (
+          <MorningRun
+            runs={runs || []}
+            today={today}
+            dueCount={dueCount}
+            only="loud"
+          />
+        )}
         <PushAlerts
           morning={
-            <MorningRun
-              runs={runs || []}
-              today={today}
-              dueCount={dueCount}
-              only="calm"
-            />
+            secondary ? null : (
+              <MorningRun
+                runs={runs || []}
+                today={today}
+                dueCount={dueCount}
+                only="calm"
+              />
+            )
           }
         />
         <Reminders

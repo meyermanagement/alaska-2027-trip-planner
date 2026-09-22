@@ -63,14 +63,20 @@ export default function NowBands({
   waiting = 0,
   fares = 0,
   part = "all",
+  secondary = false,
 }) {
   const today = part !== "queue";
-  const queue = part !== "today";
+  // A secondary traveler has no household inbox and no fares -- the screen above
+  // says so in one line -- so the queue half is theirs to skip rather than to
+  // report as caught up.
+  const queue = part !== "today" && !secondary;
   const nothing = !pressing.length && !clashes.length && !waiting && !fares;
 
   // The sentence belongs to the lower half, so a screen with nothing on it says
   // this once, where the bands would have ended, rather than twice.
   if (nothing) {
+    // For a secondary the sentence would talk about an inbox they do not have,
+    // and the line under the bands already says who looks after it.
     if (!queue) return null;
     return (
       <p className="mt-4 max-w-prose text-sm text-ink-soft">

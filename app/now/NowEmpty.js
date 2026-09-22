@@ -222,13 +222,35 @@ function TripLog({ log }) {
   );
 }
 
+/**
+ * The same screen for a secondary traveler. Every door on the full version --
+ * start a trip, the bucket list, the inbox, the trip log -- is one the database
+ * or the router refuses them, so the screen says the one true thing instead:
+ * a trip will appear here when somebody adds them to it.
+ */
+function NothingYet() {
+  return (
+    <section className="card mb-7 p-5">
+      <h2 className="font-display text-xl font-semibold text-ink">
+        No trips on your calendar right now
+      </h2>
+      <p className="mt-1.5 max-w-prose text-sm text-ink-soft">
+        When somebody plans a trip you&rsquo;re on, it shows up here with the
+        itinerary, your packing list and anything you&rsquo;ve been asked to do.
+      </p>
+    </section>
+  );
+}
+
 export default function NowEmpty({
   knows = null,
   drafts = null,
   season = null,
   watching,
   log = [],
+  secondary = false,
 }) {
+  if (secondary) return <NothingYet />;
   return (
     <div className="mb-7 grid gap-3">
       <Invitation knows={knows} drafts={drafts} />

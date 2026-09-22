@@ -83,9 +83,13 @@ function CountdownPlate({ card }) {
               {card.todo} still to do
             </Link>
           )}
-          <Link className="btn btn-ghost" href={card.budgetHref}>
-            Budget
-          </Link>
+          {/* Not drawn for a secondary traveler: the budget is a door the
+              database refuses them. */}
+          {card.budgetHref && (
+            <Link className="btn btn-ghost" href={card.budgetHref}>
+              Budget
+            </Link>
+          )}
         </div>
       </div>
     </section>
