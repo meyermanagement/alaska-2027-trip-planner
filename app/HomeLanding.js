@@ -327,8 +327,10 @@ export default function HomeLanding() {
 
             {/* The conversation, played. What it has to prove is not that
                 Aly replies, but that the reply could only have been written
-                for the person reading it: their evening, their allergy, their
-                card, and then tomorrow's boat with what to carry onto it. */}
+                for the person reading it: the hour their evening starts, what
+                they said they would spend, a child who needs to be in bed, one
+                allergy, their card, and then tomorrow's boat with what to carry
+                onto it. */}
             <AskDemo />
           </div>
         </div>
