@@ -7044,6 +7044,24 @@ input[type="month"]::-webkit-date-and-time-value {
   opacity: var(--trip-wash, 0.5);
 }
 
+/* A photograph gets a fraction of what a coastline gets.
+
+   The strength above is set for a map: a contour drawing is the skin's two map
+   colors and nothing else, so without a strong wash every located trip arrived
+   the same blue-grey. A cover photograph already has color of its own, and at
+   map strength the blend printed it as a duotone -- a castle, a glacier and a
+   reef all came out as one field of the trip's hue with a shape in it. Held here
+   the picture prints as itself and the hue is still on the plate: in the
+   gradient behind it, round its edges, and through the fraction that is left.
+
+   On .trip-media itself rather than in each skin block, so the element's own
+   rule outranks the inherited per-skin value; a skin that wants a different
+   fraction sets --trip-wash-photo. The flipped Current plate keeps its own,
+   lower, figure, which a more specific rule below still wins. */
+.trip-media.has-photo {
+  --trip-wash: var(--trip-wash-photo, 0.2);
+}
+
 .trip-media .trip-scrim {
   position: absolute;
   inset: 0;
@@ -7332,6 +7350,8 @@ html[data-skin="aurora"] {
      so at the default strength amber and teal both arrived as the same grey.
      Raised until the five grounds are told apart at a glance. */
   --trip-wash: 0.66;
+  /* And a quarter of that over a photograph, which needs no help being seen. */
+  --trip-wash-photo: 0.26;
   color-scheme: dark;
 
   /* A card has to be visibly lighter than the page it sits on, and on a dark
@@ -7512,6 +7532,9 @@ html[data-skin="daybreak"] {
      says over dark water. */
   --trip-wash-blend: multiply;
   --trip-wash: 0.55;
+  /* Multiply over a photograph is a tint, not a duotone, so it can be lower
+     still than a dark skin's figure and the picture keeps its own light. */
+  --trip-wash-photo: 0.22;
   --scrim: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.06) 0%,
@@ -7661,6 +7684,8 @@ html[data-skin="frost"] {
      says over dark water. */
   --trip-wash-blend: multiply;
   --trip-wash: 0.58;
+  /* Same reasoning as daybreak: a tint over the picture, not a duotone. */
+  --trip-wash-photo: 0.24;
   --scrim: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.1) 0%,
@@ -7742,6 +7767,8 @@ html[data-skin="sodium"] {
      so at the default strength amber and teal both arrived as the same grey.
      Raised until the five grounds are told apart at a glance. */
   --trip-wash: 0.66;
+  /* And a quarter of that over a photograph, as on aurora. */
+  --trip-wash-photo: 0.26;
   color-scheme: dark;
 
   /* Same correction as aurora: the card steps up off the page far enough to
