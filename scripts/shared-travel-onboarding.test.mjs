@@ -29,7 +29,7 @@ test("adult role selection is explicit and skipping never requests an invitation
     assert.equal(welcomeAccess({ dob: "1990-01-01", accessChoice }, today), accessChoice);
   }
 });
-test("home section is compact text-only and follows the itinerary scene", () => {
+test("home section draws each part without real controls and follows the itinerary scene", () => {
   const home = source("app/HomeLanding.js");
   assert.ok(home.indexOf("<BetterTogether />") > home.indexOf('title="Today’s plans'));
   assert.ok(home.indexOf("<BetterTogether />") < home.indexOf('label="When it changes"'));

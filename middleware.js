@@ -99,6 +99,10 @@ const MACHINE_PATHS = [
   "/api/mail/check",
   "/api/inbox/receive",
   "/api/auth/pwned",
+  // The waitlist form on the front door, for people who by definition have no
+  // account. It only ever inserts, through the service role, into a table
+  // nobody can read back; see app/api/waitlist/route.js.
+  "/api/waitlist",
 ];
 
 // The calendar subscription is read by Google Calendar, Apple Calendar or

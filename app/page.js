@@ -62,12 +62,15 @@ export const dynamic = "force-dynamic";
  * The signed-in check runs first and on the server, so a family never sees the
  * landing page flash before the redirect.
  */
-export default async function Home() {
+export default async function Home({ searchParams }) {
   const supabase = await createClient();
   const user = await whoIs(supabase);
   // Signed in: the home screen, which is Now. It used to be the trip board with
   // ?arrival=1 on it, back when the board was the app's first screen; the
   // question a family opens the app with is what today needs, and that is here.
   if (user) redirect("/now");
-  return <HomeLanding />;
+  // The waitlist form's no-JavaScript path lands back here with its outcome.
+  const outcome = (await searchParams)?.waitlist;
+  const waitlist = ["joined", "invalid", "error"].includes(outcome) ? outcome : undefined;
+  return <HomeLanding waitlist={waitlist} />;
 }

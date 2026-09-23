@@ -3,9 +3,9 @@ import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
 import BetterTogether from "@/components/BetterTogether";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
-import AskDemo from "@/components/home/AskDemo";
 import HeroFilm from "@/components/home/HeroFilm";
-import RotatingWord from "@/components/home/RotatingWord";
+import NudgeCard from "@/components/home/NudgeCard";
+import WaitlistForm from "@/components/home/WaitlistForm";
 import { ALY_INDEX } from "@/lib/home/alyIndex";
 import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
 
@@ -52,7 +52,7 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  *   a name that lives only inside an SVG is a name that cannot be read.
  *
  *   Nothing shown as an answer is presented as a fact about the world. The card
- *   in the hero is labeled an example, because it is one: a real answer is built
+ *   in the hero is labeled an example, because it is one: a real nudge is built
  *   from a real trip, and inventing a restaurant's opening hours to decorate a
  *   landing page is exactly the habit this app is supposed to be the cure for.
  *
@@ -213,15 +213,13 @@ function Row({ left, right, sub, last }) {
   );
 }
 
-export default function HomeLanding() {
+export default function HomeLanding({ waitlist } = {}) {
   return (
     <MotionRoot>
       {/* ---------------------------------------------------------------- hero
           A photograph you could stand in, and beside it the one thing no
-          photograph can show: an answer that could only have been written for
-          this family. Option one and option two of the mockups, in one screen,
-          because the place is what makes somebody want the trip and the answer
-          is what makes them want the app. */}
+          photograph can show: a note Aly sent this family before they asked,
+          about their own afternoon, with the decision left to them. */}
       <section className="home-hero" data-ma-shown="">
         <div className="home-hero-shot" aria-hidden="true" />
         <HeroFilm />
@@ -253,11 +251,11 @@ export default function HomeLanding() {
                   headline under it is 48px, so at 21px the lockup read as
                   furniture above the real thing. The rule grows with it:
                   it is meant to sit under the word, not under part of it. */}
-              <AlyWordmark as="p" className="text-[24px] sm:text-[26px]" />
+              <AlyWordmark as="p" className="text-[20px] min-[360px]:text-[24px] sm:text-[26px]" />
             </div>
             <Link
               href="/login"
-              className="rounded-full px-4 py-2 text-[14px] font-semibold"
+              className="shrink-0 whitespace-nowrap rounded-full px-3 py-2 min-[360px]:px-4 text-[14px] font-semibold"
               style={{
                 border: "1px solid rgba(246,243,236,0.34)",
                 color: "#f6f3ec",
@@ -270,10 +268,10 @@ export default function HomeLanding() {
           <div className="mt-auto grid gap-10 pt-16 lg:grid-cols-[1fr_368px] lg:items-end lg:gap-14">
             <div>
               <p
-                className="text-[12px] font-semibold uppercase tracking-[0.16em]"
+                className="text-[15px] font-semibold tracking-[0.01em] sm:text-[16px]"
                 style={{ color: "#f6f3ec" }}
               >
-                <RotatingWord />
+                Travel, personalized. Contextualized. Simplified.
               </p>
               <h1
                 className="mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
@@ -289,7 +287,7 @@ export default function HomeLanding() {
                 }}
               >
                 Finally, one place to plan your trip, keep it all together, and
-                get help along the way. From “where should we go?” to “what do
+                hear about what matters before it matters. From “where should we go?” to “what do
                 we need tomorrow?”, Aly brings your itinerary, bookings,
                 packing, and budget together with advice that fits you. Less to
                 juggle. More to enjoy.
@@ -311,17 +309,17 @@ export default function HomeLanding() {
                   color: "rgba(246,243,236,0.62)",
                 }}
               >
-                In closed beta. New families join with an invite code.
+                In closed beta. New families join with an invite code, or{" "}
+                <a href="#waitlist" className="underline underline-offset-4">
+                  join the waitlist below
+                </a>
+                .
               </p>
             </div>
 
-            {/* The conversation, played. What it has to prove is not that
-                Aly replies, but that the reply could only have been written
-                for the person reading it: the hour their evening starts, what
-                they said they would spend, a child who needs to be in bed, one
-                allergy, their card, and then tomorrow's boat with what to carry
-                onto it. */}
-            <AskDemo />
+            {/* Something Aly sends unasked, about this family's own day, with
+                the choice left to them. See components/home/NudgeCard.js. */}
+            <NudgeCard />
           </div>
         </div>
       </section>
@@ -337,11 +335,148 @@ export default function HomeLanding() {
       </div>
 
       {/* --------------------------------------------------------------- scenes
-          Six of them, in the order a trip happens. Each one is the stress it
-          takes off you, said once, with the thing itself beside it. */}
+          Six of them, and the noticing first: what Aly catches before you go
+          and while you are there, then everybody else on the trip, then the
+          day that changed, and only after that the building, the money and
+          the tips. Each one is the stress it takes off you, said once, with
+          the thing itself beside it. The flip alternates by position, so a
+          reorder has to redo it. */}
       <div className="mx-auto w-full max-w-[74rem] px-5 pt-2 sm:px-8">
         <Scene
+          label="Before you go"
+          title="From the day you book to the morning you leave."
+          body="Aly turns your trip details into timely reminders, so you can get ready a little at a time."
+          note="Your packing list brings together your saved essentials and suggestions for the trip you’ve planned."
+          media={
+            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
+              <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
+                <img
+                  src="/landing/packing.jpg"
+                  alt="An open case half packed on a bed in morning light, a sun hat on the lid and a child's backpack beside it"
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-[132px] w-full object-cover"
+                />
+              </div>
+
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="font-display text-[17px] font-semibold">
+                  Maui, in March
+                </p>
+                <p className="text-[13px] text-ink-soft">You leave March 14</p>
+              </div>
+
+              <div className="mt-4">
+                <Stage
+                  when="Book now"
+                  on="Jan 6"
+                  title="Hold the condo and the car"
+                  sub="Choose your stay and transport before planning the days"
+                />
+                <Stage
+                  when="A month out"
+                  on="Feb 12"
+                  title="Book the morning snorkel boat"
+                  sub="Choose a departure that fits your morning"
+                />
+                <Stage
+                  when="Week before"
+                  on="Mar 7"
+                  title="Stop the mail, tell the neighbor"
+                  sub="A few things at home to take care of before you go"
+                />
+                <Stage
+                  when="Day before"
+                  on="Mar 13"
+                  title="Pack from the list, chargers last"
+                  sub="Keep the last-minute essentials easy to find"
+                />
+                <Stage
+                  when="Travel day"
+                  on="Mar 14"
+                  title="Leave by 8:05 for the 10:40 flight"
+                  sub="Timed from your door, not from the city"
+                  last
+                />
+              </div>
+            </div>
+          }
+        />
+
+        <Scene
+          label="While you are there"
+          flip
+          title="Today’s plans, without the inbox hunt."
+          body="Bookings, check-in details, and your day pack stay with the day they belong to. Ask Aly for help with what’s next."
+          media={
+            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="font-display text-[17px] font-semibold">
+                  A day in Maui
+                </p>
+                <p className="text-[13px] text-ink-soft">
+                  Kīhei &middot; 84&deg;, rain at 2
+                </p>
+              </div>
+              <div className="mt-4 space-y-3">
+                <Row
+                  left="Snorkel, Mākena"
+                  right="8:20 am"
+                  sub="Conf. MKN4‑8821 &middot; check in 7:50 &middot; 12 min drive"
+                />
+                <Row
+                  left="Lunch, back at the condo"
+                  right="12:30 pm"
+                  sub="Back before the afternoon rain"
+                />
+                <Row
+                  left="Sunset, walk from the door"
+                  right="6:40 pm"
+                  sub="Nothing to book"
+                  last
+                />
+              </div>
+
+              {/* The day's own bag, which is the part people expect least: a
+                  short list for today rather than the whole packing list. */}
+              <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-[13px] font-semibold">Today’s day pack</p>
+                  <p className="text-[12px] text-ink-soft">To bring</p>
+                </div>
+                <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
+                  Sunscreen &middot; Mia&rsquo;s light jacket &middot; photo ID
+                  &middot; cash for the balance
+                </p>
+              </div>
+
+              <p className="mt-3 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
+                <span className="font-semibold">Aly:</span> The boat&rsquo;s
+                confirmation asks for cash and photo ID. Check that both are
+                packed before you head out.
+              </p>
+            </div>
+          }
+        />
+
+        <BetterTogether />
+
+        <Scene
+          label="When it changes"
+          title="A change of plans, not a fresh start."
+          body="Aly flags conflicts and helps you work around surprises, using the trip you already planned. You decide what changes."
+          media={
+            <Shot
+              src="/landing/rain.jpg"
+              alt="A tropical coast road in an afternoon rain shower, clearing sky ahead"
+              className="aspect-[4/3]"
+            />
+          }
+        />
+
+        <Scene
           label="Building the trip"
+          flip
           title="Suggestions that already know how you travel."
           body="Start with an idea, not a dozen open tabs. Aly helps turn it into places to stay and days you’ll look forward to, all shaped around you."
           media={
@@ -408,139 +543,6 @@ export default function HomeLanding() {
                 You choose what makes it into the plan.
               </p>
             </div>
-          }
-        />
-
-        <Scene
-          label="Before you go"
-          flip
-          title="From the day you book to the morning you leave."
-          body="Aly turns your trip details into timely reminders, so you can get ready a little at a time."
-          note="Your packing list brings together your saved essentials and suggestions for the trip you’ve planned."
-          media={
-            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
-              <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
-                <img
-                  src="/landing/packing.jpg"
-                  alt="An open case half packed on a bed in morning light, a sun hat on the lid and a child's backpack beside it"
-                  loading="lazy"
-                  decoding="async"
-                  className="block h-[132px] w-full object-cover"
-                />
-              </div>
-
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="font-display text-[17px] font-semibold">
-                  Maui, in March
-                </p>
-                <p className="text-[13px] text-ink-soft">You leave March 14</p>
-              </div>
-
-              <div className="mt-4">
-                <Stage
-                  when="Book now"
-                  on="Jan 6"
-                  title="Hold the condo and the car"
-                  sub="Choose your stay and transport before planning the days"
-                />
-                <Stage
-                  when="A month out"
-                  on="Feb 12"
-                  title="Book the morning snorkel boat"
-                  sub="Choose a departure that fits your morning"
-                />
-                <Stage
-                  when="Week before"
-                  on="Mar 7"
-                  title="Stop the mail, tell the neighbor"
-                  sub="A few things at home to take care of before you go"
-                />
-                <Stage
-                  when="Day before"
-                  on="Mar 13"
-                  title="Pack from the list, chargers last"
-                  sub="Keep the last-minute essentials easy to find"
-                />
-                <Stage
-                  when="Travel day"
-                  on="Mar 14"
-                  title="Leave by 8:05 for the 10:40 flight"
-                  sub="Timed from your door, not from the city"
-                  last
-                />
-              </div>
-            </div>
-          }
-        />
-
-        <Scene
-          label="While you are there"
-          title="Today’s plans, without the inbox hunt."
-          body="Bookings, check-in details, and your day pack stay with the day they belong to. Ask Aly for help with what’s next."
-          media={
-            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="font-display text-[17px] font-semibold">
-                  A day in Maui
-                </p>
-                <p className="text-[13px] text-ink-soft">
-                  Kīhei &middot; 84&deg;, rain at 2
-                </p>
-              </div>
-              <div className="mt-4 space-y-3">
-                <Row
-                  left="Snorkel, Mākena"
-                  right="8:20 am"
-                  sub="Conf. MKN4‑8821 &middot; check in 7:50 &middot; 12 min drive"
-                />
-                <Row
-                  left="Lunch, back at the condo"
-                  right="12:30 pm"
-                  sub="Back before the afternoon rain"
-                />
-                <Row
-                  left="Sunset, walk from the door"
-                  right="6:40 pm"
-                  sub="Nothing to book"
-                  last
-                />
-              </div>
-
-              {/* The day's own bag, which is the part people expect least: a
-                  short list for today rather than the whole packing list. */}
-              <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
-                <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-[13px] font-semibold">Today’s day pack</p>
-                  <p className="text-[12px] text-ink-soft">To bring</p>
-                </div>
-                <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
-                  Sunscreen &middot; Mia&rsquo;s light jacket &middot; photo ID
-                  &middot; cash for the balance
-                </p>
-              </div>
-
-              <p className="mt-3 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
-                <span className="font-semibold">Aly:</span> The boat&rsquo;s
-                confirmation asks for cash and photo ID. Check that both are
-                packed before you head out.
-              </p>
-            </div>
-          }
-        />
-
-        <BetterTogether />
-
-        <Scene
-          label="When it changes"
-          flip
-          title="A change of plans, not a fresh start."
-          body="Aly flags conflicts and helps you work around surprises, using the trip you already planned. You decide what changes."
-          media={
-            <Shot
-              src="/landing/rain.jpg"
-              alt="A tropical coast road in an afternoon rain shower, clearing sky ahead"
-              className="aspect-[4/3]"
-            />
           }
         />
 
@@ -668,7 +670,7 @@ export default function HomeLanding() {
           >
             Aly answers for the traveler in front of her, and for nobody else
           </h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLEDGE_PROMISES.map((promise, i) => (
               <div
                 key={promise.title}
@@ -683,6 +685,24 @@ export default function HomeLanding() {
                 </p>
               </div>
             ))}
+            {/* Next to the promise about not selling what Aly knows, the
+                page that will show it. Not built yet, and labeled so; the
+                address is reserved in lib/whatAlyKnows.js. */}
+            <div
+              className="ma-in card home-promise-next flex flex-col p-4"
+              style={{ animationDelay: `${120 + PLEDGE_PROMISES.length * 80}ms` }}
+            >
+              <h3 className="font-display text-[17px] font-semibold">
+                What Aly knows about you, on one page.
+              </h3>
+              <p className="mt-2 text-[14px] leading-relaxed text-ink-soft">
+                Every fact Aly holds about your household, where it came from,
+                and a way to export or delete it.
+              </p>
+              <p className="mt-auto pt-3">
+                <span className="home-trip-example-badge">Coming to Alyeska Family</span>
+              </p>
+            </div>
           </div>
           <div className="mt-8 max-w-[38rem]">
             <h3 className="ma-in font-display text-[19px] font-semibold">
@@ -711,6 +731,40 @@ export default function HomeLanding() {
         </div>
       </Reveal>
 
+      {/* ------------------------------------------------------------ roadmap
+          Dated, short, and plain text: no logos and no "works with", because
+          none of these ship yet and an assistant's mark next to our name
+          reads as a partnership nobody has signed. */}
+      <Reveal
+        as="section"
+        className="mx-auto w-full max-w-[74rem] px-5 sm:px-8"
+      >
+        <div className="border-t border-[var(--line)] py-10">
+          <h2 className="ma-in font-display text-[19px] font-semibold">
+            On the roadmap, as of September 2026.
+          </h2>
+          <ul className="mt-4 grid gap-3 text-[14px] leading-relaxed text-ink-soft md:grid-cols-3 md:gap-8">
+            <li className="ma-in" style={{ animationDelay: "60ms" }}>
+              <strong className="font-semibold text-ink">Alyeska Groups, 2027.</strong>{" "}
+              One shared plan from the organizer; each household keeps its own
+              notes and lists.
+            </li>
+            <li className="ma-in" style={{ animationDelay: "120ms" }}>
+              <strong className="font-semibold text-ink">
+                Ask Aly from the assistants you already use.
+              </strong>{" "}
+              Planned: Claude, ChatGPT, Alexa+, Siri, and Muse. Read your trips
+              first; changes later.
+            </li>
+            <li className="ma-in" style={{ animationDelay: "180ms" }}>
+              <strong className="font-semibold text-ink">
+                Alyeska for iPhone and Android, fall 2027.
+              </strong>
+            </li>
+          </ul>
+        </div>
+      </Reveal>
+
       {/* ----------------------------------------------------------------- out
           The way in, said once more, for somebody who has read the whole thing
           and should not have to scroll back to the top to act on it. */}
@@ -730,6 +784,9 @@ export default function HomeLanding() {
               Meet Aly
             </Link>
           </div>
+          {/* For everybody without an invite code, which is most people who
+              read this far. See components/home/WaitlistForm.js. */}
+          <WaitlistForm initial={waitlist} />
           <p
             className="ma-fade mt-4 text-[13px] text-ink-soft"
             style={{ animationDelay: "200ms" }}
