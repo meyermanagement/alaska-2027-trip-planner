@@ -13,7 +13,7 @@ test("minor route allowlist denies deep links, mutation, forged paths, and AI ro
   for(const path of ["/api/chat","/api/tips","/api/child/extra","/family","/trips/123","/login/qa","/api/account/delete"]) assert.equal(minorRouteAllowed(path),false);
   assert.equal(minorRouteAllowed("/api/child","POST"),false);
   const middleware=read("middleware.js");
-  assert.ok(middleware.indexOf("const age = await accountAge") < middleware.indexOf("const consentCookie ="));
+  assert.ok(middleware.indexOf("await accountChecks(supabase, user.id)") < middleware.indexOf("const consentCookie ="));
 });
 test("new parent flow has no optional child AI permission",()=>{
   assert.equal(validateMinorReview({guardian:true,collection:true,noticeVersion:MINOR_REVIEW_NOTICE_VERSION}),null);

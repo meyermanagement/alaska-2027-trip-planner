@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { whoIs } from "@/lib/supabase/who";
-import { accountAge } from "@/lib/beta/accountAge";
+import { accountChecks } from "@/lib/auth/accountChecks";
 import { minorRouteAllowed } from "@/lib/beta/minorRoutes";
 import { CHILD_VIEW_COOKIE, childViewRouteAllowed } from "@/lib/childView/constants";
 import {
@@ -226,10 +226,27 @@ export async function middleware(request) {
     MACHINE_PATHS.includes(pathname) ||
     MACHINE_PREFIXES.some((p) => pathname.startsWith(p));
 
+  // Signed in and at the front door: straight on to Now. app/page.js makes the
+  // same decision, but only after this request has crossed to a function, run
+  // the account checks below and rendered nothing -- and then the browser asks
+  // for /now and every check runs again. The Home Screen app opens at "/", so
+  // that was every launch. Deciding it here, before the checks, costs no
+  // database call: /now is itself checked in full on the very next request, so
+  // a refused session or a minor is stopped there exactly as before.
+  if (user && pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/now";
+    url.search = "";
+    const home = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) home.cookies.set(cookie);
+    return home;
+  }
+
   // Fresh server-side age classification, before cookies, pages or API handlers.
   // Database RLS independently blocks direct Supabase reads/writes for minors.
+  // Both questions are asked at once; see lib/auth/accountChecks.js.
   if (user) {
-    const { data: allowed, error: sessionError } = await supabase.rpc("account_session_allowed");
+    const { allowed, sessionError, age } = await accountChecks(supabase, user.id);
     if (sessionError) return new NextResponse("Account access could not be checked. Please try again.", {
       status: 503, headers: { "Cache-Control": "no-store" },
     });
@@ -243,7 +260,6 @@ export async function middleware(request) {
       }
       return blocked;
     }
-    const age = await accountAge(supabase, user.id);
     if (age.unavailable) {
       if (pathname === "/child") return response;
       return new NextResponse("Account permissions could not be checked. Please try again.", {
@@ -424,6 +440,11 @@ export async function middleware(request) {
 }
 
 export const config = {
+  // Node rather than the edge, so this runs in the function region (pdx1, set in
+  // vercel.json) beside the database in Oregon. On the edge it ran in whichever
+  // city was nearest the visitor -- Columbus for a family in Missouri -- and every
+  // account check it made crossed the country and back before the page started.
+  runtime: "nodejs",
   // sw.js and manifest.webmanifest are named for the same reason as data/ below.
   // A browser fetching either of them unauthenticated was answered with the login
   // page, so the service worker never registered and the site could never be
