@@ -135,6 +135,21 @@ export async function POST(request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (action === "waitlist_remove") {
+    // Off the list for good: a mistyped address, a bot that got past the
+    // honeypot, somebody who asked to be taken off. Any code already sent to
+    // them is left alone and stays on the desk.
+    const id = String(body?.id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) {
+      return NextResponse.json({ error: "Malformed request." }, { status: 400 });
+    }
+    const { error } = await admin.from("waitlist").delete().eq("id", id);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (action !== "invite") {
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   }
@@ -159,13 +174,22 @@ export async function POST(request) {
   // Already invited? Then this is a resend of their own code rather than a
   // second code for the same person, which is how a beta ends up with one
   // tester holding three ways in and two of them dead.
-  const { data: theirs } = await admin
+  const { data: latest } = await admin
     .from("signup_codes")
     .select("code, used_by, expires_at, send_count")
     .eq("assigned_email", email)
     .order("assigned_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // A retired code is not theirs to be sent again: it would arrive and not
+  // work. Treat the address as new and give it a live one.
+  const theirs =
+    latest &&
+    !latest.used_by &&
+    latest.expires_at &&
+    new Date(latest.expires_at) <= new Date()
+      ? null
+      : latest;
 
   let code = theirs?.code || null;
   if (theirs?.used_by) {

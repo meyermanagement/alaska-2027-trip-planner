@@ -20,6 +20,11 @@ const ROWS = [
     sub: "Invite codes, who spent one, and how far they got afterwards",
   },
   {
+    href: "/admin/waitlist",
+    label: "Waitlist",
+    sub: "Who asked in from the front page, and a code sent to each",
+  },
+  {
     href: "/admin/issues",
     label: "Issue log",
     sub: "What testers reported, and the faults the app filed on itself",
