@@ -92,3 +92,53 @@ test("unsupported award programs and ambiguous directions require fallback", () 
   assert.equal(newsletterFares(award.replace("via JAL miles\n", "via Unknown miles\n"), airports).complete, false);
   assert.equal(newsletterFares(cash.replace("Dublin (DUB), Shannon (SNN)", "Ireland"), airports).complete, false);
 });
+
+// Thrifty Traveler's single-program award layout (Madrid, September 22, 2026).
+// Redacted facts only: no links or account identifiers.
+const iberia = `Spain
+from 20k points
+Madrid (MAD)
+Flying Iberia
+Best: October - November, January - March
+(Full availability: Oct - Mar — Varies by city)
+We think this will last less than 24 hours (sale ends tomorrow, Sep. 23rd!)
+Deal Summary
+Book for as low as 20k Amex MR points R/T w/ transfer bonus (details below).
+Booking Options
+Book with Iberia Avios
+Iberia is charging 26k - 34k Avios R/T for basic economy (
+upgrade to comfort from 14k more). This is 15 - 20% off the usual rates.
+Use the 30% Amex transfer bonus to book from
+20k Amex MR points R/T!
+****Departure Cities****
+(All fares roundtrip, *nonstop)
+**Prices via Iberia Avios**
+**Boston (BOS) - 26k*
+Chicago (ORD) - 28k*
+Dallas (DFW) - 34k*
+Washington, D.C. (IAD) - 26k***
+****How to Book****
+Taxes & fees are ~$220 roundtrip.`;
+test("a single-program points table is read exactly, per route, without the model", () => {
+  const result = newsletterFares(iberia, [{ code: "ORD" }, { code: "DFW" }, { code: "STL" }]);
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.fares.map(f => [f.origin, f.destination_code, f.award_pricing.options[0].points_min]),
+    [["ORD", "MAD", 28000], ["DFW", "MAD", 34000]]);
+  const ord = result.fares[0];
+  assert.equal(ord.destination, "Madrid");
+  assert.equal(ord.cabin, "economy");
+  assert.equal(ord.award_pricing.options[0].program, "Iberia");
+  assert.equal(ord.award_pricing.options[0].points_basis, "round_trip");
+  // The estimate is kept as the sender's words, never as an exact fee.
+  assert.equal(ord.award_pricing.options[0].cash_amount, null);
+  assert.deepEqual(ord.travel_months, [1, 2, 3, 10, 11, 12]);
+  const checked = checkCandidate(ord, { text: iberia, source: { name: "Thrifty Traveler" }, receivedAt: "2026-09-22T18:14:54Z" });
+  assert.equal(checked.ok, true);
+  assert.equal(farePriceLabel(checked.row), "28,000 Iberia Avios · round-trip · exact fees not confirmed per person");
+});
+test("an unfamiliar row in a points table sends the whole email to the model", () => {
+  const odd = iberia.replace("Dallas (DFW) - 34k*", "Dallas (DFW) - 34k (Comfort only)");
+  const result = newsletterFares(odd, [{ code: "ORD" }]);
+  assert.equal(result.complete, false);
+  assert.equal(result.fares.length, 0);
+});
