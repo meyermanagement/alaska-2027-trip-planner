@@ -7,10 +7,16 @@
  * leads with cards that arrive on their own, about the family's own trip, and
  * a pair of choices that leave the family in charge.
  *
- * Two of them, in the order a trip happens, so the pair says the headline
- * back: one before you go, one while you are there. Maui is domestic, so the
+ * Three of them, in the order a trip happens, so the set says the headline
+ * back: two before you go, one while you are there. Maui is domestic, so the
  * document is a driver's license rather than a passport. It expires March 2,
  * twelve days before the March 14 flight on the Better together card.
+ *
+ * The second is a plan changing after it was booked: the dog was added to the
+ * trip after the hotel was. The Hawaii date is real arithmetic: the state
+ * counts a 30-day wait from the day after the lab receives the rabies blood
+ * sample (dab.hawaii.gov, 5 Day Or Less program), so a February 10 sample
+ * clears a March 14 landing with a few days to spare.
  *
  * The choices are spans, not buttons, like every other control drawn on this
  * page: nothing here can be pressed, so a keyboard is never handed a control
@@ -21,6 +27,11 @@ const NUDGES = [
     stamp: "Maui · January 8",
     text: "Dani’s driver’s license expires March 2, twelve days before the flight and the rental car pickup. Renew by mid-February.",
     act: "Add reminder",
+  },
+  {
+    stamp: "Maui · February 3",
+    text: "Biscuit is coming now, but the hotel doesn’t allow pets. Two pet-friendly rentals nearby fit the dates, and the hotel cancels free until February 20. Hawaii also needs her rabies blood test at the lab by February 10.",
+    act: "See pet-friendly stays",
   },
   {
     stamp: "Kīhei · Tuesday, 11:10 am",

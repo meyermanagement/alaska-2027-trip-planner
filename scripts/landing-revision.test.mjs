@@ -23,7 +23,10 @@ test("hero leads with the static line, the new body and the waitlist link", () =
 });
 
 test("the hero examples are nudges, before and during, labeled, with drawn controls only", () => {
-  assert.ok(nudge.indexOf("Maui · January 8") < nudge.indexOf("Kīhei · Tuesday, 11:10 am"));
+  assert.ok(nudge.indexOf("Maui · January 8") < nudge.indexOf("Maui · February 3"));
+  assert.ok(nudge.indexOf("Maui · February 3") < nudge.indexOf("Kīhei · Tuesday, 11:10 am"));
+  assert.ok(nudge.includes("Biscuit is coming now, but the hotel doesn’t allow pets."));
+  assert.ok(nudge.includes('act: "See pet-friendly stays"'));
   assert.ok(nudge.includes("Dani’s driver’s license expires March 2, twelve days before the flight"));
   assert.ok(nudge.includes('act: "Add reminder"') && nudge.includes('act: "Apply"'));
   assert.doesNotMatch(nudge.split("const NUDGES")[1], /passport/i);
