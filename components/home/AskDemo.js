@@ -70,9 +70,9 @@ const WORD_MS = 42; // answers, written
 const THINK_MS = 620; // the pause before she starts
 const BEAT_MS = 520; // between paragraphs
 const TURN_MS = 4000; // between one exchange and the next
-const SEEN_MS = 500; // in view this long before anything is allowed to move
+const SEEN_MS = 300; // in view this long before anything is allowed to move
 const SEEN_PX = 160; // and this much of the card actually on screen
-const LEAD_MS = 2600; // then the first question sits there, unanswered
+const LEAD_MS = 700; // then the first question sits there, unanswered
 const CARD_MS = 780; // between one recommendation arriving and the next
 
 /** The exchange flattened into the order the blocks are written in. */
