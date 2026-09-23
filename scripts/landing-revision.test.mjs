@@ -14,7 +14,7 @@ const publicCopy = [home, nudge, together, form, read("lib/home/alyIndex.js")].j
 
 test("hero leads with the static line, the new body and the waitlist link", () => {
   const hero = home.split('<section className="home-hero"')[1].split("</section>")[0];
-  assert.ok(hero.includes("Travel, personalized. Contextualized. Simplified."));
+  assert.ok(hero.includes("Travel · Personalized. Contextualized. Simplified."));
   assert.ok(hero.includes("hear about what matters before it matters."));
   assert.ok(!hero.includes("get help along the way"));
   assert.match(hero, /href="#waitlist"[^>]*>\s*join the waitlist below/);
@@ -22,11 +22,15 @@ test("hero leads with the static line, the new body and the waitlist link", () =
   assert.ok(!/AskDemo|RotatingWord/.test(home));
 });
 
-test("the hero example is a nudge, labeled, with drawn controls only", () => {
-  assert.ok(nudge.includes("Kīhei · Tuesday, 11:10 am"));
+test("the hero examples are nudges, before and during, labeled, with drawn controls only", () => {
+  assert.ok(nudge.indexOf("Maui · January 8") < nudge.indexOf("Kīhei · Tuesday, 11:10 am"));
+  assert.ok(nudge.includes("Dani’s driver’s license expires March 2, twelve days before the flight"));
+  assert.ok(nudge.includes('act: "Add reminder"') && nudge.includes('act: "Apply"'));
+  assert.doesNotMatch(nudge.split("const NUDGES")[1], /passport/i);
   assert.match(nudge.replace(/\s+/g, " "), /Rain is forecast at 2\. Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry\. Sunset walk unchanged\./);
   assert.match(nudge.replace(/\s+/g, " "), /A real nudge is built from your own trip, your own travelers, and your own wallet\. You choose what changes\./);
   assert.ok(nudge.includes(">Example<"));
+  assert.ok(nudge.includes("NUDGES.map"));
   assert.doesNotMatch(nudge, /<button|<a |ma-in|ma-fade/);
 });
 

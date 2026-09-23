@@ -33,7 +33,7 @@ export const metadata = {
   // two halves are strung together as six short sentences so the rhythm
   // survives being read on one line.
   description:
-    "Travel, Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
+    "Travel · Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
   // The icons are declared here rather than dropped into app/ as icon.svg and
   // favicon.ico, and they are named for the app rather than for the convention.
   //

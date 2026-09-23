@@ -31,7 +31,7 @@ export default function manifest() {
     name: "Alyeska",
     short_name: "Alyeska",
     description:
-      "Travel, Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
+      "Travel · Personalized. Contextualized. Simplified. No ads. No commissions. Just the memories that matter.",
     // The one documented way a tap inside an installed iOS app lands in Safari
     // instead is a navigation judged out of scope. With no scope declared, the
     // scope is inferred from start_url, and an inference is a thing that can be

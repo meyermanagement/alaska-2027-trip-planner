@@ -271,7 +271,7 @@ export default function HomeLanding({ waitlist } = {}) {
                 className="text-[15px] font-semibold tracking-[0.01em] sm:text-[16px]"
                 style={{ color: "#f6f3ec" }}
               >
-                Travel, personalized. Contextualized. Simplified.
+                Travel · Personalized. Contextualized. Simplified.
               </p>
               <h1
                 className="mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
