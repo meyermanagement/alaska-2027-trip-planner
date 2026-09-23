@@ -19,7 +19,7 @@
 
 export function LegalSection({ section }) {
   return (
-    <section className="mt-7">
+    <section id={section.anchor ? section.id : undefined} className="mt-7 scroll-mt-6">
       <h2 className="font-display text-lg font-semibold text-ink">
         {section.heading}
       </h2>

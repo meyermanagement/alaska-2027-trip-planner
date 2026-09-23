@@ -99,7 +99,8 @@ export default function WaitlistForm({ initial }) {
             {state === "busy" ? "Joining…" : "Join the waitlist"}
           </button>
           <p className="text-center text-[12px] leading-relaxed text-ink-soft">
-            Used only to invite you into Alyeska. Never sold or shared.
+            Used only to invite you into Alyeska. Never sold or shared.{" "}
+            <a href="/privacy#waitlist" className="underline underline-offset-2">Privacy</a>
           </p>
         </form>
       )}

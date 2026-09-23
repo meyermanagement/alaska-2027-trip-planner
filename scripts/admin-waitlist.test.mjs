@@ -74,3 +74,12 @@ test("the desk route removes waitlist rows only behind its gate, and never resen
   assert.match(route, /from\("waitlist"\)\.delete\(\)\.eq\("id", id\)/);
   assert.match(route, /latest\.expires_at &&\s+new Date\(latest\.expires_at\) <= new Date\(\)\s+\? null/);
 });
+
+test("the privacy policy says what the waitlist keeps, and the form links to it", () => {
+  const policy = read("lib/privacy.js");
+  assert.match(policy, /id: "waitlist",\s*\/\/[^\n]*\n\s*anchor: true,\s*heading: "If you joined the waitlist"/);
+  assert.ok(policy.includes("The waitlist: until you ask us to take you off it."));
+  assert.ok(policy.includes("never saved with your entry"));
+  assert.ok(read("components/LegalProse.js").includes("id={section.anchor ? section.id : undefined}"));
+  assert.ok(read("components/home/WaitlistForm.js").includes('href="/privacy#waitlist"'));
+});
