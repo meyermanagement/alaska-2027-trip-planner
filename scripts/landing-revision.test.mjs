@@ -12,9 +12,13 @@ const together = read("components/BetterTogether.js");
 const form = read("components/home/WaitlistForm.js");
 const publicCopy = [home, nudge, together, form, read("lib/home/alyIndex.js")].join("\n").replaceAll('role="alert"', "");
 
-test("hero leads with the static line, the new body and the waitlist link", () => {
+test("hero leads with the turning line, the new body and the waitlist link", () => {
   const hero = home.split('<section className="home-hero"')[1].split("</section>")[0];
-  assert.ok(hero.includes("Travel · Personalized. Contextualized. Simplified."));
+  assert.ok(hero.includes("<TaglineTurn />"));
+  const tag = read("components/home/TaglineTurn.js");
+  assert.ok(tag.includes('const WORDS = ["Personalized.", "Contextualized.", "Simplified."];'));
+  assert.ok(tag.includes("Travel ·"));
+  assert.match(tag, /data-on=\{!turning \|\| i === at/, "with nothing running, every word is lit");
   assert.ok(hero.includes("hear about what matters before it matters."));
   assert.ok(!hero.includes("get help along the way"));
   assert.match(hero, /href="#waitlist"[^>]*>\s*join the waitlist below/);
@@ -34,7 +38,15 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.match(nudge.replace(/\s+/g, " "), /A real nudge is built from your own trip, your own travelers, and your own wallet\. You choose what changes\./);
   assert.ok(nudge.includes(">Example<"));
   assert.ok(nudge.includes("NUDGES.map"));
-  assert.doesNotMatch(nudge, /<button|<a |ma-in|ma-fade/);
+  // The marks under the stack are the only real control: they choose an example
+  // and stop the turning. The choices drawn on each card stay spans.
+  assert.equal((nudge.match(/<button/g) || []).length, 1);
+  assert.match(nudge, /onClick=\{\(\) => \{\s*setAt\(i\);\s*setTurning\(false\);/);
+  assert.doesNotMatch(nudge, /<a |ma-in|ma-fade/);
+  assert.deepEqual([...nudge.matchAll(/level: "(\w+)"/g)].map((m) => m[1]), ["high", "medium", "low"]);
+  assert.ok(nudge.includes("prefers-reduced-motion"));
+  const css = read("app/globals.css");
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.home-nudge-stack \{/);
 });
 
 test("scenes run in the new order and alternate", () => {
