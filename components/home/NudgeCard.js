@@ -13,7 +13,7 @@
  * twelve days before the March 14 flight on the Better together card.
  *
  * The second is a plan changing after it was booked: the dog was added to the
- * trip after the hotel was. The Hawaii date is real arithmetic: the state
+ * trip after the condo was. The Hawaii date is real arithmetic: the state
  * counts a 30-day wait from the day after the lab receives the rabies blood
  * sample (dab.hawaii.gov, 5 Day Or Less program), so a February 10 sample
  * clears a March 14 landing with a few days to spare.
@@ -30,12 +30,12 @@ const NUDGES = [
   },
   {
     stamp: "Maui · February 3",
-    text: "Biscuit is coming now, but the hotel doesn’t allow pets. Two pet-friendly rentals nearby fit the dates, and the hotel cancels free until February 20. Hawaii also needs her rabies blood test at the lab by February 10.",
+    text: "Biscuit is coming now, but the condo doesn’t allow pets. Two pet-friendly condos nearby fit the dates, and the condo cancels free until February 20. Hawaii also needs her rabies blood test at the lab by February 10.",
     act: "See pet-friendly stays",
   },
   {
     stamp: "Kīhei · Tuesday, 11:10 am",
-    text: "Rain is forecast at 2. Lunch at the hotel moves to 12:30 and the Mākena snorkel stays dry. Sunset walk unchanged.",
+    text: "Rain is forecast at 2. Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry. Sunset walk unchanged.",
     act: "Apply",
   },
 ];
