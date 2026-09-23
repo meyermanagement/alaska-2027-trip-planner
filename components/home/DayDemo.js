@@ -7,6 +7,7 @@ import { CATEGORY_ICONS, STATUS_STYLES, formatDay, formatTime } from "@/lib/form
 import { PHASE_CLASS, PHASE_LABEL, minutesUntil, untilSaid } from "@/lib/day/phase";
 import { dayWithoutNumbers, hedgeSaid } from "@/lib/weather/forecast";
 import { distanceSaid } from "@/lib/travel/route";
+import { isReviewable } from "@/lib/reviews/when";
 
 /**
  * The While you are there scene, as the day view itself rather than a picture
@@ -45,8 +46,8 @@ const DAYS = [
     date: "2026-03-14",
     stay: "Arriving today",
     items: [
-      { id: "fl", category: "flight", start_time: "09:40", title: "Flight to Kahului", location: "OGG", status: "confirmed", stars: 4 },
-      { id: "car", category: "transport", start_time: "10:30", title: "Rental car pickup", location: "Kahului Airport", status: "confirmed", stars: 3 },
+      { id: "fl", category: "flight", start_time: "09:40", title: "Flight to Kahului", location: "OGG", status: "confirmed" },
+      { id: "car", category: "transport", start_time: "10:30", title: "Rental car pickup", location: "Kahului Airport", status: "confirmed" },
       { id: "in", category: "lodging", start_time: "16:00", title: "Check in, the condo", location: "Kīhei", status: "confirmed", stars: 5 },
     ],
   },
@@ -60,7 +61,7 @@ const DAYS = [
   {
     date: "2026-03-16",
     items: [
-      { id: "hana", category: "transport", start_time: "07:00", title: "Road to Hāna", location: "Hāna Highway", status: "planned", stars: 4 },
+      { id: "hana", category: "transport", start_time: "07:00", title: "Road to Hāna", location: "Hāna Highway", status: "planned" },
       { id: "fish", category: "dining", start_time: "18:30", title: "Dinner, fish counter by the harbor", location: "Kīhei", status: "planned", stars: 5 },
     ],
   },
@@ -369,7 +370,7 @@ function DoneRow({ item, onOpen }) {
           <span className="block truncate">{item.title}</span>
           <span className="tabular flex items-center gap-1.5 text-xs">
             <span className="font-semibold tracking-[0.01em]">{formatTime(item.start_time)}</span>
-            {item.stars ? <Stars n={item.stars} /> : null}
+            {item.stars && isReviewable(item) ? <Stars n={item.stars} /> : null}
           </span>
         </span>
       </button>
@@ -433,7 +434,7 @@ function Pack({ day }) {
     });
   const left = day.pack.length - ticked.size;
   return (
-    <div className="mt-3 rounded-[0.875rem] border border-teal/25 bg-teal/[0.04]">
+    <div className="mb-2 rounded-[0.875rem] border border-teal/25 bg-teal/[0.04]">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -503,14 +504,18 @@ function DayPanel({ day, index, active }) {
         </span>
       </div>
 
+      {/* The trip screen's order: the brief, where you are sleeping, the bag,
+          then the bookings. */}
+      {lived && day.weather && <Band day={day} isToday={isToday} />}
+      {day.early && <Early weather={day.early} daysOut={offset} />}
+
       <p className="mb-2.5 text-xs text-ink-soft">
         <span aria-hidden="true">{CATEGORY_ICONS.lodging} </span>
         {day.stay ? `${day.stay} · ` : ""}
         Staying at the condo, Kīhei
       </p>
 
-      {lived && day.weather && <Band day={day} isToday={isToday} />}
-      {day.early && <Early weather={day.early} daysOut={offset} />}
+      {day.pack && <Pack day={day} />}
 
       <div className="space-y-2">
         {day.items.map((item) => {
@@ -532,8 +537,6 @@ function DayPanel({ day, index, active }) {
           );
         })}
       </div>
-
-      {day.pack && <Pack day={day} />}
 
       {day.aly && (
         <p className="mt-3 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
