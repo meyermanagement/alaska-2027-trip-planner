@@ -214,9 +214,11 @@ test("the empty screen asks for a week, not a destination", () => {
 });
 
 test("the page shows each long-range state only at its own range", () => {
+  // The ranges are worked out where the reads are, in lib/now/load.js.
+  const load = read("lib/now/load.js");
+  assert.ok(load.includes("nextAhead(visible, today)"));
+  assert.ok(load.includes("const emptyHanded = !current.length && !soon.length && !ahead"));
   const src = read("app/now/page.js");
-  assert.ok(src.includes("nextAhead(visible, today)"));
-  assert.ok(src.includes("const emptyHanded = !current.length && !soon.length && !ahead"));
   assert.ok(src.includes("{ahead && ("));
   assert.ok(src.includes("{emptyHanded && ("));
 });

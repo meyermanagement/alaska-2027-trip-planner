@@ -1,118 +1,43 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { countNeedingAttention, todayISO } from "@/lib/reminders";
-import { loadHeaderNotices } from "@/lib/tips/load";
-import { isOnTrip, resolveAccess } from "@/lib/travelers/access";
-import { loadSetupState } from "@/lib/setup/state";
+import { todayISO } from "@/lib/reminders";
+import { isOnTrip } from "@/lib/travelers/access";
+import { requestMenu } from "@/lib/request/shared";
 import CurrentTripBanner from "./CurrentTripBanner";
 import HeaderUpdates from "./HeaderUpdates";
 import NavTabs from "./NavTabs";
 import PassportWarning from "./PassportWarning";
-import { unreadFares } from "@/lib/deals/unread";
 import FareArrivalSync from "./FareArrivalSync";
-import { tripMenuCounts } from "@/lib/trips/menuCounts";
-import { messagesNeedingTrip } from "@/lib/inbox/newTrip";
 
 // Pass nothing and the button opens the Ask Aly drawer on the current screen,
 // which is what every signed-in screen does. `askHref` is kept for any screen
 // that has no drawer mounted and needs to link somewhere instead.
 export default async function TopBar({ askHref, showAsk = true }) {
   // The menu carries the one number worth interrupting someone for: how many
-  // open tasks are late or urgent. It is read here, once, for every screen.
-  const supabase = await createClient();
-  const today = todayISO();
-  // Read here rather than on each screen, because a passport warning that appears
-  // on Trips and not on Packing is worse than no warning: it teaches you that the
-  // band is decorative. One read, one answer, every screen.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const [{ data: rows }, notices, access, inboxPending] = await Promise.all([
-    supabase
-      .from("predeparture_tasks")
-      .select("due_date, timing, priority, trips(start_date, end_date, status)")
-      .eq("is_done", false),
-    loadHeaderNotices(supabase, today),
-    // Which menu items to draw. Read here with everything else rather than on
-    // each screen, so the menu cannot differ from one page to the next.
-    resolveAccess(supabase, user),
-    // The count of unfiled inbox messages, so every page can announce that
-    // there is mail waiting rather than making the person go find it. A head
-    // count of ids, no columns beyond what the row_estimate needs, and RLS is
-    // on the table so the count is already scoped to this person's family --
-    // there is no family_id filter on the query itself for the same reason.
-    // Anonymous callers get an error from RLS rather than a real count; the
-    // banner reads zero either way and does not draw.
-    // Ids rather than a head count, because the banner also has to say when one
-    // of these messages is a booking for a trip the family has not entered --
-    // and that needs the messages' dates, not just how many there are. A
-    // pending inbox is a handful of rows; reading their ids costs nothing.
-    supabase.from("inbox_messages").select("id").eq("status", "pending"),
-  ]);
-  const fareRows = access?.familyId && !access.can.isSecondary
-    ? await unreadFares(supabase, user?.id, access.familyId) : [];
-  const fareCount = fareRows.length;
-  const attention = countNeedingAttention(rows || [], today) + fareCount;
-  const inboxMessages = inboxPending?.data || [];
-  const inboxCount = inboxMessages.length;
-
-  // A secondary traveler has no read access to travel documents -- probed as Veda,
-  // traveler_documents returns nothing at all -- so the passport check sees an
-  // empty shelf and concludes nobody has one, which is how Veda came to be warned
-  // about passports she is not allowed to look at. That band goes.
+  // open tasks are late or urgent. It is read here, once, for every screen --
+  // and a passport warning that appeared on Trips and not on Packing would be
+  // worse than no warning, so the same read feeds the bands on every screen.
   //
-  // The urgent tips stay. They were dropped alongside the passports on the same
-  // sentence, and the sentence was only true of the passports: tips are readable
-  // by a secondary, they are advice rather than an errand, and "the shuttle takes
-  // cash only" is worth as much to the person getting on the shuttle as to the
-  // person who booked it. The buttons inside a tip card are gated separately.
-  const secondary = Boolean(access?.can.isSecondary);
+  // The reads themselves live in lib/menu/load.js and are shared per request:
+  // a screen that calls preloadMenu() has them running beside its own reads,
+  // and the access check is the same one the screen already made.
+  const today = todayISO();
+  const {
+    access,
+    secondary,
+    notices,
+    fareCount,
+    attention,
+    inboxCount,
+    inboxNeedsTrip,
+    setup,
+    tripCounts,
+  } = await requestMenu();
 
-  // What is left of the five things the welcome checklist asked for, so the menu
-  // can mark the rows the work is behind and count them. After the access read
-  // rather than alongside it, because it is scoped to the household and there is
-  // no household until resolveAccess has said which one. It costs one lookup by
-  // primary key for a family who has finished, and nothing at all for an invited
-  // member: see lib/setup/state.js for why it is a latch.
-  // Read the same classification fields used by the trip board, scoped to the
-  // selected household. All three menu totals use one date and one query.
-  const [setup, tripRows] = await Promise.all([
-    loadSetupState(supabase, {
-      familyId: access?.familyId,
-      travelerId: access?.travelerId,
-      today,
-      secondary,
-    }),
-    access?.familyId && !secondary
-      ? supabase
-          .from("trips")
-          .select("status, start_date, end_date")
-          .eq("family_id", access.familyId)
-      : Promise.resolve({ data: [] }),
-  ]);
-  const tripCounts = tripMenuCounts(tripRows?.data || [], today);
-
-  // How many of the waiting messages are about a week none of their trips
-  // covers. A booking with nowhere to go needs a different sentence from "file
-  // this": there is nothing to file it onto until a trip exists. Read only when
-  // there is mail waiting, so the usual render makes no extra query.
-  let inboxNeedsTrip = 0;
-  if (inboxCount > 0 && !secondary) {
-    const { data: itemRows } = await supabase
-      .from("inbox_parsed_items")
-      .select("message_id, item_date, end_date")
-      .in(
-        "message_id",
-        inboxMessages.map((m) => m.id),
-      )
-      .eq("status", "pending");
-    inboxNeedsTrip = messagesNeedingTrip({
-      messages: inboxMessages,
-      items: itemRows || [],
-      trips: tripRows?.data || [],
-      todayISO: today,
-    }).size;
-  }
+  // A secondary traveler has no read access to travel documents, so the passport
+  // check would see an empty shelf and warn them about passports they are not
+  // allowed to look at. That band goes. The urgent tips stay: they are advice,
+  // readable by a secondary, and the buttons inside a tip card are gated
+  // separately.
   const warnings = secondary ? [] : notices.warnings;
   const urgent = notices.urgent;
 

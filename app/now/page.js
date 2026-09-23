@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { whoIs } from "@/lib/supabase/who";
-import { resolveAccess } from "@/lib/travelers/access";
+import {
+  preloadMenu,
+  requestAccess,
+  requestClient,
+  requestUnreadFares,
+  requestWho,
+} from "@/lib/request/shared";
+import { loadNow } from "@/lib/now/load";
 import TopBar from "@/components/TopBar";
 import NowGreeting from "./NowGreeting";
 import NowTrips from "./NowTrips";
@@ -23,13 +28,11 @@ import {
 import {
   departureSaid,
   greetingFor,
-  homeTrips,
   progressOf,
   todaysPlan,
 } from "@/lib/now/home";
 import {
   aheadDates,
-  nextAhead,
   seasonAhead,
   seasonReason,
 } from "@/lib/now/ahead";
@@ -38,14 +41,11 @@ import { monthsSaid } from "@/lib/someday/months";
 import { farePriceLabel } from "@/lib/deals/award";
 import { fareHasExpired } from "@/lib/deals/deadline";
 import { offerEnded } from "@/lib/rewards-offers";
-import { BASIC_SELECT } from "@/lib/trips/basics";
-import { canSeeTrip, visibleTripIds } from "@/lib/trips/visibility";
 import { todayISO } from "@/lib/reminders";
 import { assigneeOptions } from "@/lib/tasks/assignees";
 import { remindersDueToday } from "@/lib/tasks/dueToday";
 import { tripContradictions } from "@/lib/trips/contradictions";
 import { tripPath, tripRef } from "@/lib/trips/route";
-import { unreadFares } from "@/lib/deals/unread";
 
 export const metadata = { title: "Now · Alyeska" };
 
@@ -70,161 +70,61 @@ function homeHour(now = new Date()) {
 // the same rows, whichever address somebody arrives on.
 
 export default async function NowPage() {
-  const supabase = await createClient();
-  const user = await whoIs(supabase);
+  const supabase = await requestClient();
+  const user = await requestWho();
   if (!user) redirect("/login");
+  // The menu's reads start now, beside this screen's own, instead of after the
+  // whole screen has been read. TopBar picks up the same promise when it draws.
+  preloadMenu();
 
-  const { data: memberships } = await supabase
-    .from("family_members")
-    .select("family_id")
-    .eq("user_id", user.id);
-  if (!memberships || memberships.length === 0) redirect("/join");
+  // One access check, shared with the menu. It carries every household this
+  // person belongs to, so the memberships are not read a second time here.
+  const access = await requestAccess();
+  if (!access) redirect("/join");
+  const today = todayISO();
 
-  const access = await resolveAccess(supabase, user);
   // A secondary traveler is here for the trips they are on. Everything else this
   // screen assembles -- the household's mail, the morning mailer, the saved
   // places, the fares and the card bonuses -- is either refused to them by the
   // database or a door that redirects them back to Trips, so it is not read and
   // not drawn. Two of those reads are family-member-wide rather than
-  // secondary-gated in RLS, which is exactly why the gate has to be here.
-  const secondary = Boolean(access?.can.isSecondary);
-  const familyIds = memberships.map((m) => m.family_id);
-  const today = todayISO();
-  const fareRows = access?.familyId && !secondary
-    ? await unreadFares(supabase, user.id, access.familyId) : [];
-
-  const [
-    { data: rows },
-    { data: travelers },
-    { data: runs },
-    { count: waiting },
-  ] = await Promise.all([
-    supabase
-      .from("predeparture_tasks")
-      .select(
-        "id, title, detail, assignee, due_date, timing, priority, is_done, trip_id, trips(id, name, slug, public_id, start_date, end_date, status, family_id)",
-      )
-      .eq("is_done", false)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("travelers")
-      .select(
-        "id, name, is_person, family_id, sort_order, email, wants_reminders",
-      )
-      .in("family_id", familyIds)
-      .order("sort_order", { ascending: true }),
-    secondary
-      ? Promise.resolve({ data: [] })
-      : supabase
-          .from("reminder_runs")
-          .select("ran_for, ran_at, source, considered, sent, failed, error")
-          .order("ran_at", { ascending: false })
-          .limit(6),
-    // Only the number. The list of what arrived lives on the Inbox screen; a
-    // band that reprinted it here would be a second inbox to keep in step.
-    secondary
-      ? Promise.resolve({ count: 0 })
-      : supabase
-          .from("inbox_messages")
-          .select("id", { count: "exact", head: true })
-          .in("family_id", familyIds)
-          .eq("status", "pending"),
-  ]);
-
-  const tasks = (rows || [])
-    .filter((row) => row.trips && !isPastTrip(row.trips))
-    .map(({ trips, ...task }) => ({ ...task, trip: trips }));
-
-  const trips = [
-    ...new Map(tasks.map((task) => [task.trip.id, task.trip])).values(),
-  ];
-  const { data: roster } = trips.length
-    ? await supabase
-        .from("trip_travelers")
-        .select("trip_id, traveler_id")
-        .in(
-          "trip_id",
-          trips.map((trip) => trip.id),
-        )
-    : { data: [] };
-
-  const assigneesByTrip = assigneeOptions({
-    trips,
-    travelers: travelers || [],
-    roster: roster || [],
+  // secondary-gated in RLS, which is exactly why the gate is in the loader.
+  // Every read lives in lib/now/load.js, in two rounds.
+  const {
+    secondary,
+    fareRows,
+    tasks,
+    taskTrips: trips,
+    travelers,
+    runs,
+    waiting,
+    visible,
+    current,
+    soon,
+    ahead,
+    emptyHanded,
+    longRange,
+    upcoming,
+    roster,
+    packingRows,
+    heroTasks,
+    planRows,
+    itinerary,
+    pets,
+    petLinks,
+    placeRows,
+    dealRows,
+    offerRows,
+  } = await loadNow(supabase, {
+    user,
+    access,
+    today,
+    unreadFares: (_client, userId, familyId) =>
+      requestUnreadFares(userId, familyId),
   });
+  const heroRoster = roster;
 
-  // The trips this screen leads with. Read from the trips table rather than from
-  // the trips that happen to have an outstanding task hanging off them: a trip
-  // whose list is finished is still the trip you are on.
-  const [{ data: tripRows }, allowedTripIds] = await Promise.all([
-    access?.familyId
-      ? supabase
-          .from("trips")
-          .select(
-            `id, name, slug, public_id, cover_emoji, status, cover_image_url, cover_image_alt, cover_image_status, lat, lon, family_id, ${BASIC_SELECT}`,
-          )
-          .eq("family_id", access.familyId)
-          .order("start_date", { ascending: true })
-      : Promise.resolve({ data: [] }),
-    visibleTripIds(supabase, access),
-  ]);
-
-  const visible = (tripRows || []).filter((trip) =>
-    canSeeTrip(trip, access, allowedTripIds),
-  );
-  const { current, soon } = homeTrips(visible, today);
-  // The nearest trip that is further out than the two-week window. Past that
-  // range packing and today's plan are both false comfort, so the screen leads
-  // with a countdown and the dates that will not wait instead.
-  const ahead = current.length || soon.length ? null : nextAhead(visible, today);
-  const emptyHanded = !current.length && !soon.length && !ahead;
-  const heroTrips = [
-    ...current,
-    ...soon.map((one) => one.trip),
-    ...(ahead ? [ahead.trip] : []),
-  ];
-  const heroIds = heroTrips.map((trip) => trip.id);
-
-  const [
-    { data: packingRows },
-    { data: heroTasks },
-    { data: planRows },
-    { data: heroRoster },
-  ] = heroIds.length
-    ? await Promise.all([
-        supabase
-          .from("packing_items")
-          .select("trip_id, is_packed")
-          .in("trip_id", heroIds)
-          .is("stashed_at", null),
-        supabase
-          .from("predeparture_tasks")
-          .select("id, trip_id, title, due_date, is_done")
-          .in("trip_id", heroIds)
-          .eq("is_done", false)
-          // Dated first and soonest of those, because a folded card can only
-          // carry three and the three worth carrying are the ones with a
-          // deadline on them.
-          .order("due_date", { ascending: true, nullsFirst: false })
-          .order("sort_order", { ascending: true }),
-        current.length
-          ? supabase
-              .from("itinerary_items")
-              .select(
-                "id, trip_id, item_date, end_date, start_time, sort_order, title, location, status",
-              )
-              .in(
-                "trip_id",
-                current.map((trip) => trip.id),
-              )
-          : Promise.resolve({ data: [] }),
-        supabase
-          .from("trip_travelers")
-          .select("trip_id, traveler_id")
-          .in("trip_id", heroIds),
-      ])
-    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+  const assigneesByTrip = assigneeOptions({ trips, travelers, roster });
 
   // One card, built the same way whether the trip is today's or next week's, so
   // the two plates cannot drift apart on what a number means.
@@ -277,31 +177,8 @@ export default async function NowPage() {
   const currentCards = current.map((trip) => buildCard(trip));
   const soonCards = soon.map((one) => buildCard(one.trip, one.days));
 
-  // The two long-range states. Both of them want the saved places and the open
-  // deadlines, so the reads are shared and only happen at those ranges: a family
-  // leaving tomorrow should not pay for a query about next spring.
-  const longRange = !secondary && (Boolean(ahead) || emptyHanded);
-  const [{ data: placeRows }, { data: dealRows }, { data: offerRows }] =
-    longRange && access?.familyId
-      ? await Promise.all([
-          supabase
-            .from("someday_places")
-            .select("id, place, why, months, status, priority")
-            .eq("family_id", access.familyId),
-          supabase
-            .from("flight_deals")
-            .select(
-              "id, destination, destination_code, price, price_basis, currency, award_pricing, book_by, book_by_inferred, source_name, status",
-            )
-            .eq("family_id", access.familyId)
-            .eq("status", "open"),
-          supabase
-            .from("card_offers")
-            .select("id, issuer, card_name, bonus_text, offer_ends_on, status")
-            .eq("family_id", access.familyId)
-            .eq("status", "open"),
-        ])
-      : [{ data: [] }, { data: [] }, { data: [] }];
+  // The two long-range states share the saved places and the open deadlines;
+  // the loader reads them only at those ranges.
 
   // Deadlines worked out against today rather than trusting the stored status:
   // a row is only written to expired when a pass runs, and this screen can be
@@ -501,43 +378,17 @@ export default async function NowPage() {
     return `${said.charAt(0).toUpperCase()}${said.slice(1)}.`;
   })();
 
-  // Contradictions, for the trips still ahead of us. Three queries for every
-  // trip at once rather than three per trip, and the animals are fetched once:
-  // the rule wants the pets on a trip, and the link rows are what say which
-  // those are.
-  const upcoming = [];
-  for (const trip of trips) {
-    if (!isPastTrip(trip, today)) upcoming.push(trip);
-  }
-  let clashes = [];
-  if (upcoming.length) {
-    const ids = upcoming.map((trip) => trip.id);
-    const [{ data: itinerary }, { data: pets }, { data: petLinks }] =
-      await Promise.all([
-        supabase
-          .from("itinerary_items")
-          .select("*")
-          .in("trip_id", ids)
-          .order("item_date", { ascending: true })
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("pets")
-          .select(
-            "id, name, species, color, weight_lb, travel_style, family_id, is_service_animal, rabies_expiration, health_certificate_expiration",
-          )
-          .in("family_id", familyIds),
-        supabase
-          .from("trip_pets")
-          .select("trip_id, pet_id, arrangement")
-          .in("trip_id", ids),
-      ]);
-
+  // Contradictions, for the trips still ahead of us. The itinerary, the animals
+  // and the links saying which animals go on which trip were read with the rest
+  // of the second round; the rule runs here, trip by trip.
+  const clashes = [];
+  {
     for (const trip of upcoming) {
       const found = tripContradictions({
         trip,
-        itinerary: (itinerary || []).filter((i) => i.trip_id === trip.id),
-        pets: pets || [],
-        petLinks: (petLinks || []).filter((l) => l.trip_id === trip.id),
+        itinerary: itinerary.filter((i) => i.trip_id === trip.id),
+        pets,
+        petLinks: petLinks.filter((l) => l.trip_id === trip.id),
         today,
       });
       const ref = tripRef(trip);

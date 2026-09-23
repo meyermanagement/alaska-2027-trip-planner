@@ -26,7 +26,7 @@ function setup({ user = { id: "me" }, secondary = false, trip = null, place = nu
         upsert(value) { call.action = "upsert"; call.value = value; return q; },
         then(resolve, reject) {
           const data = table === "family_members" ? [{ family_id: "family" }]
-            : table === "travelers" ? [{ id: "traveler", access_level: secondary ? "secondary" : "primary", is_person: true }]
+            : table === "travelers" ? [{ id: "traveler", family_id: "family", access_level: secondary ? "secondary" : "primary", is_person: true }]
             : table === "trips" ? trip : table === "someday_places" ? place
             : table === "flight_deals" ? (call.single ? { id: "fare", ...fare, ...call.value } : [{ id: "fare" }])
             : [];
