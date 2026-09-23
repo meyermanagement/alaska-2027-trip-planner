@@ -1099,11 +1099,20 @@ export default function ChatPanel({
                 : undefined
             }
             className={
-              m.role === "user" ? "flex justify-end" : "flex justify-start"
+              m.role === "user"
+                ? "flex justify-end"
+                : m.places?.length
+                  ? "flex flex-col items-start gap-3"
+                  : "flex justify-start"
             }
           >
+            {/* A shortlist with nothing said over it gets no empty bubble. */}
+            {(!m.places?.length ||
+              String(m.text || "").trim() ||
+              m.links?.length ||
+              m.sources?.length) && (
             <div
-              className={`${m.places?.length ? "w-full" : "max-w-[85%]"} rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                 m.role === "user"
                   ? "bg-teal text-on-accent"
                   : m.kind === "receipt"
@@ -1139,43 +1148,62 @@ export default function ChatPanel({
                 }}
               />
               <MessageSources sources={m.sources} />
-              <PlaceCards
-                places={m.places}
-                busy={busy}
-                here={m.here || here}
-                onAdd={(place) => send(addRequest(place))}
-                onMore={(place) => send(moreRequest(place))}
-                /* Only under the newest shortlist, and asking for more of what
-                   this list is -- not of whatever else the conversation has
-                   shown. Everything on screen is passed as well, but only so
-                   that pressing the button twice cannot hand back the first
-                   helping; the kind being asked for comes from these cards. */
-                onFindMore={
-                  i === lastPlaces && !busy && !pending
-                    ? () => send(findMoreRequest(shownPlaces, m.places))
-                    : undefined
-                }
-                /* Offered beside it, on the same list, and for the same
-                   reason: the app filters every shortlist through the
-                   preferences, and a filter nobody can see is a decision
-                   nobody made. This asks what the place is known for instead,
-                   and makes each answer say which preference it cuts against. */
-                onAlternatives={
-                  i === lastPlaces && !busy && !pending
-                    ? () => send(alternativesRequest(shownPlaces, m.places))
-                    : undefined
-                }
-              />
-              {/* Only under the last answer, and never while she is mid-sentence
-                  on the next one. */}
-              {i === messages.length - 1 && !busy && !pending && (
-                <Followups
-                  questions={m.followups}
-                  busy={busy}
-                  onAsk={(q) => send(q)}
-                />
-              )}
+              {!m.places?.length &&
+                i === messages.length - 1 &&
+                !busy &&
+                !pending && (
+                  <Followups
+                    questions={m.followups}
+                    busy={busy}
+                    onAsk={(q) => send(q)}
+                  />
+                )}
             </div>
+            )}
+            {/* Out of the bubble, on the panel itself. Inside it, the cards
+                started eight pixels under the last sentence in the same sand,
+                and the answer and the shortlist read as one long reply. The
+                bubble is what Aly said; the cards under it are the places. */}
+            {m.places?.length ? (
+              <div className="w-full">
+                <PlaceCards
+                  places={m.places}
+                  busy={busy}
+                  here={m.here || here}
+                  onAdd={(place) => send(addRequest(place))}
+                  onMore={(place) => send(moreRequest(place))}
+                  /* Only under the newest shortlist, and asking for more of what
+                     this list is -- not of whatever else the conversation has
+                     shown. Everything on screen is passed as well, but only so
+                     that pressing the button twice cannot hand back the first
+                     helping; the kind being asked for comes from these cards. */
+                  onFindMore={
+                    i === lastPlaces && !busy && !pending
+                      ? () => send(findMoreRequest(shownPlaces, m.places))
+                      : undefined
+                  }
+                  /* Offered beside it, on the same list, and for the same
+                     reason: the app filters every shortlist through the
+                     preferences, and a filter nobody can see is a decision
+                     nobody made. This asks what the place is known for instead,
+                     and makes each answer say which preference it cuts against. */
+                  onAlternatives={
+                    i === lastPlaces && !busy && !pending
+                      ? () => send(alternativesRequest(shownPlaces, m.places))
+                      : undefined
+                  }
+                />
+                {/* Only under the last answer, and never while she is mid-sentence
+                    on the next one. */}
+                {i === messages.length - 1 && !busy && !pending && (
+                  <Followups
+                    questions={m.followups}
+                    busy={busy}
+                    onAsk={(q) => send(q)}
+                  />
+                )}
+              </div>
+            ) : null}
           </div>
         ))}
 
