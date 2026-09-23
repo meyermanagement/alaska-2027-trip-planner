@@ -440,11 +440,11 @@ export async function middleware(request) {
 }
 
 export const config = {
-  // Node rather than the edge, so this runs in the function region (pdx1, set in
-  // vercel.json) beside the database in Oregon. On the edge it ran in whichever
-  // city was nearest the visitor -- Columbus for a family in Missouri -- and every
-  // account check it made crossed the country and back before the page started.
-  runtime: "nodejs",
+  // Edge, the default. Node was tried (September 22, 2026) to move this beside
+  // the database in Oregon, but Vercel still ran it near the visitor -- the
+  // database logs kept reading Columbus -- and each burst of link prefetches
+  // started fresh Node instances that each fetched the signing key again. No
+  // runtime is named, so the edge applies.
   // sw.js and manifest.webmanifest are named for the same reason as data/ below.
   // A browser fetching either of them unauthenticated was answered with the login
   // page, so the service worker never registered and the site could never be

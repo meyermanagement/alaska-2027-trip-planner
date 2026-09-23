@@ -81,10 +81,12 @@ test("nothing about the account is remembered between requests", () => {
   assert.equal((mw.match(/accountChecks\(/g) || []).length, 1);
 });
 
-test("middleware runs on Node, so it runs in the function region", () => {
+test("middleware stays on the edge; Node ran near the visitor anyway", () => {
   const mw = read("middleware.js");
   const config = mw.slice(mw.indexOf("export const config"));
-  assert.match(config, /runtime:\s*"nodejs"/);
+  assert.doesNotMatch(config, /runtime:/);
+  assert.doesNotMatch(mw, /runtime:\s*"nodejs"/);
+  // Pages and API routes still run beside the database.
   const vercel = JSON.parse(read("vercel.json"));
   assert.deepEqual(vercel.regions, ["pdx1"]);
 });
