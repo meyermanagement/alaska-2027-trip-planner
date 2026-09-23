@@ -47,7 +47,7 @@ export default async function WaitlistPage() {
     await Promise.all([
       admin
         .from("waitlist")
-        .select("id, email, household_size, organizer, created_at")
+        .select("id, first_name, last_name, email, household_size, organizer, created_at")
         .order("created_at", { ascending: true })
         .limit(CEILING),
       admin

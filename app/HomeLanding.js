@@ -793,16 +793,10 @@ export default function HomeLanding({ waitlist } = {}) {
           <h2 className="ma-in font-display text-[28px] font-semibold leading-tight sm:text-[36px]">
             No ads. No commissions. Just the memories that matter.
           </h2>
-          <div
-            className="ma-in mt-6 flex flex-wrap items-center justify-center gap-3"
-            style={{ animationDelay: "80ms" }}
-          >
-            <Link href="/login" className="btn btn-primary ma-cta">
-              Meet Aly
-            </Link>
-          </div>
           {/* For everybody without an invite code, which is most people who
-              read this far. See components/home/WaitlistForm.js. */}
+              read this far, so the waitlist is the only action here. Testers
+              who already have an account use Sign in at the top of the page.
+              See components/home/WaitlistForm.js. */}
           <WaitlistForm initial={waitlist} />
           <p
             className="ma-fade mt-4 text-[13px] text-ink-soft"

@@ -103,13 +103,20 @@ test("roadmap lines are dated and plain", () => {
 
 test("waitlist validation", () => {
   const { waitlistEntry, makeThrottle } = jiti("../lib/home/waitlist.js");
-  assert.deepEqual(waitlistEntry({ email: "  Dani@Example.COM ", household_size: "6", organizer: "on" }),
-    { ok: true, row: { email: "dani@example.com", household_size: 6, organizer: true, source: "home" } });
-  assert.equal(waitlistEntry({ email: "a@b.co" }).row.household_size, null);
-  assert.equal(waitlistEntry({ email: "a@b.co" }).row.organizer, false);
-  assert.equal(waitlistEntry({ email: "a@b.co", household_size: "6+" }).row.household_size, 6);
-  for (const bad of ["", "nope", "a@b", "a b@c.co", `${"x".repeat(250)}@b.co`, 7]) assert.equal(waitlistEntry({ email: bad }).ok, false);
-  for (const size of ["0", "7", "two", "2.5"]) assert.equal(waitlistEntry({ email: "a@b.co", household_size: size }).field, "household_size");
+  const who = { first_name: "Dani", last_name: "Kahale" };
+  assert.deepEqual(waitlistEntry({ first_name: "  Dani ", last_name: " de  la Cruz ", email: "  Dani@Example.COM ", household_size: "6", organizer: "on" }),
+    { ok: true, row: { first_name: "Dani", last_name: "de la Cruz", email: "dani@example.com", household_size: 6, organizer: true, source: "home" } });
+  assert.equal(waitlistEntry({ ...who, email: "a@b.co" }).row.household_size, null);
+  assert.equal(waitlistEntry({ ...who, email: "a@b.co" }).row.organizer, false);
+  assert.equal(waitlistEntry({ ...who, email: "a@b.co", household_size: "6+" }).row.household_size, 6);
+  for (const bad of ["", "nope", "a@b", "a b@c.co", `${"x".repeat(250)}@b.co`, 7]) assert.equal(waitlistEntry({ ...who, email: bad }).field, "email");
+  for (const size of ["0", "7", "two", "2.5"]) assert.equal(waitlistEntry({ ...who, email: "a@b.co", household_size: size }).field, "household_size");
+  // Both names are required, in the order the form asks for them.
+  assert.equal(waitlistEntry({ email: "a@b.co" }).field, "first_name");
+  assert.equal(waitlistEntry({ first_name: "   ", last_name: "K", email: "a@b.co" }).field, "first_name");
+  assert.equal(waitlistEntry({ first_name: "Dani", email: "a@b.co" }).field, "last_name");
+  assert.equal(waitlistEntry({ first_name: "x".repeat(81), last_name: "K", email: "a@b.co" }).field, "first_name");
+  assert.equal(waitlistEntry({ first_name: "Da\u0000ni", last_name: "K", email: "a@b.co" }).row.first_name, "Dani");
   assert.deepEqual(waitlistEntry({ email: "", website: "http://spam" }), { ok: true, spam: true });
   const allow = makeThrottle({ limit: 2, windowMs: 1000 });
   assert.equal(allow("ip", 0), true); assert.equal(allow("ip", 1), true); assert.equal(allow("ip", 2), false);
@@ -125,6 +132,9 @@ test("waitlist route and form: public, one answer for repeats, no-JS path", () =
   assert.match(form, /method="post" action="\/api\/waitlist"/);
   assert.match(form, /id="waitlist"/);
   assert.ok(form.includes("I organize trips for a group or an organization."));
+  assert.match(form, /name="first_name"[\s\S]*?autoComplete="given-name"[\s\S]*?required/);
+  assert.match(form, /name="last_name"[\s\S]*?autoComplete="family-name"[\s\S]*?required/);
+  assert.ok(form.indexOf('name="first_name"') < form.indexOf('name="email"'));
   assert.ok(form.includes("Never sold or shared."));
 });
 
@@ -147,4 +157,19 @@ test("the example chat is the same trip as the rest of the page", async () => {
   assert.ok(text.includes("the four of you"));
   assert.ok(!/Rivera|three of you|whale|Wednesday/i.test(text));
   assert.ok(home.includes("Mia&rsquo;s light jacket") && text.includes("Mia's light jacket"));
+});
+
+test("waitlist names: migration, privacy, and the closing section offers only the waitlist", () => {
+  const sql = read("supabase/migrations/20261017_waitlist_names.sql");
+  assert.match(sql, /add column if not exists first_name text/);
+  assert.match(sql, /add column if not exists last_name text/);
+  assert.match(sql, /char_length\(first_name\) between 1 and 80/);
+  assert.ok(read("lib/privacy.js").includes("What we keep: your first and last name, your email address"));
+  const page = read("app/HomeLanding.js");
+  const closing = page.slice(page.indexOf("No ads. No commissions."));
+  assert.ok(closing.includes("<WaitlistForm"));
+  assert.doesNotMatch(closing, /href="\/login"/);
+  assert.doesNotMatch(page, /Meet Aly\s*<\/Link>/);
+  // Testers with an account still have a way in, at the top.
+  assert.match(page, /href="\/login"[\s\S]*?Sign in/);
 });

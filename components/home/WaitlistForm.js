@@ -8,7 +8,7 @@ const SIZES = [
 ];
 
 const LANDED = {
-  invalid: "That email address doesn't look right.",
+  invalid: "Check your name and email address.",
   error: "Couldn't save that. Please try again.",
 };
 
@@ -17,19 +17,21 @@ const LANDED = {
  *
  * Posts to /api/waitlist with fetch. Without JavaScript the same form posts
  * normally and the route sends the browser back to /#waitlist with the outcome,
- * which app/page.js hands in as `initial`. Three questions only: the address,
- * how many travel, and whether this is somebody who organizes for a group --
- * the last is how the Groups pilot finds its first organizers.
+ * which app/page.js hands in as `initial`. A name, the address, how many
+ * travel, and whether this is somebody who organizes for a group -- the last
+ * is how the Groups pilot finds its first organizers.
  */
 export default function WaitlistForm({ initial }) {
   const [state, setState] = useState(initial === "joined" ? "joined" : "idle");
   const [error, setError] = useState(LANDED[initial] || "");
+  const [field, setField] = useState("");
 
   async function submit(event) {
     event.preventDefault();
     if (state === "busy") return;
     setState("busy");
     setError("");
+    setField("");
     const data = Object.fromEntries(new FormData(event.currentTarget));
     try {
       const res = await fetch("/api/waitlist", {
@@ -40,6 +42,7 @@ export default function WaitlistForm({ initial }) {
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.ok) { setState("joined"); return; }
       setError(body.error || "Couldn't save that. Please try again.");
+      setField(body.field || "");
     } catch {
       setError("Couldn't reach Alyeska. Check the connection and try again.");
     }
@@ -59,6 +62,36 @@ export default function WaitlistForm({ initial }) {
         </p>
       ) : (
         <form method="post" action="/api/waitlist" onSubmit={submit} className="mt-5 space-y-4">
+          <div className="grid gap-4 min-[420px]:grid-cols-2">
+            <div>
+              <label htmlFor="waitlist-first" className="block text-sm font-semibold text-ink">First name</label>
+              <input
+                id="waitlist-first"
+                name="first_name"
+                type="text"
+                autoComplete="given-name"
+                maxLength={80}
+                required
+                className="field mt-1 w-full"
+                aria-invalid={field === "first_name" ? "true" : undefined}
+                aria-describedby={field === "first_name" ? "waitlist-error" : undefined}
+              />
+            </div>
+            <div>
+              <label htmlFor="waitlist-last" className="block text-sm font-semibold text-ink">Last name</label>
+              <input
+                id="waitlist-last"
+                name="last_name"
+                type="text"
+                autoComplete="family-name"
+                maxLength={80}
+                required
+                className="field mt-1 w-full"
+                aria-invalid={field === "last_name" ? "true" : undefined}
+                aria-describedby={field === "last_name" ? "waitlist-error" : undefined}
+              />
+            </div>
+          </div>
           <div>
             <label htmlFor="waitlist-email" className="block text-sm font-semibold text-ink">Email</label>
             <input
@@ -70,7 +103,7 @@ export default function WaitlistForm({ initial }) {
               maxLength={254}
               required
               className="field mt-1 w-full"
-              aria-invalid={error ? "true" : undefined}
+              aria-invalid={field === "email" || (error && !field) ? "true" : undefined}
               aria-describedby={error ? "waitlist-error" : undefined}
             />
           </div>

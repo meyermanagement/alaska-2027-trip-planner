@@ -88,7 +88,8 @@ export default function WaitlistDesk({ rows = [], keyMissing, readError }) {
   function start(row) {
     setOpen(row.id);
     setConfirming(null);
-    setName("");
+    // The name they gave on the form, so Aly opens with it unless you change it.
+    setName(row.firstName || "");
     setNote("");
     setSaid(null);
     setWrong(null);
@@ -223,10 +224,13 @@ export default function WaitlistDesk({ rows = [], keyMissing, readError }) {
             <li key={row.id} className="card p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <span className="min-w-0 text-sm font-semibold [overflow-wrap:anywhere] sm:text-base">
-                  {row.email}
+                  {row.fullName || row.email}
                 </span>
                 <span className={chip.className}>{chip.label}</span>
               </div>
+              {row.fullName ? (
+                <p className="mt-0.5 text-sm text-ink-soft [overflow-wrap:anywhere]">{row.email}</p>
+              ) : null}
 
               <div className="mt-1.5 space-y-0.5 text-xs text-ink-soft">
                 <p>

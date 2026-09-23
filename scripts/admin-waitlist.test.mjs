@@ -8,7 +8,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const now = new Date("2026-09-24T12:00:00Z");
 
 const entries = [
-  { id: "a", email: "first@example.com", created_at: "2026-09-20T00:00:00Z", household_size: 4 },
+  { id: "a", first_name: "Dani", last_name: "Kahale", email: "first@example.com", created_at: "2026-09-20T00:00:00Z", household_size: 4 },
   { id: "b", email: "second@example.com", created_at: "2026-09-21T00:00:00Z", organizer: true },
   { id: "c", email: "sent@example.com", created_at: "2026-09-19T00:00:00Z" },
   { id: "d", email: "spent@example.com", created_at: "2026-09-18T00:00:00Z" },
@@ -37,6 +37,18 @@ test("each waitlist address is placed from the codes table and accounts", () => 
   // In by another door: said, and nothing to send.
   assert.equal(by.f.state, "joined");
   assert.equal(by.f.viaAccount, true);
+});
+
+test("a name from the form heads the row; older entries fall back to the address", () => {
+  const rows = waitlistRows(entries, codes, new Set(), now);
+  const by = Object.fromEntries(rows.map((row) => [row.id, row]));
+  assert.equal(by.a.fullName, "Dani Kahale");
+  assert.equal(by.a.firstName, "Dani");
+  assert.equal(by.b.fullName, null);
+  const desk = read("app/admin/waitlist/WaitlistDesk.js");
+  assert.match(desk, /\{row\.fullName \|\| row\.email\}/);
+  assert.match(desk, /setName\(row\.firstName \|\| ""\)/);
+  assert.match(read("app/admin/waitlist/page.js"), /select\("id, first_name, last_name, email/);
 });
 
 test("waiting comes first, oldest first; the rest newest first", () => {
