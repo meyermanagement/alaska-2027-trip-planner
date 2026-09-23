@@ -30,7 +30,7 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.ok(nudge.includes("Dani’s driver’s license expires March 2, twelve days before the flight"));
   assert.ok(nudge.includes('act: "Add reminder"') && nudge.includes('act: "Apply"'));
   assert.doesNotMatch(nudge.split("const NUDGES")[1], /passport/i);
-  assert.match(nudge.replace(/\s+/g, " "), /Rain is forecast at 2\. Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry\. Sunset walk unchanged\./);
+  assert.match(nudge.replace(/\s+/g, " "), /Rain is forecast at 2\. Lunch at the hotel moves to 12:30 and the Mākena snorkel stays dry\. Sunset walk unchanged\./);
   assert.match(nudge.replace(/\s+/g, " "), /A real nudge is built from your own trip, your own travelers, and your own wallet\. You choose what changes\./);
   assert.ok(nudge.includes(">Example<"));
   assert.ok(nudge.includes("NUDGES.map"));

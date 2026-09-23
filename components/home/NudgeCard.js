@@ -35,7 +35,7 @@ const NUDGES = [
   },
   {
     stamp: "Kīhei · Tuesday, 11:10 am",
-    text: "Rain is forecast at 2. Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry. Sunset walk unchanged.",
+    text: "Rain is forecast at 2. Lunch at the hotel moves to 12:30 and the Mākena snorkel stays dry. Sunset walk unchanged.",
     act: "Apply",
   },
 ];
