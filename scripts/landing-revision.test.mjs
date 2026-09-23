@@ -180,7 +180,7 @@ test("the example day follows the trip screen: bag first, reviews only where the
   assert.ok(panel.indexOf("<Pack day={day} />") < panel.indexOf("day.items.map"), "day pack above the bookings");
   assert.match(day, /item\.stars && isReviewable\(item\)/);
   for (const line of day.split("\n").filter((l) => /stars: \d/.test(l)))
-    assert.match(line, /category: "(lodging|dining|excursion|activity)"/, line.trim().slice(0, 60));
+    assert.match(line, /category: "(dining|excursion|activity)"/, line.trim().slice(0, 60));
 });
 
 test("waitlist names: migration, privacy, and the closing section offers only the waitlist", () => {

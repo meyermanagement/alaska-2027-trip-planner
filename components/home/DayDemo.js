@@ -48,7 +48,7 @@ const DAYS = [
     items: [
       { id: "fl", category: "flight", start_time: "09:40", title: "Flight to Kahului", location: "OGG", status: "confirmed" },
       { id: "car", category: "transport", start_time: "10:30", title: "Rental car pickup", location: "Kahului Airport", status: "confirmed" },
-      { id: "in", category: "lodging", start_time: "16:00", title: "Check in, the condo", location: "Kīhei", status: "confirmed", stars: 5 },
+      { id: "in", category: "lodging", start_time: "16:00", title: "Check in, the condo", location: "Kīhei", status: "confirmed" },
     ],
   },
   {
