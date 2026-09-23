@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import ConversationList from "./ConversationList";
 import { ASK_ALY_EVENT } from "./AskAlyTrigger";
+import { tripForPanel } from "@/lib/agent/conversationScope";
 
 // `trip` may be null, which puts Aly in general mode: she sees every trip and
 // can create or delete one, but cannot touch what is inside them.
@@ -286,6 +287,8 @@ export default function AskAlyDrawer({
 
   if (!open) return null;
 
+  const panelTrip = tripForPanel(trip, current);
+
   const panel = (
     <>
       {resuming ? (
@@ -298,14 +301,20 @@ export default function AskAlyDrawer({
         </div>
       ) : current ? (
         <ChatPanel
-          trip={trip}
+          // Only when this conversation is about the page's trip. One picked
+          // from the list keeps its own, which the panel sends instead.
+          trip={panelTrip}
           onApplied={noteApplied}
           onClose={close}
           onBack={() => {
             forgetSeedText();
             setCurrent(null);
           }}
-          focus={seed?.focus || focus}
+          // The page's section goes with the page's trip, and no further.
+          focus={
+            seed?.focus ||
+            (trip?.id && !panelTrip ? current?.focus || null : focus)
+          }
           seed={seed?.text}
           autoSendSeed={seed?.autoSend}
           onSeedUsed={forgetSeedText}
@@ -346,6 +355,7 @@ export default function AskAlyDrawer({
               tripId: conversation.tripId || null,
               tripRef: conversation.tripRef || null,
               tripName: conversation.tripName,
+              focus: conversation.focus || null,
             });
           }}
         />

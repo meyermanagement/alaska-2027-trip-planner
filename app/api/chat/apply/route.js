@@ -29,6 +29,10 @@ import { sendTravelerInvite, siteOrigin } from "@/lib/email/sendInvite";
 import { REFUSAL, SECONDARY, resolveAccess } from "@/lib/travelers/access";
 import { tripPath, tripRef, freeTripSlug } from "@/lib/trips/route";
 import { BASIC_IDS, basicColumn } from "@/lib/trips/basics";
+import {
+  readConversationScope,
+  scopeToConversation,
+} from "@/lib/agent/conversationScope";
 
 export const runtime = "nodejs";
 // Writing eighty rows one at a time can outlast the default budget, and so can
@@ -164,7 +168,6 @@ export async function POST(request) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
 
-  const tripId = payload?.tripId || null;
   const incoming = Array.isArray(payload?.actions) ? payload.actions : [];
   if (incoming.length === 0) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
@@ -198,6 +201,19 @@ export async function POST(request) {
       { status: 403 },
     );
   }
+
+  // Changes land on the conversation's trip, never on the page it was opened
+  // over. See conversationScope.js.
+  const named =
+    typeof payload?.conversationId === "string" ? payload.conversationId : null;
+  const conversationRow = await readConversationScope(supabase, named).catch(
+    () => null,
+  );
+  const { tripId } = scopeToConversation({
+    conversation: conversationRow,
+    tripId: payload?.tripId || null,
+    focus: null,
+  });
 
   if (tripId) {
     const { data: trip } = await supabase
@@ -1108,10 +1124,8 @@ export async function POST(request) {
     (tripId && deletedTripIds.includes(tripId) ? null : tripId) ||
     createdTripId;
   const { id: conversationId } = await ensureConversation(supabase, user.id, {
-    conversationId:
-      typeof payload?.conversationId === "string"
-        ? payload.conversationId
-        : null,
+    conversationId: named,
+    known: conversationRow,
     tripId: receiptTripId,
   });
   // And the thread itself follows the trip it built -- see

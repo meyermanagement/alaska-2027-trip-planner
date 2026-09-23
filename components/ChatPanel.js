@@ -36,6 +36,7 @@ import RichText from "./RichText";
 import { askPlaceholder } from "@/lib/agent/placeholders";
 import { askedOfYou } from "@/lib/agent/asking";
 import Followups from "./Followups";
+import { askTripId } from "@/lib/agent/conversationScope";
 
 // What a receipt looks like once it has earned its colour. Amber is the honest
 // answer for a card where some of it landed and some of it did not: neither the
@@ -312,7 +313,11 @@ export default function ChatPanel({
   // The request in flight, so the Stop offered after five seconds does something
   // rather than merely hiding the fact that it is still going.
   const askRef = useRef(null);
-  const tripId = trip?.id || null;
+  // The trip each question and approval is about: the one on screen when this
+  // conversation is about it, otherwise the conversation's own. The page's trip
+  // no longer rides along with a conversation picked from the list.
+  const tripId = askTripId(trip, conversationTripId);
+  const pageTripId = trip?.id || null;
   const router = useRouter();
   // Held in a ref as well as a prop because a brand-new conversation gets its id
   // mid-flight, and the very next request — approving a card, say — has to be
@@ -777,7 +782,7 @@ export default function ChatPanel({
       // The trip this panel belongs to is gone, so refreshing would re-render a
       // page for a trip that no longer exists and land on a 404. Replace rather
       // than push: going Back should not return to a trip that was deleted.
-      if (tripId && (data.deletedTripIds || []).includes(tripId)) {
+      if (pageTripId && (data.deletedTripIds || []).includes(pageTripId)) {
         router.replace("/trips");
         // The trips list was rendered before the trip was deleted, and moving to
         // it reuses what the router already has, so the trip they just deleted

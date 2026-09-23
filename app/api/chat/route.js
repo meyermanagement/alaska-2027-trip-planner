@@ -76,6 +76,10 @@ import {
   toModelMessages,
 } from "@/lib/agent/thread";
 import { homeToday } from "@/lib/format";
+import {
+  readConversationScope,
+  scopeToConversation,
+} from "@/lib/agent/conversationScope";
 
 export const runtime = "nodejs";
 // Sixty seconds was the whole request, and one grounded question no longer fits
@@ -176,10 +180,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
 
-  const tripId = payload?.tripId;
+  const pageTripId = payload?.tripId;
   // Which section of the trip the user was looking at, or "new_trip" when they
   // came from the trip builder screen. Whitelisted so it can only ever be one of ours.
-  const focus = isKnownFocus(payload?.focus) ? payload.focus : null;
+  const pageFocus = isKnownFocus(payload?.focus) ? payload.focus : null;
   // The client sends only what was just typed. The conversation itself lives in
   // chat_messages, so it survives a reload, a different device, and a change of
   // model provider.
@@ -252,6 +256,20 @@ export async function POST(request) {
   // Whether this person may ask Aly to change things, or only to answer; and
   // Aly always sees the whole app -- a trip id only says which trip is open, so
   // it becomes the default target for anything the user does not pin elsewhere.
+  // The conversation's own trip, not the page's. See conversationScope.js.
+  const named =
+    typeof payload?.conversationId === "string" ? payload.conversationId : null;
+  const conversationRow = await readConversationScope(supabase, named).catch(
+    () => null,
+  );
+  const scoped = scopeToConversation({
+    conversation: conversationRow,
+    tripId: pageTripId,
+    focus: pageFocus,
+  });
+  const tripId = scoped.tripId;
+  const focus = isKnownFocus(scoped.focus) ? scoped.focus : null;
+
   const [access, snapshot, conversationList] = await Promise.all([
     resolveAccess(supabase, user),
     loadEverything(supabase, user.id, tripId || null, said, focus),
@@ -270,10 +288,8 @@ export async function POST(request) {
   // back with the reply.
   const { id: conversationId, created: conversationCreated } =
     await ensureConversation(supabase, user.id, {
-      conversationId:
-        typeof payload?.conversationId === "string"
-          ? payload.conversationId
-          : null,
+      conversationId: named,
+      known: conversationRow,
       tripId: threadTripId,
       focus,
     });
