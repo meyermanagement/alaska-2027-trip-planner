@@ -93,6 +93,23 @@ test("unmount cancels pending readiness", () => {
   assert.equal(h.cancelled, 1);
 });
 
+test("Home starts its visibility and reading timers only after boot readiness", () => {
+  const source = readFileSync(
+    new URL("../components/home/AskDemo.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const booted = useBooted\(\)/);
+  assert.match(
+    source,
+    /if \(!booted \|\| !playing \|\| started\) return undefined/,
+  );
+  assert.match(source, /\[booted, playing, started\]/);
+  assert.match(
+    source,
+    /else if \(!seen\) \{\s*clearTimeout\(beat\);\s*clearTimeout\(lead\)/,
+  );
+});
+
 test("the opening plays once, holds the final word, and fades without an extra tail", () => {
   const css = readFileSync(
     new URL("../app/globals.css", import.meta.url),

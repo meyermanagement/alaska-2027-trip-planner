@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
+import AskDemo from "@/components/home/AskDemo";
 import BetterTogether from "@/components/BetterTogether";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import HeroFilm from "@/components/home/HeroFilm";
@@ -460,10 +461,26 @@ export default function HomeLanding({ waitlist } = {}) {
           }
         />
 
+        {/* The typed conversation, back on the page on September 23, 2026 but
+            no longer in the hero: the nudge leads, because Aly speaking first
+            is what a chat window cannot show, and the conversation follows the
+            day it is about. It happens the evening before that Tuesday. */}
+        <Scene
+          label="When you ask"
+          title="An answer for your family, not for everyone."
+          body="Ask anything. Aly answers from your trip: who is with you, what you booked, your budget, and the cards in your wallet."
+          media={
+            <div className="ma-in" style={{ animationDelay: "80ms" }}>
+              <AskDemo />
+            </div>
+          }
+        />
+
         <BetterTogether />
 
         <Scene
           label="When it changes"
+          flip
           title="A change of plans, not a fresh start."
           body="Aly flags conflicts and helps you work around surprises, using the trip you already planned. You decide what changes."
           media={
@@ -477,7 +494,6 @@ export default function HomeLanding({ waitlist } = {}) {
 
         <Scene
           label="Building the trip"
-          flip
           title="Suggestions that already know how you travel."
           body="Start with an idea, not a dozen open tabs. Aly helps turn it into places to stay and days you’ll look forward to, all shaped around you."
           media={
@@ -549,6 +565,7 @@ export default function HomeLanding({ waitlist } = {}) {
 
         <Scene
           label="The money"
+          flip
           title="Keep the budget in view. Put your benefits to use."
           body="Aly brings trip costs, saved credits, and card benefits together, helping you see what’s left to spend and which card to use."
           note="She helps you understand your insurance and card or reward-program benefits, so you can check existing coverage before buying more."
@@ -579,7 +596,6 @@ export default function HomeLanding({ waitlist } = {}) {
 
         <Scene
           label="Pro tips"
-          flip
           title="A little local knowledge goes a long way."
           body="Tips tailored to your plans, with sources you can check. Turn the useful ones into reminders so they’re there when you need them."
           media={
@@ -747,8 +763,8 @@ export default function HomeLanding({ waitlist } = {}) {
           <ul className="mt-4 grid gap-3 text-[14px] leading-relaxed text-ink-soft md:grid-cols-3 md:gap-8">
             <li className="ma-in" style={{ animationDelay: "60ms" }}>
               <strong className="font-semibold text-ink">Alyeska Groups, 2027.</strong>{" "}
-              One shared plan from the organizer; each household keeps its own
-              notes and lists.
+              Each household manages its own part of the trip, and the
+              organizer&rsquo;s changes reach everyone as they happen.
             </li>
             <li className="ma-in" style={{ animationDelay: "120ms" }}>
               <strong className="font-semibold text-ink">

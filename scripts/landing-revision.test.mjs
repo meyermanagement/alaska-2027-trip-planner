@@ -23,7 +23,11 @@ test("hero leads with the turning line, the new body and the waitlist link", () 
   assert.ok(!hero.includes("get help along the way"));
   assert.match(hero, /href="#waitlist"[^>]*>\s*join the waitlist below/);
   assert.ok(hero.includes("<NudgeCard />"));
-  assert.ok(!/AskDemo|RotatingWord/.test(home));
+  assert.ok(!/AskDemo|RotatingWord/.test(hero), "the nudge leads the hero");
+  assert.ok(!/RotatingWord/.test(home));
+  const asked = home.indexOf('label="When you ask"');
+  assert.ok(asked > home.indexOf('label="While you are there"') && asked < home.indexOf("<BetterTogether />"));
+  assert.ok(home.slice(asked, home.indexOf("<BetterTogether />")).includes("<AskDemo />"));
 });
 
 test("the hero examples are nudges, before and during, labeled, with drawn controls only", () => {
@@ -50,13 +54,13 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
 });
 
 test("scenes run in the new order and alternate", () => {
-  const order = ["Before you go", "While you are there", "<BetterTogether />", "When it changes", "Building the trip", "The money", "Pro tips"]
+  const order = ["Before you go", "While you are there", "When you ask", "<BetterTogether />", "When it changes", "Building the trip", "The money", "Pro tips"]
     .map((l) => (l.startsWith("<") ? home.indexOf(l) : home.indexOf(`label="${l}"`)));
   assert.ok(order.every((i) => i > 0));
   assert.deepEqual([...order].sort((a, b) => a - b), order);
   const flips = [...home.matchAll(/<Scene\n\s+label="([^"]+)"\n(\s+flip\n)?/g)].map((m) => [m[1], !!m[2]]);
-  assert.deepEqual(flips, [["Before you go", false], ["While you are there", true], ["When it changes", false],
-    ["Building the trip", true], ["The money", false], ["Pro tips", true]]);
+  assert.deepEqual(flips, [["Before you go", false], ["While you are there", true], ["When you ask", false],
+    ["When it changes", true], ["Building the trip", false], ["The money", true], ["Pro tips", false]]);
   const after = (a, b) => assert.ok(home.indexOf(a) < home.indexOf(b), `${a} before ${b}`);
   after("ALY_INDEX.map", "What we promise");
   after("What we promise", "On the roadmap, as of September 2026.");
@@ -92,7 +96,7 @@ test("What Aly knows sits after the promises, labeled, at a reserved signed-in a
 
 test("roadmap lines are dated and plain", () => {
   const flat = home.replaceAll('{" "}', " ").replace(/\s+/g, " ");
-  assert.ok(flat.includes("Alyeska Groups, 2027.</strong> One shared plan from the organizer; each household keeps its own notes and lists."));
+  assert.ok(flat.includes("Alyeska Groups, 2027.</strong> Each household manages its own part of the trip, and the organizer&rsquo;s changes reach everyone as they happen."));
   assert.ok(flat.includes("Planned: Claude, ChatGPT, Alexa+, Siri, and Muse. Read your trips first; changes later."));
   assert.ok(flat.includes("Alyeska for iPhone and Android, fall 2027."));
 });
@@ -132,4 +136,15 @@ test("waitlist migration locks the table down", () => {
   assert.match(sql, /enable row level security/);
   assert.match(sql, /revoke all on table public\.waitlist from anon, authenticated/);
   assert.doesNotMatch(sql, /create policy/i);
+});
+
+test("the example chat is the same trip as the rest of the page", async () => {
+  const { createJiti } = await import("jiti");
+  const { HERO_CONVERSATION } = createJiti(import.meta.url)("../lib/home/heroConversation.js");
+  const text = JSON.stringify(HERO_CONVERSATION);
+  for (const turn of HERO_CONVERSATION) assert.match(turn.stamp, /^Kīhei · Monday, \d/);
+  assert.ok(text.includes("Mākena") && text.includes("8:20") && text.includes("7:50"), "tomorrow is the Tuesday the day card shows");
+  assert.ok(text.includes("the four of you"));
+  assert.ok(!/Rivera|three of you|whale|Wednesday/i.test(text));
+  assert.ok(home.includes("Mia&rsquo;s light jacket") && text.includes("Mia's light jacket"));
 });
