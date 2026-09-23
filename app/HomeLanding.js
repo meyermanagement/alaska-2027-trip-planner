@@ -3,6 +3,7 @@ import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
 import AskDemo from "@/components/home/AskDemo";
 import BetterTogether from "@/components/BetterTogether";
+import DayDemo from "@/components/home/DayDemo";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import HeroFilm from "@/components/home/HeroFilm";
 import NudgeCard from "@/components/home/NudgeCard";
@@ -138,7 +139,7 @@ function Scene({ label, title, body, note, media, flip }) {
             </p>
           ) : null}
         </div>
-        <div>{media}</div>
+        <div className="min-w-0">{media}</div>
       </div>
     </Reveal>
   );
@@ -410,55 +411,7 @@ export default function HomeLanding({ waitlist } = {}) {
           flip
           title="Today’s plans, without the inbox hunt."
           body="Bookings, check-in details, and your day pack stay with the day they belong to. Ask Aly for help with what’s next."
-          media={
-            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="font-display text-[17px] font-semibold">
-                  A day in Maui
-                </p>
-                <p className="text-[13px] text-ink-soft">
-                  Kīhei &middot; 84&deg;, rain at 2
-                </p>
-              </div>
-              <div className="mt-4 space-y-3">
-                <Row
-                  left="Snorkel, Mākena"
-                  right="8:20 am"
-                  sub="Conf. MKN4‑8821 &middot; check in 7:50 &middot; 12 min drive"
-                />
-                <Row
-                  left="Lunch, back at the condo"
-                  right="12:30 pm"
-                  sub="Back before the afternoon rain"
-                />
-                <Row
-                  left="Sunset, walk from the door"
-                  right="6:40 pm"
-                  sub="Nothing to book"
-                  last
-                />
-              </div>
-
-              {/* The day's own bag, which is the part people expect least: a
-                  short list for today rather than the whole packing list. */}
-              <div className="mt-4 rounded-xl border border-[var(--line)] bg-sand/40 p-3">
-                <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-[13px] font-semibold">Today’s day pack</p>
-                  <p className="text-[12px] text-ink-soft">To bring</p>
-                </div>
-                <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
-                  Sunscreen &middot; Mia&rsquo;s light jacket &middot; photo ID
-                  &middot; cash for the balance
-                </p>
-              </div>
-
-              <p className="mt-3 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
-                <span className="font-semibold">Aly:</span> The boat&rsquo;s
-                confirmation asks for cash and photo ID. Check that both are
-                packed before you head out.
-              </p>
-            </div>
-          }
+          media={<DayDemo />}
         />
 
         {/* The typed conversation, back on the page on September 23, 2026 but

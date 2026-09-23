@@ -156,7 +156,22 @@ test("the example chat is the same trip as the rest of the page", async () => {
   assert.ok(text.includes("Mākena") && text.includes("8:20") && text.includes("7:50"), "tomorrow is the Tuesday the day card shows");
   assert.ok(text.includes("the four of you"));
   assert.ok(!/Rivera|three of you|whale|Wednesday/i.test(text));
-  assert.ok(home.includes("Mia&rsquo;s light jacket") && text.includes("Mia's light jacket"));
+  const day = read("components/home/DayDemo.js");
+  assert.ok(day.includes("Mia’s light jacket") && text.includes("Mia's light jacket"));
+});
+
+test("the example day is a real calendar, dated the week the chat talks about", () => {
+  const day = read("components/home/DayDemo.js");
+  assert.match(home, /media=\{<DayDemo \/>\}/);
+  assert.match(day, /const TODAY = "2026-03-17"/);
+  // Tuesday, March 17 has to be a Tuesday, or the tiles and the header disagree.
+  assert.equal(new Date("2026-03-17T12:00:00Z").getUTCDay(), 2);
+  const dates = [...day.matchAll(/date: "(\d{4}-\d{2}-\d{2})"/g)].map((m) => m[1]);
+  assert.deepEqual(dates, [14, 15, 16, 17, 18, 19, 20, 21].map((d) => `2026-03-${d}`));
+  // Borrowed from the trip screen rather than redrawn, so the demo cannot drift.
+  for (const name of ["DayItemBrief", "WaysThere", "day-tile", "hedgeSaid", "distanceSaid"])
+    assert.ok(day.includes(name), name);
+  assert.match(day, /invented/i);
 });
 
 test("waitlist names: migration, privacy, and the closing section offers only the waitlist", () => {
