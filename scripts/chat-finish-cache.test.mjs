@@ -7,7 +7,9 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const jiti = createJiti(import.meta.url, { alias: { "@": root } });
 const { buildRequest, callingConfig } = jiti("../lib/agent/providers/gemini.js");
 const { runChain } = jiti("../lib/agent/llm.js");
-const { finishTools, finishFeature } = jiti("../lib/agent/finish.js");
+const { finishTools, finishFeature, withFinishNote, callsLine, textWithNotes, FINISH_NOTE_LEAD } = jiti("../lib/agent/finish.js");
+const openai = jiti("../lib/agent/providers/openai.js");
+const anthropic = jiti("../lib/agent/providers/anthropic.js");
 const { describeFeature } = jiti("../lib/usage/features.js");
 const { needsCards, asksHowToPay } = jiti("../lib/places/rollcall.js");
 
@@ -22,32 +24,64 @@ const messages = [{ role: "user", text: "Where should we stay?" }];
 
 // --- Fix 1: the finishing turn sends the same prefix as the answer ----------
 
-test("finish request keeps the answer's tools and grounding, narrowed by config", () => {
-  const answer = buildRequest({ system, messages, tools, grounded: true, thinking: "low" });
+test("the finish request is the answer's request, plus one note at the end", () => {
+  const history = [
+    { role: "user", text: "We land Friday." },
+    { role: "assistant", text: "Noted." },
+    { role: "user", text: "Where should we stay?" },
+  ];
+  const answer = buildRequest({ system, messages: history, tools, grounded: true, thinking: "low" });
   const finish = buildRequest({
-    system: `${system}\n\nYOUR ANSWER IS GOOD AND IT IS STAYING.`,
-    messages,
+    system,
+    messages: withFinishNote(history, ["Your last turn came back empty.", "", callsLine([])]),
     tools,
     grounded: true,
     thinking: "low",
     temperature: 0.5,
-    allowedTools: ["show_places"],
   });
-  // The tool list is the front of the prompt: it must be identical.
+  // Everything ahead of the conversation is identical, config included.
+  assert.deepEqual(finish.systemInstruction, answer.systemInstruction);
   assert.deepEqual(finish.tools, answer.tools);
-  // The system instruction only grows at the end, so its start is shared.
-  assert.ok(
-    finish.systemInstruction.parts[0].text.startsWith(answer.systemInstruction.parts[0].text),
+  assert.deepEqual(finish.toolConfig, answer.toolConfig);
+  assert.deepEqual(finish.toolConfig.functionCallingConfig, { mode: "AUTO" });
+  // The conversation is identical up to the question's own text.
+  assert.deepEqual(finish.contents.slice(0, -1), answer.contents.slice(0, -1));
+  const [asked, note, ...more] = finish.contents.at(-1).parts;
+  assert.deepEqual(asked, answer.contents.at(-1).parts[0]);
+  assert.equal(finish.contents.at(-1).role, "user");
+  assert.equal(more.length, 0);
+  // The note says whose it is, keeps the order, and drops the empty line.
+  assert.equal(
+    note.text,
+    `${FINISH_NOTE_LEAD}\n\nYour last turn came back empty.\n\nDo not call any tool on this turn. Reply in words only.`,
   );
-  assert.deepEqual(finish.contents, answer.contents);
-  // What may be called is narrowed here instead.
-  assert.deepEqual(answer.toolConfig.functionCallingConfig, { mode: "AUTO" });
-  assert.deepEqual(finish.toolConfig.functionCallingConfig, {
-    mode: "VALIDATED",
-    allowedFunctionNames: ["show_places"],
-  });
-  // Grounding still carries the flag the API requires with mixed tools.
-  assert.equal(finish.toolConfig.includeServerSideToolInvocations, true);
+});
+
+test("withFinishNote leaves the input alone and adds a turn only when it must", () => {
+  const history = [{ role: "user", text: "Where should we stay?" }];
+  const out = withFinishNote(history, ["Write the words."]);
+  assert.equal(history[0].notes, undefined);
+  assert.equal(out.length, 1);
+  assert.equal(withFinishNote(history, ["", "  "]), history);
+  const endsWithAly = [...history, { role: "assistant", text: "Here you go." }];
+  const added = withFinishNote(endsWithAly, ["Write the words."]);
+  assert.equal(added.length, 3);
+  assert.equal(added[2].role, "user");
+  assert.match(added[2].text, /^From the app, not from the traveler:/);
+});
+
+test("callsLine names what may be called, since the config no longer does", () => {
+  assert.equal(callsLine([]), "Do not call any tool on this turn. Reply in words only.");
+  assert.match(callsLine(["show_places"]), /only tool you may call on this turn is show_places/);
+});
+
+test("the other providers read the note as part of the same turn", () => {
+  const msgs = withFinishNote([{ role: "user", text: "Where should we stay?" }], ["Write the words."]);
+  assert.equal(textWithNotes(msgs[0]), `Where should we stay?\n\n${FINISH_NOTE_LEAD}\n\nWrite the words.`);
+  const o = openai.buildRequest({ system, messages: msgs });
+  assert.equal(o.messages.at(-1).content, textWithNotes(msgs[0]));
+  const n = anthropic.normalizeMessages(msgs);
+  assert.equal(n.at(-1).text, textWithNotes(msgs[0]));
 });
 
 test("an empty allow list means no calls, with the declarations left in", () => {
@@ -91,16 +125,28 @@ test("finishTools: cards when owed, nothing on a silent turn, else only with no 
   assert.deepEqual(finishTools({ silent: false, shortlistCount: 4 }), []);
 });
 
-test("the route sends the full tool list to the finishing turn and filters its calls", () => {
+test("the route sends the finishing turn the answer's system, tools and config", () => {
   const src = readFileSync(new URL("../app/api/chat/route.js", import.meta.url), "utf8");
   const at = src.indexOf("feature: finishFeature(");
   assert.ok(at > 0, "finish call names its reason");
   const call = src.slice(at, src.indexOf("consent,", at));
+  assert.match(call, /\n\s+system,\n/);
+  assert.match(call, /messages: withFinishNote\(messages, \[/);
+  assert.match(call, /callsLine\(mayCall\)/);
   assert.match(call, /\n\s+tools,\n/);
-  assert.match(call, /allowedTools: mayCall/);
   assert.match(call, /grounded: finishGrounded/);
+  assert.doesNotMatch(call, /allowedTools/);
+  assert.doesNotMatch(call, /system: \[/);
   assert.doesNotMatch(call, /tools\.filter/);
   assert.match(src, /\(finish\?\.calls \|\| \[\]\)\.filter\(\(call\) => mayCall\.includes\(call\?\.name\)\)/);
+});
+
+test("the retry and the answer still send the same request", () => {
+  const src = readFileSync(new URL("../app/api/chat/route.js", import.meta.url), "utf8");
+  const at = src.indexOf('feature: "chat.retry"');
+  const call = src.slice(at, src.indexOf("consent,", at));
+  assert.match(call, /\n\s+system,\n\s+messages,\n\s+tools,\n/);
+  assert.doesNotMatch(call, /allowedTools/);
 });
 
 // --- Fix 2: the ledger says why the finishing turn ran ----------------------

@@ -56,7 +56,7 @@ import {
   needsReasons,
   wordlessLine,
 } from "@/lib/agent/asked";
-import { finishFeature, finishTools } from "@/lib/agent/finish";
+import { callsLine, finishFeature, finishTools, withFinishNote } from "@/lib/agent/finish";
 import {
   splitRecallCalls,
   matchLessons,
@@ -691,8 +691,12 @@ export async function POST(request) {
     try {
       const finished = await generate({
         feature: finishFeature({ silent, owesReasons, owesWords, needCards }),
-        system: [
-          system,
+        // The same system prompt as the answer, word for word. The finishing
+        // instructions ride in a note after the last message instead, so the
+        // whole request up to that note is the one that just answered and can
+        // be read from the cache. See withFinishNote in lib/agent/finish.js.
+        system,
+        messages: withFinishNote(messages, [
           // What she proposed, handed back to her. The confirmation cards' own
           // summaries are built further down the route, so this turn was being
           // told "you already proposed something" without being told what.
@@ -713,26 +717,20 @@ export async function POST(request) {
           finishGrounded && !lookAgain
             ? "Do not search the web on this turn. What the answer needed from the web is already in it."
             : "",
-          mayCall.length
-            ? ""
-            : "Do not call any tool on this turn. Reply in words only.",
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
-        messages,
-        // The first turn's tools, all of them, and its grounding: the tool
-        // list is the front of the prompt, and a shorter one here made every
-        // token a cache miss. What she may actually call is narrowed by
-        // allowedTools instead -- show_places when cards are owed or there is
-        // no shortlist yet, nothing otherwise. Asked the same trip twice, a
-        // model does not repeat itself exactly -- it offers "Quinta da
-        // Regaleira" and then "Quinta da Regaleira Guided Tour" -- and the
-        // family gets the same place on two cards. Every change tool is
-        // withheld so what she has already proposed cannot be proposed twice,
-        // and offer_followups is withheld because a model asked for words,
-        // given any tool at all, can answer by calling it and writing nothing.
+          callsLine(mayCall),
+        ]),
+        // The first turn's tools, all of them, its grounding, and no narrowed
+        // tool config: any of those differing from the answer's request made
+        // the finish a cache miss. What she may call -- show_places when cards
+        // are owed or there is no shortlist yet, nothing otherwise -- is said
+        // in the note and enforced below, where every other call is dropped.
+        // Asked the same trip twice, a model does not repeat itself exactly --
+        // it offers "Quinta da Regaleira" and then "Quinta da Regaleira Guided
+        // Tour" -- so a second set of places would put one on two cards; change
+        // tools are dropped so what she proposed cannot be proposed twice, and
+        // offer_followups because a model asked for words can answer by
+        // calling it and writing nothing.
         tools,
-        allowedTools: mayCall,
         grounded: finishGrounded,
         thinking: THINKING,
         deadline: finishBy,
@@ -744,9 +742,9 @@ export async function POST(request) {
         consent,
       });
       const finish = withIds(finished);
-      // Only the calls it was allowed. The API limits them already; this is
-      // the second lock, for a call spoken in the text or a model that ignores
-      // the config, and it is what the tests hold the route to.
+      // Only the calls it was allowed. The request no longer narrows them, so
+      // this is the lock: anything outside mayCall is dropped here, and it is
+      // what the tests hold the route to.
       const { places: named } = splitPlaceCalls(
         (finish?.calls || []).filter((call) => mayCall.includes(call?.name)),
       );
