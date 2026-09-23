@@ -48,7 +48,7 @@ import {
   wordsWithCards,
   writeTheWords,
 } from "@/lib/places/rollcall";
-import { splitFollowupCalls } from "@/lib/agent/followups";
+import { splitFollowupCalls, wordsWithFollowups } from "@/lib/agent/followups";
 import {
   saidNothing,
   answerAsWell,
@@ -168,7 +168,9 @@ function answeredNothing(turn) {
   if (String(turn?.text || "").trim()) return false;
   const { calls: rest, places } = splitPlaceCalls(turn?.calls || []);
   if (places.length) return false;
-  const { calls: noFollowups } = splitFollowupCalls(rest);
+  const { calls: noFollowups, reply } = splitFollowupCalls(rest);
+  // The answer written inside offer_followups is an answer.
+  if (wordsWithFollowups("", reply)) return false;
   const { calls: changes, asked: tip } = splitTipCalls(noFollowups);
   return !tip && !changes.length;
 }
@@ -668,8 +670,21 @@ export async function POST(request) {
   }
   // The questions she offered next are neither a change nor part of the answer,
   // so they come out here too.
-  let { calls: withoutFollowups, followups } =
-    splitFollowupCalls(withoutPlaces);
+  let {
+    calls: withoutFollowups,
+    followups,
+    reply: followupWords,
+  } = splitFollowupCalls(withoutPlaces);
+  // And the answer that came inside offer_followups, taken before anything
+  // below decides the turn was silent. A turn that was only the buttons used to
+  // pay a whole second call for its words. See wordsWithFollowups.
+  if (followupWords) {
+    const own = saidNothing(result.text) ? "" : result.text;
+    const chosen = wordsWithFollowups(own, followupWords);
+    if (chosen && chosen !== String(result.text || "").trim()) {
+      result = { ...result, text: chosen };
+    }
+  }
   // Asking to go and research is neither a change nor an answer: it is a thing
   // that happens after she has finished speaking, so it comes out here too.
   const { calls: changeCalls, asked: tipCall } =
