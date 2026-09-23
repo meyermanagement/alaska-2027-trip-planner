@@ -4,6 +4,7 @@ import { loadEverything } from "@/lib/agent/load";
 import { consentOnce, generate, ModelError } from "@/lib/agent/llm";
 import {
   buildSystemPrompt,
+  rightNowNote,
   isKnownFocus,
   NEW_TRIP_FOCUS,
   LOG_TRIP_FOCUS,
@@ -44,6 +45,7 @@ import {
   needsCards,
   needsWords,
   showThePlaces,
+  wordsWithCards,
   writeTheWords,
 } from "@/lib/places/rollcall";
 import { splitFollowupCalls } from "@/lib/agent/followups";
@@ -65,6 +67,7 @@ import {
 } from "@/lib/agent/lessons";
 import { splitTipCalls, lookFrom, lookLine, stepsFor } from "@/lib/tips/ask";
 import { enrich } from "@/lib/places/photos";
+import { cardsFromReply } from "@/lib/places/named";
 import { bias, hereLine, normalizeHere, withDistance } from "@/lib/places/here";
 import {
   CONTEXT_MESSAGES,
@@ -327,8 +330,15 @@ export async function POST(request) {
   // so the names on file go in with the message — and into the prompt, so the
   // new-trip questions can ask about the dog by name instead of in the abstract.
   const petNames = ctx.known?.pets ? Array.from(ctx.known.pets.values()) : [];
+  // What changes from one question to the next -- today's date, where they
+  // are, the notes ranked by this question, the other conversations -- rides on
+  // the question itself rather than in the system prompt. See rightNowNote in
+  // lib/agent/context.js: in front of the conversation it kept every earlier
+  // turn out of the cache.
+  const nowNote = rightNowNote({ ...extras, here, tail: ctx.tail });
   const system = buildSystemPrompt(ctx.text, focus, ctx.focusTripName, {
     ...extras,
+    rightNow: "note",
     here,
     petNames,
     level: access?.level,
@@ -337,9 +347,6 @@ export async function POST(request) {
     people: ctx.travelerNames,
     // Whose blanks are being filled in, when that is what this screen is for.
     intervieweeName: ctx.intervieweeName,
-    // Today's date and the notes ranked by this question, printed after the
-    // record so the long stable part of the prompt is the same from turn to turn.
-    tail: ctx.tail,
   });
   // The record prints every id as a short handle (see shortenIds in the
   // context). Every tool call that comes back is turned into real ids here,
@@ -371,7 +378,12 @@ export async function POST(request) {
     level: access?.level,
   });
 
-  const messages = [...toModelMessages(past), { role: "user", text: said }];
+  // The note is sent, never stored: the transcript keeps what was said, and the
+  // next question carries its own.
+  const messages = [
+    ...toModelMessages(past),
+    { role: "user", text: said, ...(nowNote ? { notes: [nowNote] } : {}) },
+  ];
 
   // "Where should we have dinner in Anchorage" cannot be answered from the
   // family's own trip data, and answering it from what a model half-remembers
@@ -639,9 +651,21 @@ export async function POST(request) {
 
   // A shortlist of places is an answer, not a change, so it is taken out before
   // anything here treats a tool call as something to save.
-  const { calls: withoutPlaces, places: shortlist } = splitPlaceCalls(
-    result.calls,
-  );
+  const {
+    calls: withoutPlaces,
+    places: shortlist,
+    reply: cardWords,
+  } = splitPlaceCalls(result.calls);
+  // The words show_places brought with it. Taken before anything below decides
+  // whether the turn owes words, so a shortlist that came with its answer is
+  // not sent back for a second one. See wordsWithCards.
+  if (cardWords && shortlist.length) {
+    const own = saidNothing(result.text) ? "" : result.text;
+    const chosen = wordsWithCards(own, cardWords, shortlist);
+    if (chosen && chosen !== String(result.text || "").trim()) {
+      result = { ...result, text: chosen };
+    }
+  }
   // The questions she offered next are neither a change nor part of the answer,
   // so they come out here too.
   let { calls: withoutFollowups, followups } =
@@ -697,8 +721,25 @@ export async function POST(request) {
   // Nothing proposed. A change she has just carried out reads like a
   // recommendation -- it names the place, the day and the time -- and cards for
   // somewhere they have already asked to add are noise sitting under a receipt.
-  const needCards =
+  let needCards =
     needsCards(said, result.text, shortlistAll) && !changeCalls.length;
+  // Places named in prose with nothing to tap: the lookup can usually card them
+  // straight from the names, in the trip's own area, with no second model turn.
+  // Only when it cannot vouch for at least two of them is the model asked.
+  // See lib/places/named.js.
+  let cardedHere = [];
+  if (needCards) {
+    cardedHere = await cardsFromReply({
+      text: result.text,
+      said,
+      area: ctx.focusTripDestination,
+      here,
+    });
+    if (cardedHere.length) {
+      shortlistAll = mergePlaces(shortlistAll, cardedHere);
+      needCards = false;
+    }
+  }
   if ((needWords || needCards) && clock(REWORD_TURN_MS)) {
     // Searching again is only worth waiting for if the first turn never got to
     // look, and only when words are owed. Where it did, its sources are already
@@ -714,7 +755,7 @@ export async function POST(request) {
     const mayCall = finishTools({
       silent,
       needCards,
-      shortlistCount: shortlist.length,
+      shortlistCount: shortlistAll.length,
     });
     try {
       const finished = await generate({
@@ -821,14 +862,22 @@ export async function POST(request) {
   // reply says which ones went and what Google gave them -- a name that
   // disappears silently is a filter nobody can argue with.
   const firstNames = new Set(shortlist.map((p) => p?.name).filter(Boolean));
-  const added = shortlistAll.filter((p) => !firstNames.has(p?.name));
+  // Cards built from the reply's own names were looked up already.
+  const looked = new Set(cardedHere.map((p) => p.name));
+  const added = shortlistAll.filter(
+    (p) => !firstNames.has(p?.name) && !looked.has(p?.name),
+  );
   const enrichedFirst = await enriching;
   const enrichedAdded = added.length
     ? await enrich(withPrograms(added, ctx.rewards), { bias: bias(here) })
     : [];
+  const carded = cardedHere.map(({ looked: _looked, ...place }) => place);
   const { places, dropped: belowFloor } = applyFloors(
     withRatingFloor(
-      withDistance(mergePlaces(enrichedFirst, enrichedAdded), here),
+      withDistance(
+        mergePlaces(mergePlaces(enrichedFirst, enrichedAdded), carded),
+        here,
+      ),
       floors,
     ),
     floors,
