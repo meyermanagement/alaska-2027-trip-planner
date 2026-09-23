@@ -29,6 +29,12 @@ import { SCOPES, sameSubject, sameWindowTitle } from "@/lib/tips/tip";
 import { taskFloorRows } from "@/lib/tasks/floor";
 import { applyPackingFloor } from "@/lib/packing/floor";
 import { circumstanceSnapshot } from "@/lib/trips/circumstances";
+import {
+  emptyLookEntry,
+  lookKey,
+  lookPlace,
+  skipLook,
+} from "@/lib/tips/emptyLooks";
 
 export const runtime = "nodejs";
 // Longer than the platform's default because a grounded look genuinely takes
@@ -692,52 +698,81 @@ export async function POST(request) {
     ...already,
   ].filter(Boolean);
 
-  let produced;
-  try {
-    produced = await tipsForPlace({
-      deadline: startedAt + MODEL_BUDGET_MS,
-      place: {
-        family_id: trip.family_id,
-        trip_id: tripId,
-        itinerary_item_id: scope === "item" ? itemId : null,
-        scope,
-        // Both of these are for day-carry advice, which is filed onto a day
-        // rather than onto the Tips screen. A look at one booking already knows
-        // the day the advice would be for, and the trip's own days are what a
-        // date the model offers has to agree with.
-        related_date: item?.item_date || null,
-        trip_days: Array.from(
-          new Set(
-            (itinerary || []).map((row) => row.item_date).filter(Boolean),
-          ),
-        ),
-      },
-      avoid,
-      known: [
-        ...(existing || []).map((row) => row.fingerprint),
-        ...house.map((tip) => tip.fingerprint),
-      ],
-      // Every earlier title in this place, plus anything put away elsewhere on
-      // this trip, goes into the subject check. The fingerprint alone is
-      // title-normalised, which is fooled by a model that reworded a cleared
-      // tip; subject-word overlap catches those.
-      subjects: [...already, ...putAway],
-      scope,
-      today,
-      trip,
-      item,
-      itinerary: itinerary || [],
-      tasks: tasks || [],
-      packing: packing || [],
-      travelers,
-      preferences: preferences || [],
-      memberships: memberships || [],
-      reviews: (reviews || []).map((row) => ({
+  // Everything the model reads, built once so the look and its fingerprint are
+  // taken from the same thing. Reviews are sorted because the query above has no
+  // order, and a brief whose lines shuffle between requests would never match
+  // the one that came back empty.
+  const brief = {
+    scope,
+    today,
+    trip,
+    item,
+    itinerary: itinerary || [],
+    tasks: tasks || [],
+    packing: packing || [],
+    travelers,
+    preferences: preferences || [],
+    memberships: memberships || [],
+    reviews: (reviews || [])
+      .map((row) => ({
         ...row,
         tripName: row.trips?.name || null,
-      })),
-      already,
-    });
+      }))
+      .sort((a, b) =>
+        `${a.tripName || ""}|${a.title || ""}|${a.item_date || ""}`.localeCompare(
+          `${b.tripName || ""}|${b.title || ""}|${b.item_date || ""}`,
+        ),
+      ),
+    already,
+  };
+  const place = lookPlace(scope, itemId);
+  const key = lookKey(brief);
+  const emptyBefore = facts?.empty_looks?.[place] || null;
+  // The last look here kept nothing, and the brief it would send is the same one.
+  // Skipped rather than asked: the rules above have already filed what is free,
+  // and the answer to an unchanged question is the answer it gave.
+  const skipped = skipLook({
+    looks: facts?.empty_looks,
+    place,
+    key,
+    today,
+    tripStart: trip.start_date || null,
+  });
+
+  let produced;
+  try {
+    produced = skipped
+      ? { tips: [], dropped: [], model: null, searched: false, skipped: true }
+      : await tipsForPlace({
+          deadline: startedAt + MODEL_BUDGET_MS,
+          place: {
+            family_id: trip.family_id,
+            trip_id: tripId,
+            itinerary_item_id: scope === "item" ? itemId : null,
+            scope,
+            // Both of these are for day-carry advice, which is filed onto a day
+            // rather than onto the Tips screen. A look at one booking already knows
+            // the day the advice would be for, and the trip's own days are what a
+            // date the model offers has to agree with.
+            related_date: item?.item_date || null,
+            trip_days: Array.from(
+              new Set(
+                (itinerary || []).map((row) => row.item_date).filter(Boolean),
+              ),
+            ),
+          },
+          avoid,
+          known: [
+            ...(existing || []).map((row) => row.fingerprint),
+            ...house.map((tip) => tip.fingerprint),
+          ],
+          // Every earlier title in this place, plus anything put away elsewhere on
+          // this trip, goes into the subject check. The fingerprint alone is
+          // title-normalised, which is fooled by a model that reworded a cleared
+          // tip; subject-word overlap catches those.
+          subjects: [...already, ...putAway],
+          ...brief,
+        });
   } catch (error) {
     // Ran long, on the first go, on something the app is allowed to ask again.
     //
@@ -768,6 +803,24 @@ export async function POST(request) {
       },
       { status: error?.status || 502 },
     );
+  }
+
+  // Remember an empty answer against the brief that produced it, and forget one
+  // once this place has something to say. Silent on failure: the worst case is
+  // that the next look asks again, which is what every look did before.
+  if (!produced.skipped) {
+    const entry = emptyLookEntry({ kept: produced.tips.length, key, today });
+    if (entry || emptyBefore) {
+      const { error: noteError } = await supabase.rpc("note_empty_look", {
+        p_trip_id: tripId,
+        p_place: place,
+        p_value: entry,
+      });
+      if (noteError)
+        console.log(
+          `[tips/refresh] empty look NOT noted trip=${tripId} place=${place}: ${noteError.message}`,
+        );
+    }
   }
 
   let added = 0;
@@ -827,5 +880,7 @@ export async function POST(request) {
     dropped: produced.dropped,
     searched: produced.searched,
     model: produced.model,
+    // Not asked: the last look here found nothing and nothing has changed since.
+    skipped: produced.skipped === true,
   });
 }

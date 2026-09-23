@@ -148,7 +148,7 @@ test("buildContext: the open trip in full, the others as counts, every id short 
   assert.ok(prompt.indexOf("the Itinerary") < record || prompt.indexOf("Overview") < record, "focus sections stay above the record");
 });
 
-test("buildContext: naming a trip, or asking about packing, brings its rows back", () => {
+test("buildContext: naming a trip, or asking about packing, brings its rows back in the tail", () => {
   const { trips, packing, itinerary } = household();
   const named = buildContext({
     trips,
@@ -158,9 +158,15 @@ test("buildContext: naming a trip, or asking about packing, brings its rows back
     focus: "overview",
     message: "What did we do on the Maui trip, and is Curaçao still an idea?",
   });
-  assert.match(named.text, /Maui 2024 arrival/);
-  assert.match(named.text, /Curaçao 2027 arrival/);
-  assert.doesNotMatch(named.text, /Disney Thanksgiving 2026 item 1/, "unnamed trip's packing stays as counts");
+  assert.match(named.tail, /WHAT THIS QUESTION REACHES FOR/);
+  assert.match(named.tail, /Maui 2024 arrival/);
+  assert.match(named.tail, /Curaçao 2027 arrival/);
+  assert.doesNotMatch(named.text, /Maui 2024 arrival/, "the record still only counts it");
+  assert.doesNotMatch(named.text, /Curaçao 2027 arrival/);
+  assert.doesNotMatch(named.tail, /Disney Thanksgiving 2026 item 1/, "unnamed trip's packing stays as counts");
+  // Ids in the tail still resolve.
+  for (const i of itinerary) assert.equal(named.known.itinerary_items.has(i.id), true);
+  assert.equal(named.tail.match(UUID), null, "no full uuid in the tail");
 
   const packingAsk = buildContext({
     trips,
@@ -170,7 +176,9 @@ test("buildContext: naming a trip, or asking about packing, brings its rows back
     focus: "overview",
     message: "What is still to pack across our trips?",
   });
-  assert.match(packingAsk.text, /Disney Thanksgiving 2026 item 1/);
+  assert.match(packingAsk.tail, /DISNEY THANKSGIVING 2026 \[trip id: b2b2b2b2\] — the packing list in full/);
+  assert.match(packingAsk.tail, /Disney Thanksgiving 2026 item 1/);
+  assert.doesNotMatch(packingAsk.text, /Disney Thanksgiving 2026 item 1/);
 
   const packingScreen = buildContext({
     trips,
@@ -180,5 +188,76 @@ test("buildContext: naming a trip, or asking about packing, brings its rows back
     focus: "packing",
     message: "Anything missing?",
   });
-  assert.match(packingScreen.text, /Disney Thanksgiving 2026 item 1/);
+  assert.match(packingScreen.text, /Disney Thanksgiving 2026 item 1/, "the packing screen decides the record");
+  assert.doesNotMatch(packingScreen.tail, /WHAT THIS QUESTION REACHES FOR/);
+
+  const plain = buildContext({
+    trips,
+    packing,
+    itinerary,
+    focusTripId: trips[0].id,
+    focus: "overview",
+    message: "How is the plan looking?",
+  });
+  assert.doesNotMatch(plain.tail, /WHAT THIS QUESTION REACHES FOR/);
 });
+
+test("buildContext: the open trip comes last in the record, after every other trip", () => {
+  const { trips, packing, itinerary } = household();
+  const ctx = buildContext({ trips, packing, itinerary, focusTripId: trips[1].id, focus: "overview", message: "Hi" });
+  const open = ctx.text.indexOf("DISNEY THANKSGIVING 2026 [trip id: b2b2b2b2] — THE TRIP THAT IS OPEN");
+  assert.ok(open > 0);
+  for (const other of ["ALASKA 2027 [trip id", "CURAÇAO 2027 [trip id", "MAUI 2024 [trip id"]) {
+    const at = ctx.text.indexOf(other);
+    assert.ok(at > 0 && at < open, `${other} before the open trip`);
+  }
+});
+
+test("buildSystemPrompt: the prompt reads the same up to RIGHT NOW, whatever was asked", () => {
+  const { trips, packing, itinerary } = household();
+  const policy = {
+    id: id(900, "a9a9a9a9"),
+    provider: "Allianz",
+    kind: "trip",
+    claims_phone: "+1 800 555 0100",
+    claims_url: "https://claims.example.com",
+    emergency_phone: "+1 800 555 0199",
+  };
+  const base = {
+    trips,
+    packing,
+    itinerary,
+    policies: [policy],
+    policyTrips: [{ policy_id: policy.id, trip_id: trips[0].id }],
+    focusTripId: trips[1].id,
+    focus: "overview",
+    userName: "Mark",
+  };
+  const asked = [
+    "How is the plan looking?",
+    "What did we pack for Maui, and is Curaçao still an idea? Also how do I file a claim on the Alaska insurance?",
+    "What should I bring on the Alaska trip?",
+  ];
+  const prompts = asked.map((message) => {
+    const ctx = buildContext({ ...base, message });
+    return {
+      ctx,
+      prompt: buildSystemPrompt(ctx.text, "overview", ctx.focusTripName, {
+        tail: ctx.tail,
+        here: null,
+        people: ["Mark"],
+      }),
+    };
+  });
+  const prefix = (p) => p.slice(0, p.lastIndexOf("\nRIGHT NOW:\n"));
+  for (const { prompt } of prompts.slice(1)) assert.equal(prefix(prompt), prefix(prompts[0].prompt));
+  // The record never carries the claims contacts; the tail does, when asked.
+  assert.doesNotMatch(prefix(prompts[1].prompt), /555 0100|claims\.example/);
+  assert.match(prefix(prompts[0].prompt), /claims contact on file, sent under RIGHT NOW only when the question is about a claim/);
+  assert.match(prompts[1].ctx.tail, /CLAIMS CONTACTS -- the question is about a claim:\n- .*claims \+1 800 555 0100 \| claims online https:\/\/claims\.example\.com/);
+  assert.doesNotMatch(prompts[0].ctx.tail, /CLAIMS CONTACTS/);
+  assert.doesNotMatch(prompts[2].ctx.tail, /CLAIMS CONTACTS/);
+  // The emergency line is in the record either way.
+  assert.match(prefix(prompts[0].prompt), /emergency \+1 800 555 0199/);
+});
+

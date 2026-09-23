@@ -52,6 +52,7 @@ import {
   answerAsWell,
   asksAdvice,
   asksSomething,
+  retryWhenEmpty,
   gistOf,
   needsReasons,
   wordlessLine,
@@ -574,7 +575,18 @@ export async function POST(request) {
   // full prompt again. A turn that came back with nothing is not a broken model,
   // it is a sample that landed on nothing, and the temperature is the knob for
   // that. A real error on the first turn still walks the ladder as before.
+  //
+  // Not for a plain question, though. An empty answer to one is exactly what the
+  // finishing turn below already handles -- no words, so words are owed, and it
+  // asks for them against the same request the answer just sent, so most of it
+  // is read from the cache. Retrying first paid for that request in full and
+  // then, when the retry came back thin, the finishing turn paid again: three
+  // calls for one question. What the finishing turn cannot do is propose a
+  // change, so anything that might be asking for one -- and the interview,
+  // where the answer is usually something to save -- still gets the retry.
+  const retryEmpty = retryWhenEmpty({ said, interviewing });
   if (
+    retryEmpty &&
     answeredNothing(result) &&
     clock(lookUp ? EXTRA_TURN_MS : REWORD_TURN_MS)
   ) {
