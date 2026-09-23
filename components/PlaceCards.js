@@ -17,6 +17,7 @@ import {
   findMoreRequest,
   groupPlaces,
   moreRequest,
+  shortlistLabel,
 } from "@/lib/places/cards";
 import { directionsLink } from "@/lib/places/here";
 import { belowFloorLine } from "@/lib/places/rated";
@@ -278,7 +279,13 @@ export default function PlaceCards({
   const sections = groupPlaces(places);
   const split = sections.length > 1;
   return (
-    <div className="mt-2">
+    <div>
+      {/* The same rule and small label that set "Ask next" off from the answer,
+          used here for the same reason: the cards are not more of the paragraph
+          above them, they are what to do about it. */}
+      <p className="mb-2 border-t border-sand-deep/70 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+        {shortlistLabel(places)}
+      </p>
       {sections.map((section, s) => (
         <section
           key={section.group || `loose-${s}`}
