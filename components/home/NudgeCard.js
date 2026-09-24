@@ -48,8 +48,10 @@ import { useBooted } from "@/components/reveal";
  * change on the day that Aly has worked out and only needs a yes. The words say what
  * the color means for that card, so the color is never the only signal.
  *
- * The heading says what the cards are, since a message that arrives on its own
- * is not something a visitor expects to see. Each card leads with a title a
+ * The heading says what the cards are and why they matter: nobody has to know
+ * the right question to get the answer, because Aly is watching the trip and
+ * speaks first. A message that arrives on its own is not something a visitor
+ * expects from an assistant, so it is said outright. Each card leads with a title a
  * reader can take in at a glance, and says when it was sent against the trip,
  * because how early Aly noticed is the point.
  */
@@ -120,11 +122,11 @@ export default function NudgeCard() {
       onBlur={() => setHeld(false)}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="home-nudge-heading">Aly, before you ask</p>
+        <p className="home-nudge-heading">Before you think to ask</p>
         <span className="home-nudge-badge">Example</span>
       </div>
       <p className="mb-3 mt-1 text-[12px] leading-relaxed text-[rgba(246,243,236,0.66)]">
-        Messages Aly sends when something about your trip needs you.
+        You don’t have to know the right questions to ask. Aly watches your trip and tells you when something needs you.
       </p>
       <div className="home-nudge-stack">
         {NUDGES.map((n, i) => (

@@ -44,8 +44,8 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.doesNotMatch(nudge.split("const NUDGES")[1], /passport/i);
   assert.ok(nudge.includes("Lunch at the condo moves to 12:30, so you’re home before they start."));
   // The heading says what the cards are; the color's meaning is said in words.
-  assert.ok(nudge.includes(">Aly, before you ask<"));
-  assert.match(nudge.replace(/\s+/g, " "), /Messages Aly sends when something about your trip needs you\./);
+  assert.ok(nudge.includes(">Before you think to ask<"));
+  assert.match(nudge.replace(/\s+/g, " "), /You don’t have to know the right questions to ask\. Aly watches your trip and tells you when something needs you\./);
   assert.deepEqual([...nudge.matchAll(/tag: "([^"]+)"/g)].map((m) => m[1]), ["Needed to travel", "Book Feb 14", "Last minute"]);
   assert.doesNotMatch(nudge, /Just say yes|Ready to apply|A real nudge|"High"|"Low"/);
   assert.equal((nudge.match(/>Example</g) || []).length, 1, "labeled once, on the heading");
