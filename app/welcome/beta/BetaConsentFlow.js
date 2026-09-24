@@ -604,7 +604,7 @@ function AiChoice({ choice, setChoice }) {
   return (
     <section>
       <Heading
-        sub={`Aly runs on ${AI_PROVIDER}, which is not us. Read this, then choose at the bottom.`}
+        sub={`Aly runs on models from OpenAI and Google, which are not us. Read this, then choose at the bottom.`}
       >
         Aly and your information
       </Heading>
@@ -647,7 +647,7 @@ function AiChoice({ choice, setChoice }) {
           selected={choice === true}
           onSelect={() => setChoice(true)}
           title="Turn Aly on"
-          detail={`My questions and the trip context may be sent to ${AI_PROVIDER}.`}
+          detail={`My questions and the trip context may be sent to the ${AI_PROVIDER}.`}
         />
         <Choice
           selected={choice === false}
@@ -734,7 +734,7 @@ function Receipt({ email, aiProcessing, diagnostics, features }) {
           term="Aly"
           detail={
             aiProcessing
-              ? `On. Questions may be sent to ${AI_PROVIDER}.`
+              ? `On. Questions may be sent to the ${AI_PROVIDER}.`
               : "Off. Nothing is sent to an AI provider."
           }
         />

@@ -9,7 +9,7 @@ import useUnsavedChanges from "@/components/useUnsavedChanges";
 import { FAMILY_FORM_COPY, OWN_GENDER_TERM } from "@/lib/travelers/formCopy";
 import AboutSections from "@/components/AboutSections";
 import DocumentPicker from "@/components/DocumentPicker";
-import { AI_PROVIDER } from "@/lib/beta/agreement";
+import { READER_PROVIDER } from "@/lib/beta/agreement";
 import ExtractedFieldsStrip from "@/components/ExtractedFieldsStrip";
 import { readFileFields } from "@/lib/documents/read";
 import DocumentViewer from "@/components/DocumentViewer";
@@ -497,7 +497,7 @@ export default function People({
             Snap passports, licenses and IDs with the phone.
           </span>{" "}
           Aly reads the number and expiry off the scan so you do not have to
-          type them — that sends the file to {AI_PROVIDER}, and only while you
+          type them — that sends the file to {READER_PROVIDER}, and only while you
           have document reading on — and the file stays in your household's
           private storage, where Aly watches the expiry date for you.
         </p>
@@ -837,7 +837,7 @@ export default function People({
                     passport, license or ID with the phone camera and Add
                     document. Aly reads the number and expiry off the scan so
                     you do not have to type them, which sends the file to{" "}
-                    {AI_PROVIDER} while document reading is on, and the file
+                    {READER_PROVIDER} while document reading is on, and the file
                     itself is kept in your household's private storage, with the
                     expiry date watched for you.
                   </p>

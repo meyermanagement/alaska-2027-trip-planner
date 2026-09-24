@@ -80,7 +80,7 @@ export default function AdultAcceptance() {
           <details className="rounded-xl border border-line p-4">
             <summary className="cursor-pointer font-semibold">Optional choices · all off to start</summary>
             <p className="mt-3 text-sm text-ink-soft">You can use your trip view without these. These choices do not grant household-manager permissions, and you can change them later in Settings.</p>
-            <label className="mt-3 flex gap-3 text-sm"><input type="checkbox" checked={answers.aiProcessing === true} disabled={busy} onChange={e => set("aiProcessing", e.target.checked)} /><span>Allow Ask Aly to send relevant travel information to {AI_PROVIDER}.</span></label>
+            <label className="mt-3 flex gap-3 text-sm"><input type="checkbox" checked={answers.aiProcessing === true} disabled={busy} onChange={e => set("aiProcessing", e.target.checked)} /><span>Allow Ask Aly to send relevant travel information to the {AI_PROVIDER}.</span></label>
             <ul className="my-3 list-disc pl-5 text-xs text-ink-soft">{AI_DISCLOSURE.sent.map(item => <li key={item}>{item}</li>)}</ul>
             <p className="text-xs font-semibold">What is not sent</p>
             <ul className="my-3 list-disc pl-5 text-xs text-ink-soft">{AI_DISCLOSURE.notSent.map(item => <li key={item}>{item}</li>)}</ul>

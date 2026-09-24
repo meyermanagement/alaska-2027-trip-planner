@@ -79,7 +79,7 @@ test("the other providers read the note as part of the same turn", () => {
   const msgs = withFinishNote([{ role: "user", text: "Where should we stay?" }], ["Write the words."]);
   assert.equal(textWithNotes(msgs[0]), `Where should we stay?\n\n${FINISH_NOTE_LEAD}\n\nWrite the words.`);
   const o = openai.buildRequest({ system, messages: msgs });
-  assert.equal(o.messages.at(-1).content, textWithNotes(msgs[0]));
+  assert.equal(o.input.at(-1).content, textWithNotes(msgs[0]));
   const n = anthropic.normalizeMessages(msgs);
   assert.equal(n.at(-1).text, textWithNotes(msgs[0]));
 });

@@ -108,8 +108,8 @@ export default function BetaConsentControls({ consent }) {
           label="Let Aly answer questions"
           note={
             ai
-              ? `Your questions and the trip context may be sent to ${AI_PROVIDER}. Turn this off and nothing is sent to an AI provider.`
-              : `Off. Nothing is sent to ${AI_PROVIDER}. Trips, packing, documents, and reminders all still work.`
+              ? `Your questions and the trip context may be sent to the ${AI_PROVIDER}. Turn this off and nothing is sent to an AI provider.`
+              : `Off. Nothing is sent to the ${AI_PROVIDER}. Trips, packing, documents, and reminders all still work.`
           }
         />
         <Row

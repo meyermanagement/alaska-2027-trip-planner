@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AI_PROVIDER } from "@/lib/beta/agreement";
+import { READER_PROVIDER } from "@/lib/beta/agreement";
 import {
   ACCEPT_ATTR,
   humanBytes,
@@ -110,7 +110,7 @@ export default function DocumentPicker({
           passport photograph, and until September 16, 2026 it was the one screen
           in the flow that never said the file leaves the phone or who reads it. */}
       <p className="text-[11px] leading-snug text-ink-soft">
-        Reading it sends the file to {AI_PROVIDER}, and only while &ldquo;read
+        Reading it sends the file to {READER_PROVIDER}, and only while &ldquo;read
         fields from documents&rdquo; is on in Settings. Turn that off and the
         file is stored without being read.
       </p>

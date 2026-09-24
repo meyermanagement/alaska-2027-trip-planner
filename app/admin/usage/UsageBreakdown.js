@@ -100,7 +100,7 @@ export default function UsageBreakdown({
     <main className="screen px-5 pb-16 pt-7">
       <PageHeader
         title="Usage"
-        subtitle="What the app spent on Gemini, by the part of it that asked. Counts and tokens as the model reported them, never a price: what a token costs depends on the model and the tier, and a figure here that looked like the invoice would be trusted like one."
+        subtitle="What the app spent on AI models, by the part of it that asked. Counts and tokens as the model reported them, never a price: what a token costs depends on the model and the tier, and a figure here that looked like the invoice would be trusted like one."
         above={
           <a href="/admin" className="text-sm text-ink-soft hover:text-ink">
             &larr; Admin
