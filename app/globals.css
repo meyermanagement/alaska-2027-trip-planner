@@ -8797,9 +8797,11 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   display: grid;
 }
 
+/* The cards hang from the heading, so a shorter one sits right under it and the
+   spare height of the tallest falls below, not between the heading and the card. */
 .home-nudge-stack > .home-nudge {
   grid-area: 1 / 1;
-  align-self: end;
+  align-self: start;
   opacity: 0;
   visibility: hidden;
   transform: translateY(14px) scale(0.97);
