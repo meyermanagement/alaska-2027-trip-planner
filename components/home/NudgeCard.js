@@ -25,9 +25,15 @@ import { NUDGES } from "@/lib/home/nudges";
  * (gostateparks.hawaii.gov/waianapanapa, checked September 24, 2026). March 16
  * less 30 days is February 14.
  *
- * The third is the same Tuesday the day demo further down shows: at 7:20 lunch
- * is at one and the 1 PM forecast is passing showers, so at 11:10 Aly moves
- * lunch earlier to get the family home before they start.
+ * The third is found on the day, on the family's own route: coming down from
+ * the Haleakalā summit on Wednesday, March 18, to dinner in Pāʻia, the road
+ * passes Hāliʻimaile, where the Maui Pineapple Store sells Maui Gold and is
+ * open 9 to 4 daily (mauigold.com/where-to-buy, checked September 24, 2026).
+ * Pineapple is one of the fruits USDA lets travel to the mainland once it is
+ * shown at the airport agriculture inspection (aphis.usda.gov, same date).
+ * The leave-by time is an estimate for the example. It replaced the rain
+ * change on September 24, 2026, because When it changes now shows that one as
+ * a notification, and the hero should not tell the same story twice.
  *
  * The choices are spans, not buttons, like every other control drawn on this
  * page: nothing here can be pressed, so a keyboard is never handed a control

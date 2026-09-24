@@ -32,10 +32,11 @@ test("hero leads with the turning line, the new body and the waitlist link", () 
 
 test("the hero examples are nudges, before and during, labeled, with drawn controls only", () => {
   assert.ok(nudge.indexOf("Jan 8 · 65 days before Maui") < nudge.indexOf("Feb 3 · 39 days before Maui"));
-  assert.ok(nudge.indexOf("Feb 3 · 39 days before Maui") < nudge.indexOf("Tue 11:10 AM · Day 4 in Maui"));
+  assert.ok(nudge.indexOf("Feb 3 · 39 days before Maui") < nudge.indexOf("Wed 1:40 PM · Day 5 in Maui"));
   assert.ok(nudge.includes('title: "Dani’s license expires before the trip"'));
   assert.ok(nudge.includes('title: "Waiʻānapanapa needs a reservation"'));
-  assert.ok(nudge.includes('title: "Showers from 1 to 3 this afternoon"'));
+  assert.ok(nudge.includes('title: "Fresh pineapple, on your way down"'));
+  assert.ok(nudge.includes('title: "Showers from 1 to 3 this afternoon"'), "the rain change is kept for When it changes");
   assert.ok(nudge.includes("Reservations for March 16 open February 14 at midnight Hawaii time."));
   assert.ok(nudge.includes('act: "Remind me Feb 14"'));
   assert.doesNotMatch(nudge.split("const NUDGES")[1], /Biscuit|pets?\b|stays dry/);
@@ -46,7 +47,7 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   // The heading says what the cards are; the color's meaning is said in words.
   assert.ok(nudge.includes(">Before you think to ask<"));
   assert.match(nudge.replace(/\s+/g, " "), /You don’t have to know the right questions to ask\. Aly watches your trip and tells you when something needs you\./);
-  assert.deepEqual([...nudge.matchAll(/tag: "([^"]+)"/g)].map((m) => m[1]), ["Needed to travel", "Book Feb 14", "Last minute"]);
+  assert.deepEqual([...nudge.matchAll(/tag: "([^"]+)"/g)].map((m) => m[1]), ["Needed to travel", "Book Feb 14", "On your way", "Last minute"]);
   assert.doesNotMatch(nudge, /Just say yes|Ready to apply|A real nudge|"High"|"Low"/);
   assert.equal((nudge.match(/>Example</g) || []).length, 1, "labeled once, on the heading");
   assert.ok(nudge.includes("NUDGES.map"));
@@ -55,7 +56,7 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.equal((nudge.match(/<button/g) || []).length, 1);
   assert.match(nudge, /onClick=\{\(\) => \{\s*setAt\(i\);\s*setTurning\(false\);/);
   assert.doesNotMatch(nudge, /<a |ma-in|ma-fade/);
-  assert.deepEqual([...nudge.matchAll(/level: "(\w+)"/g)].map((m) => m[1]), ["high", "medium", "low"]);
+  assert.deepEqual([...nudge.matchAll(/level: "(\w+)"/g)].map((m) => m[1]), ["high", "medium", "low", "low"]);
   assert.ok(nudge.includes("prefers-reduced-motion"));
   // When it changes shows the same rain message, as the notification it arrives as.
   const notice = read("components/home/RainNotice.js");
