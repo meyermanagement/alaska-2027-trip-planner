@@ -228,3 +228,7 @@ test("the money scene shows planned against actual and picks a card on points, p
   assert.ok(budget.includes("Example trip"));
   assert.doesNotMatch(budget, /Chase|Amex|American Express|Sapphire|Capital One|<button|<a /);
 });
+
+test("the hero cards turn at about 300 words a minute, never under four and a half seconds", () => {
+  assert.match(nudge, /Math\.max\(4500, `\$\{n\.title\} \$\{n\.text\}`\.split\(\/\\s\+\/\)\.length \* 200\)/);
+});

@@ -63,9 +63,11 @@ import { NUDGES } from "@/lib/home/nudges";
  * because how early Aly noticed is the point.
  */
 
-// Long enough to read each one at about 220 words a minute, and never less
-// than five and a half seconds.
-const holdFor = (n) => Math.max(5500, `${n.title} ${n.text}`.split(/\s+/).length * 270);
+// Long enough to read each one at about 300 words a minute, and never less
+// than four and a half seconds. It was 220 and five and a half until
+// September 24, 2026, which held the longer cards for eleven to thirteen
+// seconds and made the turn feel stalled.
+const holdFor = (n) => Math.max(4500, `${n.title} ${n.text}`.split(/\s+/).length * 200);
 
 export default function NudgeCard() {
   const [at, setAt] = useState(0);
