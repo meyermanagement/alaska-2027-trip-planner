@@ -17,7 +17,7 @@ import { ALY_INDEX } from "@/lib/home/alyIndex";
 // the money. Verb first, one thing each. Building the trip and forwarded
 // confirmations are real but copyable, so they wait for How it works.
 const HERO_CHECKS = [
-  "Holds the whole family's trip in one place, kids included",
+  "Holds the whole family's trip in one place",
   "Flags expiring passports and booking windows before you ask",
   "Packs a bag for each person, and the dog",
   "Reroutes the day when plans change",
