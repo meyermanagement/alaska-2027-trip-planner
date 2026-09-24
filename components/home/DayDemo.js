@@ -493,7 +493,7 @@ function DayPanel({ day, index, active }) {
       role="tabpanel"
       aria-hidden={active ? undefined : "true"}
       inert={active ? undefined : true}
-      className={`[grid-area:1/1] ${active ? "" : "invisible"}`}
+      className={active ? undefined : "hidden"}
     >
       <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-soft">
@@ -670,9 +670,11 @@ export default function DayDemo() {
         )}
       </div>
 
-      {/* Every day in one grid cell, so the card is as tall as the longest day
-          and the headline beside it does not move when a tile is pressed. A
-          sideways swipe changes the day, as it does on the trip screen. */}
+      {/* Only the day on screen takes up room, so a quiet day is a short card.
+          Stacking every day in one cell kept the card as tall as the longest
+          day, and any card left open on another day, which left a light day
+          sitting on a band of empty space. A sideways swipe changes the day,
+          as it does on the trip screen. */}
       <div
         className="grid grid-cols-[minmax(0,1fr)]"
         onTouchStart={(e) => {

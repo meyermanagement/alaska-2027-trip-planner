@@ -3,10 +3,12 @@ import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
 import AskDemo from "@/components/home/AskDemo";
 import BetterTogether from "@/components/BetterTogether";
+import BudgetDemo from "@/components/home/BudgetDemo";
 import DayDemo from "@/components/home/DayDemo";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import HeroFilm from "@/components/home/HeroFilm";
 import NudgeCard from "@/components/home/NudgeCard";
+import RainNotice from "@/components/home/RainNotice";
 import TaglineTurn from "@/components/home/TaglineTurn";
 import WaitlistForm from "@/components/home/WaitlistForm";
 import { ALY_INDEX } from "@/lib/home/alyIndex";
@@ -66,26 +68,6 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  * that comparison we control, and it costs nothing to hand a stranger a
  * different ocean.
  */
-
-/** A photograph, cropped by its frame, that fades up when its scene arrives. */
-function Shot({ src, alt, className = "" }) {
-  return (
-    <div
-      className={`ma-fade overflow-hidden rounded-[var(--radius-card)] border border-[var(--line)] ${className}`}
-    >
-      {/* Plain img rather than next/image: these are four fixed files served
-          from public/, sized for the page before they were committed, and the
-          root has to render identically for a crawler with no layout pass. */}
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-        className="block h-full w-full object-cover"
-      />
-    </div>
-  );
-}
 
 /**
  * One scene: a label, a headline, a single line, and the thing itself. The
@@ -436,13 +418,7 @@ export default function HomeLanding({ waitlist } = {}) {
           flip
           title="A change of plans, not a fresh start."
           body="Aly flags conflicts and helps you work around surprises, using the trip you already planned. You decide what changes."
-          media={
-            <Shot
-              src="/landing/rain.jpg"
-              alt="A tropical coast road in an afternoon rain shower, clearing sky ahead"
-              className="aspect-[4/3]"
-            />
-          }
+          media={<RainNotice />}
         />
 
         <Scene
@@ -522,29 +498,7 @@ export default function HomeLanding({ waitlist } = {}) {
           title="Keep the budget in view. Put your benefits to use."
           body="Aly brings trip costs, saved credits, and card benefits together, helping you see what’s left to spend and which card to use."
           note="She helps you understand your insurance and card or reward-program benefits, so you can check existing coverage before buying more."
-          media={
-            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="font-display text-[17px] font-semibold">
-                  Trip budget
-                </p>
-                <p className="text-[13px] text-ink-soft">7 days</p>
-              </div>
-              <div className="mt-4 space-y-3">
-                <Row left="Flights" right="Booked" sub="Tickets paid for" />
-                <Row left="Where you stay" right="Booked" sub="Deposit paid" />
-                <Row
-                  left="Food and days out"
-                  right="Estimated"
-                  sub="Planning estimates, separate from confirmed costs"
-                  last
-                />
-              </div>
-              <p className="mt-4 border-t border-[var(--line)] pt-3 text-[13px] text-ink-soft">
-                A clearer picture before you spend more.
-              </p>
-            </div>
-          }
+          media={<BudgetDemo />}
         />
 
         <Scene

@@ -7,7 +7,7 @@ const root = new URL("..", import.meta.url).pathname;
 const jiti = createJiti(import.meta.url, { alias: { "@": root } });
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const home = read("app/HomeLanding.js");
-const nudge = read("components/home/NudgeCard.js");
+const nudge = read("components/home/NudgeCard.js") + read("lib/home/nudges.js");
 const together = read("components/BetterTogether.js");
 const form = read("components/home/WaitlistForm.js");
 const publicCopy = [home, nudge, together, form, read("lib/home/alyIndex.js")].join("\n").replaceAll('role="alert"', "");
@@ -57,6 +57,12 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.doesNotMatch(nudge, /<a |ma-in|ma-fade/);
   assert.deepEqual([...nudge.matchAll(/level: "(\w+)"/g)].map((m) => m[1]), ["high", "medium", "low"]);
   assert.ok(nudge.includes("prefers-reduced-motion"));
+  // When it changes shows the same rain message, as the notification it arrives as.
+  const notice = read("components/home/RainNotice.js");
+  const changes = home.slice(home.indexOf('label="When it changes"'), home.indexOf('label="Building the trip"'));
+  assert.ok(changes.includes("media={<RainNotice />}"));
+  assert.ok(notice.includes("RAIN_NUDGE") && notice.includes('src="/landing/rain.jpg"'));
+  assert.doesNotMatch(notice, /<button|<a /);
   const css = read("app/globals.css");
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.home-nudge-stack \{/);
 });
@@ -204,4 +210,20 @@ test("waitlist names: migration, privacy, and the closing section offers only th
   assert.doesNotMatch(page, /Meet Aly\s*<\/Link>/);
   // Testers with an account still have a way in, at the top.
   assert.match(page, /href="\/login"[\s\S]*?Sign in/);
+});
+
+test("the example day is only as tall as the day on screen", () => {
+  const day = read("components/home/DayDemo.js");
+  assert.ok(day.includes('className={active ? undefined : "hidden"}'));
+  assert.doesNotMatch(day, /grid-area:1\/1|"invisible"/);
+  assert.ok(day.includes("inert={active ? undefined : true}"));
+});
+
+test("the money scene shows planned against actual and picks a card on points, perks and coverage", () => {
+  const budget = read("components/home/BudgetDemo.js");
+  assert.match(home, /media=\{<BudgetDemo \/>\}/);
+  for (const w of ['"Planned"', '"Actual"'].map((x) => x.slice(1, -1))) assert.ok(budget.includes(`>${w}<`));
+  for (const k of ['"Points"', '"Perks"', '"Coverage"']) assert.ok(budget.includes(`[${k},`));
+  assert.ok(budget.includes("Example trip"));
+  assert.doesNotMatch(budget, /Chase|Amex|American Express|Sapphire|Capital One|<button|<a /);
 });
