@@ -17,11 +17,16 @@ import { useBooted } from "@/components/reveal";
  * document is a driver's license rather than a passport. It expires March 2,
  * twelve days before the March 14 flight on the Better together card.
  *
- * The second is a plan changing after it was booked: the dog was added to the
- * trip after the condo was. The Hawaii date is real arithmetic: the state
- * counts a 30-day wait from the day after the lab receives the rabies blood
- * sample (dab.hawaii.gov, 5 Day Or Less program), so a February 10 sample
- * clears a March 14 landing with a few days to spare.
+ * The second is something that has to be booked on a particular day: the
+ * Road to Hāna is Monday, March 16, and Waiʻānapanapa State Park admits
+ * visitors only with a timed entry and parking reservation, released 30 days
+ * ahead at midnight Hawaii time with no same-day booking
+ * (gostateparks.hawaii.gov/waianapanapa, checked September 24, 2026). March 16
+ * less 30 days is February 14.
+ *
+ * The third is the same Tuesday the day demo further down shows: at 7:20 lunch
+ * is at one and the 1 PM forecast is passing showers, so at 11:10 Aly moves
+ * lunch earlier to get the family home before they start.
  *
  * The choices are spans, not buttons, like every other control drawn on this
  * page: nothing here can be pressed, so a keyboard is never handed a control
@@ -39,8 +44,8 @@ import { useBooted } from "@/components/reveal";
  *
  * Each carries how much it matters, in the colors the app already uses for how
  * soon a tip needs you: rose when the trip cannot go ahead without it, amber
- * when a plan needs a decision by a date and Aly has already found the options,
- * and teal when Aly has worked it out and only needs a yes. The words say what
+ * when something has to be done on a date Aly already knows, and teal for a
+ * change on the day that Aly has worked out and only needs a yes. The words say what
  * the color means for that card, so the color is never the only signal.
  *
  * The heading says what the cards are, since a message that arrives on its own
@@ -59,19 +64,19 @@ const NUDGES = [
   },
   {
     sent: "Feb 3 · 39 days before Maui",
-    title: "The condo doesn’t take pets",
-    text: "Biscuit is coming now. Two pet-friendly condos nearby fit the dates, and the condo cancels free until February 20. Hawaii also needs her rabies blood test at the lab by February 10.",
-    act: "See pet-friendly stays",
+    title: "Waiʻānapanapa needs a reservation",
+    text: "Your Road to Hāna day is Monday, March 16. The black sand beach admits visitors only with a timed reservation, and none are sold on the day. Reservations for March 16 open February 14 at midnight Hawaii time.",
+    act: "Remind me Feb 14",
     level: "medium",
-    tag: "Decide by Feb 20",
+    tag: "Book Feb 14",
   },
   {
     sent: "Tue 11:10 AM · Day 4 in Maui",
-    title: "Rain at 2 this afternoon",
-    text: "Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry. Sunset walk unchanged.",
+    title: "Showers from 1 to 3 this afternoon",
+    text: "Lunch at the condo moves to 12:30, so you’re home before they start. The snorkel boat is back by then, and the sunset walk should be clear.",
     act: "Apply",
     level: "low",
-    tag: "Ready to apply",
+    tag: "Last minute",
   },
 ];
 
