@@ -12,6 +12,17 @@ import TaglineTurn from "@/components/home/TaglineTurn";
 import WaitlistForm from "@/components/home/WaitlistForm";
 import { ALY_INDEX } from "@/lib/home/alyIndex";
 
+// The five lines under the headline. Verb first, one thing each, no
+// adjectives: the reader is deciding whether to keep scrolling, not learning
+// the product yet. Each line has a demonstration tab under How it works.
+const HERO_CHECKS = [
+  "Builds the trip from one sentence",
+  "Pulls bookings out of your email",
+  "Packs the bag and times the drive",
+  "Reroutes the day when plans change",
+  "Keeps the budget and card benefits in view",
+];
+
 /**
  * The front door.
  *
@@ -164,27 +175,34 @@ export default function HomeLanding({ waitlist } = {}) {
                 className="mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
               >
                 Alyeska has your back.
-                <br />
-                Before you go, and while you are there.
               </h1>
-              <p
-                className="mt-5 max-w-[33rem] text-[16px] leading-relaxed sm:text-[17px]"
-                style={{
-                  color: "rgba(246,243,236,0.92)",
-                }}
-              >
-                Finally, one place to plan your trip, keep it all together, and
-                hear about what matters before it matters. From “where should we go?” to “what do
-                we need tomorrow?”, Aly brings your itinerary, bookings,
-                packing, and budget together with advice that fits you. Less to
-                juggle. More to enjoy.
-              </p>
+              {/* The paragraph that stood here said everything and was read by
+                  nobody. Five verbs, each a thing Aly does, set straight on
+                  the film so the photograph stays a photograph. */}
+              <ul className="home-checks" aria-label="What Aly does">
+                {HERO_CHECKS.map((line) => (
+                  <li key={line}>
+                    <svg viewBox="0 0 30 30" aria-hidden="true">
+                      <circle cx="15" cy="15" r="14" />
+                      <path d="M8.5 15.5l4.2 4.2L21.5 11" />
+                    </svg>
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
               <div
                 className="mt-7 flex flex-wrap items-center gap-3"
               >
                 <a
+                  href="#waitlist"
+                  className="home-hero-btn"
+                  style={{ background: "#3fdfbe", color: "#0f2b25" }}
+                >
+                  Join the waitlist
+                </a>
+                <a
                   href="#how"
-                  className="rounded-full px-5 py-2.5 text-[15px] font-semibold"
+                  className="home-hero-btn"
                   style={{ background: "#f6f3ec", color: "#171d22" }}
                 >
                   See how it works
@@ -205,6 +223,21 @@ export default function HomeLanding({ waitlist } = {}) {
           and then this band says out loud that the film is over and the
           explanation has started. It is also where See how it works lands, so
           the button arrives at a heading instead of the middle of a scene. */}
+      {/* The pledge, said in one line before the explanation starts, in a
+          color nothing else on the page uses so it cannot be mistaken for a
+          feature. The three clauses are the three promises in lib/pledge.js,
+          shortened; the band links to the page that says them in full. */}
+      <div className="home-promise" role="note">
+        <div className="home-promise-inner">
+          <p>
+            <span>No ads.</span>
+            <span>No bias.</span>
+            <span>Your information is never sold.</span>
+          </p>
+          <Link href="/pledge">Read our pledge</Link>
+        </div>
+      </div>
+
       <div className="home-seam" id="how">
         <p>How it works</p>
       </div>
