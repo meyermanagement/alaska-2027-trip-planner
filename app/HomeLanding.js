@@ -48,7 +48,7 @@ const HERO_CHECKS = [
  * order a trip happens -- before you go, while you are there, when it changes,
  * the money -- and says everything else in a line each. The argument is the
  * same, and it is the only one worth making to somebody who has planned a
- * trip: Alyeska has your back, before you go and while you are there.
+ * trip: Aly has your back, the same words as the tab title and Meet Aly.
  *
  * Four rules it keeps.
  *
@@ -175,7 +175,7 @@ export default function HomeLanding({ waitlist } = {}) {
               <h1
                 className="mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
               >
-                Alyeska has your back.
+                Aly has your back.
               </h1>
               {/* The paragraph that stood here said everything and was read by
                   nobody. Five verbs, each a thing Aly does, set straight on
