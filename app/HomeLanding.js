@@ -12,15 +12,16 @@ import TaglineTurn from "@/components/home/TaglineTurn";
 import WaitlistForm from "@/components/home/WaitlistForm";
 import { ALY_INDEX } from "@/lib/home/alyIndex";
 
-// The five lines under the headline. Verb first, one thing each, no
-// adjectives: the reader is deciding whether to keep scrolling, not learning
-// the product yet. Each line has a demonstration tab under How it works.
+// The five lines under the headline, in the order the positioning ranks
+// them: the household first, then the noticing, then the bag, the day, and
+// the money. Verb first, one thing each. Building the trip and forwarded
+// confirmations are real but copyable, so they wait for How it works.
 const HERO_CHECKS = [
-  "Builds the trip from one sentence",
-  "Pulls bookings out of your email",
-  "Packs the bag and times the drive",
+  "Holds the whole family's trip in one place, kids included",
+  "Flags expiring passports and booking windows before you ask",
+  "Packs a bag for each person, and the dog",
   "Reroutes the day when plans change",
-  "Keeps the budget and card benefits in view",
+  "Keeps the budget and your card benefits in view",
 ];
 
 /**
@@ -225,13 +226,14 @@ export default function HomeLanding({ waitlist } = {}) {
           the button arrives at a heading instead of the middle of a scene. */}
       {/* The pledge, said in one line before the explanation starts, in a
           color nothing else on the page uses so it cannot be mistaken for a
-          feature. The three clauses are the three promises in lib/pledge.js,
-          shortened; the band links to the page that says them in full. */}
+          feature. Ads, commissions, and data sale are the three ways a travel
+          app usually makes money that this one does not; the pledge page
+          says each in full. */}
       <div className="home-promise" role="note">
         <div className="home-promise-inner">
           <p>
             <span>No ads.</span>
-            <span>No bias.</span>
+            <span>No commissions.</span>
             <span>Your information is never sold.</span>
           </p>
           <Link href="/pledge">Read our pledge</Link>

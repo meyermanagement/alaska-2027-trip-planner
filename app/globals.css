@@ -8693,6 +8693,10 @@ html[data-skin="sodium"] .arc-pill.kid::before {
 }
 
 @media (min-width: 1024px) {
+  .home-checks {
+    max-width: 45rem;
+  }
+
   .home-checks li {
     font-size: 21px;
   }
