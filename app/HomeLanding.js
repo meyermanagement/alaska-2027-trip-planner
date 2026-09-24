@@ -190,18 +190,6 @@ export default function HomeLanding({ waitlist } = {}) {
                   See how it works
                 </a>
               </div>
-              <p
-                className="mt-5 text-[13px]"
-                style={{
-                  color: "rgba(246,243,236,0.62)",
-                }}
-              >
-                In closed beta. New families join with an invite code, or{" "}
-                <a href="#waitlist" className="underline underline-offset-4">
-                  join the waitlist below
-                </a>
-                .
-              </p>
             </div>
 
             {/* Something Aly sends unasked, about this family's own day, with

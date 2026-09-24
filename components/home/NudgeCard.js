@@ -39,6 +39,12 @@ import { NUDGES } from "@/lib/home/nudges";
  * page: nothing here can be pressed, so a keyboard is never handed a control
  * that goes nowhere.
  *
+ * A finger can also drag the card itself left or right to move between the
+ * three, the same distance and direction a phone gallery already expects,
+ * added September 24, 2026 after a tester reached for it before finding the
+ * marks. It lands on the same setAt/setTurning path the marks use, so a swipe
+ * stops the turning exactly like a tap does.
+ *
  * They take turns rather than arriving as a stack, because a nudge is one thing
  * that turns up when it matters, and three at once read as a feed. Each one
  * stays long enough to read at a comfortable pace, counted from its own
@@ -78,6 +84,9 @@ export default function NudgeCard() {
   // Nothing turns under the loading screen, so the first example is the first
   // one anybody sees.
   const booted = useBooted();
+  // A drag past this many pixels counts as a swipe rather than a tap or a
+  // scroll; below it, nothing moves. Holds the pointer's start x and id.
+  const drag = useRef(null);
 
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) setTurning(false);
@@ -96,13 +105,37 @@ export default function NudgeCard() {
     return () => clearTimeout(t);
   }, [booted, turning, held, seen, at]);
 
+  const go = (dir) => {
+    setAt((n) => (n + dir + NUDGES.length) % NUDGES.length);
+    setTurning(false);
+  };
+
+  const SWIPE_PX = 40;
+
   return (
     <div
       ref={box}
+      className="home-nudge-swipe"
       onPointerEnter={() => setHeld(true)}
       onPointerLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}
       onBlur={() => setHeld(false)}
+      onPointerDown={(e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        drag.current = { x: e.clientX, id: e.pointerId };
+      }}
+      onPointerMove={(e) => {
+        if (drag.current?.id !== e.pointerId) return;
+        // Reads on the next pointerup; nothing moves the card mid-drag.
+        drag.current.dx = e.clientX - drag.current.x;
+      }}
+      onPointerUp={(e) => {
+        const d = drag.current;
+        drag.current = null;
+        if (d?.id !== e.pointerId || !d.dx) return;
+        if (Math.abs(d.dx) < SWIPE_PX) return;
+        go(d.dx < 0 ? 1 : -1);
+      }}
     >
       <div className="flex items-center justify-between gap-3">
         <p className="home-nudge-heading">Before you think to ask</p>

@@ -21,7 +21,7 @@ test("hero leads with the turning line, the new body and the waitlist link", () 
   assert.match(tag, /data-on=\{!turning \|\| i === at/, "with nothing running, every word is lit");
   assert.ok(hero.includes("hear about what matters before it matters."));
   assert.ok(!hero.includes("get help along the way"));
-  assert.match(hero, /href="#waitlist"[^>]*>\s*join the waitlist below/);
+  assert.doesNotMatch(hero, /In closed beta|join the waitlist below/, "the hero leads with See how it works, not the beta note");
   assert.ok(hero.includes("<NudgeCard />"));
   assert.ok(!/AskDemo|RotatingWord/.test(hero), "the nudge leads the hero");
   assert.ok(!/RotatingWord|AskDemo|BetterTogether|PLEDGE_/.test(home), "the chat, the household panel and the pledge cards are off the front page");
@@ -63,6 +63,14 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.doesNotMatch(notice, /<button|<a /);
   const css = read("app/globals.css");
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.home-nudge-stack \{/);
+  // A drag left or right moves between the three, on the same path a tap on a
+  // mark uses, so a swipe stops the turning exactly like a tap does.
+  assert.match(nudge, /onPointerDown=\{/);
+  assert.match(nudge, /onPointerMove=\{/);
+  assert.match(nudge, /onPointerUp=\{/);
+  assert.match(nudge, /const go = \(dir\) => \{\s*setAt\(\(n\) => \(n \+ dir \+ NUDGES\.length\) % NUDGES\.length\);\s*setTurning\(false\);/);
+  assert.match(nudge, /className="home-nudge-swipe"/);
+  assert.match(css, /\.home-nudge-swipe \{\s*touch-action: pan-y;/);
 });
 
 test("four demonstrations behind one tab strip, in the order a trip happens", () => {
