@@ -31,16 +31,23 @@ test("hero leads with the turning line, the new body and the waitlist link", () 
 });
 
 test("the hero examples are nudges, before and during, labeled, with drawn controls only", () => {
-  assert.ok(nudge.indexOf("Maui · January 8") < nudge.indexOf("Maui · February 3"));
-  assert.ok(nudge.indexOf("Maui · February 3") < nudge.indexOf("Kīhei · Tuesday, 11:10 am"));
-  assert.ok(nudge.includes("Biscuit is coming now, but the condo doesn’t allow pets."));
+  assert.ok(nudge.indexOf("Jan 8 · 65 days before Maui") < nudge.indexOf("Feb 3 · 39 days before Maui"));
+  assert.ok(nudge.indexOf("Feb 3 · 39 days before Maui") < nudge.indexOf("Tue 11:10 AM · Day 4 in Maui"));
+  assert.ok(nudge.includes('title: "Dani’s license expires before the trip"'));
+  assert.ok(nudge.includes('title: "The condo doesn’t take pets"'));
+  assert.ok(nudge.includes('title: "Rain at 2 this afternoon"'));
+  assert.ok(nudge.includes("Biscuit is coming now. Two pet-friendly condos nearby fit the dates"));
   assert.ok(nudge.includes('act: "See pet-friendly stays"'));
-  assert.ok(nudge.includes("Dani’s driver’s license expires March 2, twelve days before the flight"));
+  assert.ok(nudge.includes("It expires March 2, twelve days before the flight"));
   assert.ok(nudge.includes('act: "Add reminder"') && nudge.includes('act: "Apply"'));
   assert.doesNotMatch(nudge.split("const NUDGES")[1], /passport/i);
-  assert.match(nudge.replace(/\s+/g, " "), /Rain is forecast at 2\. Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry\. Sunset walk unchanged\./);
-  assert.match(nudge.replace(/\s+/g, " "), /A real nudge is built from your own trip, your own travelers, and your own wallet\. You choose what changes\./);
-  assert.ok(nudge.includes(">Example<"));
+  assert.match(nudge, /Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry\. Sunset walk unchanged\./);
+  // The heading says what the cards are; the color's meaning is said in words.
+  assert.ok(nudge.includes(">Aly, before you ask<"));
+  assert.match(nudge.replace(/\s+/g, " "), /Messages Aly sends when something about your trip needs you\./);
+  assert.deepEqual([...nudge.matchAll(/tag: "([^"]+)"/g)].map((m) => m[1]), ["Needed to travel", "Decide by Feb 20", "Ready to apply"]);
+  assert.doesNotMatch(nudge, /Just say yes|A real nudge|"High"|"Low"/);
+  assert.equal((nudge.match(/>Example</g) || []).length, 1, "labeled once, on the heading");
   assert.ok(nudge.includes("NUDGES.map"));
   // The marks under the stack are the only real control: they choose an example
   // and stop the turning. The choices drawn on each card stay spans.

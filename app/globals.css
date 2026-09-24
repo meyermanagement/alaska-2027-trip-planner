@@ -8707,12 +8707,27 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   color: #f6f3ec;
 }
 
-.home-nudge-stamp {
+/* What the cards are, above them, in the conversation card's label style. */
+.home-nudge-heading {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(246, 243, 236, 0.58);
+  color: rgba(246, 243, 236, 0.72);
+}
+
+/* When it was sent, counted against the trip. */
+.home-nudge-stamp {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(246, 243, 236, 0.66);
+}
+
+.home-nudge-title {
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: #f6f3ec;
 }
 
 .home-nudge-badge {
@@ -8722,14 +8737,6 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   font-size: 11px;
   font-weight: 600;
   color: rgba(246, 243, 236, 0.72);
-}
-
-.home-nudge-who {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(246, 243, 236, 0.55);
 }
 
 /* Drawn, not pressable: spans with a pill's shape, one filled. */
@@ -8778,6 +8785,7 @@ html[data-skin="sodium"] .arc-pill.kid::before {
   padding: 0.15rem 0.5rem;
   font-size: 11px;
   font-weight: 700;
+  white-space: nowrap;
   color: var(--nudge-level);
 }
 

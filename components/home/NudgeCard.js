@@ -40,38 +40,44 @@ import { useBooted } from "@/components/reveal";
  * Each carries how much it matters, in the colors the app already uses for how
  * soon a tip needs you: rose when the trip cannot go ahead without it, amber
  * when a plan needs a decision by a date and Aly has already found the options,
- * and teal when Aly has worked it out and only needs a yes. The word is always
- * there beside the color.
+ * and teal when Aly has worked it out and only needs a yes. The words say what
+ * the color means for that card, so the color is never the only signal.
+ *
+ * The heading says what the cards are, since a message that arrives on its own
+ * is not something a visitor expects to see. Each card leads with a title a
+ * reader can take in at a glance, and says when it was sent against the trip,
+ * because how early Aly noticed is the point.
  */
-const LEVELS = {
-  high: "High",
-  medium: "Medium",
-  low: "Low",
-};
 const NUDGES = [
   {
-    stamp: "Maui · January 8",
-    text: "Dani’s driver’s license expires March 2, twelve days before the flight and the rental car pickup. Renew by mid-February.",
+    sent: "Jan 8 · 65 days before Maui",
+    title: "Dani’s license expires before the trip",
+    text: "It expires March 2, twelve days before the flight and the rental car pickup. Renew by mid\u2011February.",
     act: "Add reminder",
     level: "high",
+    tag: "Needed to travel",
   },
   {
-    stamp: "Maui · February 3",
-    text: "Biscuit is coming now, but the condo doesn’t allow pets. Two pet-friendly condos nearby fit the dates, and the condo cancels free until February 20. Hawaii also needs her rabies blood test at the lab by February 10.",
+    sent: "Feb 3 · 39 days before Maui",
+    title: "The condo doesn’t take pets",
+    text: "Biscuit is coming now. Two pet-friendly condos nearby fit the dates, and the condo cancels free until February 20. Hawaii also needs her rabies blood test at the lab by February 10.",
     act: "See pet-friendly stays",
     level: "medium",
+    tag: "Decide by Feb 20",
   },
   {
-    stamp: "Kīhei · Tuesday, 11:10 am",
-    text: "Rain is forecast at 2. Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry. Sunset walk unchanged.",
+    sent: "Tue 11:10 AM · Day 4 in Maui",
+    title: "Rain at 2 this afternoon",
+    text: "Lunch at the condo moves to 12:30 and the Mākena snorkel stays dry. Sunset walk unchanged.",
     act: "Apply",
     level: "low",
+    tag: "Ready to apply",
   },
 ];
 
 // Long enough to read each one at about 220 words a minute, and never less
 // than five and a half seconds.
-const holdFor = (text) => Math.max(5500, text.split(/\s+/).length * 270);
+const holdFor = (n) => Math.max(5500, `${n.title} ${n.text}`.split(/\s+/).length * 270);
 
 export default function NudgeCard() {
   const [at, setAt] = useState(0);
@@ -96,7 +102,7 @@ export default function NudgeCard() {
     if (!booted || !turning || held || !seen) return undefined;
     const t = setTimeout(() => {
       if (document.visibilityState === "visible") setAt((n) => (n + 1) % NUDGES.length);
-    }, holdFor(NUDGES[at].text));
+    }, holdFor(NUDGES[at]));
     return () => clearTimeout(t);
   }, [booted, turning, held, seen, at]);
 
@@ -108,23 +114,27 @@ export default function NudgeCard() {
       onFocus={() => setHeld(true)}
       onBlur={() => setHeld(false)}
     >
+      <div className="flex items-center justify-between gap-3">
+        <p className="home-nudge-heading">Aly, before you ask</p>
+        <span className="home-nudge-badge">Example</span>
+      </div>
+      <p className="mb-3 mt-1 text-[12px] leading-relaxed text-[rgba(246,243,236,0.66)]">
+        Messages Aly sends when something about your trip needs you.
+      </p>
       <div className="home-nudge-stack">
         {NUDGES.map((n, i) => (
           <div
-            key={n.stamp}
+            key={n.sent}
             className="home-nudge rounded-[var(--radius-card)] p-5"
             data-level={n.level}
             data-on={i === at ? "true" : "false"}
           >
-            <div className="flex items-center justify-between gap-3">
-              <p className="home-nudge-stamp">{n.stamp}</p>
-              <span className="flex shrink-0 items-center gap-1.5">
-                <span className="home-nudge-level">{LEVELS[n.level]}</span>
-                <span className="home-nudge-badge">Example</span>
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              <p className="home-nudge-stamp">{n.sent}</p>
+              <span className="home-nudge-level">{n.tag}</span>
             </div>
-            <p className="home-nudge-who mt-4">Aly</p>
-            <p className="mt-1 text-[15px] leading-relaxed text-[rgba(246,243,236,0.96)]">
+            <p className="home-nudge-title mt-3">{n.title}</p>
+            <p className="mt-1 text-[15px] leading-relaxed text-[rgba(246,243,236,0.92)]">
               {n.text}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -137,12 +147,12 @@ export default function NudgeCard() {
       <div className="home-nudge-marks mt-3 flex items-center gap-1">
         {NUDGES.map((n, i) => (
           <button
-            key={n.stamp}
+            key={n.sent}
             type="button"
             className="home-nudge-mark"
             data-level={n.level}
             data-on={i === at ? "true" : "false"}
-            aria-label={`Example ${i + 1} of ${NUDGES.length}, ${LEVELS[n.level].toLowerCase()} importance`}
+            aria-label={`Example ${i + 1} of ${NUDGES.length}: ${n.title}`}
             aria-pressed={i === at}
             onClick={() => {
               setAt(i);
@@ -151,10 +161,6 @@ export default function NudgeCard() {
           />
         ))}
       </div>
-      <p className="mt-2 text-[12px] leading-relaxed text-[rgba(246,243,236,0.66)]">
-        A real nudge is built from your own trip, your own travelers, and your
-        own wallet. You choose what changes.
-      </p>
     </div>
   );
 }
