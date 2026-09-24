@@ -8,9 +8,9 @@ const jiti = createJiti(import.meta.url, { alias: { "@": root } });
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const home = read("app/HomeLanding.js");
 const nudge = read("components/home/NudgeCard.js") + read("lib/home/nudges.js");
-const together = read("components/BetterTogether.js");
+const how = read("components/home/HowTabs.js");
 const form = read("components/home/WaitlistForm.js");
-const publicCopy = [home, nudge, together, form, read("lib/home/alyIndex.js")].join("\n").replaceAll('role="alert"', "");
+const publicCopy = [home, nudge, how, form, read("lib/home/alyIndex.js")].join("\n").replaceAll('role="alert"', "");
 
 test("hero leads with the turning line, the new body and the waitlist link", () => {
   const hero = home.split('<section className="home-hero"')[1].split("</section>")[0];
@@ -24,10 +24,7 @@ test("hero leads with the turning line, the new body and the waitlist link", () 
   assert.match(hero, /href="#waitlist"[^>]*>\s*join the waitlist below/);
   assert.ok(hero.includes("<NudgeCard />"));
   assert.ok(!/AskDemo|RotatingWord/.test(hero), "the nudge leads the hero");
-  assert.ok(!/RotatingWord/.test(home));
-  const asked = home.indexOf('label="When you ask"');
-  assert.ok(asked > home.indexOf('label="While you are there"') && asked < home.indexOf("<BetterTogether />"));
-  assert.ok(home.slice(asked, home.indexOf("<BetterTogether />")).includes("<AskDemo />"));
+  assert.ok(!/RotatingWord|AskDemo|BetterTogether|PLEDGE_/.test(home), "the chat, the household panel and the pledge cards are off the front page");
 });
 
 test("the hero examples are nudges, before and during, labeled, with drawn controls only", () => {
@@ -60,33 +57,52 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.ok(nudge.includes("prefers-reduced-motion"));
   // When it changes shows the same rain message, as the notification it arrives as.
   const notice = read("components/home/RainNotice.js");
-  const changes = home.slice(home.indexOf('label="When it changes"'), home.indexOf('label="Building the trip"'));
-  assert.ok(changes.includes("media={<RainNotice />}"));
+  const changes = home.slice(home.indexOf('label: "When it changes"'), home.indexOf('label: "The money"'));
+  assert.ok(changes.includes("media: <RainNotice />"));
   assert.ok(notice.includes("RAIN_NUDGE") && notice.includes('src="/landing/rain.jpg"'));
   assert.doesNotMatch(notice, /<button|<a /);
   const css = read("app/globals.css");
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.home-nudge-stack \{/);
 });
 
-test("scenes run in the new order and alternate", () => {
-  const order = ["Before you go", "While you are there", "When you ask", "<BetterTogether />", "When it changes", "Building the trip", "The money", "Pro tips"]
-    .map((l) => (l.startsWith("<") ? home.indexOf(l) : home.indexOf(`label="${l}"`)));
-  assert.ok(order.every((i) => i > 0));
-  assert.deepEqual([...order].sort((a, b) => a - b), order);
-  const flips = [...home.matchAll(/<Scene\n\s+label="([^"]+)"\n(\s+flip\n)?/g)].map((m) => [m[1], !!m[2]]);
-  assert.deepEqual(flips, [["Before you go", false], ["While you are there", true], ["When you ask", false],
-    ["When it changes", true], ["Building the trip", false], ["The money", true], ["Pro tips", false]]);
+test("four demonstrations behind one tab strip, in the order a trip happens", () => {
+  const labels = [...home.matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(labels, ["Before you go", "While you are there", "When it changes", "The money"]);
+  assert.ok(home.includes("Pick a moment. See what Aly does with it."));
+  assert.doesNotMatch(home, /<Scene\b/, "no scenes left on the page");
+  // The strip is the trip screen's tab bar, not a new control.
+  assert.match(how, /className="tabbar home-how-bar"[\s\S]*?role="tablist"/);
+  assert.match(how, /role="tab"[\s\S]*?aria-selected=\{here\}[\s\S]*?className="tab"/);
+  assert.match(how, /"ArrowRight"[\s\S]*"ArrowLeft"[\s\S]*"Home"[\s\S]*"End"/);
+  // Every panel is server-rendered and stays in the DOM, hidden rather than
+  // unmounted, so a crawler and a no-JS browser get all four in order.
+  assert.match(how, /className=\{i === at \? "home-how-panel" : "hidden"\}/);
+  assert.doesNotMatch(how, /\.scrollIntoView\(/, "the strip is scrolled by hand so the page never jumps");
+  // The right-edge fade follows the trip screen's rule and never eats a tap.
+  assert.match(how, /setMoreTabs\(bar\.scrollWidth - bar\.clientWidth - bar\.scrollLeft > 2\)/);
+  assert.match(how, /\{moreTabs \? \(\s*<span aria-hidden="true" className="home-how-fade" \/>/);
+  const css = read("app/globals.css");
+  assert.match(css, /\.home-how-fade \{\s*pointer-events: none;/);
+  assert.match(css, /@media \(max-width: 420px\) \{\s*\.home-how-bar \{\s*display: grid;\s*grid-template-columns: 1fr 1fr;/);
+  // What follows the strip, in order: the one-line index, the household and
+  // the roadmap side by side, then the waitlist. The pledge lives at /pledge.
   const after = (a, b) => assert.ok(home.indexOf(a) < home.indexOf(b), `${a} before ${b}`);
-  after("ALY_INDEX.map", "What we promise");
-  after("What we promise", "On the roadmap, as of September 2026.");
+  after("<HowTabs", "Also looked after");
+  after("Also looked after", "ALY_INDEX.flatMap");
+  after("ALY_INDEX.flatMap", "Better together");
+  after("Better together", "On the roadmap, as of September 2026.");
   after("On the roadmap, as of September 2026.", "<WaitlistForm");
+  for (const line of ["Building the trip", "When you ask", "Pro tips"]) assert.ok(home.includes(`["${line}",`), `${line} is one line in the index`);
+  assert.doesNotMatch(home, /What we promise/);
+  assert.match(home, /href="\/pledge"[\s\S]*?Our Pledge/);
 });
 
-test("Better together shows each part and says the kids line", () => {
-  assert.ok(together.includes("Kids see the plan and check off their own list in a view a parent controls."));
-  assert.ok(together.includes("Parent-managed"));
-  assert.ok(together.includes("Dani and Sam are planning"));
-  assert.doesNotMatch(together, /\bgroups?\b|\bwork\b|colleague|team/i);
+test("Better together is one column: the heading, and the kids line", () => {
+  const col = home.slice(home.indexOf("Better together"), home.indexOf("On the roadmap"));
+  assert.ok(col.includes("Everyone on the trip sees their part of it."));
+  assert.ok(col.includes("Kids get their own days and their own list, and nothing else."));
+  assert.doesNotMatch(col, /<img|<button|<video/);
+  assert.doesNotMatch(col, /\bgroups?\b|\bwork\b|colleague|team/i);
 });
 
 test("public copy avoids the words and names the plan rules out", () => {
@@ -95,25 +111,22 @@ test("public copy avoids the words and names the plan rules out", () => {
   assert.doesNotMatch(publicCopy.replaceAll("Pro tips", ""), /\bPro\b|\bBasic\b/);
 });
 
-test("What Aly knows sits after the promises, labeled, at a reserved signed-in address", () => {
-  const promise = home.indexOf("PLEDGE_PROMISES.map");
-  const card = home.indexOf("What Aly knows about you, on one page.");
-  assert.ok(promise > 0 && card > promise);
-  assert.ok(home.includes("Coming to Alyeska Family"));
-  assert.ok(home.includes("sm:grid-cols-2 lg:grid-cols-4"));
+test("What Aly knows stays at a reserved signed-in address, off the front page", () => {
+  assert.doesNotMatch(home, /What Aly knows about you|Coming to Alyeska Family/);
   const { WHAT_ALY_KNOWS_PATH } = jiti("../lib/whatAlyKnows.js");
   assert.equal(WHAT_ALY_KNOWS_PATH, "/what-aly-knows");
   assert.ok(read("app/what-aly-knows/page.js").includes("index: false"));
   const mw = read("middleware.js");
   const publicList = mw.slice(mw.indexOf("const PUBLIC_PATHS"), mw.indexOf("];", mw.indexOf("const PUBLIC_PATHS")));
   assert.ok(!publicList.includes("/what-aly-knows"), "the page will hold household facts, so it stays behind sign-in");
+  assert.ok(!publicList.includes("/landing-tabs"), "the mockup route did not ship");
 });
 
 test("roadmap lines are dated and plain", () => {
   const flat = home.replaceAll('{" "}', " ").replace(/\s+/g, " ");
-  assert.ok(flat.includes("Alyeska Groups, 2027.</strong> Each household manages its own part of the trip, and the organizer&rsquo;s changes reach everyone as they happen."));
-  assert.ok(flat.includes("Planned: Claude, ChatGPT, Alexa+, Siri, and Muse. Read your trips first; changes later."));
-  assert.ok(flat.includes("Alyeska for iPhone and Android, fall 2027."));
+  assert.ok(flat.includes("Alyeska Groups, 2027.</strong> Several households, one trip."));
+  assert.ok(flat.includes("Ask Aly from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later."));
+  assert.ok(flat.includes("iPhone and Android, fall 2027."));
 });
 
 test("waitlist validation", () => {
@@ -177,7 +190,7 @@ test("the example chat is the same trip as the rest of the page", async () => {
 
 test("the example day is a real calendar, dated the week the chat talks about", () => {
   const day = read("components/home/DayDemo.js");
-  assert.match(home, /media=\{<DayDemo \/>\}/);
+  assert.match(home, /media: <DayDemo \/>/);
   assert.match(day, /const TODAY = "2026-03-17"/);
   // Tuesday, March 17 has to be a Tuesday, or the tiles and the header disagree.
   assert.equal(new Date("2026-03-17T12:00:00Z").getUTCDay(), 2);
@@ -222,7 +235,7 @@ test("the example day is only as tall as the day on screen", () => {
 
 test("the money scene shows planned against actual and picks a card on points, perks and coverage", () => {
   const budget = read("components/home/BudgetDemo.js");
-  assert.match(home, /media=\{<BudgetDemo \/>\}/);
+  assert.match(home, /media: <BudgetDemo \/>/);
   for (const w of ['"Planned"', '"Actual"'].map((x) => x.slice(1, -1))) assert.ok(budget.includes(`>${w}<`));
   for (const k of ['"Points"', '"Perks"', '"Coverage"']) assert.ok(budget.includes(`[${k},`));
   assert.ok(budget.includes("Example trip"));

@@ -29,13 +29,14 @@ test("adult role selection is explicit and skipping never requests an invitation
     assert.equal(welcomeAccess({ dob: "1990-01-01", accessChoice }, today), accessChoice);
   }
 });
-test("home section draws each part without real controls and follows the itinerary scene", () => {
+test("home says the household part in one column, after the demonstrations, without real controls", () => {
   const home = source("app/HomeLanding.js");
-  assert.ok(home.indexOf("<BetterTogether />") > home.indexOf('title="Today’s plans'));
-  assert.ok(home.indexOf("<BetterTogether />") < home.indexOf('label="When it changes"'));
-  const section = source("components/BetterTogether.js");
-  assert.doesNotMatch(section, /<img|<button|TripDemo|<video/);
-  for (const label of ["Better together", "Plan together", "Bring everyone along", "Give kids their part"]) assert.ok(section.includes(label));
+  const start = home.indexOf("Better together");
+  assert.ok(start > home.indexOf("<HowTabs"));
+  const col = home.slice(start, home.indexOf("On the roadmap"));
+  assert.doesNotMatch(col, /<img|<button|TripDemo|<video/);
+  assert.ok(col.includes("Everyone on the trip sees their part of it."));
+  assert.ok(col.includes("Kids get their own days and their own list"));
 });
 test("profile save is separate from email sending and preserves retry IDs", () => {
   const form = source("app/welcome/WelcomeForm.js");

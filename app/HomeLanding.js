@@ -1,18 +1,16 @@
 import Link from "next/link";
 import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
-import AskDemo from "@/components/home/AskDemo";
-import BetterTogether from "@/components/BetterTogether";
 import BudgetDemo from "@/components/home/BudgetDemo";
 import DayDemo from "@/components/home/DayDemo";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
 import HeroFilm from "@/components/home/HeroFilm";
+import HowTabs from "@/components/home/HowTabs";
 import NudgeCard from "@/components/home/NudgeCard";
 import RainNotice from "@/components/home/RainNotice";
 import TaglineTurn from "@/components/home/TaglineTurn";
 import WaitlistForm from "@/components/home/WaitlistForm";
 import { ALY_INDEX } from "@/lib/home/alyIndex";
-import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
 
 /**
  * The front door.
@@ -30,19 +28,22 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  * is a specification is a front door that argues you should feel better about
  * travel in the format of a terms page.
  *
- * So this one shows instead. It is one long scroll of scenes -- the draft, the
- * week before, the day itself, the day that changed, the money, the things that
- * have to be done by a date -- each one a photograph or a piece of the actual
- * product, arriving as you reach it. The argument underneath every scene is the
- * same argument, and it is the only one worth making to somebody who has
- * planned a trip: Alyeska has your back, before you go and while you are there.
+ * So this one shows instead. The first version of that was one long scroll of
+ * scenes, nine of them, each a photograph or a piece of the product arriving as
+ * you reached it. Testers said it was too much: they gave up inside the first
+ * couple of sections, so most of the argument was never read. This version puts
+ * the four demonstrations that carry the argument behind one tab strip, in the
+ * order a trip happens -- before you go, while you are there, when it changes,
+ * the money -- and says everything else in a line each. The argument is the
+ * same, and it is the only one worth making to somebody who has planned a
+ * trip: Alyeska has your back, before you go and while you are there.
  *
  * Four rules it keeps.
  *
  *   The claims still come from the product. The index of what Aly looks after is
  *   read from lib/home/alyIndex.js, where every line is annotated with the code
- *   that implements it, and the promises are the pledge's own words from
- *   lib/pledge.js. A marketing page written separately from the product is a
+ *   that implements it, and the promises live at /pledge in the pledge's own
+ *   words from lib/pledge.js. A marketing page written separately from the product is a
  *   page that drifts, and the first place it drifts is into a promise nobody
  *   implemented.
  *
@@ -70,92 +71,6 @@ import { PLEDGE_PROMISES, PLEDGE_COMPANY_PARTS } from "@/lib/pledge";
  */
 
 /**
- * One scene: a label, a headline, a single line, and the thing itself. The
- * photograph leads on even scenes and follows on odd ones, so the eye crosses
- * the page rather than running down one gutter.
- *
- * The line under the headline used to be a paragraph of eighty to a hundred
- * words, and six of those on one page is more reading than anybody does
- * standing at a front door. Worse, each paragraph argued the case that the
- * card beside it was already making -- the credit expiring in May is named in
- * the prose and shown in the panel a hand's width away -- so the reader was
- * told a thing and then shown it, and the showing read as a repeat. One line
- * now, set a size up from body copy and in full ink rather than soft, because
- * a single sentence carrying a whole section should not look like a caption.
- */
-function Scene({ label, title, body, note, media, flip }) {
-  return (
-    <Reveal
-      as="section"
-      className="home-scene border-t border-[var(--line)] py-14 first:border-t-0 sm:py-20"
-    >
-      <div
-        className={`grid items-center gap-8 lg:grid-cols-2 lg:gap-14 ${
-          flip ? "lg:[&>*:first-child]:order-2" : ""
-        }`}
-      >
-        <div>
-          <p className="section-label ma-in">{label}</p>
-          <h2
-            className="ma-in mt-2 font-display text-[26px] font-semibold leading-[1.15] sm:text-[32px]"
-            style={{ animationDelay: "60ms" }}
-          >
-            {title}
-          </h2>
-          <p
-            className="ma-in mt-3.5 max-w-[30rem] text-[16px] leading-relaxed sm:text-[17px]"
-            style={{ animationDelay: "120ms" }}
-          >
-            {body}
-          </p>
-          {/* A second line, only where cutting the paragraph took a specific
-              with it that the card beside it cannot show. Soft ink and back
-              down at body size, so it reads as the footnote to the line above
-              rather than as a second claim of equal weight. */}
-          {note ? (
-            <p
-              className="ma-in mt-2.5 max-w-[30rem] text-[14px] leading-relaxed text-ink-soft sm:text-[15px]"
-              style={{ animationDelay: "170ms" }}
-            >
-              {note}
-            </p>
-          ) : null}
-        </div>
-        <div className="min-w-0">{media}</div>
-      </div>
-    </Reveal>
-  );
-}
-
-/**
- * One tip: when to act, the thing itself, and where it came from. The source
- * line is not decoration -- a tip nobody can check is a rumor, and the product
- * carries a real link on every one of these.
- */
-function Tip({ when, title, source }) {
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-sand/40 p-3">
-      <p className="section-label text-[11px]">{when}</p>
-      <p className="mt-1 text-[14px] font-semibold leading-snug">{title}</p>
-      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[12px] text-ink-soft">Source: {source}</p>
-        {/* The tip's own answer, drawn exactly as ProTips draws it: a ghost pill
-            reading Remind me, which turns the sentence into a dated task. It is
-            not a control here -- nothing on this page is -- but a picture of a
-            screen that shows a button the app does not have is the kind of claim
-            this page is supposed to stop making. */}
-        <span
-          aria-hidden="true"
-          className="ml-auto rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-soft"
-        >
-          Remind me
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/**
  * One stage of the run-up: when it is due, what it is, and why it is dated
  * there. The rail down the left is what makes five rows read as one stretch of
  * time rather than five unrelated errands.
@@ -181,19 +96,6 @@ function Stage({ when, on, title, sub, last }) {
         <p className="mt-0.5 text-[14px] font-semibold leading-snug">{title}</p>
         <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{sub}</p>
       </div>
-    </div>
-  );
-}
-
-/** A row inside one of the product panels below. */
-function Row({ left, right, sub, last }) {
-  return (
-    <div className={last ? "" : "border-b border-[var(--line)] pb-3"}>
-      <div className="flex items-baseline justify-between gap-4">
-        <p className="text-[15px] font-semibold">{left}</p>
-        <p className="shrink-0 text-[13px] text-ink-soft">{right}</p>
-      </div>
-      {sub ? <p className="mt-0.5 text-[13px] text-ink-soft">{sub}</p> : null}
     </div>
   );
 }
@@ -319,373 +221,118 @@ export default function HomeLanding({ waitlist } = {}) {
         <p>How it works</p>
       </div>
 
-      {/* --------------------------------------------------------------- scenes
-          Six of them, and the noticing first: what Aly catches before you go
-          and while you are there, then everybody else on the trip, then the
-          day that changed, and only after that the building, the money and
-          the tips. Each one is the stress it takes off you, said once, with
-          the thing itself beside it. The flip alternates by position, so a
-          reorder has to redo it. */}
-      <div className="mx-auto w-full max-w-[74rem] px-5 pt-2 sm:px-8">
-        <Scene
-          label="Before you go"
-          title="From the day you book to the morning you leave."
-          body="Aly turns your trip details into timely reminders, so you can get ready a little at a time."
-          note="Your packing list brings together your saved essentials and suggestions for the trip you’ve planned."
-          media={
-            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
-              <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
-                <img
-                  src="/landing/packing.jpg"
-                  alt="An open case half packed on a bed in morning light, a sun hat on the lid and a child's backpack beside it"
-                  loading="lazy"
-                  decoding="async"
-                  className="block h-[132px] w-full object-cover"
-                />
-              </div>
-
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="font-display text-[17px] font-semibold">
-                  Maui, in March
-                </p>
-                <p className="text-[13px] text-ink-soft">You leave March 14</p>
-              </div>
-
-              <div className="mt-4">
-                <Stage
-                  when="Book now"
-                  on="Jan 6"
-                  title="Hold the condo and the car"
-                  sub="Choose your stay and transport before planning the days"
-                />
-                <Stage
-                  when="A month out"
-                  on="Feb 12"
-                  title="Book the morning snorkel boat"
-                  sub="Choose a departure that fits your morning"
-                />
-                <Stage
-                  when="Week before"
-                  on="Mar 7"
-                  title="Stop the mail, tell the neighbor"
-                  sub="A few things at home to take care of before you go"
-                />
-                <Stage
-                  when="Day before"
-                  on="Mar 13"
-                  title="Pack from the list, chargers last"
-                  sub="Keep the last-minute essentials easy to find"
-                />
-                <Stage
-                  when="Travel day"
-                  on="Mar 14"
-                  title="Leave by 8:05 for the 10:40 flight"
-                  sub="Timed from your door, not from the city"
-                  last
-                />
-              </div>
-            </div>
-          }
-        />
-
-        <Scene
-          label="While you are there"
-          flip
-          title="Today’s plans, without the inbox hunt."
-          body="Bookings, check-in details, and your day pack stay with the day they belong to. Ask Aly for help with what’s next."
-          media={<DayDemo />}
-        />
-
-        {/* The typed conversation, back on the page on September 23, 2026 but
-            no longer in the hero: the nudge leads, because Aly speaking first
-            is what a chat window cannot show, and the conversation follows the
-            day it is about. It happens the evening before that Tuesday. */}
-        <Scene
-          label="When you ask"
-          title="An answer for your family, not for everyone."
-          body="Ask anything. Aly answers from your trip: who is with you, what you booked, your budget, and the cards in your wallet."
-          media={
-            <div className="ma-in" style={{ animationDelay: "80ms" }}>
-              <AskDemo />
-            </div>
-          }
-        />
-
-        <BetterTogether />
-
-        <Scene
-          label="When it changes"
-          flip
-          title="A change of plans, not a fresh start."
-          body="Aly flags conflicts and helps you work around surprises, using the trip you already planned. You decide what changes."
-          media={<RainNotice />}
-        />
-
-        <Scene
-          label="Building the trip"
-          title="Suggestions that already know how you travel."
-          body="Start with an idea, not a dozen open tabs. Aly helps turn it into places to stay and days you’ll look forward to, all shaped around you."
-          media={
-            <div
-              className="ma-in card home-trip-example p-5"
-              style={{ animationDelay: "80ms" }}
-            >
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="font-display text-[17px] font-semibold">
-                  A new trip
-                </p>
-                <p className="home-trip-example-badge">Example trip</p>
-              </div>
-
-              {/* Show a starting idea and explain the follow-up without
-                  exposing the builder's internal completeness checklist. */}
-              <p className="home-trip-example-prompt mt-4 rounded-xl p-3 text-[14px] leading-relaxed">
-                Maui for a week in March for about $6,000.
-              </p>
-              <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-                Aly uses what she knows about you to suggest the details.
-              </p>
-
-              <div className="mt-4 border-t border-[var(--line)] pt-3">
-                <p className="text-[13px] font-semibold">
-                  A few ideas that fit you
-                </p>
-                <div className="mt-2.5 space-y-3">
-                  <div className="home-trip-example-idea" data-kind="stay">
-                    <p className="home-trip-example-kind">Stay your way</p>
-                    <Row
-                      left="A two-bedroom condo in Kīhei"
-                      right="$1,880 for the week"
-                      sub="Room to cook, with the beach a short walk away."
-                      last
-                    />
+      {/* ------------------------------------------------------------- how
+          Four demonstrations behind one tab strip. See components/home/HowTabs.js. */}
+      <Reveal as="section" className="mx-auto w-full max-w-[74rem] px-5 pt-12 sm:px-8 sm:pt-16">
+        <h2 className="ma-in font-display text-[26px] font-semibold leading-[1.15] sm:text-[32px]">
+          Pick a moment. See what Aly does with it.
+        </h2>
+        <div className="ma-in mt-6" style={{ animationDelay: "80ms" }}>
+          <HowTabs
+            tabs={[
+              {
+                label: "Before you go",
+                title: "From the day you book to the morning you leave.",
+                body: "Aly turns your trip into dated reminders, so you get ready a little at a time.",
+                media: (
+                  <div className="card p-5">
+                    <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
+                      <img
+                        src="/landing/packing.jpg"
+                        alt="An open case half packed on a bed in morning light, a sun hat on the lid and a child's backpack beside it"
+                        loading="lazy"
+                        decoding="async"
+                        className="block h-[132px] w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex items-baseline justify-between gap-4">
+                      <p className="font-display text-[17px] font-semibold">Maui, in March</p>
+                      <p className="text-[13px] text-ink-soft">You leave March 14</p>
+                    </div>
+                    <div className="mt-4">
+                      <Stage when="Book now" on="Jan 6" title="Hold the condo and the car" sub="Choose your stay and transport before planning the days" />
+                      <Stage when="A month out" on="Feb 12" title="Book the morning snorkel boat" sub="Choose a departure that fits your morning" />
+                      <Stage when="Week before" on="Mar 7" title="Stop the mail, tell the neighbor" sub="A few things at home to take care of before you go" />
+                      <Stage when="Day before" on="Mar 13" title="Pack from the list, chargers last" sub="Keep the last-minute essentials easy to find" />
+                      <Stage when="Travel day" on="Mar 14" title="Leave by 8:05 for the 10:40 flight" sub="Timed from your door, not from the city" last />
+                    </div>
                   </div>
-                  <div className="home-trip-example-idea" data-kind="flight">
-                    <p className="home-trip-example-kind">
-                      Keep the morning easy
-                    </p>
-                    <Row
-                      left="The 10:40 am flight, not the 6:10 am"
-                      right="$240 more"
-                      sub="A gentler start for Dani and Mia, with the extra cost clear."
-                      last
-                    />
-                  </div>
-                  <div className="home-trip-example-idea" data-kind="credit">
-                    <p className="home-trip-example-kind">
-                      Use what you already have
-                    </p>
-                    <Row
-                      left="$300 in airline credit"
-                      right="Expiry in May"
-                      sub="Put your existing credit toward the flight."
-                      last
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-4 border-t border-[var(--line)] pt-3 text-[13px] text-ink-soft">
-                You choose what makes it into the plan.
-              </p>
-            </div>
-          }
-        />
-
-        <Scene
-          label="The money"
-          flip
-          title="Keep the budget in view. Put your benefits to use."
-          body="Aly brings trip costs, saved credits, and card benefits together, helping you see what’s left to spend and which card to use."
-          note="She helps you understand your insurance and card or reward-program benefits, so you can check existing coverage before buying more."
-          media={<BudgetDemo />}
-        />
-
-        <Scene
-          label="Pro tips"
-          title="A little local knowledge goes a long way."
-          body="Tips tailored to your plans, with sources you can check. Turn the useful ones into reminders so they’re there when you need them."
-          media={
-            <div className="ma-in card p-5" style={{ animationDelay: "80ms" }}>
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="font-display text-[17px] font-semibold">
-                  Worth knowing &middot; Maui
-                </p>
-                <p className="text-[13px] text-ink-soft">3 new</p>
-              </div>
-              {/* Deliberately not the ledger shape the money and day panels
-                  use: a tip is a sentence with a date and a source under it,
-                  and two Row lists in a row would read as the same screen
-                  twice. */}
-              <div className="mt-4 space-y-2.5">
-                <Tip
-                  when="Before you book"
-                  title="Check sunrise entry requirements before choosing your day"
-                  source="recreation.gov"
-                />
-                <Tip
-                  when="Day 4, before you leave"
-                  title="Download an offline map for your day 4 drive"
-                  source="Your itinerary"
-                />
-                <Tip
-                  when="Before you pack"
-                  title="Check local sunscreen rules before you pack"
-                  source="Hawaii Revised Statutes 342D-21"
-                />
-              </div>
-            </div>
-          }
-        />
-      </div>
-
-      {/* Supporting capabilities, without repeating the six scenes above.
-          Plain lists rather than chips: these describe features, not actions. */}
-      <Reveal
-        as="section"
-        className="mx-auto w-full max-w-[74rem] px-5 sm:px-8"
-      >
-        <div className="border-t border-[var(--line)] py-14">
-          <h2 id="aly-details-heading" className="section-label ma-in">
-            More of the details, taken care of
-          </h2>
-          <div className="mt-7 grid gap-8 md:grid-cols-3 md:gap-10">
-            {ALY_INDEX.map((group, gi) => (
-              <div
-                key={group.key}
-                className="ma-in"
-                style={{ animationDelay: `${gi * 80}ms` }}
-              >
-                <h3 className="border-b border-[var(--line)] pb-3 font-display text-[20px] font-semibold">
-                  {group.heading}
-                </h3>
-                <ul className="mt-4 space-y-5">
-                  {group.items.map((item) => (
-                    <li key={item.title}>
-                      <h4 className="text-[16px] font-semibold">
-                        {item.title}
-                      </h4>
-                      <p className="mt-1 text-[16px] leading-relaxed text-ink-soft">
-                        {item.body}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+                ),
+              },
+              {
+                label: "While you are there",
+                title: "Today’s plans, without the inbox hunt.",
+                body: "Bookings, check-in details, and the day pack stay with the day they belong to.",
+                media: <DayDemo />,
+              },
+              {
+                label: "When it changes",
+                title: "A change of plans, not a fresh start.",
+                body: "Aly works around the surprise with the trip you already planned. You decide what changes.",
+                media: <RainNotice />,
+              },
+              {
+                label: "The money",
+                title: "Keep the budget in view. Put your benefits to use.",
+                body: "Trip costs, saved credits, and card benefits in one place, so you know what is left and which card to use.",
+                media: <BudgetDemo />,
+              },
+            ]}
+          />
         </div>
       </Reveal>
 
-      {/* -------------------------------------------------------------- pledge
-          The pledge's own three promises, verbatim from lib/pledge.js. They are
-          the reason the app is built the way it is, and they are the part a
-          stranger deciding whether to trust it with a passport number wants
-          before they read anything else. */}
-      <Reveal
-        as="section"
-        className="mx-auto w-full max-w-[74rem] px-5 sm:px-8"
-      >
-        <div className="border-t border-[var(--line)] py-14">
-          <p className="section-label ma-in">What we promise</p>
-          <h2
-            className="ma-in mt-2 font-display text-[26px] font-semibold sm:text-[30px]"
-            style={{ animationDelay: "60ms" }}
-          >
-            Aly answers for the traveler in front of her, and for nobody else
-          </h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {PLEDGE_PROMISES.map((promise, i) => (
-              <div
-                key={promise.title}
-                className="ma-in card p-4"
-                style={{ animationDelay: `${120 + i * 80}ms` }}
-              >
-                <h3 className="font-display text-[17px] font-semibold">
-                  {promise.title}
-                </h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-ink-soft">
-                  {promise.body}
-                </p>
-              </div>
+      {/* ------------------------------------------------------------ also
+          Everything else, one line each. The three scenes that used to have
+          a panel of their own -- building the trip, asking, pro tips -- sit
+          here with the six from lib/home/alyIndex.js. */}
+      <Reveal as="section" className="mx-auto w-full max-w-[74rem] px-5 sm:px-8">
+        <div className="mt-14 border-t border-[var(--line)] py-14 sm:mt-20">
+          <p className="section-label ma-in">Also looked after</p>
+          <ul className="mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["Building the trip", "Say roughly where, when, and how much. Aly suggests stays and days shaped around your family."],
+              ["When you ask", "Answers come from your trip: who is going, what you booked, your budget, and your cards."],
+              ["Pro tips", "Local knowledge for your plans, with a source on every one, and a reminder if you want it."],
+              ...ALY_INDEX.flatMap((g) => g.items.map((i) => [i.title, i.body])),
+            ].map(([title, body], i) => (
+              <li key={title} className="ma-in" style={{ animationDelay: `${i * 40}ms` }}>
+                <h3 className="text-[16px] font-semibold">{title}</h3>
+                <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">{body}</p>
+              </li>
             ))}
-            {/* Next to the promise about not selling what Aly knows, the
-                page that will show it. Not built yet, and labeled so; the
-                address is reserved in lib/whatAlyKnows.js. */}
-            <div
-              className="ma-in card home-promise-next flex flex-col p-4"
-              style={{ animationDelay: `${120 + PLEDGE_PROMISES.length * 80}ms` }}
-            >
-              <h3 className="font-display text-[17px] font-semibold">
-                What Aly knows about you, on one page.
-              </h3>
-              <p className="mt-2 text-[14px] leading-relaxed text-ink-soft">
-                Every fact Aly holds about your household, where it came from,
-                and a way to export or delete it.
-              </p>
-              <p className="mt-auto pt-3">
-                <span className="home-trip-example-badge">Coming to Alyeska Family</span>
-              </p>
-            </div>
-          </div>
-          <div className="mt-8 max-w-[38rem]">
-            <h3 className="ma-in font-display text-[19px] font-semibold">
-              Aly is an AI assistant, and you stay in charge of her
-            </h3>
-            <ul className="mt-3 space-y-2 pl-4">
-              {PLEDGE_COMPANY_PARTS[0].points.map((point, i) => (
-                <li
-                  key={point}
-                  className="ma-in list-disc text-[14px] leading-relaxed text-ink-soft"
-                  style={{ animationDelay: `${60 + i * 50}ms` }}
-                >
-                  {point}
-                </li>
-              ))}
-            </ul>
-            <p className="ma-in mt-4 text-[14px] text-ink-soft">
-              The two remaining promises, about how the company behind it runs,
-              are on{" "}
-              <Link href="/pledge" className="underline">
-                Our Pledge
-              </Link>
-              .
+          </ul>
+        </div>
+      </Reveal>
+
+      {/* ------------------------------------------------ together and ahead
+          Two short columns: the rest of the household, and what is coming.
+          The pledge has its own page and is linked from the footer. */}
+      <Reveal as="section" className="mx-auto w-full max-w-[74rem] px-5 sm:px-8">
+        <div className="grid gap-10 border-t border-[var(--line)] py-14 md:grid-cols-2 md:gap-14">
+          <div>
+            <p className="section-label ma-in">Better together</p>
+            <h2 className="ma-in mt-2 font-display text-[22px] font-semibold leading-tight" style={{ animationDelay: "60ms" }}>
+              Everyone on the trip sees their part of it.
+            </h2>
+            <p className="ma-in mt-3 text-[15px] leading-relaxed text-ink-soft" style={{ animationDelay: "120ms" }}>
+              Adults share the plan and the packing. Kids get their own days and their own list, and nothing else.
             </p>
           </div>
-        </div>
-      </Reveal>
-
-      {/* ------------------------------------------------------------ roadmap
-          Dated, short, and plain text: no logos and no "works with", because
-          none of these ship yet and an assistant's mark next to our name
-          reads as a partnership nobody has signed. */}
-      <Reveal
-        as="section"
-        className="mx-auto w-full max-w-[74rem] px-5 sm:px-8"
-      >
-        <div className="border-t border-[var(--line)] py-10">
-          <h2 className="ma-in font-display text-[19px] font-semibold">
-            On the roadmap, as of September 2026.
-          </h2>
-          <ul className="mt-4 grid gap-3 text-[14px] leading-relaxed text-ink-soft md:grid-cols-3 md:gap-8">
-            <li className="ma-in" style={{ animationDelay: "60ms" }}>
-              <strong className="font-semibold text-ink">Alyeska Groups, 2027.</strong>{" "}
-              Each household manages its own part of the trip, and the
-              organizer&rsquo;s changes reach everyone as they happen.
-            </li>
-            <li className="ma-in" style={{ animationDelay: "120ms" }}>
-              <strong className="font-semibold text-ink">
-                Ask Aly from the assistants you already use.
-              </strong>{" "}
-              Planned: Claude, ChatGPT, Alexa+, Siri, and Muse. Read your trips
-              first; changes later.
-            </li>
-            <li className="ma-in" style={{ animationDelay: "180ms" }}>
-              <strong className="font-semibold text-ink">
-                Alyeska for iPhone and Android, fall 2027.
-              </strong>
-            </li>
-          </ul>
+          <div>
+            <p className="section-label ma-in">On the roadmap, as of September 2026.</p>
+            <ul className="mt-3 space-y-2.5 text-[15px] leading-relaxed text-ink-soft">
+              <li className="ma-in" style={{ animationDelay: "60ms" }}>
+                <strong className="font-semibold text-ink">Alyeska Groups, 2027.</strong> Several households, one trip.
+              </li>
+              <li className="ma-in" style={{ animationDelay: "120ms" }}>
+                <strong className="font-semibold text-ink">Ask Aly from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later.
+              </li>
+              <li className="ma-in" style={{ animationDelay: "180ms" }}>
+                <strong className="font-semibold text-ink">iPhone and Android, fall 2027.</strong>
+              </li>
+            </ul>
+          </div>
         </div>
       </Reveal>
 

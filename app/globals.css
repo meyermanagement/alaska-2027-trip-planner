@@ -9367,3 +9367,62 @@ html[data-skin="sodium"] .arc-pill.kid::before {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ home-how
+   The front door's four demonstrations behind one tab strip (see
+   components/home/HowTabs.js). The strip is the trip screen's .tabbar; the
+   panel below it gets the room a scene used to have. */
+.home-how-bar {
+  margin-top: 0;
+}
+
+.home-how-fade {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 1px;
+  width: 2.5rem;
+  background: linear-gradient(to left, var(--color-sand), transparent);
+}
+
+/* Four labels do not fit one row on a phone, and a door you have to drag into
+   view is the fault a tab strip exists to remove. Under 420px the strip is a
+   two-by-two grid: nothing scrolls, the fade has nothing to measure, and the
+   rule under the bar becomes a rule under each row. */
+@media (max-width: 420px) {
+  .home-how-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    overflow: visible;
+    border-bottom: 0;
+    padding: 0;
+  }
+
+  .home-how-bar .tab {
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    padding: 0.7rem 0.5rem;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .home-how-bar .tab[aria-selected="true"] {
+    border-radius: 7px 7px 0 0;
+  }
+
+  .home-how-bar .tab[aria-selected="true"]::after {
+    bottom: -1px;
+  }
+}
+
+.home-how-panel {
+  padding-top: 1.75rem;
+}
+
+@media (min-width: 1024px) {
+  .home-how-panel {
+    padding-top: 2.5rem;
+  }
+}
