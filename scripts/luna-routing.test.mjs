@@ -85,7 +85,7 @@ test("generate returns usage and falls through a 429 to the error", async () => 
   try {
     const r = await openai.generate({ system: "S", messages: [{ role: "user", text: "Q" }], tools: [] });
     assert.equal(r.text, "Hi");
-    assert.equal(r.model, "gpt-5.6-luna");
+    assert.equal(r.model, "gpt-6-luna");
     assert.equal(r.usage[0].provider, "openai");
     assert.match(sent[0].url, /\/responses$/);
     assert.equal(sent[0].body.store, false);
@@ -94,7 +94,7 @@ test("generate returns usage and falls through a 429 to the error", async () => 
       new Response(JSON.stringify({ error: { message: "Rate limit" } }), { status: 429 });
     await assert.rejects(
       openai.generate({ system: "S", messages: [{ role: "user", text: "Q" }], tools: [] }),
-      (err) => err.status === 429 && err.usage?.length === 1,
+      (err) => err.status === 429 && err.usage?.length === 2,
     );
   } finally {
     globalThis.fetch = real;

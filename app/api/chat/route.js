@@ -137,6 +137,13 @@ const MIN_TURN_MS = 12000;
 // The follow-up turns get the same, and deserve it more: rewording a proposal
 // she has already made is not a problem that rewards deliberation.
 const THINKING = "low";
+// The answer itself, and its rescue, on OpenAI think at "high" (the Responses
+// API's "medium"). The 2026-09-25 model check, on made-up data, found Luna at
+// low answering "could we fit a kayak tour at 8:30" by adding the tour, over a
+// 9:30 flight, instead of saying it clashes; at high GPT-6 Luna caught it every
+// time, for about 90 more output tokens and 0.9 seconds. Gemini, behind it and
+// on every web lookup, stays at low for the reasons above.
+const ANSWER_THINKING = { openai: "high", gemini: "low" };
 // A turn that is only putting words to something already decided -- the sentence
 // above a proposal, the sentence above a shortlist, the cards under an answer.
 // There is no search to wait on and nothing to work out, so a ceiling of 34
@@ -455,7 +462,7 @@ export async function POST(request) {
       messages,
       tools,
       grounded: lookUp,
-      thinking: THINKING,
+      thinking: ANSWER_THINKING,
       deadline: firstBy,
       consent,
     });
@@ -476,7 +483,7 @@ export async function POST(request) {
           messages,
           tools,
           grounded: false,
-          thinking: THINKING,
+          thinking: ANSWER_THINKING,
           deadline: rescueBy,
           consent,
         });
