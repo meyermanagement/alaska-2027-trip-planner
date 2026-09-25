@@ -103,6 +103,10 @@ const MACHINE_PATHS = [
   // account. It only ever inserts, through the service role, into a table
   // nobody can read back; see app/api/waitlist/route.js.
   "/api/waitlist",
+  // The assistant connection. Its caller is an AI assistant with no browser
+  // session; the route checks its own key and answers 404 when that key is not
+  // set up, which is the default everywhere. See app/api/mcp/route.js.
+  "/api/mcp",
 ];
 
 // The calendar subscription is read by Google Calendar, Apple Calendar or
