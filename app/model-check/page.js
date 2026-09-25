@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { isAdminUser } from "@/lib/auth/admin";
-import ModelCheck from "./ModelCheck";
+import ModelLab from "./ModelLab";
 
-export const metadata = { title: "Model check · Alyeska" };
+export const metadata = { title: "Model lab · Alyeska" };
 
 /**
- * Which models answer, and what Google says about the ones that do not.
+ * Which models answer, how well, how fast and at what cost, per kind of request.
  *
  * It was open to anybody signed in, which was never the intent: the check spends
  * real quota on every model in the ladder, and the answer it prints is about the
@@ -19,5 +19,5 @@ export default async function ModelCheckPage() {
   const supabase = await createClient();
   const user = await whoIs(supabase);
   if (!isAdminUser(user)) notFound();
-  return <ModelCheck />;
+  return <ModelLab />;
 }

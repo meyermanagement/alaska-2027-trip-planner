@@ -7,6 +7,12 @@
 import { useState } from "react";
 import Link from "next/link";
 
+// Inside the model lab it is one section of a page, not a page of its own.
+function Wrapper({ embedded, children }) {
+  if (embedded) return <div className="pt-2">{children}</div>;
+  return <main className="screen px-5 py-8">{children}</main>;
+}
+
 function Line({ label, value }) {
   return (
     // Label beside the value where there is room, above it where there is not.
@@ -150,7 +156,7 @@ function ModelRow({ r, onPatient, patient, busy }) {
   );
 }
 
-export default function ModelCheck() {
+export default function ModelCheck({ embedded = false }) {
   const [state, setState] = useState("idle");
   const [out, setOut] = useState(null);
   const [error, setError] = useState("");
@@ -219,10 +225,12 @@ export default function ModelCheck() {
   const plain = out?.withoutSearch;
 
   return (
-    <main className="screen px-5 py-8">
-      <h1 className="text-2xl font-semibold text-ink">
-        Can Aly search the web?
-      </h1>
+    <Wrapper embedded={embedded}>
+      {!embedded && (
+        <h1 className="text-2xl font-semibold text-ink">
+          Can Aly search the web?
+        </h1>
+      )}
       <p className="mt-2 text-sm text-ink-soft">
         This asks Google two of the smallest questions it can — one with search
         attached, one without — then asks every model in the ladder, and the
@@ -368,12 +376,14 @@ export default function ModelCheck() {
         </>
       ) : null}
 
-      <Link
-        href="/trips"
-        className="mt-8 inline-block text-sm text-teal underline"
-      >
-        Back to trips
-      </Link>
-    </main>
+      {!embedded && (
+        <Link
+          href="/trips"
+          className="mt-8 inline-block text-sm text-teal underline"
+        >
+          Back to trips
+        </Link>
+      )}
+    </Wrapper>
   );
 }
