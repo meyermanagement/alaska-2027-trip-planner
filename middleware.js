@@ -103,6 +103,10 @@ const MACHINE_PATHS = [
   // account. It only ever inserts, through the service role, into a table
   // nobody can read back; see app/api/waitlist/route.js.
   "/api/waitlist",
+  // The assistant connection. Its caller is an AI assistant with no browser
+  // session; the route checks its own key and answers 404 when that key is not
+  // set up, which is the default everywhere. See app/api/mcp/route.js.
+  "/api/mcp",
 ];
 
 // The calendar subscription is read by Google Calendar, Apple Calendar or
@@ -288,9 +292,17 @@ export async function middleware(request) {
   // for the page to judge, so one bad answer cannot throw a signed-in family
   // out mid-navigation.
   if (!user && !isPublic && !hasSessionCookie(request)) {
+    // request.nextUrl.clone() keeps the original query string (e.g. an
+    // authorization_id an OAuth consent redirect arrived with), so setting
+    // pathname to /login without clearing search left that query sitting
+    // beside next= on the login URL instead of inside it -- and login only
+    // reads next, so the rest was silently dropped on the way back. The
+    // search this pathname arrived with belongs inside next, not beside it.
+    const target = pathname + request.nextUrl.search;
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", pathname);
+    url.search = "";
+    url.searchParams.set("next", target);
     return NextResponse.redirect(url);
   }
 
