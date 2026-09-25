@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { clientById } from "@/lib/mcp/assistantClients";
+import { CONSENT_SURFACE_VERSION } from "@/lib/mcp/consentVersion";
 
 /**
  * The actual consent decision, once the server page has confirmed somebody
@@ -21,10 +22,6 @@ import { clientById } from "@/lib/mcp/assistantClients";
  * from our own table only when one exists, rather than refusing an otherwise
  * legitimate request over a missing row.
  */
-// Bumped when this screen's disclosure changes -- what it tells a person
-// before they decide, not the OAuth protocol itself. Kept separate from
-// lib/beta/agreement.js's AGREEMENT_VERSION, which covers the beta terms.
-const CONSENT_SURFACE_VERSION = "2026-10-19";
 
 export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) {
   const [state, setState] = useState({ status: "loading" });
@@ -47,7 +44,9 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
         window.location.assign(data.redirect_url);
         return;
       }
-      const known = await clientById(supabase, data?.client_id || data?.client?.client_id);
+      // Supabase returns the client as { id, name, uri, logo_uri }. Reading
+      // client.client_id here found nothing, so no approval was ever recorded.
+      const known = await clientById(supabase, data?.client?.id || data?.client_id);
       setState({ status: "ready", details: data, known });
     }
     load();
@@ -59,42 +58,52 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   async function decide(action) {
     setDeciding(true);
     const supabase = createClient();
-    const call = action === "approve" ? supabase.auth.oauth.approveAuthorization : supabase.auth.oauth.denyAuthorization;
+    const approving = action === "approve";
+
+    // Alyeska's own record of the answer, written before Supabase is told.
+    // The MCP route (lib/mcp/grant.js) honors only this row, so an approval
+    // that cannot be recorded is not sent: otherwise the assistant would get a
+    // token that the route then refuses. A denial is recorded when it can be,
+    // but is sent either way.
+    const clientId = state?.known?.client_id;
+    const recordable = Boolean(clientId && state?.known?.approved_for_consent);
+    if (approving && !recordable) {
+      setDeciding(false);
+      setState((s) => ({ ...s, status: "error", message: "This assistant isn’t approved to connect to Alyeska yet." }));
+      return;
+    }
+    if (clientId) {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth?.user?.id;
+      const { error: writeError } = userId
+        ? await supabase.from("assistant_connections").upsert(
+            {
+              user_id: userId,
+              client_id: clientId,
+              status: approving ? "allowed" : "denied",
+              consent_version: CONSENT_SURFACE_VERSION,
+              decided_at: new Date().toISOString(),
+              revoked_at: null,
+            },
+            { onConflict: "user_id,client_id" }
+          )
+        : { error: new Error("no user") };
+      if (writeError) {
+        console.error("assistant_connections upsert failed", writeError);
+        if (approving) {
+          setDeciding(false);
+          setState((s) => ({ ...s, status: "error", message: "Your answer couldn’t be saved. Please try again." }));
+          return;
+        }
+      }
+    }
+
+    const call = approving ? supabase.auth.oauth.approveAuthorization : supabase.auth.oauth.denyAuthorization;
     const { data, error } = await call(authorizationId, { skipBrowserRedirect: true });
     if (error) {
       setDeciding(false);
       setState((s) => ({ ...s, status: "error", message: readableError(error) }));
       return;
-    }
-    // Supabase's own tables now hold the OAuth decision; this is Alyeska's own
-    // record of it -- the row assistant_connections_enabled() will check once
-    // counsel has cleared this screen and the switch is flipped. Best-effort:
-    // a write failure here should not strand somebody who already got a valid
-    // redirect_url back from Supabase, so it is logged, not surfaced.
-    //
-    // Gated on `known`, not just a client_id: assistant_connections.client_id
-    // references assistant_oauth_clients, so a dynamically-registered client
-    // Supabase accepted but this table has never heard of has nowhere to
-    // write to yet -- recording that decision has to wait until someone adds
-    // that client here, which is exactly the review step this is built to
-    // wait for.
-    const clientId = state?.known?.client_id;
-    if (clientId) {
-      const { data: auth } = await supabase.auth.getUser();
-      if (auth?.user?.id) {
-        const { error: writeError } = await supabase.from("assistant_connections").upsert(
-          {
-            user_id: auth.user.id,
-            client_id: clientId,
-            status: action === "approve" ? "allowed" : "denied",
-            consent_version: CONSENT_SURFACE_VERSION,
-            decided_at: new Date().toISOString(),
-            revoked_at: null,
-          },
-          { onConflict: "user_id,client_id" }
-        );
-        if (writeError) console.error("assistant_connections upsert failed", writeError);
-      }
     }
     if (data?.redirect_url) {
       window.location.assign(data.redirect_url);
@@ -125,7 +134,7 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   }
 
   const { details, known } = state;
-  const name = known?.client_name || details?.client?.client_name || details?.client_name || "This app";
+  const name = known?.client_name || details?.client?.name || details?.client?.client_name || details?.client_name || "This app";
   const purpose = known?.purpose_summary || known?.client_description || details?.client?.client_description || null;
   const scopes = String(details?.scope || "")
     .split(/\s+/)
