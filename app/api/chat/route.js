@@ -313,7 +313,7 @@ export async function POST(request) {
   // needs the other, so they go together. Best effort on the recall — a failure
   // there only costs her the cross-reference, so it must never cost the answer.
   const [{ messages: past }, recalled] = await Promise.all([
-    loadThread(supabase, conversationId, CONTEXT_MESSAGES),
+    loadThread(supabase, conversationId, CONTEXT_MESSAGES, { stepped: true }),
     recallOtherConversations(supabase, {
       message: said,
       exclude: conversationId,
