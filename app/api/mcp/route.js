@@ -26,6 +26,7 @@
 // refused, which is what the consent screen tells people.
 
 import { homeToday } from "@/lib/format";
+import { bearerChallenge, originOf } from "@/lib/mcp/discovery";
 import { GRANT_REFUSALS, connectionGrant } from "@/lib/mcp/grant";
 import { bearerOf, oauthMcpConfig, tokenIdentity } from "@/lib/mcp/oauthToken";
 import { handleMessage } from "@/lib/mcp/protocol";
@@ -36,23 +37,23 @@ export const dynamic = "force-dynamic";
 
 const NOT_FOUND = () => new Response("Not found.", { status: 404 });
 
-function forbidden(reason) {
+function forbidden(origin, reason) {
   return new Response(JSON.stringify({ error: GRANT_REFUSALS[reason] || GRANT_REFUSALS.unavailable, reason }), {
     status: 403,
     headers: {
       "content-type": "application/json",
       "cache-control": "no-store",
-      "www-authenticate": 'Bearer realm="alyeska-mcp", error="insufficient_scope"',
+      "www-authenticate": bearerChallenge(origin, "insufficient_scope"),
     },
   });
 }
 
-function unauthorized(message = "A valid Supabase access token is required.") {
+function unauthorized(origin, message = "A valid Supabase access token is required.", error) {
   return new Response(JSON.stringify({ error: message }), {
     status: 401,
     headers: {
       "content-type": "application/json",
-      "www-authenticate": 'Bearer realm="alyeska-mcp"',
+      "www-authenticate": bearerChallenge(origin, error),
     },
   });
 }
@@ -61,16 +62,17 @@ export async function POST(request) {
   const config = oauthMcpConfig();
   if (!config) return NOT_FOUND();
 
+  const origin = originOf(request);
   const token = bearerOf(request);
-  if (!token) return unauthorized();
+  if (!token) return unauthorized(origin);
 
   const identity = await tokenIdentity(token);
-  if (!identity) return unauthorized("This token is missing, expired, or was not issued by this project.");
+  if (!identity) return unauthorized(origin, "This token is missing, expired, or was not issued by this project.", "invalid_token");
 
   const grant = await connectionGrant(identity.client, identity);
   if (!grant.ok) {
     console.log(JSON.stringify({ at: "mcp", clientId: identity.clientId, refused: grant.refused }));
-    return forbidden(grant.refused);
+    return forbidden(origin, grant.refused);
   }
 
   let message;
