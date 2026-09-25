@@ -139,10 +139,17 @@ create index if not exists assistant_connections_client_idx
 -- in assistant_connections. It exists now, returns false unconditionally, and
 -- is the single place that gets flipped once counsel has reviewed the consent
 -- screen -- one function, not a search-and-replace across every caller.
+--
+-- NOTE: this file's applied-to-production version (migration
+-- 20260925172340_assistant_connection_consent) does NOT yet have the
+-- `set search_path = ''` line below. The security advisor flagged the
+-- missing pin after that migration ran; the fix is recorded here for the
+-- next authorized migration to carry, not yet applied live.
 create or replace function public.assistant_connections_enabled()
 returns boolean
 language sql
 stable
+set search_path = ''
 as $$
   select false;
 $$;
