@@ -21,13 +21,13 @@ export const metadata = {
   // The brand first, then the promise. "Aly has your back" on its own reads as
   // somebody's name with no subject attached, which is no use in a tab strip or
   // a search result; the description underneath is where travel gets said.
-  title: "Alyeska · Aly has your back",
+  title: "Alyeska has your back",
   description:
-    "Alyeska plans your travel and stays with you on it. Tell Aly roughly where and when, and she builds the days around whoever is going, keeps the bookings, documents, packing lists and points in one place, and answers from the day you are living. She books nothing and sells nothing.",
+    "Alyeska plans your travel and stays with you on it. Tell Alyeska roughly where and when, and it builds the days around whoever is going, keeps the bookings, documents, packing lists and points in one place, and answers from the day you are living. It books nothing and sells nothing.",
   openGraph: {
     type: "website",
     siteName: "Alyeska",
-    title: "Alyeska · Aly has your back",
+    title: "Alyeska has your back",
     description: "Travel · Personalized. Contextualized. Simplified.",
     url: publicOrigin,
     locale: "en_US",
@@ -35,7 +35,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Alyeska · Aly has your back",
+    title: "Alyeska has your back",
     description: "Travel · Personalized. Contextualized. Simplified.",
     images: [{ url: shareImage.url, alt: shareImage.alt }],
   },

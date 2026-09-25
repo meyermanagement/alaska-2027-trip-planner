@@ -142,7 +142,7 @@ export default function NudgeCard() {
         <span className="home-nudge-badge">Example</span>
       </div>
       <p className="mb-3 mt-1 text-[12px] leading-relaxed text-[rgba(246,243,236,0.66)]">
-        You don’t have to know the right questions to ask. Aly watches your trip and tells you when something needs you.
+        You don’t have to know the right questions to ask. Alyeska watches your trip and tells you when something needs you.
       </p>
       <div className="home-nudge-stack">
         {NUDGES.map((n, i) => (

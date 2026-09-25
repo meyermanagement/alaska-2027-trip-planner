@@ -540,7 +540,7 @@ function DayPanel({ day, index, active }) {
 
       {day.aly && (
         <p className="mt-3 rounded-[10px] bg-sand p-3 text-[13px] leading-relaxed">
-          <span className="font-semibold">Aly:</span> {day.aly}
+          <span className="font-semibold">Alyeska:</span> {day.aly}
         </p>
       )}
     </div>
