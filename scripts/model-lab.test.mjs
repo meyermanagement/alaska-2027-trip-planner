@@ -87,8 +87,8 @@ test("the cheapest nearly-as-good model wins, and a model that failed is never p
 });
 
 test("every scenario names cases and a feature", () => {
-  assert.deepEqual(SCENARIOS.map((s) => s.id), ["ask", "tools", "search", "email", "documents", "fares"]);
-  assert.equal(requestCount(["tools", "fares"]), 7);
+  assert.deepEqual(SCENARIOS.map((s) => s.id), ["ask", "tools", "search", "email", "documents", "fares", "tips", "wallet", "nav", "priors", "long"]);
+  assert.equal(requestCount(["tools", "fares"]), 9);
 });
 
 // A Gemini reply shaped like the real one, so the runner's request building and

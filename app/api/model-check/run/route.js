@@ -8,12 +8,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { isAdminUser } from "@/lib/auth/admin";
-import { runCase } from "@/lib/model-lab/run";
+import { runCase, EFFORT } from "@/lib/model-lab/run";
 import { geminiCandidate, openaiCandidate } from "@/lib/model-lab/catalog";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Two calls on a 50,000-token record can outlast a minute on a slow model; the
+// chat route's own limit is the ceiling for the same reason.
+export const maxDuration = 120;
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -29,7 +31,7 @@ export async function POST(request) {
     model,
     scenario: String(body.scenario || ""),
     caseId: String(body.caseId || ""),
-    effort: body.effort === "high" ? "high" : "low",
+    effort: EFFORT.has(body.effort) ? body.effort : "low",
   });
   return NextResponse.json(result);
 }
