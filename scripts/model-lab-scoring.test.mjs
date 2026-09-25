@@ -64,7 +64,10 @@ test("tips and Wallet: nothing that survives the app's checks scores nothing", (
   const tip = M.TIP_CASES[0];
   assert.equal(more.scoreTips({ candidates: [], accepted: [], dropped: [] }, tip).score, 0);
   const w = M.WALLET_CASES[0];
-  assert.equal(more.scoreWallet([], w).score, 0);
+  // Made-up programs cannot be looked up, so holding back keeps half.
+  assert.equal(more.scoreWallet([], w).score, 2);
+  assert.match(more.scoreWallet([], w).notes[0], /held back/);
+  assert.equal(more.scoreWallet([], { ...w, madeUp: false }).score, 0);
   assert.ok(more.scoreWallet([{ title: "Use miles before May 20", body: "x", program_id: "prog-9999" }], w).notes.length > 0);
 });
 
@@ -81,4 +84,66 @@ test("every case on the page builds, and the full-size record is full size", () 
   for (const s of SCENARIOS) for (const c of s.cases) assert.ok(build(s.id, c.id), `${s.id}/${c.id}`);
   const tokens = M.longRecord().length / 4;
   assert.ok(tokens > 40000 && tokens < 70000, String(tokens));
+});
+
+// 2026-09-25, from the minimal, low and high runs.
+const { thinkingOffered, refusedThinking } = await jiti.import("../lib/model-lab/effort.js");
+const { effortFor } = await jiti.import("../lib/agent/providers/openai.js");
+
+test("about-you: a clear lean the instructions allow is not a guess", () => {
+  const hedged = M.PRIOR_CASES.find((c) => c.id === "hedged");
+  assert.equal(more.scorePriors({ doing_or_seeing: { value: "doing", quote: "I like hiking" } }, hedged).score, 2);
+  assert.ok(more.scorePriors({ doing_or_seeing: { value: "seeing", quote: "I like hiking" } }, hedged).score < 2);
+});
+
+test("thinking levels a model refuses are known, and a refusal is recognised", () => {
+  assert.equal(thinkingOffered("gemini-3.6-flash", "minimal"), true);
+  assert.equal(thinkingOffered("gemini-3.8-flash", "minimal"), false);
+  assert.equal(thinkingOffered("gpt-6-luna", "minimal"), false);
+  assert.equal(thinkingOffered("gpt-6-luna", "low"), true);
+  assert.equal(refusedThinking(400, "Thinking level MINIMAL is not supported for this model."), true);
+  assert.equal(refusedThinking(400, "Unsupported value: 'minimal' is not supported with the 'gpt-5.5' model."), true);
+  assert.equal(refusedThinking(400, "tools cannot be used with reasoning.effort 'minimal'"), true);
+  assert.equal(refusedThinking(400, "Invalid JSON schema"), false);
+  assert.equal(refusedThinking(500, "Thinking level MINIMAL is not supported"), false);
+});
+
+test("a refused level is shown apart and kept out of quality and picks", () => {
+  const rows = aggregate([
+    { model: "m", scenario: "nav", effort: "minimal", ok: false, unsupported: true, error: "Not offered at minimal thinking" },
+    { model: "m", scenario: "nav", effort: "minimal", ok: false, unsupported: true, error: "Not offered at minimal thinking" },
+  ]);
+  assert.equal(rows[0].notOffered, 2);
+  assert.equal(rows[0].failures, 0);
+  assert.equal(rows[0].quality, null);
+  assert.equal(recommend(rows).nav, null);
+});
+
+test("OpenAI is never sent minimal: it comes out as low", () => {
+  assert.equal(effortFor("minimal"), "low");
+  assert.equal(effortFor("none"), "low");
+  assert.equal(effortFor("low"), "low");
+  assert.equal(effortFor("high"), "medium");
+});
+
+test("the runner does not send a level the model refuses", async () => {
+  const saved = globalThis.fetch;
+  let sent = 0;
+  globalThis.fetch = async () => {
+    sent++;
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    const { runCase } = await jiti.import("../lib/model-lab/run.js");
+    const out = await runCase({ model: "gpt-6-luna", scenario: "nav", caseId: M.NAV_CASES[0].id, effort: "minimal" });
+    assert.equal(out.unsupported, true);
+    assert.equal(sent, 0);
+  } finally {
+    globalThis.fetch = saved;
+  }
+});
+
+test("the about-you paragraph is read by 3.8 Flash first", async () => {
+  const src = await import("node:fs").then((fs) => fs.readFileSync(new URL("../lib/travelers/extractAboutMePriors.js", import.meta.url), "utf8"));
+  assert.match(src, /DEFAULT_TEXT_MODELS = \["gemini-3\.8-flash", "gemini-3\.6-flash", "gemini-3\.5-flash-lite"\]/);
 });
