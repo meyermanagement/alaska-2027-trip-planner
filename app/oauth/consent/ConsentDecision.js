@@ -136,6 +136,10 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   const { details, known } = state;
   const name = known?.client_name || details?.client?.name || details?.client?.client_name || details?.client_name || "This app";
   const purpose = known?.purpose_summary || known?.client_description || details?.client?.client_description || null;
+  // Where the answer goes. Supabase has already matched this against the
+  // client's registered redirect URIs; showing the host lets a person see that
+  // a request calling itself Claude is actually going back to claude.ai.
+  const returnsTo = hostOf(details?.redirect_uri);
   const scopes = String(details?.scope || "")
     .split(/\s+/)
     .filter(Boolean);
@@ -146,6 +150,11 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       <p className="mt-2 text-sm text-ink-soft">
         {name} is asking to read your trips through Alyeska, using the account you&rsquo;re signed in with now.
       </p>
+      {returnsTo && (
+        <p className="mt-2 text-sm text-ink-soft">
+          Your answer goes back to <span className="font-semibold text-ink break-all">{returnsTo}</span>.
+        </p>
+      )}
 
       {!liveGrantsEnabled && (
         <div className="card mt-4 px-4 py-3 text-sm text-ink-soft">
@@ -182,11 +191,21 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   );
 }
 
+function hostOf(uri) {
+  try {
+    return new URL(uri).host || null;
+  } catch {
+    return null;
+  }
+}
+
 function describeScope(scope) {
   const known = {
     openid: "Confirm it's you",
     email: "Your email address",
     profile: "Your name",
+    phone: "Your phone number, if your account has one",
+    offline_access: "Stay connected until you remove it",
   };
   return known[scope] || scope;
 }

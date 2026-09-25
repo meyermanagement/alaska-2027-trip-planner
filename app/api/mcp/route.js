@@ -23,11 +23,13 @@
 // are switched on, and that this person allowed this client on the current
 // consent wording. The switch (public.assistant_connections_enabled()) stays
 // hard-false until counsel reviews the consent screen, so today every call is
-// refused, which is what the consent screen tells people.
+// refused, which is what the consent screen tells people. That refusal is a
+// JSON-RPC error rather than a 403, so the assistant repeats the sentence
+// instead of reporting that sign-in failed.
 
 import { homeToday } from "@/lib/format";
 import { bearerChallenge, originOf } from "@/lib/mcp/discovery";
-import { GRANT_REFUSALS, connectionGrant } from "@/lib/mcp/grant";
+import { GRANT_REFUSALS, connectionGrant, notServing } from "@/lib/mcp/grant";
 import { bearerOf, oauthMcpConfig, tokenIdentity } from "@/lib/mcp/oauthToken";
 import { handleMessage } from "@/lib/mcp/protocol";
 import { REFUSALS, readerScope } from "@/lib/mcp/scope";
@@ -69,17 +71,24 @@ export async function POST(request) {
   const identity = await tokenIdentity(token);
   if (!identity) return unauthorized(origin, "This token is missing, expired, or was not issued by this project.", "invalid_token");
 
-  const grant = await connectionGrant(identity.client, identity);
-  if (!grant.ok) {
-    console.log(JSON.stringify({ at: "mcp", clientId: identity.clientId, refused: grant.refused }));
-    return forbidden(origin, grant.refused);
-  }
-
   let message;
   try {
     message = await request.json();
   } catch {
     message = null;
+  }
+
+  const grant = await connectionGrant(identity.client, identity);
+  if (!grant.ok) {
+    console.log(JSON.stringify({ at: "mcp", clientId: identity.clientId, refused: grant.refused }));
+    // Only a refusal that signing in again could fix is sent as an auth
+    // challenge. "Not live" and "couldn't check" are answered in MCP's own
+    // terms, so the assistant shows the sentence instead of a failed sign-in
+    // and does not send the person back through consent for nothing.
+    if (grant.refused === "not-live" || grant.refused === "unavailable") {
+      return notServing(message, grant.refused);
+    }
+    return forbidden(origin, grant.refused);
   }
 
   const headers = {};

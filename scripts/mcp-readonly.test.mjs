@@ -250,3 +250,12 @@ test("the protocol: list without the database, call through the scope, headers c
   assert.equal(broken.body.result.isError, true);
   assert.ok(!JSON.stringify(broken.body).includes("SECRET"));
 });
+
+test("initialize names the icon an assistant may show", async () => {
+  const { handleMessage: hm, SERVER_ICON } = jiti("../lib/mcp/protocol.js");
+  const { body } = await hm({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25" } }, { getScope: async () => ({}) });
+  const icon = body.result.serverInfo.icons[0];
+  assert.equal(icon.src, SERVER_ICON);
+  assert.match(icon.src, /^https:\/\//);
+  assert.equal(icon.mimeType, "image/png");
+});
