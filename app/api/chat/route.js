@@ -79,6 +79,7 @@ import {
   toModelMessages,
 } from "@/lib/agent/thread";
 import { homeToday } from "@/lib/format";
+import { tidyAnswer } from "@/lib/agent/tidy";
 import {
   readConversationScope,
   scopeToConversation,
@@ -1000,7 +1001,7 @@ export async function POST(request) {
   // the whole of an interview question, so it is cleared here as well as retried
   // above: everything below treats an empty reply properly and nothing below
   // would recognise this.
-  let reply = saidNothing(result.text) ? "" : result.text;
+  let reply = saidNothing(result.text) ? "" : tidyAnswer(result.text);
   // Asked to look something up, and the looking up did not happen: the allowance
   // is spent or the vendor that answered cannot search. The answer still stands,
   // but it is a recollection rather than a reading, and it says so.
