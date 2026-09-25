@@ -13,6 +13,8 @@ const usageFrom=m=>m||{};
 const recordUsage=async(_db,usage)=>{globalThis.inboxTest.usage.push(usage)};
 const normalizeCovers=x=>Array.isArray(x)?x:[];
 const readableFareText=x=>x;
+const openaiOwns=m=>/^gpt-/.test(String(m||""));
+const readJson=async()=>{throw Object.assign(new Error("not in this test"),{status:500})};
 `;
 const { extractInboxReview }=await import(`data:text/javascript;base64,${Buffer.from(adapters+stripped).toString("base64")}`);
 const oldFetch=global.fetch, oldKey=process.env.GEMINI_API_KEY;
