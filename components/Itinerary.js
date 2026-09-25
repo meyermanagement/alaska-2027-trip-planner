@@ -45,6 +45,7 @@ import EarlyForecast from "@/components/EarlyForecast";
 import DayPack from "@/components/DayPack";
 import { PHASE_CLASS, PHASE_LABEL, planDay } from "@/lib/day/phase";
 import { routingFix } from "@/lib/travel/locationOrigin";
+import { CHOSEN, chosenDay, rememberDay, linkSeen } from "@/lib/day/chosen";
 
 const UNSCHEDULED = "unscheduled";
 const DAY_MS = 86400000;
@@ -810,10 +811,17 @@ export default function Itinerary({
   // card being held and often a long way above it.
   const [aimedDay, setAimedDay] = useState(null);
 
-  // Open on the day the family is living, not on the first morning of the trip.
+  // Open on the day the family is living, not on the first morning of the trip
+  // -- unless somebody already chose a day on this trip since the page loaded.
+  // Switching to another tab unmounts this list, so without that memory going
+  // Itinerary, Overview, Itinerary dropped them back on today.
+  const remembered = chosenDay(tripId, dayKeys);
   const [selected, setSelected] = useState(
-    () => openingDay(dayKeys, today) ?? UNSCHEDULED,
+    () => remembered ?? openingDay(dayKeys, today) ?? UNSCHEDULED,
   );
+  useEffect(() => {
+    if (settled.current) rememberDay(tripId, selected);
+  }, [tripId, selected]);
 
   // Re-decide only when the day that was chosen no longer exists -- an item moved,
   // a stay stretched, the trip's dates redrawn. Doing it whenever anything changed
@@ -839,6 +847,10 @@ export default function Itinerary({
     if (settled.current) return;
     settled.current = true;
     const wanted = new URLSearchParams(window.location.search).get("date");
+    // Back from another tab: the day they were on stands, unless a link has
+    // since named a different one.
+    if (remembered && (!wanted || wanted === CHOSEN.get(tripId)?.link)) return;
+    linkSeen(tripId, wanted);
     if (wanted && dayKeys.includes(wanted)) {
       setSelected(wanted);
       return;
