@@ -114,7 +114,11 @@ const MACHINE_PATHS = [
 // the login page would simply look to them like a broken calendar. The random
 // token in the path is the credential, and the route refuses anything shorter
 // than one.
-const MACHINE_PREFIXES = ["/api/calendar/"];
+//
+// The MCP discovery document is read by an AI assistant before it has any
+// credential at all -- it is how the assistant learns where to sign in. It is
+// public by design and carries nothing Supabase does not already publish.
+const MACHINE_PREFIXES = ["/api/calendar/", "/.well-known/oauth-protected-resource"];
 
 // The loading skeleton draws the menu, and it deliberately asks the database
 // nothing -- that is what makes the frame stay put between screens instead of
