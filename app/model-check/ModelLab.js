@@ -30,6 +30,11 @@ const TYPICAL = {
   email: { inputTokens: 4000, outputTokens: 900 },
   documents: { inputTokens: 2500, outputTokens: 500 },
   fares: { inputTokens: 3200, outputTokens: 1000 },
+  tips: { inputTokens: 2500, outputTokens: 900, searches: 1 },
+  wallet: { inputTokens: 1200, outputTokens: 500, searches: 1 },
+  nav: { inputTokens: 800, outputTokens: 40 },
+  priors: { inputTokens: 1400, outputTokens: 200 },
+  long: { inputTokens: 100000, cachedTokens: 45000, outputTokens: 700 },
 };
 
 const load = (key, fallback) => {
@@ -48,7 +53,7 @@ const save = (key, value) => {
   }
 };
 
-const pct = (q) => `${Math.round(q * 100)}%`;
+const pct = (q) => (q == null ? "—" : `${Math.round(q * 100)}%`);
 const secs = (ms) => (ms == null ? "—" : `${(ms / 1000).toFixed(1)}s`);
 
 function Badge({ tone = "plain", children }) {
@@ -97,6 +102,7 @@ export default function ModelLab() {
   const [picked, setPicked] = useState([]);
   const [types, setTypes] = useState(SCENARIOS.map((s) => s.id));
   const [effort, setEffort] = useState("low");
+  const [reps, setReps] = useState(1);
   const [overrides, setOverrides] = useState({});
   const [runs, setRuns] = useState([]);
   const [current, setCurrent] = useState(null); // { id, at, effort, results, total }
@@ -151,9 +157,10 @@ export default function ModelLab() {
   const queue = useMemo(() => {
     const q = [];
     for (const t of activeTypes)
-      for (const c of scenarioById(t).cases) for (const m of picked) q.push({ model: m, scenario: t, caseId: c.id });
+      for (const c of scenarioById(t).cases)
+        for (const m of picked) for (let rep = 1; rep <= reps; rep++) q.push({ model: m, scenario: t, caseId: c.id, rep });
     return q;
-  }, [activeTypes, picked]);
+  }, [activeTypes, picked, reps]);
 
   // Past results in this browser beat the rough table for an estimate.
   const estimate = useMemo(() => {
@@ -170,7 +177,7 @@ export default function ModelLab() {
       const usage = like.length
         ? {
             inputTokens: like.reduce((a, r) => a + r.inputTokens, 0) / like.length,
-            cachedTokens: 0,
+            cachedTokens: like.reduce((a, r) => a + (r.cachedTokens || 0), 0) / like.length,
             outputTokens: like.reduce((a, r) => a + r.outputTokens, 0) / like.length,
             searches: like.reduce((a, r) => a + (r.searches || 0), 0) / like.length,
           }
@@ -192,16 +199,24 @@ export default function ModelLab() {
       while (jobs.length && !stop.current) {
         const job = jobs.shift();
         let result;
-        try {
-          const res = await fetch("/api/model-check/run", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ ...job, effort }),
-          });
-          result = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
-          if (!res.ok && result.ok !== false) result = { ok: false, error: result.error || `HTTP ${res.status}` };
-        } catch (e) {
-          result = { ok: false, error: String(e.message || e) };
+        // A dropped connection ("Load failed" when a phone sleeps or switches
+        // networks) says nothing about the model, so it is tried once more and,
+        // if it drops again, marked as the connection's fault, not the model's.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const res = await fetch("/api/model-check/run", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ ...job, effort }),
+            });
+            result = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
+            if (!res.ok && result.ok !== false) result = { ok: false, error: result.error || `HTTP ${res.status}` };
+            break;
+          } catch (e) {
+            result = { ok: false, network: true, error: String(e.message || e) };
+            if (stop.current) break;
+            await new Promise((r) => setTimeout(r, 1500));
+          }
         }
         state.results.push({ ...job, effort, ...result });
         setCurrent({ ...state, results: [...state.results] });
@@ -349,13 +364,25 @@ export default function ModelLab() {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <span className="text-sm text-ink-soft">Thinking</span>
           <div className="inline-flex rounded-lg border border-sand-deep/60 p-0.5">
-            {["low", "high"].map((e) => (
+            {["minimal", "low", "high"].map((e) => (
               <button
                 key={e}
                 onClick={() => setEffort(e)}
                 className={`min-h-9 rounded-md px-3 text-xs font-medium ${effort === e ? "bg-teal text-on-accent" : "text-ink"}`}
               >
-                {e === "low" ? "Low" : "High"}
+                {e === "minimal" ? "Minimal" : e === "low" ? "Low" : "High"}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-ink-soft">Times each</span>
+          <div className="inline-flex rounded-lg border border-sand-deep/60 p-0.5">
+            {[1, 3].map((n) => (
+              <button
+                key={n}
+                onClick={() => setReps(n)}
+                className={`min-h-9 rounded-md px-3 text-xs font-medium ${reps === n ? "bg-teal text-on-accent" : "text-ink"}`}
+              >
+                {n}
               </button>
             ))}
           </div>
@@ -421,6 +448,11 @@ export default function ModelLab() {
                   </span>
                 )}
               </div>
+              {s.id === "search" && (
+                <p className="mt-2 text-xs text-ink-faint">
+                  Gemini&apos;s cost here is mostly the search fee, and its token count leaves out the pages it read.
+                </p>
+              )}
               {rec ? (
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   <Pick label="Best answers" row={rec.best} detail={pct(rec.best.quality)} />
@@ -459,8 +491,13 @@ export default function ModelLab() {
                         <td className="py-2 pr-3 text-ink">
                           {pct(r.quality)}
                           {r.failures > 0 && <span className="block text-xs text-ink-faint">{r.failures} failed</span>}
+                          {r.dropped > 0 && <span className="block text-xs text-ink-faint">{r.dropped} lost connection</span>}
+                          {r.varied > 0 && <span className="block text-xs text-ink-faint">{r.varied} of {r.repeated} varied</span>}
                         </td>
-                        <td className="py-2 pr-3 text-ink">{secs(r.ms)}</td>
+                        <td className="py-2 pr-3 text-ink">
+                          {secs(r.ms)}
+                          {r.repeated > 0 && <span className="block text-xs text-ink-faint">slowest {secs(r.ms90)}</span>}
+                        </td>
                         <td className="py-2 pr-3 text-ink">{r.priced ? formatCost(r.cost) : <span className="text-ink-faint">price not set</span>}</td>
                         <td className="hidden py-2 sm:table-cell">{r.notes.length ? <Issues notes={r.notes} /> : <span className="text-xs text-ink-soft">—</span>}</td>
                       </tr>
