@@ -43,7 +43,7 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.ok(nudge.includes("Lunch at the condo moves to 12:30, so you’re home before they start."));
   // The heading says what the cards are; the color's meaning is said in words.
   assert.ok(nudge.includes(">Before you think to ask<"));
-  assert.match(nudge.replace(/\s+/g, " "), /You don’t have to know the right questions to ask\. Aly watches your trip and tells you when something needs you\./);
+  assert.match(nudge.replace(/\s+/g, " "), /You don’t have to know the right questions to ask\. Alyeska watches your trip and tells you when something needs you\./);
   assert.deepEqual([...nudge.matchAll(/tag: "([^"]+)"/g)].map((m) => m[1]), ["Needed to travel", "Book Feb 14", "On your way", "Last minute"]);
   assert.doesNotMatch(nudge, /Just say yes|Ready to apply|A real nudge|"High"|"Low"/);
   assert.equal((nudge.match(/>Example</g) || []).length, 1, "labeled once, on the heading");
@@ -76,7 +76,7 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
 test("four demonstrations behind one tab strip, in the order a trip happens", () => {
   const labels = [...home.matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(labels, ["Before you go", "While you are there", "When it changes", "The money"]);
-  assert.ok(home.includes("Pick a moment. See what Aly does with it."));
+  assert.ok(home.includes("Pick a moment. See what Alyeska does with it."));
   assert.doesNotMatch(home, /<Scene\b/, "no scenes left on the page");
   // The strip is the trip screen's tab bar, not a new control.
   assert.match(how, /className="tabbar home-how-bar"[\s\S]*?role="tablist"/);
@@ -133,7 +133,7 @@ test("What Aly knows stays at a reserved signed-in address, off the front page",
 test("roadmap lines are dated and plain", () => {
   const flat = home.replaceAll('{" "}', " ").replace(/\s+/g, " ");
   assert.ok(flat.includes("Alyeska Groups, 2027.</strong> Several households, one trip."));
-  assert.ok(flat.includes("Ask Aly from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later."));
+  assert.ok(flat.includes("Ask Alyeska from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later."));
   assert.ok(flat.includes("iPhone and Android, fall 2027."));
 });
 

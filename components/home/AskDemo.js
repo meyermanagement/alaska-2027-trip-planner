@@ -541,7 +541,7 @@ export default function AskDemo() {
                 className="home-ask-reply"
                 data-turn={entry.turn}
               >
-                <p className="home-ask-who">Aly</p>
+                <p className="home-ask-who">Alyeska</p>
                 {entry.parts.map(replyPart)}
               </div>
             );

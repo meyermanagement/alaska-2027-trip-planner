@@ -52,7 +52,7 @@ export default function DeletedPage() {
           </li>
           <li>Every document you uploaded, and the fields read off them</li>
           <li>Forwarded booking mail and everything filed from it</li>
-          <li>Your conversations with Aly</li>
+          <li>Your conversations with Alyeska</li>
           <li>
             Your sign-in, and any calendar address you were subscribed to, which
             has stopped working

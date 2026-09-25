@@ -125,7 +125,7 @@ export default function HomeLanding({ waitlist } = {}) {
         <div className="home-hero-scrim" aria-hidden="true" />
 
         <div
-          className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[74rem] flex-col px-5 pb-12 pt-6 sm:px-8"
+          className="relative z-10 mx-auto flex min-h-[100svh] lg:min-h-[calc(100svh-6rem)] w-full max-w-[74rem] flex-col px-5 pb-12 pt-6 sm:px-8"
           style={{ color: "#f6f3ec" }}
         >
           <header className="flex items-center justify-between gap-4">
@@ -175,12 +175,12 @@ export default function HomeLanding({ waitlist } = {}) {
               <h1
                 className="mt-3 max-w-[36rem] font-display text-[34px] font-semibold leading-[1.06] sm:text-[44px] lg:text-[48px]"
               >
-                Aly has your back.
+                Alyeska has your back.
               </h1>
               {/* The paragraph that stood here said everything and was read by
                   nobody. Five verbs, each a thing Aly does, set straight on
                   the film so the photograph stays a photograph. */}
-              <ul className="home-checks" aria-label="What Aly does">
+              <ul className="home-checks" aria-label="What Alyeska does">
                 {HERO_CHECKS.map((line) => (
                   <li key={line}>
                     <svg viewBox="0 0 30 30" aria-hidden="true">
@@ -248,7 +248,7 @@ export default function HomeLanding({ waitlist } = {}) {
           Four demonstrations behind one tab strip. See components/home/HowTabs.js. */}
       <Reveal as="section" className="mx-auto w-full max-w-[74rem] px-5 pt-12 sm:px-8 sm:pt-16">
         <h2 className="ma-in font-display text-[26px] font-semibold leading-[1.15] sm:text-[32px]">
-          Pick a moment. See what Aly does with it.
+          Pick a moment. See what Alyeska does with it.
         </h2>
         <div className="ma-in mt-6" style={{ animationDelay: "80ms" }}>
           <HowTabs
@@ -256,7 +256,7 @@ export default function HomeLanding({ waitlist } = {}) {
               {
                 label: "Before you go",
                 title: "From the day you book to the morning you leave.",
-                body: "Aly turns your trip into dated reminders, so you get ready a little at a time.",
+                body: "Alyeska turns your trip into dated reminders, so you get ready a little at a time.",
                 media: (
                   <div className="card p-5">
                     <div className="mb-4 overflow-hidden rounded-xl border border-[var(--line)]">
@@ -291,7 +291,7 @@ export default function HomeLanding({ waitlist } = {}) {
               {
                 label: "When it changes",
                 title: "A change of plans, not a fresh start.",
-                body: "Aly works around the surprise with the trip you already planned. You decide what changes.",
+                body: "Alyeska works around the surprise with the trip you already planned. You decide what changes.",
                 media: <RainNotice />,
               },
               {
@@ -314,7 +314,7 @@ export default function HomeLanding({ waitlist } = {}) {
           <p className="section-label ma-in">Also looked after</p>
           <ul className="mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              ["Building the trip", "Say roughly where, when, and how much. Aly suggests stays and days shaped around your family."],
+              ["Building the trip", "Say roughly where, when, and how much. Alyeska suggests stays and days shaped around your family."],
               ["When you ask", "Answers come from your trip: who is going, what you booked, your budget, and your cards."],
               ["Pro tips", "Local knowledge for your plans, with a source on every one, and a reminder if you want it."],
               ...ALY_INDEX.flatMap((g) => g.items.map((i) => [i.title, i.body])),
@@ -349,7 +349,7 @@ export default function HomeLanding({ waitlist } = {}) {
                 <strong className="font-semibold text-ink">Alyeska Groups, 2027.</strong> Several households, one trip.
               </li>
               <li className="ma-in" style={{ animationDelay: "120ms" }}>
-                <strong className="font-semibold text-ink">Ask Aly from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later.
+                <strong className="font-semibold text-ink">Ask Alyeska from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later.
               </li>
               <li className="ma-in" style={{ animationDelay: "180ms" }}>
                 <strong className="font-semibold text-ink">iPhone and Android, fall 2027.</strong>
