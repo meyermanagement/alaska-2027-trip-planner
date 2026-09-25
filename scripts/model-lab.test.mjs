@@ -128,9 +128,29 @@ test("the runner builds a request and marks the reply", async () => {
   }
 });
 
-test("the email test waits for the parser's prompt instead of running a copy", async () => {
+test("the email test sends the app's own reader prompt and schema", async () => {
   const { runCase, EMAIL_READY } = await jiti.import("../lib/model-lab/run.js");
-  if (EMAIL_READY) return;
-  const out = await runCase({ model: "gpt-5.6-luna", scenario: "email", caseId: "flight-3leg" });
-  assert.equal(out.unavailable, true);
+  const parser = await jiti.import("../lib/inbox/parser.js");
+  assert.equal(EMAIL_READY, true);
+  const saved = { fetch: globalThis.fetch, key: process.env.GEMINI_API_KEY };
+  let sent;
+  process.env.GEMINI_API_KEY = "test";
+  globalThis.fetch = async (_u, init) => {
+    sent = JSON.parse(init.body);
+    const text = JSON.stringify({ kind: "not_booking", passenger_names: [], items: [] });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }], usageMetadata: {} }), { status: 200 });
+  };
+  try {
+    const out = await runCase({ model: "gemini-3.6-flash", scenario: "email", caseId: "marketing" });
+    const parts = sent.contents[0].parts.map((p) => p.text);
+    assert.equal(parts[0], parser.PROMPT);
+    assert.equal(parts[1], parser.UNTRUSTED);
+    assert.deepEqual(sent.generationConfig.responseSchema, parser.RESPONSE_SCHEMA);
+    assert.equal(out.ok, true);
+    assert.equal(out.score, out.max);
+  } finally {
+    globalThis.fetch = saved.fetch;
+    if (saved.key === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = saved.key;
+  }
 });
