@@ -15,6 +15,11 @@ test("the document names this host's endpoint and the Supabase issuer", () => {
   assert.deepEqual(m.bearer_methods_supported, ["header"]);
   assert.ok(!("scopes_supported" in m) || !m.scopes_supported.includes("offline_access"));
 });
+test("stray whitespace in the setting does not reach the issuer", () => {
+  const m = d.protectedResourceMetadata("https://app.example.test", { NEXT_PUBLIC_SUPABASE_URL: " https://example-project.supabase.co\n" });
+  assert.deepEqual(m.authorization_servers, ["https://example-project.supabase.co/auth/v1"]);
+  assert.equal(d.protectedResourceMetadata("https://app.example.test", { NEXT_PUBLIC_SUPABASE_URL: "  \n" }), null);
+});
 test("no Supabase URL, no document", () => {
   assert.equal(d.protectedResourceMetadata("https://app.example.test", {}), null);
 });
