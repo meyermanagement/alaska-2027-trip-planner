@@ -8,6 +8,7 @@ import TextSizePicker from "@/components/TextSizePicker";
 import NavigationPreference from "@/components/NavigationPreference";
 import SetupDoneControl from "@/components/SetupDoneControl";
 import DeleteAccountControl from "@/components/DeleteAccountControl";
+import AssistantConnectionsControl from "@/components/AssistantConnectionsControl";
 import { SETTINGS_FOCUS } from "@/lib/agent/context";
 
 /**
@@ -38,6 +39,7 @@ export default function SettingsBody({
   setupDoneAt = null,
   setupLeft = 0,
   deletion = null,
+  assistants = [],
 }) {
   return (
     <>
@@ -57,6 +59,11 @@ export default function SettingsBody({
               find without hunting -- a way to withdraw consent that has to be
               scrolled past a color picker to reach is a way in name only. */}
           {consent && <BetaConsentControls consent={consent} />}
+
+          {/* Beside the consent answers, for the same reason: a way to take an
+              approval back belongs where somebody goes looking for one. Not
+              drawn until an assistant has been allowed. */}
+          <AssistantConnectionsControl connections={assistants} />
 
           {/* Not for an invited member: none of the four things is theirs to do
               and the menu never marks anything for them, so a control to turn

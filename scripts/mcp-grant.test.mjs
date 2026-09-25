@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const jiti = createJiti(import.meta.url, { alias: { "@": root } });
-const { connectionGrant } = jiti("../lib/mcp/grant.js");
+const { connectionGrant, notServing, NOT_SERVING_CODE } = jiti("../lib/mcp/grant.js");
 const { CONSENT_SURFACE_VERSION: V } = jiti("../lib/mcp/consentVersion.js");
 
 function fake({ live = true, liveError = null, clients = [], rows = [], throws = false } = {}) {
@@ -41,8 +41,9 @@ test("the switch off refuses even a fully approved connection", async () => {
   assert.equal((await connectionGrant(fake({ live: false, clients: [good], rows: [allowed] }), who)).refused, "not-live");
 });
 test("a switch that cannot be read refuses", async () => {
-  assert.equal((await connectionGrant(fake({ liveError: { message: "x" } }), who)).refused, "unavailable");
-  assert.equal((await connectionGrant(fake({ throws: true }), who)).refused, "unavailable");
+  const full = { clients: [good], rows: [allowed] };
+  assert.equal((await connectionGrant(fake({ ...full, liveError: { message: "x" } }), who)).refused, "unavailable");
+  assert.equal((await connectionGrant(fake({ ...full, throws: true }), who)).refused, "unavailable");
 });
 test("an unknown or unapproved client is refused", async () => {
   assert.equal((await connectionGrant(fake({ rows: [allowed] }), who)).refused, "unknown-client");
@@ -65,4 +66,22 @@ test("no row, denied, revoked, old wording, or another person's row is refused",
 });
 test("switch on, approved client, current allowed row: permitted", async () => {
   assert.deepEqual(await connectionGrant(fake({ clients: [good], rows: [allowed] }), who), { ok: true });
+});
+
+test("not-live is reported only for a connection that is otherwise complete", async () => {
+  assert.equal((await connectionGrant(fake({ live: false, rows: [allowed] }), who)).refused, "unknown-client");
+  assert.equal((await connectionGrant(fake({ live: false, clients: [good] }), who)).refused, "not-allowed");
+});
+test("not-live is answered as a JSON-RPC error with no auth challenge", async () => {
+  const res = notServing({ jsonrpc: "2.0", id: 7, method: "initialize" }, "not-live");
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("www-authenticate"), null);
+  const body = await res.json();
+  assert.equal(body.id, 7);
+  assert.equal(body.error.code, NOT_SERVING_CODE);
+  assert.match(body.error.message, /aren't turned on yet/);
+  assert.equal(notServing({ jsonrpc: "2.0", method: "notifications/initialized" }, "not-live").status, 202);
+  const down = notServing({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "unavailable");
+  assert.equal(down.status, 503);
+  assert.equal(down.headers.get("www-authenticate"), null);
 });

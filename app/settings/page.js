@@ -54,7 +54,7 @@ export default async function SettingsPage() {
         .eq("id", access?.familyId)
         .maybeSingle();
 
-  const [{ data: profile }, { data: mine }, consent] = await Promise.all([
+  const [{ data: profile }, { data: mine }, consent, { data: allowedAssistants }] = await Promise.all([
     supabase
       .from("profiles")
       .select("display_name, skin, text_size")
@@ -74,7 +74,21 @@ export default async function SettingsPage() {
     // the same screen that shows them. Null for an account with nothing
     // recorded, and the section is simply not drawn.
     readConsent(supabase, user.id),
+    // Assistants this person allowed on /oauth/consent, so the promise there
+    // ("You can remove this later from Settings") has a control behind it.
+    supabase
+      .from("assistant_connections")
+      .select("client_id, decided_at, assistant_oauth_clients(client_name)")
+      .eq("user_id", user.id)
+      .eq("status", "allowed")
+      .is("revoked_at", null)
+      .order("decided_at", { ascending: false }),
   ]);
+  const assistants = (allowedAssistants || []).map((r) => ({
+    client_id: r.client_id,
+    decided_at: r.decided_at,
+    name: r.assistant_oauth_clients?.client_name || "An assistant",
+  }));
 
   // What the delete control has to say before it draws a button: the household's
   // own name, how many other people are in it, and whether this person is the
@@ -130,6 +144,7 @@ export default async function SettingsPage() {
       setupDoneAt={household?.setup_done_at || null}
       setupLeft={setup?.left || 0}
       deletion={deletion}
+      assistants={assistants}
     />
   );
 }
