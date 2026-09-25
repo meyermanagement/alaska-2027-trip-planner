@@ -13,6 +13,7 @@ import { SCENARIOS, scenarioById } from "@/lib/model-lab/scenarios";
 import { aggregate, recommend, formatCost } from "@/lib/model-lab/recommend";
 import { priceFor, costOf } from "@/lib/model-lab/prices";
 import { defaultPicks } from "@/lib/model-lab/picks";
+import { thinkingOffered } from "@/lib/model-lab/effort";
 import ModelCheck from "./ModelCheck";
 
 const SEEN_KEY = "model-lab:seen";
@@ -158,9 +159,14 @@ export default function ModelLab() {
     const q = [];
     for (const t of activeTypes)
       for (const c of scenarioById(t).cases)
-        for (const m of picked) for (let rep = 1; rep <= reps; rep++) q.push({ model: m, scenario: t, caseId: c.id, rep });
+        for (const m of picked) {
+          // A level the model refuses would only come back as a 400.
+          if (!thinkingOffered(m, effort)) continue;
+          for (let rep = 1; rep <= reps; rep++) q.push({ model: m, scenario: t, caseId: c.id, rep });
+        }
     return q;
-  }, [activeTypes, picked, reps]);
+  }, [activeTypes, picked, reps, effort]);
+  const notOffered = picked.filter((m) => !thinkingOffered(m, effort));
 
   // Past results in this browser beat the rough table for an estimate.
   const estimate = useMemo(() => {
@@ -392,6 +398,9 @@ export default function ModelLab() {
           <span className="text-sm text-ink">
             {queue.length} request{queue.length === 1 ? "" : "s"} · about {formatCost(estimate.total)} estimated
             {estimate.unpriced.length > 0 && <span className="text-ink-faint"> · {estimate.unpriced.length} without a price</span>}
+            {notOffered.length > 0 && (
+              <span className="block text-xs text-ink-faint">Not offered at {effort} thinking, so left out: {notOffered.join(", ")}</span>
+            )}
           </span>
           {running ? (
             <button className="ml-auto rounded-lg border border-rose/40 px-4 py-2 text-sm font-medium text-ink" onClick={() => (stop.current = true)}>
@@ -489,7 +498,7 @@ export default function ModelLab() {
                           {r.notes.length > 0 && <div className="mt-1 font-normal sm:hidden"><Issues notes={r.notes} /></div>}
                         </td>
                         <td className="py-2 pr-3 text-ink">
-                          {pct(r.quality)}
+                          {r.quality == null && r.notOffered > 0 ? <span className="text-ink-faint">Not offered</span> : pct(r.quality)}
                           {r.failures > 0 && <span className="block text-xs text-ink-faint">{r.failures} failed</span>}
                           {r.dropped > 0 && <span className="block text-xs text-ink-faint">{r.dropped} lost connection</span>}
                           {r.varied > 0 && <span className="block text-xs text-ink-faint">{r.varied} of {r.repeated} varied</span>}
