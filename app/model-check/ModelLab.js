@@ -48,7 +48,7 @@ const save = (key, value) => {
   }
 };
 
-const pct = (q) => `${Math.round(q * 100)}%`;
+const pct = (q) => (q == null ? "—" : `${Math.round(q * 100)}%`);
 const secs = (ms) => (ms == null ? "—" : `${(ms / 1000).toFixed(1)}s`);
 
 function Badge({ tone = "plain", children }) {
@@ -192,16 +192,24 @@ export default function ModelLab() {
       while (jobs.length && !stop.current) {
         const job = jobs.shift();
         let result;
-        try {
-          const res = await fetch("/api/model-check/run", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ ...job, effort }),
-          });
-          result = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
-          if (!res.ok && result.ok !== false) result = { ok: false, error: result.error || `HTTP ${res.status}` };
-        } catch (e) {
-          result = { ok: false, error: String(e.message || e) };
+        // A dropped connection ("Load failed" when a phone sleeps or switches
+        // networks) says nothing about the model, so it is tried once more and,
+        // if it drops again, marked as the connection's fault, not the model's.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const res = await fetch("/api/model-check/run", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ ...job, effort }),
+            });
+            result = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
+            if (!res.ok && result.ok !== false) result = { ok: false, error: result.error || `HTTP ${res.status}` };
+            break;
+          } catch (e) {
+            result = { ok: false, network: true, error: String(e.message || e) };
+            if (stop.current) break;
+            await new Promise((r) => setTimeout(r, 1500));
+          }
         }
         state.results.push({ ...job, effort, ...result });
         setCurrent({ ...state, results: [...state.results] });
@@ -459,6 +467,7 @@ export default function ModelLab() {
                         <td className="py-2 pr-3 text-ink">
                           {pct(r.quality)}
                           {r.failures > 0 && <span className="block text-xs text-ink-faint">{r.failures} failed</span>}
+                          {r.dropped > 0 && <span className="block text-xs text-ink-faint">{r.dropped} lost connection</span>}
                         </td>
                         <td className="py-2 pr-3 text-ink">{secs(r.ms)}</td>
                         <td className="py-2 pr-3 text-ink">{r.priced ? formatCost(r.cost) : <span className="text-ink-faint">price not set</span>}</td>
