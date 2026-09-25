@@ -18,14 +18,15 @@
 // consent gate, and the MCP-specific redactions an assistant is held to that a
 // person browsing their own app is not.
 //
-// This route does not yet check assistant_connections (see the migration
-// naming that table). Building the OAuth path and the consent schema was
-// authorized ahead of counsel's review of the consent screen; wiring a live
-// approval check here is the last step, done only after that review, per
-// research/assistant-surface-implementation-spec.md and the standing
-// instruction not to enable live assistant use before then.
+// Before any method runs -- tools/list included -- lib/mcp/grant.js checks
+// that the token belongs to a named OAuth client, that assistant connections
+// are switched on, and that this person allowed this client on the current
+// consent wording. The switch (public.assistant_connections_enabled()) stays
+// hard-false until counsel reviews the consent screen, so today every call is
+// refused, which is what the consent screen tells people.
 
 import { homeToday } from "@/lib/format";
+import { GRANT_REFUSALS, connectionGrant } from "@/lib/mcp/grant";
 import { bearerOf, oauthMcpConfig, tokenIdentity } from "@/lib/mcp/oauthToken";
 import { handleMessage } from "@/lib/mcp/protocol";
 import { REFUSALS, readerScope } from "@/lib/mcp/scope";
@@ -34,6 +35,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const NOT_FOUND = () => new Response("Not found.", { status: 404 });
+
+function forbidden(reason) {
+  return new Response(JSON.stringify({ error: GRANT_REFUSALS[reason] || GRANT_REFUSALS.unavailable, reason }), {
+    status: 403,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "www-authenticate": 'Bearer realm="alyeska-mcp", error="insufficient_scope"',
+    },
+  });
+}
 
 function unauthorized(message = "A valid Supabase access token is required.") {
   return new Response(JSON.stringify({ error: message }), {
@@ -54,6 +66,12 @@ export async function POST(request) {
 
   const identity = await tokenIdentity(token);
   if (!identity) return unauthorized("This token is missing, expired, or was not issued by this project.");
+
+  const grant = await connectionGrant(identity.client, identity);
+  if (!grant.ok) {
+    console.log(JSON.stringify({ at: "mcp", clientId: identity.clientId, refused: grant.refused }));
+    return forbidden(grant.refused);
+  }
 
   let message;
   try {

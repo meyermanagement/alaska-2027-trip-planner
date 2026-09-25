@@ -218,29 +218,29 @@ test("the protocol: list without the database, call through the scope, headers c
   const db = world();
   const admin = fakeAdmin(db);
   const getScope = async () => { scoped++; return readerScope(admin, "u-ann", TODAY); };
-  const list = await handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { admin, getScope });
+  const list = await handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { client: admin, getScope });
   assert.equal(list.body.result.tools.length, 7);
   assert.equal(scoped, 0);
   const call = await handleMessage(
     { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_trip", arguments: {} } },
-    { admin, getScope, headers: { "mcp-method": "tools/call", "mcp-name": "get_trip", "mcp-protocol-version": "2026-07-28" } },
+    { client: admin, getScope, headers: { "mcp-method": "tools/call", "mcp-name": "get_trip", "mcp-protocol-version": "2026-07-28" } },
   );
   assert.equal(call.body.result.structuredContent.trip.id, "trip-a1");
   assert.equal(call.body.result.content[0].type, "text");
   const mismatch = await handleMessage(
     { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_trip" } },
-    { admin, getScope, headers: { "mcp-name": "list_trips" } },
+    { client: admin, getScope, headers: { "mcp-name": "list_trips" } },
   );
   assert.equal(mismatch.status, 400);
-  const version = await handleMessage({ jsonrpc: "2.0", id: 4, method: "tools/list" }, { admin, getScope, headers: { "mcp-protocol-version": "1999-01-01" } });
+  const version = await handleMessage({ jsonrpc: "2.0", id: 4, method: "tools/list" }, { client: admin, getScope, headers: { "mcp-protocol-version": "1999-01-01" } });
   assert.equal(version.status, 400);
-  const note = await handleMessage({ jsonrpc: "2.0", method: "notifications/initialized" }, { admin, getScope });
+  const note = await handleMessage({ jsonrpc: "2.0", method: "notifications/initialized" }, { client: admin, getScope });
   assert.equal(note.status, 202);
-  const init = await handleMessage({ jsonrpc: "2.0", id: 5, method: "initialize", params: { protocolVersion: "2025-06-18" } }, { admin, getScope });
+  const init = await handleMessage({ jsonrpc: "2.0", id: 5, method: "initialize", params: { protocolVersion: "2025-06-18" } }, { client: admin, getScope });
   assert.equal(init.body.result.protocolVersion, "2025-06-18");
   const refused = await handleMessage(
     { jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "list_trips" } },
-    { admin, getScope: async () => ({ refused: "consent", message: "no" }) },
+    { client: admin, getScope: async () => ({ refused: "consent", message: "no" }) },
   );
   assert.equal(refused.body.result.isError, true);
   const broken = await handleMessage(
