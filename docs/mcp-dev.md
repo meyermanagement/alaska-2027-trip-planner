@@ -1,8 +1,14 @@
-# Assistant connection: developer key
+# Assistant connections (MCP)
 
-Step one of the read-only MCP plan. One key, one account, read only.
+A read-only MCP server at `/api/mcp`. It accepts two kinds of bearer token:
+an OAuth token Supabase issued to an approved assistant (production), or a
+developer key (local only).
 
-## Set up
+## Developer key
+
+One key, one account, read only.
+
+### Set up
 
 Add to `.env.local` (never to Vercel production; the route refuses there):
 
@@ -26,6 +32,77 @@ curl -s localhost:3000/api/mcp \
 To try it from Claude Desktop or another MCP client, point a remote server at
 `http://localhost:3000/api/mcp` with the same bearer header.
 
+## OAuth connections
+
+### Discovery
+
+An assistant starts with only `https://www.alyeska.app/api/mcp`. A request
+with no token gets a 401 whose `WWW-Authenticate` header names
+`resource_metadata`. That document (RFC 9728) is served at both
+`/.well-known/oauth-protected-resource/api/mcp` and
+`/.well-known/oauth-protected-resource`. It names the resource and the
+authorization server, Supabase Auth at `<NEXT_PUBLIC_SUPABASE_URL>/auth/v1`
+(trimmed; see `lib/mcp/discovery.js`). The resource is built from the request
+host, so previews and localhost describe themselves.
+
+Supabase has no registration endpoint, so every client is registered by hand.
+
+### Registering a client
+
+1. In the Supabase dashboard, Authentication, OAuth Apps, create the client:
+   public, no secret, authorization code and refresh token grants, and only
+   the assistant's documented redirect URI. Claude's is
+   `https://claude.ai/api/mcp/auth_callback`. Production auth settings are
+   changed by Mark, not by an agent.
+2. Add its row to `assistant_oauth_clients` with the client ID Supabase
+   created: `client_name`, `client_description`, `purpose_summary`, and
+   `approved_for_consent = true`. Without the row, the consent screen shows
+   the client as unrecognized and refuses an answer.
+3. In the assistant, add the connector by its MCP URL and the client ID.
+
+Registered today: Claude (`a53e5071-421c-41e6-a40e-040ae4592331`).
+
+### Consent
+
+Supabase sends the person to `/oauth/consent`. It refuses minors, shows the
+client's name and purpose, the scopes in plain words, and the host the answer
+goes back to. Allowing writes an `allowed` row to `assistant_connections`,
+stamped with `CONSENT_SURFACE_VERSION` from `lib/mcp/consentVersion.js`. Raise
+that version whenever the screen's wording changes; older approvals then stop
+counting and the person is asked again.
+
+### The approval check
+
+`lib/mcp/grant.js` runs before any method, `tools/list` included, and every
+read runs as the person under RLS:
+
+1. The token has a `client_id` (a browser session token does not).
+2. The client is in `assistant_oauth_clients` with `approved_for_consent`.
+3. The person has an `allowed`, unrevoked row for that client on the current
+   consent version.
+4. `public.assistant_connections_enabled()` returns true.
+
+A missing or bad token gets 401 with a challenge. Steps 1 to 3 failing gets
+403. Step 4 failing, or a failed lookup, gets a plain JSON-RPC error
+(`-32001`, HTTP 200; 202 for a notification; 503 when the lookup failed) with
+no challenge, so the assistant shows the sentence instead of reporting a
+failed sign-in.
+
+### The switch
+
+`assistant_connections_enabled()` returns false. The flip is written and held
+in `supabase/held/assistant_connections_go_live.sql`, outside the migrations
+folder. It moves into `supabase/migrations` only after counsel signs off on
+the consent screen and the Settings section, with `CONSENT_SURFACE_VERSION`
+raised in the same release, and with Mark's go-ahead.
+
+### Removing a connection
+
+Settings, Connected assistants (`components/AssistantConnectionsControl.js`)
+lists the person's rows. Remove sets `status = 'revoked'` and `revoked_at`,
+then calls `supabase.auth.oauth.revokeGrant({ clientId })` so Supabase stops
+refreshing the token. The row stays as a record; nobody can delete it.
+
 ## Tools
 
 `list_trips`, `get_trip`, `get_itinerary_day`, `get_packing_status`,
@@ -41,3 +118,7 @@ draft trips a secondary traveler is not on.
 ## Refused
 
 No current beta agreement, a minor account, or no household.
+
+## Tests
+
+`node --test scripts/mcp-*.test.mjs`

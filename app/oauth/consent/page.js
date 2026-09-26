@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
  * Where Supabase's OAuth 2.1 server sends a person after it has validated an
  * authorization request -- this project's Authorization Path, once that
  * setting is turned on. See research/assistant-surface-implementation-spec.md
- * and supabase/migrations/20261019_assistant_connection_consent.sql for the
+ * and supabase/migrations/20261019_assistant_connection_consent.sql (and
+ * supabase/held/assistant_connections_go_live.sql, the held switch) for the
  * schema this reads and writes.
  *
  * Everything past the redirect happens in the browser: `getAuthorizationDetails`,
