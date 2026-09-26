@@ -225,7 +225,8 @@ test("trips: create with a roster, refuse a duplicate name, update dates within 
   assert.equal(trip.travelers, undefined, "not a column");
   const roster = inserts(calls, "trip_travelers")[0].row.map((r) => r.traveler_id).sort();
   assert.deepEqual(roster, ["ta1", "ta3"]);
-  assert.match(made.summary, /packing list in the app/);
+  assert.ok(!/packing list in the app/.test(made.summary));
+  assert.ok(Array.isArray(made.next_steps));
   await assert.rejects(call("create_trip", { name: "curacao spring" }), /already a trip/);
   await assert.rejects(call("create_trip", { name: "X", travelers: "Bob" }), /not in this household/);
   await assert.rejects(call("create_trip", { name: "X", start_date: "2028-06-10", end_date: "2028-06-01" }), /end before/);

@@ -130,16 +130,28 @@ secondary guard triggers apply exactly as they do in the app:
 - planTools.js, primary travelers only, each changing one row:
   `add_itinerary_item` / `update_itinerary_item` (cancel is a status; dates
   must fall in the trip; lodging and cruise alone span nights),
-  `create_trip` (roster by name; no packing list until built in the app) /
+  `create_trip` (roster by name; returns `next_steps` to offer, never acted on) /
   `update_trip` (name, destination, dates, status, budget),
   `add_rewards_program` / `update_rewards_program` (adults or Shared; balance,
   status tier, annual fee; refuses member and card numbers),
   `add_template_item` (base list unless named; existing trips unchanged), and
   `add_day_pack_item` (links an existing packing-list line; never creates one).
-  The three updates are marked destructive, since they replace a saved value.
 
-None deletes, and none touches preferences, expenses, notes or confirmation
-numbers. These write directly, without Ask Aly's review cards. The other 22
+- moreTools.js, primary travelers only:
+  `start_packing_list` (the base list, once; never on a draft),
+  `set_trip_templates` (add-on templates; unlinks dropped ones, never deletes a
+  template or a line), `add_trip_cost` / `update_trip_cost`,
+  `update_packing_item` (name, owner, bag, quantity, last-minute; never notes),
+  `update_reminder` (title, owner, due date, timing, priority; never detail),
+  `add_favorite_moment` (one adult), `put_fare_on_trip` / `dismiss_fare`
+  (open, unexpired fares only), `save_home_airport` (US and Canadian codes),
+  `retire_bucket_list_place`, `set_pet_plan` (arrangement and notes; syncs the
+  pet's packing lines), and `add_preference` / `update_preference` (said by
+  the person; adults or the household, never a child or health).
+
+Updates are marked destructive, since they replace a saved value. None deletes
+a record, and none touches notes, confirmation numbers or a child's
+preferences. These write directly, without Ask Aly's review cards. The other 22
 are marked read-only.
 No AI calls.
 

@@ -120,12 +120,15 @@ async function asUser(userId, db = world()) {
 }
 
 const WRITES = new Set(["check_off_packing_item", "check_off_day_pack_item", "complete_reminder", "add_packing_item", "add_reminder", "add_bucket_list_place",
-  "add_itinerary_item", "update_itinerary_item", "create_trip", "update_trip", "add_rewards_program", "update_rewards_program", "add_template_item", "add_day_pack_item"]);
+  "add_itinerary_item", "update_itinerary_item", "create_trip", "update_trip", "add_rewards_program", "update_rewards_program", "add_template_item", "add_day_pack_item",
+  "start_packing_list", "set_trip_templates", "add_trip_cost", "update_trip_cost", "update_packing_item", "update_reminder", "add_favorite_moment",
+  "put_fare_on_trip", "dismiss_fare", "save_home_airport", "retire_bucket_list_place", "set_pet_plan", "add_preference", "update_preference"]);
 // Changing a saved value replaces it, so these say so even though none deletes.
-const UPDATES = new Set(["update_itinerary_item", "update_trip", "update_rewards_program"]);
+const UPDATES = new Set(["update_itinerary_item", "update_trip", "update_rewards_program", "set_trip_templates", "update_trip_cost", "update_packing_item", "update_reminder", "put_fare_on_trip", "dismiss_fare", "retire_bucket_list_place", "set_pet_plan", "update_preference"]);
 
 test("every tool is titled; only the named tools write, and only updates replace", () => {
-  assert.equal(TOOLS.length, 36);
+  assert.equal(TOOLS.length, 50);
+  assert.equal(TOOLS.filter((t) => !t.annotations.readOnlyHint).length, 28);
   for (const t of TOOLS) {
     assert.ok(t.title && t.description, t.name);
     assert.equal(t.annotations.readOnlyHint, !WRITES.has(t.name), t.name);
@@ -279,7 +282,7 @@ test("the protocol: list without the database, call through the scope, headers c
   const admin = fakeAdmin(db);
   const getScope = async () => { scoped++; return readerScope(admin, "u-ann", TODAY); };
   const list = await handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { client: admin, getScope });
-  assert.equal(list.body.result.tools.length, 36);
+  assert.equal(list.body.result.tools.length, 50);
   assert.equal(scoped, 0);
   const call = await handleMessage(
     { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_trip", arguments: {} } },
