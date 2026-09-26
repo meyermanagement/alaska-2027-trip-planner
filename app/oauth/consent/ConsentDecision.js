@@ -148,7 +148,7 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
     <div className="mx-auto max-w-md">
       <h1 className="text-xl font-semibold">Allow {name} to connect?</h1>
       <p className="mt-2 text-sm text-ink-soft">
-        {name} is asking to read your trips and travel details through Alyeska, check off packing, day pack items and reminders, and add packing items, reminders and bucket-list places, using the account you&rsquo;re signed in with now. It can&rsquo;t delete or rewrite anything, or change your itinerary, budget or preferences.
+        {name} is asking to read your trips and travel details through Alyeska, check off packing, day pack items and reminders, add packing items, reminders and bucket-list places, and create and change trips, itinerary items, wallet programs, packing templates and day packs, using the account you&rsquo;re signed in with now. It can&rsquo;t delete anything or change your preferences.
       </p>
       {returnsTo && (
         <p className="mt-2 text-sm text-ink-soft">

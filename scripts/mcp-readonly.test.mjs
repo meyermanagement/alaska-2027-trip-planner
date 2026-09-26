@@ -119,14 +119,17 @@ async function asUser(userId, db = world()) {
   return { admin, scope, call: (name, args) => callTool(admin, scope, name, args) };
 }
 
-const WRITES = new Set(["check_off_packing_item", "check_off_day_pack_item", "complete_reminder", "add_packing_item", "add_reminder", "add_bucket_list_place"]);
+const WRITES = new Set(["check_off_packing_item", "check_off_day_pack_item", "complete_reminder", "add_packing_item", "add_reminder", "add_bucket_list_place",
+  "add_itinerary_item", "update_itinerary_item", "create_trip", "update_trip", "add_rewards_program", "update_rewards_program", "add_template_item", "add_day_pack_item"]);
+// Changing a saved value replaces it, so these say so even though none deletes.
+const UPDATES = new Set(["update_itinerary_item", "update_trip", "update_rewards_program"]);
 
-test("every tool is titled; only the six named tools write, and nothing destroys", () => {
-  assert.equal(TOOLS.length, 28);
+test("every tool is titled; only the named tools write, and only updates replace", () => {
+  assert.equal(TOOLS.length, 36);
   for (const t of TOOLS) {
     assert.ok(t.title && t.description, t.name);
     assert.equal(t.annotations.readOnlyHint, !WRITES.has(t.name), t.name);
-    assert.equal(t.annotations.destructiveHint, false, t.name);
+    assert.equal(t.annotations.destructiveHint, UPDATES.has(t.name), t.name);
   }
 });
 
@@ -276,7 +279,7 @@ test("the protocol: list without the database, call through the scope, headers c
   const admin = fakeAdmin(db);
   const getScope = async () => { scoped++; return readerScope(admin, "u-ann", TODAY); };
   const list = await handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { client: admin, getScope });
-  assert.equal(list.body.result.tools.length, 28);
+  assert.equal(list.body.result.tools.length, 36);
   assert.equal(scoped, 0);
   const call = await handleMessage(
     { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_trip", arguments: {} } },

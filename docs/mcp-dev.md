@@ -127,8 +127,20 @@ secondary guard triggers apply exactly as they do in the app:
   travelers only. For a trip traveler, a child, or Shared. Refuses health text
   and returns `changed:false` for a line already there.
 
-None deletes, rewords a line, or touches itinerary, costs or preferences;
-those stay behind Ask Aly's review cards. The other 22 are marked read-only.
+- planTools.js, primary travelers only, each changing one row:
+  `add_itinerary_item` / `update_itinerary_item` (cancel is a status; dates
+  must fall in the trip; lodging and cruise alone span nights),
+  `create_trip` (roster by name; no packing list until built in the app) /
+  `update_trip` (name, destination, dates, status, budget),
+  `add_rewards_program` / `update_rewards_program` (adults or Shared; balance,
+  status tier, annual fee; refuses member and card numbers),
+  `add_template_item` (base list unless named; existing trips unchanged), and
+  `add_day_pack_item` (links an existing packing-list line; never creates one).
+  The three updates are marked destructive, since they replace a saved value.
+
+None deletes, and none touches preferences, expenses, notes or confirmation
+numbers. These write directly, without Ask Aly's review cards. The other 22
+are marked read-only.
 No AI calls.
 
 ## Never returned
