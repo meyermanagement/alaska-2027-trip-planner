@@ -161,3 +161,30 @@ test("a missing key is a clear result, not a throw", async () => {
   assert.equal(r.ok, false);
   assert.equal(r.error, "ANTHROPIC_API_KEY is not set");
 });
+
+test("Claude schema: an optional choice becomes one-of-these or nothing", async () => {
+  const { claudeSchema } = await jiti.import("../lib/model-lab/call.js");
+  const openai = await jiti.import("../lib/agent/providers/openai.js");
+  const strict = openai.strictSchema({ type: "object", properties: { scope: { type: "string", enum: ["trip", "annual"] }, n: { type: "number" } }, required: ["n"] });
+  const out = claudeSchema(strict);
+  assert.deepEqual(out.properties.scope, { anyOf: [{ type: "string", enum: ["trip", "annual"] }, { type: "null" }] });
+  assert.deepEqual(out.properties.n, { type: "number" });
+  const walk = (s) => { if (!s || typeof s !== "object") return; if (Array.isArray(s.type) && s.enum) throw new Error("enum beside type list"); Object.values(s).forEach(walk); };
+  walk(out);
+});
+
+test("Claude schema: every real reader and the email parser pass Anthropic's rule", async () => {
+  const { claudeSchema } = await jiti.import("../lib/model-lab/call.js");
+  const openai = await jiti.import("../lib/agent/providers/openai.js");
+  const { DOCUMENT_READERS } = await jiti.import("../lib/documents/extract.js");
+  const parser = await jiti.import("../lib/inbox/parser.js");
+  const schemas = [...Object.values(DOCUMENT_READERS).map((r) => r.schema), parser.RESPONSE_SCHEMA];
+  let before = 0;
+  const bad = (s) => { if (!s || typeof s !== "object") return 0; let n = Array.isArray(s.type) && Array.isArray(s.enum) ? 1 : 0; for (const v of Object.values(s)) n += bad(v); return n; };
+  for (const s of schemas) {
+    const strict = openai.strictSchema(s);
+    before += bad(strict);
+    assert.equal(bad(claudeSchema(strict)), 0);
+  }
+  assert.ok(before > 0, "the fixture should include the shape Anthropic refused");
+});
