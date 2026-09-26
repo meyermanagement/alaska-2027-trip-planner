@@ -103,6 +103,10 @@ export async function POST(request) {
   const { status, body } = await handleMessage(message, {
     headers,
     client: identity.client,
+    clientId: identity.clientId,
+    // The confirm step signs with a key derived from this bearer token, which
+    // the model never sees (lib/mcp/confirm.js).
+    confirmSecret: token,
     getScope: async () => {
       const scope = await readerScope(identity.client, identity.id, homeToday());
       return scope.refused ? { refused: scope.refused, message: REFUSALS[scope.refused] } : scope;
