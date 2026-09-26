@@ -9519,7 +9519,7 @@ html[data-skin="sodium"] .arc-pill.kid::before {
 
 /* Four labels do not fit one row on a phone, and a door you have to drag into
    view is the fault a tab strip exists to remove. Under 420px the strip is a
-   two-by-two grid: nothing scrolls, the fade has nothing to measure, and the
+   two-column grid: nothing scrolls, the fade has nothing to measure, and the
    rule under the bar becomes a rule under each row. */
 @media (max-width: 420px) {
   .home-how-bar {
@@ -9545,6 +9545,11 @@ html[data-skin="sodium"] .arc-pill.kid::before {
 
   .home-how-bar .tab[aria-selected="true"]::after {
     bottom: -1px;
+  }
+
+  /* An odd last label takes the whole row rather than sitting half empty. */
+  .home-how-bar .tab:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AlyWordmark from "@/components/AlyWordmark";
 import AlyeskaMark from "@/components/AlyeskaMark";
+import AssistantDemo from "@/components/home/AssistantDemo";
 import BudgetDemo from "@/components/home/BudgetDemo";
 import DayDemo from "@/components/home/DayDemo";
 import { MotionRoot, Reveal } from "@/components/home/Reveal";
@@ -44,7 +45,7 @@ const HERO_CHECKS = [
  * scenes, nine of them, each a photograph or a piece of the product arriving as
  * you reached it. Testers said it was too much: they gave up inside the first
  * couple of sections, so most of the argument was never read. This version puts
- * the four demonstrations that carry the argument behind one tab strip, in the
+ * the five demonstrations that carry the argument behind one tab strip, in the
  * order a trip happens -- before you go, while you are there, when it changes,
  * the money -- and says everything else in a line each. The argument is the
  * same, and it is the only one worth making to somebody who has planned a
@@ -245,7 +246,7 @@ export default function HomeLanding({ waitlist } = {}) {
       </div>
 
       {/* ------------------------------------------------------------- how
-          Four demonstrations behind one tab strip. See components/home/HowTabs.js. */}
+          Five demonstrations behind one tab strip. See components/home/HowTabs.js. */}
       <Reveal as="section" className="mx-auto w-full max-w-[74rem] px-5 pt-12 sm:px-8 sm:pt-16">
         <h2 className="ma-in font-display text-[26px] font-semibold leading-[1.15] sm:text-[32px]">
           Pick a moment. See what Alyeska does with it.
@@ -300,6 +301,12 @@ export default function HomeLanding({ waitlist } = {}) {
                 body: "Trip costs, saved credits, and card benefits in one place, so you know what is left and which card to use.",
                 media: <BudgetDemo />,
               },
+              {
+                label: "From your assistant",
+                title: "Ask from Claude, ChatGPT, or Gemini.",
+                body: "Beta testers can connect the assistant they already use. It answers from your trip, and nothing changes until you say yes.",
+                media: <AssistantDemo />,
+              },
             ]}
           />
         </div>
@@ -349,7 +356,7 @@ export default function HomeLanding({ waitlist } = {}) {
                 <strong className="font-semibold text-ink">Alyeska Groups, 2027.</strong> Several households, one trip.
               </li>
               <li className="ma-in" style={{ animationDelay: "120ms" }}>
-                <strong className="font-semibold text-ink">Ask Alyeska from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later.
+                <strong className="font-semibold text-ink">More assistants.</strong> Ask Alyeska from wherever you already ask.
               </li>
               <li className="ma-in" style={{ animationDelay: "180ms" }}>
                 <strong className="font-semibold text-ink">iPhone and Android, fall 2027.</strong>
