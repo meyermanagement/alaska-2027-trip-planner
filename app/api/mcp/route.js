@@ -101,6 +101,7 @@ export async function POST(request) {
     headers,
     client: identity.client,
     clientId: identity.clientId,
+    surface: grant.surface || "full",
     // The confirm step signs with a key derived from this bearer token, which
     // the model never sees (lib/mcp/confirm.js).
     confirmSecret: token,
