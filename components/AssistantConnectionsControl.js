@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { stampDaySaid } from "@/lib/format";
+import InboxAddressChip from "@/components/InboxAddressChip";
+import { ASSISTANT_SETUP, MCP_ADDRESS } from "@/lib/mcp/setupSteps";
 
 /**
  * The way back from the consent screen, which tells people "You can remove
@@ -17,13 +19,15 @@ import { stampDaySaid } from "@/lib/format";
  *
  * Only allowed connections are listed. A denied or already-removed one has
  * nothing left to take back.
+ *
+ * Always drawn, because connecting starts inside the assistant and needs an
+ * address nobody could find while this section appeared only after the first
+ * connection. The steps for each assistant sit shut beneath the address.
  */
 export default function AssistantConnectionsControl({ connections = [] }) {
   const [rows, setRows] = useState(connections);
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
-
-  if (rows.length === 0 && !note) return null;
 
   async function remove(row) {
     setBusy(row.client_id);
@@ -55,14 +59,35 @@ export default function AssistantConnectionsControl({ connections = [] }) {
 
   return (
     <section>
-      <h2 className="font-display text-xl font-semibold">Connected assistants</h2>
+      <h2 className="font-display text-xl font-semibold">Connect an assistant</h2>
+      <p className="mt-1 text-sm text-ink-soft">Ask Claude, ChatGPT or Gemini about your trips.</p>
+      <InboxAddressChip address={MCP_ADDRESS} note="Alyeska’s address" />
+      <div className="mt-3">
+        {ASSISTANT_SETUP.map((a) => (
+          <details key={a.key} className="optional-section">
+            <summary>
+              {a.name}
+              <span className="optional-section-hint">{a.plans}</span>
+            </summary>
+            <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm">
+              {a.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            {a.note && <p className="mt-2 text-xs text-ink-soft">{a.note}</p>}
+          </details>
+        ))}
+      </div>
       {note && (
         <p role="status" className="mt-2 text-sm text-ink-soft">
           {note}
         </p>
       )}
       {rows.length > 0 && (
-        <ul className="mt-3 space-y-3">
+        <h3 className="mt-5 text-sm font-semibold">Connected</h3>
+      )}
+      {rows.length > 0 && (
+        <ul className="mt-2 space-y-3">
           {rows.map((row) => (
             <li key={row.client_id} className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">

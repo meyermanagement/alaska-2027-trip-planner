@@ -41,7 +41,14 @@ export default function InboxAddressChip({ address, note }) {
             this chip sits in on a narrow phone, and it is narrower still on the
             next-steps rows, which are indented by a compass mark. Wrapping
             inside the pill keeps the whole address on screen. */}
-        <span className="break-all">{address}</span>
+        <span className="break-words">
+          {/* A break offered after each slash and @, so an address that has to
+              wrap on the narrowest phone parts between words rather than one
+              letter from the end. Copy still takes the address as written. */}
+          {address.split(/(?<=[/@])/).map((part, i) => (
+            <span key={i}>{part}<wbr /></span>
+          ))}
+        </span>
         <span
           aria-hidden="true"
           className="text-2xs uppercase tracking-[0.08em] text-ink-faint"
