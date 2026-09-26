@@ -16,7 +16,25 @@ test("each assistant's own return addresses are recognized", () => {
   assert.equal(key("https://claude.com/api/mcp/auth_callback"), "claude");
   assert.equal(key("https://chatgpt.com/connector_platform_oauth_redirect"), "chatgpt");
   assert.equal(key("https://chatgpt.com/connector/oauth/abc123XYZ"), "chatgpt");
-  assert.equal(key("https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-123-www_alyeska_app"), "gemini");
+  assert.equal(key("https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app"), "gemini");
+  assert.equal(key("https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-alaska-2027-trip-planner_vercel_app"), "gemini");
+  assert.equal(key("https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-alaska_2027_trip_planner_vercel_app"), "gemini");
+});
+
+test("a Google redirect is Gemini only when it is a Gemini connection to Alyeska", () => {
+  for (const u of [
+    // Any Google developer can own /r/<their project id>.
+    "https://oauth-redirect.googleusercontent.com/r/attacker-project",
+    "https://oauth-redirect.googleusercontent.com/r/user-bound-custom-mcp-1073033543-www-alyeska-app",
+    // A Gemini connection to somebody else's server.
+    "https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-mcp_squareup_com",
+    "https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app_evil_com",
+    "https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-abc-www_alyeska_app",
+    "https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app/x",
+    "https://oauth-redirect-sandbox.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app",
+  ]) {
+    assert.equal(key(u), null, u);
+  }
 });
 
 test("a fake Claude is refused: lookalike hosts, subdomains, and other paths", () => {
