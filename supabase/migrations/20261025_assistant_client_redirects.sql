@@ -1,4 +1,4 @@
--- PROPOSED, NOT APPLIED. Needs Mark's explicit go-ahead before it runs.
+-- Applied 2026-09-26 with Mark's go-ahead.
 --
 -- Lets a signed-in person's session read one OAuth client's registration type
 -- and registered return addresses, so Alyeska can recognize a self-registered
