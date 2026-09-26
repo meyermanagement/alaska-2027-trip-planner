@@ -7,6 +7,7 @@ import { LegalHeader, LegalSections } from "@/components/LegalProse";
 import { DATA_CATEGORIES, PRIVACY_VERSION } from "@/lib/beta/agreement";
 import {
   AI_SECTION,
+  ASSISTANTS_SECTION,
   CONTROLLER,
   NEVER,
   PRIVACY_INTRO,
@@ -147,6 +148,20 @@ export default async function PrivacyPage() {
           </p>
           <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-ink-soft">
             {AI_SECTION.points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="mt-7">
+          <h2 className="font-display text-lg font-semibold text-ink">
+            {ASSISTANTS_SECTION.heading}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+            {ASSISTANTS_SECTION.body}
+          </p>
+          <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-ink-soft">
+            {ASSISTANTS_SECTION.points.map((point) => (
               <li key={point}>{point}</li>
             ))}
           </ul>
