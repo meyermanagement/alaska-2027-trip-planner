@@ -115,12 +115,73 @@ Household tools (`lib/mcp/householdTools.js`): `get_preferences`, `get_budget`,
 `get_nearby_tips`, `get_bucket_list`, `get_fare_alerts`, `get_pets`,
 `get_trip_log`.
 
-All 22 are marked read-only. No AI calls and no writes. Write actions are a
-later release.
+Write tools, all through the reader's own signed-in client, so RLS and the
+secondary guard triggers apply exactly as they do in the app:
+
+- `check_off_packing_item` (tools.js), `check_off_day_pack_item`,
+  `complete_reminder` (writeTools.js): set or clear the done flag on one line
+  the matching read tool shows this reader. A secondary reaches their own
+  lines (day pack: also Shared). More than one match changes nothing and lists
+  up to six.
+- `add_packing_item`, `add_reminder`, `add_bucket_list_place`: primary
+  travelers only. For a trip traveler, a child, or Shared. Refuses health text
+  and returns `changed:false` for a line already there.
+
+- planTools.js, primary travelers only, each changing one row:
+  `add_itinerary_item` / `update_itinerary_item` (cancel is a status; dates
+  must fall in the trip; lodging and cruise alone span nights),
+  `create_trip` (roster by name; returns `next_steps` to offer, never acted on) /
+  `update_trip` (name, destination, dates, status, budget),
+  `add_rewards_program` / `update_rewards_program` (adults or Shared; balance,
+  status tier, annual fee; refuses member and card numbers),
+  `add_template_item` (base list unless named; existing trips unchanged), and
+  `add_day_pack_item` (links an existing packing-list line; never creates one).
+
+- moreTools.js, primary travelers only:
+  `start_packing_list` (the base list, once; never on a draft),
+  `set_trip_templates` (adds add-on templates; unlinks one only when it is named
+  in `remove`, never deletes a template or a line), `add_trip_cost` / `update_trip_cost`,
+  `update_packing_item` (name, owner, bag, quantity, last-minute; never notes),
+  `update_reminder` (title, owner, due date, timing, priority; never detail),
+  `add_favorite_moment` (one adult), `put_fare_on_trip` / `dismiss_fare`
+  (open, unexpired fares only), `save_home_airport` (US and Canadian codes),
+  `retire_bucket_list_place`, `set_pet_plan` (arrangement and notes; syncs the
+  pet's packing lines), and `add_preference` / `update_preference` (said by
+  the person; adults or the household, never a child or health).
+
+Updates are marked destructive, since they replace a saved value. None deletes
+a record, and none touches notes, confirmation numbers or a child's
+preferences. These write directly, without Ask Aly's review cards. The other 22
+are marked read-only.
+
+### Suggested next steps (lib/mcp/nextSteps.js)
+
+Some writes return `next_steps`: sentences for the assistant to offer, never
+acted on. Each is read after the write and dropped if its read fails.
+
+- A draft (`create_trip`, `update_trip`): which of the seven basics to ask next.
+- A new trip, or a draft becoming one: what the household's departure list
+  added to the reminders (writeTrip already pushes it) and what it skipped.
+- New dates, or a draft becoming a trip: adults whose passports fall short of
+  six months past the return. Needs `trip_facts.leaves_country`; never a child.
+- A budget line added or changed, or a new budget: over budget, said once.
+- `put_fare_on_trip`: offer the flight and the fare's cost, asking first.
+- `add_template_item`, `set_trip_templates`: upcoming trips a push would change,
+  linked to the Packing page. Pushing stays in Alyeska, with its preview.
+
+### Refusals
+
+`callTool` rewrites every ToolError with `pointToAlyeska`: "in the app" becomes
+"in Alyeska", a primary-only refusal tells a secondary to ask a primary, and
+the refusal ends with a link to Alyeska (`NEXT_PUBLIC_SITE_URL` unless it is a
+Vercel or local host; otherwise https://www.alyeska.app).
+No AI calls.
 
 ## Never returned
 
-Children and anything that names one, health, allergy and accessibility
+Children and anything that names one -- except that a primary traveler sees,
+and can check off and add, packing and day pack lines assigned to their children --
+health, allergy and accessibility
 details (including a pet's service-animal flag, medications and diet),
 typed notes, confirmation, ID, member, policy and microchip numbers, document
 files, vet contacts, email bodies, Ask Aly conversations, other households,
@@ -129,7 +190,9 @@ adults' documents only, as a type and a date.
 
 ## Secondary travelers
 
-Their own and shared rows only. Budget, insurance, house tasks, bucket list,
+Their own and shared rows only, and never a child's packing. They can check
+off only their own packing and reminder lines and their own or Shared day
+pack lines, and cannot add anything. Budget, insurance, house tasks, bucket list,
 fare alerts and pets are refused.
 
 ## Refused

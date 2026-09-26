@@ -51,12 +51,14 @@ function world() {
       { trip_id: "trip-b1", item_date: TODAY, start_time: "09:00:00", title: "OTHER-HOUSEHOLD", location: "Playa Lagun", rating: 1, review: "OTHER-HOUSEHOLD" },
     ],
     packing_items: [
-      { trip_id: "trip-a1", category: "Clothes", item: "Swimsuit", assignee: "Ann", is_packed: true },
-      { trip_id: "trip-a1", category: "Clothes", item: "Hat", assignee: "Ann", is_packed: false },
-      { trip_id: "trip-a1", category: "Gear", item: "Snorkel", assignee: "Sam", is_packed: false },
-      { trip_id: "trip-a1", category: "Toys", item: "CHILD-ITEM", assignee: "Kit", is_packed: false },
-      { trip_id: "trip-a1", category: "Old", item: "Stashed", assignee: "Ann", is_packed: false, stashed_at: "2027-01-01" },
-      { trip_id: "trip-b1", category: "Clothes", item: "OTHER-HOUSEHOLD", assignee: "Ann", is_packed: false },
+      { id: "p1", trip_id: "trip-a1", category: "Clothes", item: "Swimsuit", assignee: "Ann", is_packed: true },
+      { id: "p2", trip_id: "trip-a1", category: "Clothes", item: "Hat", assignee: "Ann", is_packed: false },
+      { id: "p3", trip_id: "trip-a1", category: "Gear", item: "Snorkel", assignee: "Sam", is_packed: false },
+      { id: "p4", trip_id: "trip-a1", category: "Toys", item: "Kit's goggles", assignee: "Kit", is_packed: false },
+      { id: "p5", trip_id: "trip-a1", category: "Old", item: "Stashed", assignee: "Ann", is_packed: false, stashed_at: "2027-01-01" },
+      { id: "p6", trip_id: "trip-b1", category: "Clothes", item: "OTHER-HOUSEHOLD", assignee: "Ann", is_packed: false },
+      { id: "p7", trip_id: "trip-a1", category: "Health", item: "Inhaler", assignee: "Ann", is_packed: false },
+      { id: "p8", trip_id: "trip-a1", category: "Clothes", item: "Hat", assignee: "Sam", is_packed: false },
     ],
     pro_tips: [
       { family_id: A, trip_id: "trip-a1", title: "Book the snorkel boat", body: "It sells out.", status: "active", act_by: "2027-03-11", for_date: TODAY },
@@ -85,7 +87,21 @@ function fakeAdmin(db, calls = []) {
         in(k, vs) { rows = rows.filter((r) => vs.includes(r[k])); return q; },
         order(k) { rows.sort((a, b) => String(a[k]).localeCompare(String(b[k]))); return q; },
         insert() { throw new Error("write attempted"); },
-        update() { throw new Error("write attempted"); },
+        update(patch) {
+          // The one write the tools may make: a patch to rows matched by eq(),
+          // recorded so a test can see exactly what changed.
+          const where = [];
+          const u = {
+            eq(k, v) { where.push([k, v]); return u; },
+            select() {
+              const hit = (db[table] || []).filter((r) => where.every(([k, v]) => r[k] === v));
+              for (const r of hit) Object.assign(r, patch);
+              calls.push(`update:${table}:${hit.length}`);
+              return Promise.resolve({ data: hit.map((r) => ({ id: r.id })), error: null });
+            },
+          };
+          return u;
+        },
         delete() { throw new Error("write attempted"); },
         upsert() { throw new Error("write attempted"); },
         maybeSingle() { return Promise.resolve({ data: pick(rows)[0] || null, error: null }); },
@@ -103,12 +119,20 @@ async function asUser(userId, db = world()) {
   return { admin, scope, call: (name, args) => callTool(admin, scope, name, args) };
 }
 
-test("every tool is read-only and titled", () => {
-  assert.equal(TOOLS.length, 22);
+const WRITES = new Set(["check_off_packing_item", "check_off_day_pack_item", "complete_reminder", "add_packing_item", "add_reminder", "add_bucket_list_place",
+  "add_itinerary_item", "update_itinerary_item", "create_trip", "update_trip", "add_rewards_program", "update_rewards_program", "add_template_item", "add_day_pack_item",
+  "start_packing_list", "set_trip_templates", "add_trip_cost", "update_trip_cost", "update_packing_item", "update_reminder", "add_favorite_moment",
+  "put_fare_on_trip", "dismiss_fare", "save_home_airport", "retire_bucket_list_place", "set_pet_plan", "add_preference", "update_preference"]);
+// Changing a saved value replaces it, so these say so even though none deletes.
+const UPDATES = new Set(["update_itinerary_item", "update_trip", "update_rewards_program", "set_trip_templates", "update_trip_cost", "update_packing_item", "update_reminder", "put_fare_on_trip", "dismiss_fare", "retire_bucket_list_place", "set_pet_plan", "update_preference"]);
+
+test("every tool is titled; only the named tools write, and only updates replace", () => {
+  assert.equal(TOOLS.length, 50);
+  assert.equal(TOOLS.filter((t) => !t.annotations.readOnlyHint).length, 28);
   for (const t of TOOLS) {
     assert.ok(t.title && t.description, t.name);
-    assert.equal(t.annotations.readOnlyHint, true, t.name);
-    assert.equal(t.annotations.destructiveHint, false, t.name);
+    assert.equal(t.annotations.readOnlyHint, !WRITES.has(t.name), t.name);
+    assert.equal(t.annotations.destructiveHint, UPDATES.has(t.name), t.name);
   }
 });
 
@@ -153,8 +177,8 @@ test("a secondary traveler sees only non-draft trips they are on, and only their
   assert.deepEqual(all.trips.map((t) => t.id), ["trip-a1"]);
   await assert.rejects(call("get_trip", { trip: "Secret draft" }), /No trip matches/);
   const packing = await call("get_packing_status", {});
-  assert.equal(packing.total, 1);
-  assert.deepEqual(Object.keys(packing.unpacked_by_category), ["Gear"]);
+  assert.equal(packing.total, 2, "Sam's snorkel and hat");
+  assert.deepEqual(Object.keys(packing.unpacked_by_category).sort(), ["Clothes", "Gear"]);
 });
 
 test("the day is one day, in time order, with no notes, codes or costs", async () => {
@@ -168,18 +192,55 @@ test("the day is one day, in time order, with no notes, codes or costs", async (
   await assert.rejects(call("get_itinerary_day", { date: "tomorrow" }), /YYYY-MM-DD/);
 });
 
-test("children are left out of travelers and packing", async () => {
+test("a parent sees a child's packing, not the child as a traveler; health lines stay out", async () => {
   const { call } = await asUser("u-ann");
   const people = await call("get_travelers", { trip: "Curacao spring" });
   assert.deepEqual(people.travelers.map((p) => p.name), ["Ann", "Sam"]);
   assert.ok(!JSON.stringify(people).includes("SECRET-HEALTH"));
   const packing = await call("get_packing_status", {});
-  assert.equal(packing.total, 3, "Kit's item and the stashed one left out");
-  assert.ok(!JSON.stringify(packing).includes("CHILD-ITEM"));
+  assert.equal(packing.total, 5, "the stashed line and the inhaler left out, Kit's goggles kept");
+  assert.ok(JSON.stringify(packing).includes("Kit's goggles"));
+  assert.ok(!JSON.stringify(packing).includes("Inhaler"));
   const ann = await call("get_packing_status", { traveler: "ann" });
   assert.equal(ann.packed, 1);
   assert.equal(ann.total, 2);
-  await assert.rejects(call("get_packing_status", { traveler: "Kit" }), /No packing items/);
+  assert.equal((await call("get_packing_status", { traveler: "Kit" })).total, 1);
+});
+
+test("a secondary traveler never sees a child's packing", async () => {
+  const { call } = await asUser("u-sam");
+  const packing = await call("get_packing_status", {});
+  assert.ok(!JSON.stringify(packing).includes("Kit"));
+  await assert.rejects(call("check_off_packing_item", { item: "goggles" }), /No packing item/);
+});
+
+test("checking off: one line, the reader's own, ambiguity refused, idempotent", async () => {
+  const db = world();
+  const calls = [];
+  const admin = fakeAdmin(db, calls);
+  const ann = await readerScope(admin, "u-ann", TODAY);
+  const run = (scope, a) => callTool(admin, scope, "check_off_packing_item", a);
+  await assert.rejects(run(ann, { item: "Hat" }), /More than one item matches[\s\S]*Nothing was changed/);
+  const done = await run(ann, { item: "hat", traveler: "Sam" });
+  assert.equal(done.changed, true);
+  assert.equal(db.packing_items.find((r) => r.id === "p8").is_packed, true);
+  assert.equal(db.packing_items.find((r) => r.id === "p8").packed_by, "u-ann");
+  assert.equal(db.packing_items.find((r) => r.id === "p2").is_packed, false, "Ann's hat untouched");
+  // Only Ann's hat is still unpacked, so the same words now pick it.
+  assert.equal((await run(ann, { item: "Hat" })).for, "Ann");
+  assert.equal((await run(ann, { item: "Hat", traveler: "Ann" })).changed, false);
+  assert.equal((await run(ann, { item: "goggles" })).for, "Kit", "a parent checks off a child's line");
+  await assert.rejects(run(ann, { item: "Inhaler" }), /No packing item/);
+  await assert.rejects(run(ann, { item: "OTHER-HOUSEHOLD" }), /No packing item/);
+  await assert.rejects(run(ann, { item: "Stashed" }), /No packing item/);
+  const undo = await run(ann, { item: "Swimsuit", packed: "no" });
+  assert.equal(undo.packed, false);
+  assert.equal(db.packing_items.find((r) => r.id === "p1").packed_at, null);
+  await assert.rejects(run(ann, { item: "Swimsuit", packed: "maybe" }), /yes" or "no/);
+  const sam = await readerScope(admin, "u-sam", TODAY);
+  await assert.rejects(run(sam, { item: "Swimsuit" }), /No packing item/, "a secondary cannot reach Ann's line");
+  assert.equal((await run(sam, { item: "Snorkel" })).changed, true);
+  assert.ok(calls.filter((c) => c.startsWith("update:")).every((c) => c === "update:packing_items:1"));
 });
 
 test("tips are open ones for this household only", async () => {
@@ -205,12 +266,14 @@ test("bad arguments are refused rather than guessed at", async () => {
   await assert.rejects(call("drop_everything", {}), /Unknown tool/);
 });
 
-test("no tool ever writes", async () => {
+test("no read-only tool ever writes", async () => {
   const db = world();
-  const admin = fakeAdmin(db);
+  const calls = [];
+  const admin = fakeAdmin(db, calls);
   const scope = await readerScope(admin, "u-ann", TODAY);
-  const args = { list_trips: {}, get_trip: {}, get_itinerary_day: {}, get_packing_status: {}, get_travelers: {}, get_pro_tips: {}, get_prior_reviews: { place: "maui" } };
-  for (const t of TOOLS) await callTool(admin, scope, t.name, args[t.name]);
+  const args = { get_prior_reviews: { place: "maui" } };
+  for (const t of TOOLS.filter((x) => x.annotations.readOnlyHint)) await callTool(admin, scope, t.name, args[t.name] || {});
+  assert.ok(!calls.some((c) => c.startsWith("update:")));
 });
 
 test("the protocol: list without the database, call through the scope, headers checked", async () => {
@@ -219,7 +282,7 @@ test("the protocol: list without the database, call through the scope, headers c
   const admin = fakeAdmin(db);
   const getScope = async () => { scoped++; return readerScope(admin, "u-ann", TODAY); };
   const list = await handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { client: admin, getScope });
-  assert.equal(list.body.result.tools.length, 22);
+  assert.equal(list.body.result.tools.length, 50);
   assert.equal(scoped, 0);
   const call = await handleMessage(
     { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_trip", arguments: {} } },

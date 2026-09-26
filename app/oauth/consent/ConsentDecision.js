@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { clientById } from "@/lib/mcp/assistantClients";
-import { CONSENT_SURFACE_VERSION } from "@/lib/mcp/consentVersion";
 
 /**
  * The actual consent decision, once the server page has confirmed somebody
@@ -73,23 +72,20 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       return;
     }
     if (clientId) {
-      const { data: auth } = await supabase.auth.getUser();
-      const userId = auth?.user?.id;
-      const { error: writeError } = userId
-        ? await supabase.from("assistant_connections").upsert(
-            {
-              user_id: userId,
-              client_id: clientId,
-              status: approving ? "allowed" : "denied",
-              consent_version: CONSENT_SURFACE_VERSION,
-              decided_at: new Date().toISOString(),
-              revoked_at: null,
-            },
-            { onConflict: "user_id,client_id" }
-          )
-        : { error: new Error("no user") };
+      // The server stamps the consent version (app/api/assistant-connections/decide).
+      let writeError = null;
+      try {
+        const res = await fetch("/api/assistant-connections/decide", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ client_id: clientId, decision: action }),
+        });
+        if (!res.ok) writeError = new Error(String(res.status));
+      } catch (e) {
+        writeError = e;
+      }
       if (writeError) {
-        console.error("assistant_connections upsert failed", writeError);
+        console.error("assistant_connections record failed", writeError);
         if (approving) {
           setDeciding(false);
           setState((s) => ({ ...s, status: "error", message: "Your answer couldn’t be saved. Please try again." }));
@@ -148,7 +144,7 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
     <div className="mx-auto max-w-md">
       <h1 className="text-xl font-semibold">Allow {name} to connect?</h1>
       <p className="mt-2 text-sm text-ink-soft">
-        {name} is asking to read your trips and travel details through Alyeska, using the account you&rsquo;re signed in with now.
+        {name} is asking to read your trips and travel details through Alyeska, check off packing, day pack items and reminders, add packing items, reminders and bucket-list places, and create and change trips, itinerary items, wallet programs, packing templates, day packs, budgets, fares, home airports, pet plans and your adults&rsquo; travel preferences, using the account you&rsquo;re signed in with now. Its changes save right away, without the review Ask Aly shows. It can&rsquo;t delete anything except taking an add-on packing template off a trip when you ask.
       </p>
       {returnsTo && (
         <p className="mt-2 text-sm text-ink-soft">
@@ -185,7 +181,8 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
 
       <p className="mt-4 text-xs text-ink-soft">
         You can remove this later from Settings. {name} never sees health or allergy details; ID, member, or policy
-        numbers; typed notes; or anything about a child on this account.
+        numbers; typed notes; or anything about a child on this account except, for a parent, the child&rsquo;s
+        packing items, day pack items and reminders.
       </p>
     </div>
   );

@@ -1,4 +1,4 @@
--- PROPOSED, NOT APPLIED. Needs Mark's explicit go-ahead before it runs.
+-- APPLIED 2026-09-25 with Mark's go-ahead.
 -- Updates the purpose line Claude's consent screen shows, to match the
 -- household-context tools. Ship together with CONSENT_SURFACE_VERSION
 -- 2026-10-22, which asks everyone who already allowed Claude to allow it again.

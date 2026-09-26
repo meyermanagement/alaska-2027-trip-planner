@@ -223,7 +223,9 @@ test("the new tools are listed, read-only, and take only text", () => {
 });
 
 test("no answer, for the primary, carries a secret, a child, or another household", async () => {
-  for (const name of NEW) {
+  // The day pack is the one household tool that shows a parent their child's
+  // lines; it has its own test below.
+  for (const name of NEW.filter((n) => n !== "get_day_pack")) {
     const out = JSON.stringify(await run("u-ann", name, argsFor(name)));
     for (const bad of ["SECRET-", "CHILD-", "OTHER-HOUSEHOLD", "Kit", "SAM-PRIVATE"]) assert.ok(!out.includes(bad), `${name} leaked ${bad}: ${out}`);
   }
@@ -251,6 +253,13 @@ test("a secondary traveler gets only their own and shared rows, and none of the 
   assert.deepEqual((await run("u-sam", "get_nearby_tips")).tips.map((t) => t.title), ["SAM-PRIVATE-TIP"]);
   for (const name of ["get_budget", "get_insurance", "get_house_tasks", "get_bucket_list", "get_fare_alerts", "get_pets"])
     await assert.rejects(run("u-sam", name), /primary travelers only/, name);
+});
+
+test("the day pack shows a parent their child's lines, never health, never to a secondary", async () => {
+  const items = (await run("u-ann", "get_day_pack")).items.map((i) => i.item).sort();
+  assert.deepEqual(items, ["CHILD-ITEM", "Reef-safe sunscreen", "Snacks for Kit", "Towel"]);
+  const sam = JSON.stringify(await run("u-sam", "get_day_pack"));
+  assert.ok(!sam.includes("Kit") && !sam.includes("CHILD-"));
 });
 
 test("expiration dates are checked against the trip, six months out for a passport abroad", async () => {
