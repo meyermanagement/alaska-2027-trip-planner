@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { clientById, sameRedirect } from "@/lib/mcp/assistantClients";
 import { CONSENT_SURFACE_VERSION } from "@/lib/mcp/consentVersion";
+import { orderScopes } from "@/lib/mcp/scopes";
 
 /**
  * The actual consent decision, once the server page has confirmed somebody
@@ -177,9 +178,7 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   // client's registered redirect URIs; showing the host lets a person see that
   // a request calling itself Claude is actually going back to claude.ai.
   const returnsTo = hostOf(details?.redirect_uri);
-  const scopes = String(details?.scope || "")
-    .split(/\s+/)
-    .filter(Boolean);
+  const scopes = orderScopes(String(details?.scope || "").split(/\s+/).filter(Boolean));
 
   if (!approvable) {
     return (
@@ -219,11 +218,14 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       <div className="card mt-5 space-y-3 px-4 py-4">
         {purpose && <p className="text-sm">{purpose}</p>}
         {scopes.length > 0 && (
+          <>
+          <p className="text-sm font-semibold">Along with your travel, it gets:</p>
           <ul className="space-y-1.5 text-sm text-ink-soft">
             {scopes.map((scope) => (
               <li key={scope}>{describeScope(scope)}</li>
             ))}
           </ul>
+          </>
         )}
       </div>
 
