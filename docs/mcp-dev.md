@@ -90,11 +90,11 @@ failed sign-in.
 
 ### The switch
 
-`assistant_connections_enabled()` returns false. The flip is written and held
-in `supabase/held/assistant_connections_go_live.sql`, outside the migrations
-folder. It moves into `supabase/migrations` only after counsel signs off on
-the consent screen and the Settings section, with `CONSENT_SURFACE_VERSION`
-raised in the same release, and with Mark's go-ahead.
+`assistant_connections_enabled()` returns true since
+`20261021_assistant_connections_go_live.sql`, applied on Mark's go-ahead
+before counsel's sign-off. To turn every connection off at once, apply a
+migration that returns false. If counsel changes the consent wording, raise
+`CONSENT_SURFACE_VERSION` in the same release so earlier approvals ask again.
 
 ### Removing a connection
 

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * authorization request -- this project's Authorization Path, once that
  * setting is turned on. See research/assistant-surface-implementation-spec.md
  * and supabase/migrations/20261019_assistant_connection_consent.sql (and
- * supabase/held/assistant_connections_go_live.sql, the held switch) for the
+ * 20261021_assistant_connections_go_live.sql, which turned it on) for the
  * schema this reads and writes.
  *
  * Everything past the redirect happens in the browser: `getAuthorizationDetails`,
@@ -26,9 +26,8 @@ export const dynamic = "force-dynamic";
  *
  * `assistantConnectionsEnabled()` gates whether an approval here can do
  * anything. Building this screen was authorized ahead of that switch, on the
- * understanding that a family approving a client today grants nothing until
- * counsel has reviewed this exact screen and the switch is turned on
- * afterward -- so while it is off, ConsentDecision says that plainly instead
+ * understanding that an approval grants nothing while the switch is off -- so
+ * if it is ever turned off again, ConsentDecision says that plainly instead
  * of quietly collecting approvals nobody can act on yet.
  */
 export default async function OAuthConsentPage({ searchParams }) {
