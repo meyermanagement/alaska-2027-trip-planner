@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { clientById } from "@/lib/mcp/assistantClients";
+import { clientById, sameRedirect } from "@/lib/mcp/assistantClients";
 import { CONSENT_SURFACE_VERSION } from "@/lib/mcp/consentVersion";
 
 /**
@@ -48,7 +48,7 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       // answer it. Otherwise the assistant would get a token the MCP route
       // refuses, and the person would never see why.
       if (data?.redirect_url && !data?.client) {
-        const stale = await staleGrant(supabase);
+        const stale = await staleGrant(supabase, data.redirect_url);
         if (cancelled) return;
         if (stale) {
           setState({
@@ -229,10 +229,11 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   );
 }
 
-// The one assistant this person approved on Supabase's side whose Alyeska
-// approval is missing or on older wording, or null when there is none or more
-// than one (then there is no telling which this request is for).
-async function staleGrant(supabase) {
+// The assistant this request returns to, when Supabase holds an approval for
+// it but Alyeska's approval is missing or on older wording. Matched on the
+// return address; with no match, the only such assistant if there is exactly
+// one; otherwise null.
+async function staleGrant(supabase, returnUrl) {
   const grants = await supabase.auth.oauth.listGrants();
   if (grants.error || !Array.isArray(grants.data)) return null;
   const rows = await supabase.from("assistant_connections").select("client_id, status, consent_version, revoked_at");
@@ -249,6 +250,8 @@ async function staleGrant(supabase) {
     const known = await clientById(supabase, id);
     if (known?.approved_for_consent) candidates.push({ grant, known });
   }
+  const matched = candidates.filter((c) => sameRedirect(c.known.client_id, returnUrl));
+  if (matched.length === 1) return matched[0];
   return candidates.length === 1 ? candidates[0] : null;
 }
 
