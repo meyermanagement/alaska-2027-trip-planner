@@ -139,8 +139,8 @@ secondary guard triggers apply exactly as they do in the app:
 
 - moreTools.js, primary travelers only:
   `start_packing_list` (the base list, once; never on a draft),
-  `set_trip_templates` (add-on templates; unlinks dropped ones, never deletes a
-  template or a line), `add_trip_cost` / `update_trip_cost`,
+  `set_trip_templates` (adds add-on templates; unlinks one only when it is named
+  in `remove`, never deletes a template or a line), `add_trip_cost` / `update_trip_cost`,
   `update_packing_item` (name, owner, bag, quantity, last-minute; never notes),
   `update_reminder` (title, owner, due date, timing, priority; never detail),
   `add_favorite_moment` (one adult), `put_fare_on_trip` / `dismiss_fare`

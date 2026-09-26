@@ -252,21 +252,26 @@ test("start_packing_list: fills an empty list, refuses a started one and a draft
   await assert.rejects(call("start_packing_list", { trip: "Curacao spring" }), /draft|no current/i);
 });
 
-test("set_trip_templates: adds and drops only the difference, and none is the base list", async () => {
+test("set_trip_templates: adds without dropping, removes only what is named, none clears", async () => {
   const { db, calls, call } = await asUser("u-ann");
+  const start = db.trip_templates.map((r) => r.template_id);
+  assert.deepEqual(start, ["tp2"]);
   const out = await call("set_trip_templates", { templates: "Beach weekend" });
-  assert.deepEqual(out.templates, ["Beach weekend"]);
-  assert.deepEqual(db.trip_templates.map((r) => r.template_id), ["tp3"]);
-  const del = calls.filter((c) => c.op === "delete");
-  assert.equal(del.length, 1);
-  assert.deepEqual(del[0].rows.map((r) => r.template_id), ["tp2"]);
+  assert.deepEqual(out.templates.sort(), ["Beach weekend", db.packing_templates.find((t) => t.id === "tp2").name].sort());
+  assert.deepEqual(db.trip_templates.map((r) => r.template_id).sort(), ["tp2", "tp3"]);
+  assert.equal(calls.filter((c) => c.op === "delete").length, 0, "adding never deletes");
   assert.ok(db.trips[0].templates_chosen_at);
   const again = await call("set_trip_templates", { templates: "beach weekend" });
   assert.equal(again.changed, false);
-  await call("set_trip_templates", { templates: "none" });
+  await assert.rejects(call("set_trip_templates", { templates: "none" }), /say none in remove/);
+  await assert.rejects(call("set_trip_templates", { templates: "Beach weekend", remove: "Beach weekend" }), /both/);
+  await call("set_trip_templates", { remove: "Beach weekend" });
+  assert.deepEqual(db.trip_templates.map((r) => r.template_id), ["tp2"]);
+  await call("set_trip_templates", { remove: "none" });
   assert.equal(db.trip_templates.length, 0);
   assert.equal(db.packing_templates.length, 4, "templates themselves untouched");
   await assert.rejects(call("set_trip_templates", { templates: "Everything" }), /No add-on template/);
+  await assert.rejects(call("set_trip_templates", {}), /add or remove/);
 });
 
 test("budget: add, refuse a duplicate and health, update one line, other household untouched", async () => {
