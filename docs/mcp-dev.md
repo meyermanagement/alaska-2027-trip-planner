@@ -115,12 +115,18 @@ Household tools (`lib/mcp/householdTools.js`): `get_preferences`, `get_budget`,
 `get_nearby_tips`, `get_bucket_list`, `get_fare_alerts`, `get_pets`,
 `get_trip_log`.
 
-All 22 are marked read-only. No AI calls and no writes. Write actions are a
-later release.
+Write tool: `check_off_packing_item` sets or clears `is_packed` on one
+packing line the reader can see, through their own signed-in client, so RLS and
+the `packing_secondary_guard` trigger apply exactly as they do to the Packing
+screen's checkbox. More than one match changes nothing and lists the matches.
+
+The other 22 are marked read-only. No AI calls.
 
 ## Never returned
 
-Children and anything that names one, health, allergy and accessibility
+Children and anything that names one -- except that a primary traveler sees,
+and can check off, packing and day pack lines assigned to their children --
+health, allergy and accessibility
 details (including a pet's service-animal flag, medications and diet),
 typed notes, confirmation, ID, member, policy and microchip numbers, document
 files, vet contacts, email bodies, Ask Aly conversations, other households,
@@ -129,7 +135,8 @@ adults' documents only, as a type and a date.
 
 ## Secondary travelers
 
-Their own and shared rows only. Budget, insurance, house tasks, bucket list,
+Their own and shared rows only, and never a child's packing. They can check
+off only their own packing lines. Budget, insurance, house tasks, bucket list,
 fare alerts and pets are refused.
 
 ## Refused

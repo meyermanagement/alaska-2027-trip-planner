@@ -1,4 +1,4 @@
-// The assistant connection: a read-only MCP endpoint.
+// The assistant connection: an MCP endpoint that reads, and checks off packing.
 //
 // Step two of the plan in research/assistant-surface-implementation-spec.md.
 // Step one's credential was a developer key standing for one hard-coded
