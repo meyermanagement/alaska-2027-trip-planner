@@ -105,15 +105,32 @@ refreshing the token. The row stays as a record; nobody can delete it.
 
 ## Tools
 
-`list_trips`, `get_trip`, `get_itinerary_day`, `get_packing_status`,
-`get_travelers`, `get_pro_tips`, `get_prior_reviews`. All marked read-only.
-No AI calls and no writes.
+Trip tools (`lib/mcp/tools.js`): `list_trips`, `get_trip`,
+`get_itinerary_day` (with saved booking advice), `get_packing_status`,
+`get_travelers`, `get_pro_tips`, `get_prior_reviews`.
+
+Household tools (`lib/mcp/householdTools.js`): `get_preferences`, `get_budget`,
+`get_expiration_dates`, `get_insurance`, `get_wallet`, `get_day_pack`,
+`get_reminders`, `get_house_tasks`, `get_deadlines`, `get_trip_essentials`,
+`get_nearby_tips`, `get_bucket_list`, `get_fare_alerts`, `get_pets`,
+`get_trip_log`.
+
+All 22 are marked read-only. No AI calls and no writes. Write actions are a
+later release.
 
 ## Never returned
 
-Children and their packing items, health and accessibility details, notes,
-confirmation numbers, costs, documents, wallet data, other households, and
-draft trips a secondary traveler is not on.
+Children and anything that names one, health, allergy and accessibility
+details (including a pet's service-animal flag, medications and diet),
+typed notes, confirmation, ID, member, policy and microchip numbers, document
+files, vet contacts, email bodies, Ask Aly conversations, other households,
+and draft trips a secondary traveler is not on. Expiration dates are shown for
+adults' documents only, as a type and a date.
+
+## Secondary travelers
+
+Their own and shared rows only. Budget, insurance, house tasks, bucket list,
+fare alerts and pets are refused.
 
 ## Refused
 
