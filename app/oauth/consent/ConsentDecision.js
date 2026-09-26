@@ -15,12 +15,9 @@ import { CONSENT_SURFACE_VERSION } from "@/lib/mcp/consentVersion";
  * the client's own redirect_uri with the result -- there is no server step
  * after this one. See https://supabase.com/docs/guides/auth/oauth-server/oauth-flows.
  *
- * A client_id the OAuth server itself already validated can still be unknown to
- * assistant_oauth_clients if it registered itself through dynamic client
- * registration rather than being added here by hand -- so this shows what
- * Supabase says about it either way, and adds the name and purpose sentence
- * from our own table only when one exists, rather than refusing an otherwise
- * legitimate request over a missing row.
+ * A self-registered client is recognized only by its return addresses
+ * (lib/mcp/trust.js), and then named from that list rather than from what it
+ * called itself. Any other unknown client can be declined but not approved.
  */
 
 export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) {
@@ -171,8 +168,11 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   }
 
   const { details, known } = state;
-  const name = known?.client_name || details?.client?.name || details?.client?.client_name || details?.client_name || "This app";
-  const purpose = known?.purpose_summary || known?.client_description || details?.client?.client_description || null;
+  // The name is ours, never the one a client gave itself: anybody can register
+  // an app called "Claude".
+  const approvable = Boolean(known?.approved_for_consent);
+  const name = known?.client_name;
+  const purpose = known?.purpose_summary || known?.client_description || null;
   // Where the answer goes. Supabase has already matched this against the
   // client's registered redirect URIs; showing the host lets a person see that
   // a request calling itself Claude is actually going back to claude.ai.
@@ -180,6 +180,22 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
   const scopes = String(details?.scope || "")
     .split(/\s+/)
     .filter(Boolean);
+
+  if (!approvable) {
+    return (
+      <div className="mx-auto max-w-md">
+        <h1 className="text-xl font-semibold">This app can&rsquo;t connect</h1>
+        <p className="mt-3 text-sm text-ink-soft">
+          Alyeska doesn&rsquo;t recognize it{returnsTo ? <> (it returns to <span className="font-semibold text-ink break-all">{returnsTo}</span>)</> : null}, so nothing about your account was shared.
+        </p>
+        <div className="mt-6">
+          <button type="button" className="btn btn-ghost w-full" disabled={deciding} onClick={() => decide("deny")}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md">
@@ -250,7 +266,7 @@ async function staleGrant(supabase, returnUrl) {
     const known = await clientById(supabase, id);
     if (known?.approved_for_consent) candidates.push({ grant, known });
   }
-  const matched = candidates.filter((c) => sameRedirect(c.known.client_id, returnUrl));
+  const matched = candidates.filter((c) => sameRedirect(c.known, returnUrl));
   if (matched.length === 1) return matched[0];
   return candidates.length === 1 ? candidates[0] : null;
 }
