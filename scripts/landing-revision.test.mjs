@@ -73,9 +73,9 @@ test("the hero examples are nudges, before and during, labeled, with drawn contr
   assert.match(css, /\.home-nudge-swipe \{\s*touch-action: pan-y;/);
 });
 
-test("four demonstrations behind one tab strip, in the order a trip happens", () => {
+test("five demonstrations behind one tab strip, in the order a trip happens", () => {
   const labels = [...home.matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(labels, ["Before you go", "While you are there", "When it changes", "The money"]);
+  assert.deepEqual(labels, ["Before you go", "While you are there", "When it changes", "The money", "From your assistant"]);
   assert.ok(home.includes("Pick a moment. See what Alyeska does with it."));
   assert.doesNotMatch(home, /<Scene\b/, "no scenes left on the page");
   // The strip is the trip screen's tab bar, not a new control.
@@ -130,10 +130,18 @@ test("What Aly knows stays at a reserved signed-in address, off the front page",
   assert.ok(!publicList.includes("/landing-tabs"), "the mockup route did not ship");
 });
 
+test("the assistant tab ends on a confirmation and shares nothing sensitive", () => {
+  const demo = read("components/home/AssistantDemo.js");
+  assert.match(demo, /home-notice-title">Add reef-safe sunscreen to Tuesday&rsquo;s day pack\?/);
+  assert.doesNotMatch(demo, /Mia|allerg|tablet|medic/i);
+  assert.doesNotMatch(demo, /<(a|button)\b/, "nothing in the demonstration can be pressed");
+});
+
 test("roadmap lines are dated and plain", () => {
   const flat = home.replaceAll('{" "}', " ").replace(/\s+/g, " ");
   assert.ok(flat.includes("Alyeska Groups, 2027.</strong> Several households, one trip."));
-  assert.ok(flat.includes("Ask Alyeska from Claude, ChatGPT, Alexa+, Siri, and Muse.</strong> Read first; changes later."));
+  assert.ok(flat.includes("More assistants.</strong> Ask Alyeska from wherever you already ask."));
+  assert.doesNotMatch(flat, /Siri|Muse|Alexa/, "the roadmap names no assistant that is not built");
   assert.ok(flat.includes("iPhone and Android, fall 2027."));
 });
 
