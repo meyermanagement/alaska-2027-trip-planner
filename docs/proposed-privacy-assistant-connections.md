@@ -28,7 +28,7 @@ Points:
 - You can remove the connection in Settings. After that, the assistant is refused.
 - It can read trips, daily plans, packing and day packs, reminders, preferences, budget, wallet programs, document and pet expiration dates, insurance, bucket list, fare alerts and past reviews.
 - For a parent, it also reads the child's packing items, day pack items and reminders, and nothing else about the child.
-- It can check things off and create or change the items named on the consent screen. Its changes save right away, without the review step Ask Aly shows.
+- It can check things off and create or change the items named on the consent screen. Before any change saves, the person is shown what it will change and asked to confirm. Where the assistant cannot show that prompt itself, Alyeska tells the assistant to ask the person, and saves only when the assistant returns the person's yes; Alyeska cannot verify that a person, rather than the assistant, gave that yes.
 - It never receives health or allergy details; ID, member or policy numbers; typed notes; or anything from another household.
 - A secondary traveler or a child can't use it to change the household's trips.
 
