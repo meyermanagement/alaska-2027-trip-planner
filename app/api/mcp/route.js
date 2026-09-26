@@ -31,7 +31,7 @@
 // instead of reporting that sign-in failed.
 
 import { homeToday } from "@/lib/format";
-import { bearerChallenge, originOf } from "@/lib/mcp/discovery";
+import { bearerChallenge, isAlexaClient, originOf } from "@/lib/mcp/discovery";
 import { GRANT_REFUSALS, connectionGrant, notServing } from "@/lib/mcp/grant";
 import { bearerOf, oauthMcpConfig, tokenIdentity } from "@/lib/mcp/oauthToken";
 import { handleMessage } from "@/lib/mcp/protocol";
@@ -53,14 +53,10 @@ function forbidden(origin, reason) {
   });
 }
 
-function unauthorized(origin, message = "A valid Supabase access token is required.", error) {
-  return new Response(JSON.stringify({ error: message }), {
-    status: 401,
-    headers: {
-      "content-type": "application/json",
-      "www-authenticate": bearerChallenge(origin, error),
-    },
-  });
+function unauthorized(origin, message = "A valid Supabase access token is required.", error, { challenge = true } = {}) {
+  const headers = { "content-type": "application/json" };
+  if (challenge) headers["www-authenticate"] = bearerChallenge(origin, error);
+  return new Response(JSON.stringify({ error: message }), { status: 401, headers });
 }
 
 export async function POST(request) {
@@ -68,18 +64,19 @@ export async function POST(request) {
   if (!config) return NOT_FOUND();
 
   const origin = originOf(request);
-  const token = bearerOf(request);
-  if (!token) return unauthorized(origin);
-
-  const identity = await tokenIdentity(token);
-  if (!identity) return unauthorized(origin, "This token is missing, expired, or was not issued by this project.", "invalid_token");
-
   let message;
   try {
     message = await request.json();
   } catch {
     message = null;
   }
+  const challenge = !isAlexaClient(message, request);
+
+  const token = bearerOf(request);
+  if (!token) return unauthorized(origin, undefined, undefined, { challenge });
+
+  const identity = await tokenIdentity(token);
+  if (!identity) return unauthorized(origin, "This token is missing, expired, or was not issued by this project.", "invalid_token", { challenge });
 
   const grant = await connectionGrant(identity.client, identity);
   if (!grant.ok) {
