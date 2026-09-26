@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { clientById } from "@/lib/mcp/assistantClients";
+import { CONSENT_SURFACE_VERSION } from "@/lib/mcp/consentVersion";
 
 /**
  * The actual consent decision, once the server page has confirmed somebody
@@ -39,7 +40,25 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       // A response with only redirect_url means this was already approved --
       // Supabase's own client library does not redirect for this call, only
       // for approve/deny, so this page redirects itself.
+      //
+      // Supabase remembers an earlier approval for this client and skips the
+      // screen, but Alyeska honors an approval only on the current consent
+      // wording. When the person's own record is older than that, the screen
+      // is shown anyway, and the already-issued return is held until they
+      // answer it. Otherwise the assistant would get a token the MCP route
+      // refuses, and the person would never see why.
       if (data?.redirect_url && !data?.client) {
+        const stale = await staleGrant(supabase);
+        if (cancelled) return;
+        if (stale) {
+          setState({
+            status: "ready",
+            details: { client: stale.grant.client, scope: (stale.grant.scopes || []).join(" "), redirect_uri: data.redirect_url },
+            known: stale.known,
+            heldReturn: data.redirect_url,
+          });
+          return;
+        }
         window.location.assign(data.redirect_url);
         return;
       }
@@ -94,6 +113,19 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       }
     }
 
+    if (state.heldReturn) {
+      if (approving) {
+        window.location.assign(state.heldReturn);
+        return;
+      }
+      // Supabase already approved this one on the earlier answer, so a "no"
+      // takes that approval back rather than sending the assistant a code.
+      await supabase.auth.oauth.revokeGrant({ clientId });
+      setDeciding(false);
+      setState({ status: "declined" });
+      return;
+    }
+
     const call = approving ? supabase.auth.oauth.approveAuthorization : supabase.auth.oauth.denyAuthorization;
     const { data, error } = await call(authorizationId, { skipBrowserRedirect: true });
     if (error) {
@@ -116,6 +148,15 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
           <div className="h-4 w-full animate-pulse rounded bg-[var(--line)]" />
           <div className="h-4 w-11/12 animate-pulse rounded bg-[var(--line)]" />
         </div>
+      </div>
+    );
+  }
+
+  if (state.status === "declined") {
+    return (
+      <div className="mx-auto max-w-md">
+        <h1 className="text-xl font-semibold">Nothing was connected</h1>
+        <p className="mt-3 text-sm text-ink-soft">You can close this tab.</p>
       </div>
     );
   }
@@ -186,6 +227,29 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       </p>
     </div>
   );
+}
+
+// The one assistant this person approved on Supabase's side whose Alyeska
+// approval is missing or on older wording, or null when there is none or more
+// than one (then there is no telling which this request is for).
+async function staleGrant(supabase) {
+  const grants = await supabase.auth.oauth.listGrants();
+  if (grants.error || !Array.isArray(grants.data)) return null;
+  const rows = await supabase.from("assistant_connections").select("client_id, status, consent_version, revoked_at");
+  if (rows.error) return null;
+  const current = new Set(
+    (rows.data || [])
+      .filter((r) => r.status === "allowed" && !r.revoked_at && r.consent_version === CONSENT_SURFACE_VERSION)
+      .map((r) => r.client_id)
+  );
+  const candidates = [];
+  for (const grant of grants.data) {
+    const id = grant?.client?.id;
+    if (!id || current.has(id)) continue;
+    const known = await clientById(supabase, id);
+    if (known?.approved_for_consent) candidates.push({ grant, known });
+  }
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 function hostOf(uri) {
