@@ -61,8 +61,8 @@ export default function SettingsBody({
           {consent && <BetaConsentControls consent={consent} />}
 
           {/* Beside the consent answers, for the same reason: a way to take an
-              approval back belongs where somebody goes looking for one. Not
-              drawn until an assistant has been allowed. */}
+              approval back belongs where somebody goes looking for one. Drawn
+              for everyone: connecting starts here, with the address. */}
           <AssistantConnectionsControl connections={assistants} />
 
           {/* Not for an invited member: none of the four things is theirs to do
