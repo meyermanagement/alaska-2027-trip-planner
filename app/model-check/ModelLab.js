@@ -16,6 +16,8 @@ import { defaultPicks } from "@/lib/model-lab/picks";
 import { thinkingOffered } from "@/lib/model-lab/effort";
 import ModelCheck from "./ModelCheck";
 
+const VENDOR_NAME = { openai: "OpenAI", gemini: "Google Gemini", anthropic: "Anthropic Claude" };
+const VENDOR_LIST = { openai: "OpenAI", gemini: "Google", anthropic: "Anthropic" };
 const SEEN_KEY = "model-lab:seen";
 const PRICE_KEY = "model-lab:prices";
 const RUNS_KEY = "model-lab:runs";
@@ -184,6 +186,7 @@ export default function ModelLab() {
         ? {
             inputTokens: like.reduce((a, r) => a + r.inputTokens, 0) / like.length,
             cachedTokens: like.reduce((a, r) => a + (r.cachedTokens || 0), 0) / like.length,
+            cacheWriteTokens: like.reduce((a, r) => a + (r.cacheWriteTokens || 0), 0) / like.length,
             outputTokens: like.reduce((a, r) => a + r.outputTokens, 0) / like.length,
             searches: like.reduce((a, r) => a + (r.searches || 0), 0) / like.length,
           }
@@ -304,18 +307,18 @@ export default function ModelLab() {
         }
       >
         {loadError && <p className="rounded-lg border border-rose/30 bg-rose/5 p-3 text-sm text-ink">{loadError}</p>}
-        {!catalog && !loadError && <p className="text-sm text-ink-soft">Asking Google and OpenAI which models they offer…</p>}
+        {!catalog && !loadError && <p className="text-sm text-ink-soft">Asking Google, OpenAI and Anthropic which models they offer…</p>}
         {catalog?.errors?.map((e) => (
           <p key={e.vendor} className="mb-2 rounded-lg border border-amber/40 bg-amber/5 p-3 text-xs text-ink">
-            {e.vendor === "openai" ? "OpenAI" : "Google"} list unavailable: {e.message}
+            {VENDOR_LIST[e.vendor] || e.vendor} list unavailable: {e.message}
           </p>
         ))}
-        {["openai", "gemini"].map((vendor) => {
+        {["openai", "gemini", "anthropic"].map((vendor) => {
           const mine = models.filter((m) => m.vendor === vendor);
           if (!mine.length) return null;
           return (
             <div key={vendor} className="mb-4">
-              <h3 className="mb-2 text-sm font-medium text-ink">{vendor === "openai" ? "OpenAI" : "Google Gemini"}</h3>
+              <h3 className="mb-2 text-sm font-medium text-ink">{VENDOR_NAME[vendor]}</h3>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {mine.map((m) => {
                   const on = picked.includes(m.id);

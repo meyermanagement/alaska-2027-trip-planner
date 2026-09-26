@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { whoIs } from "@/lib/supabase/who";
 import { isAdminUser } from "@/lib/auth/admin";
 import { runCase, EFFORT } from "@/lib/model-lab/run";
-import { geminiCandidate, openaiCandidate } from "@/lib/model-lab/catalog";
+import { anthropicCandidate, geminiCandidate, openaiCandidate } from "@/lib/model-lab/catalog";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,7 +25,7 @@ export async function POST(request) {
   const model = String(body.model || "");
   // Only names that look like a text model the app could use, so the route
   // cannot be pointed at an arbitrary URL segment.
-  if (!geminiCandidate(model) && !openaiCandidate(model))
+  if (!geminiCandidate(model) && !openaiCandidate(model) && !anthropicCandidate(model))
     return NextResponse.json({ ok: false, error: "Not a model the lab tests" }, { status: 400 });
   const result = await runCase({
     model,
