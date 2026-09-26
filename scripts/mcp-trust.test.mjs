@@ -21,6 +21,15 @@ test("each assistant's own return addresses are recognized", () => {
   assert.equal(key("https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-alaska_2027_trip_planner_vercel_app"), "gemini");
 });
 
+test("the six addresses Gemini registered for Mark are one Gemini client", () => {
+  const id = "102842793705506262355-alaska-2027-trip-planner_vercel_app";
+  const uris = ["", "-test", "-sandbox"].flatMap((h) =>
+    ["r", "a"].map((p) => `https://oauth-redirect${h}.googleusercontent.com/${p}/user_bound_custom-mcp-${id}`)
+  );
+  assert.equal(assistantForClient(uris.join(","))?.key, "gemini");
+  assert.equal(assistantForClient([...uris, "https://oauth-redirect.googleusercontent.com/r/attacker-project"]), null);
+});
+
 test("a Google redirect is Gemini only when it is a Gemini connection to Alyeska", () => {
   for (const u of [
     // Any Google developer can own /r/<their project id>.
@@ -31,7 +40,9 @@ test("a Google redirect is Gemini only when it is a Gemini connection to Alyeska
     "https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app_evil_com",
     "https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-abc-www_alyeska_app",
     "https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app/x",
-    "https://oauth-redirect-sandbox.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app",
+    "https://oauth-redirect-evil.googleusercontent.com/r/user_bound_custom-mcp-107303354335300565420-www_alyeska_app",
+    "https://oauth-redirect.googleusercontent.com/b/user_bound_custom-mcp-107303354335300565420-www_alyeska_app",
+    "https://oauth-redirect.googleusercontent.com/a/attacker-project",
   ]) {
     assert.equal(key(u), null, u);
   }
