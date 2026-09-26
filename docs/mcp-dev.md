@@ -153,6 +153,28 @@ Updates are marked destructive, since they replace a saved value. None deletes
 a record, and none touches notes, confirmation numbers or a child's
 preferences. These write directly, without Ask Aly's review cards. The other 22
 are marked read-only.
+
+### Suggested next steps (lib/mcp/nextSteps.js)
+
+Some writes return `next_steps`: sentences for the assistant to offer, never
+acted on. Each is read after the write and dropped if its read fails.
+
+- A draft (`create_trip`, `update_trip`): which of the seven basics to ask next.
+- A new trip, or a draft becoming one: what the household's departure list
+  added to the reminders (writeTrip already pushes it) and what it skipped.
+- New dates, or a draft becoming a trip: adults whose passports fall short of
+  six months past the return. Needs `trip_facts.leaves_country`; never a child.
+- A budget line added or changed, or a new budget: over budget, said once.
+- `put_fare_on_trip`: offer the flight and the fare's cost, asking first.
+- `add_template_item`, `set_trip_templates`: upcoming trips a push would change,
+  linked to the Packing page. Pushing stays in Alyeska, with its preview.
+
+### Refusals
+
+`callTool` rewrites every ToolError with `pointToAlyeska`: "in the app" becomes
+"in Alyeska", a primary-only refusal tells a secondary to ask a primary, and
+the refusal ends with a link to Alyeska (`NEXT_PUBLIC_SITE_URL` unless it is a
+Vercel or local host; otherwise https://www.alyeska.app).
 No AI calls.
 
 ## Never returned

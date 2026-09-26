@@ -133,6 +133,10 @@ function fakeAdmin(db, calls = []) {
         neq(k, v) { rows = rows.filter((r) => r[k] !== v); return q; },
         is(k, v) { rows = rows.filter((r) => (r[k] ?? null) === v); return q; },
         in(k, vs) { rows = rows.filter((r) => vs.includes(r[k])); return q; },
+        gt(k, v) { rows = rows.filter((r) => r[k] != null && r[k] > v); return q; },
+        gte(k, v) { rows = rows.filter((r) => r[k] != null && r[k] >= v); return q; },
+        lt(k, v) { rows = rows.filter((r) => r[k] != null && r[k] < v); return q; },
+        limit(n) { rows = rows.slice(0, n); return q; },
         order() { return q; },
         insert(row) {
           const save = () => {
@@ -405,4 +409,105 @@ test("create_trip names the next steps as suggestions", async () => {
   assert.ok(out.next_steps.some((s) => /set_trip_templates/.test(s) && /Beach weekend/.test(s)));
   assert.ok(out.next_steps.some((s) => /start_packing_list/.test(s)));
   assert.ok(out.next_steps.some((s) => /Ask before/.test(s)));
+});
+
+// ---- Suggested next steps and refusals that point to Alyeska ---------------
+
+test("a draft is told which basic to ask about next", async () => {
+  const { call } = await asUser("u-ann");
+  const out = await call("create_trip", { name: "Someday Japan", status: "draft" });
+  assert.ok(out.next_steps.some((s) => /basics are answered\. Next, ask/.test(s)), JSON.stringify(out.next_steps));
+});
+
+test("a new trip says what the departure list added, and what it left out", async () => {
+  const { db, call } = await asUser("u-ann");
+  db.house_tasks = [
+    { id: "h1", family_id: A, title: "Hold the mail", only_when_empty: true, sort_order: 1 },
+    { id: "h2", family_id: A, title: "Water the plants", only_when_empty: false, sort_order: 2 },
+    { id: "hb", family_id: B, title: "OTHER-HOUSEHOLD", only_when_empty: false, sort_order: 1 },
+  ];
+  const out = await call("create_trip", { name: "Chicago weekend", start_date: "2027-05-01", end_date: "2027-05-03", travelers: "Ann" });
+  const line = out.next_steps.find((s) => /departure/.test(s));
+  assert.ok(line, JSON.stringify(out.next_steps));
+  assert.match(line, /left out 1/);
+  noSecrets(out);
+});
+
+test("new dates on a trip abroad name the adult whose passport falls short, never the child", async () => {
+  const { db, call } = await asUser("u-ann");
+  db.trip_facts = [{ trip_id: "trip-a1", leaves_country: true, countries: ["Curacao"] }];
+  db.traveler_documents = [
+    { traveler_id: "ta1", doc_type: "passport", expiration_date: "2027-06-01" },
+    { traveler_id: "ta2", doc_type: "passport", expiration_date: "2035-01-01" },
+    { traveler_id: "ta3", doc_type: "passport", expiration_date: "2027-04-01" },
+  ];
+  const out = await call("update_trip", { trip: "Curacao spring", end_date: "2027-03-16" });
+  const line = (out.next_steps || []).find((s) => /add_reminder/.test(s));
+  assert.ok(line, JSON.stringify(out));
+  assert.match(line, /Ann/);
+  assert.doesNotMatch(line, /Kit/);
+});
+
+test("no passport suggestion without trip facts", async () => {
+  const { db, call } = await asUser("u-ann");
+  db.traveler_documents = [{ traveler_id: "ta1", doc_type: "passport", expiration_date: "2027-06-01" }];
+  const out = await call("update_trip", { trip: "Curacao spring", end_date: "2027-03-16" });
+  assert.ok(!(out.next_steps || []).some((s) => /passport/i.test(s)));
+});
+
+test("a cost that takes the trip over budget says so once", async () => {
+  const { db, call } = await asUser("u-ann");
+  db.trips[0].budget_target = 500;
+  const under = await call("add_trip_cost", { label: "Tour", estimate: "100" });
+  assert.equal(under.next_steps, undefined);
+  const over = await call("add_trip_cost", { label: "Boat", estimate: "400" });
+  assert.ok(over.next_steps.some((s) => /over its \$500 budget/.test(s)), JSON.stringify(over.next_steps));
+});
+
+test("a fare put on a trip offers the itinerary and the budget, asking first", async () => {
+  const { call } = await asUser("u-ann");
+  const out = await call("put_fare_on_trip", { fare: "Lisbon", trip: "Curacao spring" });
+  assert.ok(out.next_steps.some((s) => /add_itinerary_item/.test(s)));
+  assert.ok(out.next_steps.some((s) => /\$512/.test(s) && /add_trip_cost/.test(s)));
+  assert.ok(out.next_steps.some((s) => /Ask before/.test(s)));
+});
+
+test("a template change names the upcoming trips it would reach, and links to Packing", async () => {
+  const { db, call } = await asUser("u-ann");
+  db.trips.push(
+    { id: "trip-a2", family_id: A, name: "Maui fall", start_date: "2027-10-01", end_date: "2027-10-08", status: "planning", templates_chosen_at: "2027-01-01" },
+    { id: "trip-b2", family_id: B, name: "OTHER-HOUSEHOLD", start_date: "2027-10-01", status: "planning", templates_chosen_at: "2027-01-01" },
+  );
+  db.trip_templates.push({ trip_id: "trip-a2", template_id: "tp1" }, { trip_id: "trip-b2", template_id: "tpb" });
+  const out = await call("add_template_item", { item: "Reef shoes", traveler: "Ann" });
+  const line = (out.next_steps || []).find((s) => /Packing page/.test(s));
+  assert.ok(line, JSON.stringify(out));
+  assert.match(line, /Maui fall/);
+  assert.match(line, /https:\/\/www\.alyeska\.app\/packing/);
+  noSecrets(out);
+});
+
+test("a refusal sends the person to Alyeska, with a link", async () => {
+  const sam = await asUser("u-sam");
+  await assert.rejects(sam.call("add_trip_cost", { label: "Tour" }), (err) => {
+    assert.match(err.message, /Ask a primary traveler in your household; they can do it in Alyeska: https:\/\/www\.alyeska\.app/);
+    return true;
+  });
+  await assert.rejects(sam.call("get_budget", {}), /can see it in Alyeska: https:/);
+  const ann = await asUser("u-ann");
+  await assert.rejects(ann.call("add_packing_item", { item: "Insulin", traveler: "Ann" }), (err) => {
+    assert.match(err.message, /added in Alyeska, not through an assistant/);
+    assert.match(err.message, /Open Alyeska: https:\/\/www\.alyeska\.app/);
+    assert.doesNotMatch(err.message, /in the app/);
+    return true;
+  });
+  await assert.rejects(ann.call("no_such_tool", {}), /^Error: Unknown tool: no_such_tool$|Unknown tool: no_such_tool$/);
+});
+
+test("a draft that becomes a trip says what the departure list added", async () => {
+  const { db, call } = await asUser("u-ann");
+  db.house_tasks = [{ id: "h2", family_id: A, title: "Water the plants", only_when_empty: false, sort_order: 1 }];
+  db.trips[0].status = "draft";
+  const out = await call("update_trip", { trip: "Curacao spring", status: "planning" });
+  assert.ok((out.next_steps || []).some((s) => /departure task/.test(s)), JSON.stringify(out));
 });
