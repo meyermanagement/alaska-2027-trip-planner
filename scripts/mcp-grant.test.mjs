@@ -8,10 +8,15 @@ const jiti = createJiti(import.meta.url, { alias: { "@": root } });
 const { connectionGrant, notServing, NOT_SERVING_CODE } = jiti("../lib/mcp/grant.js");
 const { CONSENT_SURFACE_VERSION: V } = jiti("../lib/mcp/consentVersion.js");
 
-function fake({ live = true, liveError = null, clients = [], rows = [], throws = false } = {}) {
+function fake({ live = true, liveError = null, clients = [], rows = [], throws = false, registered = {}, regError = null } = {}) {
   return {
-    rpc: async (fn) => {
+    rpc: async (fn, args) => {
       if (throws) throw new Error("network");
+      if (fn === "assistant_client_redirects") {
+        if (regError) return { data: null, error: regError };
+        const r = registered[args.p_client_id];
+        return { data: r ? [r] : [], error: null };
+      }
       assert.equal(fn, "assistant_connections_enabled");
       return { data: live, error: liveError };
     },
@@ -84,4 +89,44 @@ test("not-live is answered as a JSON-RPC error with no auth challenge", async ()
   const down = notServing({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "unavailable");
   assert.equal(down.status, 503);
   assert.equal(down.headers.get("www-authenticate"), null);
+});
+
+// Self-registered clients, judged by where their approvals go.
+const dyn = (redirect_uris) => ({ registration_type: "dynamic", redirect_uris });
+const dynRow = { user_id: "u-ann", client_id: "c-dyn", status: "allowed", consent_version: V, revoked_at: null };
+const dynWho = { id: "u-ann", clientId: "c-dyn" };
+
+test("a self-registered client returning to claude.ai is permitted once allowed", async () => {
+  const f = fake({ registered: { "c-dyn": dyn("https://claude.ai/api/mcp/auth_callback") }, rows: [dynRow] });
+  assert.deepEqual(await connectionGrant(f, dynWho), { ok: true });
+});
+test("a fake Claude returning anywhere else is refused, whatever its row says", async () => {
+  const lookalikeRow = { client_id: "c-dyn", client_name: "Claude", approved_for_consent: true };
+  for (const uris of [
+    "https://evil.example/api/mcp/auth_callback",
+    "https://claude.ai.evil.example/api/mcp/auth_callback",
+    "https://claude.ai/api/mcp/auth_callback,https://evil.example/cb",
+    "",
+  ]) {
+    const f = fake({ registered: { "c-dyn": dyn(uris) }, clients: [lookalikeRow], rows: [dynRow] });
+    assert.equal((await connectionGrant(f, dynWho)).refused, "unknown-client", uris);
+  }
+});
+test("a directory row can block a self-registered client but not widen it", async () => {
+  const blocked = { client_id: "c-dyn", client_name: "Claude", approved_for_consent: false };
+  const f = fake({ registered: { "c-dyn": dyn("https://claude.ai/api/mcp/auth_callback") }, clients: [blocked], rows: [dynRow] });
+  assert.equal((await connectionGrant(f, dynWho)).refused, "unknown-client");
+});
+test("a hand-registered client still needs its row", async () => {
+  const manual = { registration_type: "manual", redirect_uris: "https://claude.ai/api/mcp/auth_callback" };
+  assert.equal((await connectionGrant(fake({ registered: { "c-good": manual }, rows: [allowed] }), who)).refused, "unknown-client");
+  assert.deepEqual(await connectionGrant(fake({ registered: { "c-good": manual }, clients: [good], rows: [allowed] }), who), { ok: true });
+});
+test("a registration that cannot be read refuses, except a missing function for a hand-registered row", async () => {
+  const f = fake({ clients: [good], rows: [allowed], regError: { code: "XX000", message: "x" } });
+  assert.equal((await connectionGrant(f, who)).refused, "unavailable");
+  const missing = fake({ clients: [good], rows: [allowed], regError: { code: "PGRST202", message: "not found" } });
+  assert.deepEqual(await connectionGrant(missing, who), { ok: true });
+  const missingNoRow = fake({ rows: [dynRow], regError: { code: "PGRST202", message: "not found" } });
+  assert.equal((await connectionGrant(missingNoRow, dynWho)).refused, "unavailable");
 });
