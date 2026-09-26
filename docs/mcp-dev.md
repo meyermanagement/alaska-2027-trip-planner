@@ -115,17 +115,26 @@ Household tools (`lib/mcp/householdTools.js`): `get_preferences`, `get_budget`,
 `get_nearby_tips`, `get_bucket_list`, `get_fare_alerts`, `get_pets`,
 `get_trip_log`.
 
-Write tool: `check_off_packing_item` sets or clears `is_packed` on one
-packing line the reader can see, through their own signed-in client, so RLS and
-the `packing_secondary_guard` trigger apply exactly as they do to the Packing
-screen's checkbox. More than one match changes nothing and lists the matches.
+Write tools, all through the reader's own signed-in client, so RLS and the
+secondary guard triggers apply exactly as they do in the app:
 
-The other 22 are marked read-only. No AI calls.
+- `check_off_packing_item` (tools.js), `check_off_day_pack_item`,
+  `complete_reminder` (writeTools.js): set or clear the done flag on one line
+  the matching read tool shows this reader. A secondary reaches their own
+  lines (day pack: also Shared). More than one match changes nothing and lists
+  up to six.
+- `add_packing_item`, `add_reminder`, `add_bucket_list_place`: primary
+  travelers only. For a trip traveler, a child, or Shared. Refuses health text
+  and returns `changed:false` for a line already there.
+
+None deletes, rewords a line, or touches itinerary, costs or preferences;
+those stay behind Ask Aly's review cards. The other 22 are marked read-only.
+No AI calls.
 
 ## Never returned
 
 Children and anything that names one -- except that a primary traveler sees,
-and can check off, packing and day pack lines assigned to their children --
+and can check off and add, packing and day pack lines assigned to their children --
 health, allergy and accessibility
 details (including a pet's service-animal flag, medications and diet),
 typed notes, confirmation, ID, member, policy and microchip numbers, document
@@ -136,7 +145,8 @@ adults' documents only, as a type and a date.
 ## Secondary travelers
 
 Their own and shared rows only, and never a child's packing. They can check
-off only their own packing lines. Budget, insurance, house tasks, bucket list,
+off only their own packing and reminder lines and their own or Shared day
+pack lines, and cannot add anything. Budget, insurance, house tasks, bucket list,
 fare alerts and pets are refused.
 
 ## Refused

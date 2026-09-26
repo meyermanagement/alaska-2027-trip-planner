@@ -119,11 +119,13 @@ async function asUser(userId, db = world()) {
   return { admin, scope, call: (name, args) => callTool(admin, scope, name, args) };
 }
 
-test("every tool is titled; only the check-off writes, and nothing destroys", () => {
-  assert.equal(TOOLS.length, 23);
+const WRITES = new Set(["check_off_packing_item", "check_off_day_pack_item", "complete_reminder", "add_packing_item", "add_reminder", "add_bucket_list_place"]);
+
+test("every tool is titled; only the six named tools write, and nothing destroys", () => {
+  assert.equal(TOOLS.length, 28);
   for (const t of TOOLS) {
     assert.ok(t.title && t.description, t.name);
-    assert.equal(t.annotations.readOnlyHint, t.name !== "check_off_packing_item", t.name);
+    assert.equal(t.annotations.readOnlyHint, !WRITES.has(t.name), t.name);
     assert.equal(t.annotations.destructiveHint, false, t.name);
   }
 });
@@ -258,7 +260,7 @@ test("bad arguments are refused rather than guessed at", async () => {
   await assert.rejects(call("drop_everything", {}), /Unknown tool/);
 });
 
-test("no tool but the check-off ever writes", async () => {
+test("no read-only tool ever writes", async () => {
   const db = world();
   const calls = [];
   const admin = fakeAdmin(db, calls);
@@ -274,7 +276,7 @@ test("the protocol: list without the database, call through the scope, headers c
   const admin = fakeAdmin(db);
   const getScope = async () => { scoped++; return readerScope(admin, "u-ann", TODAY); };
   const list = await handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { client: admin, getScope });
-  assert.equal(list.body.result.tools.length, 23);
+  assert.equal(list.body.result.tools.length, 28);
   assert.equal(scoped, 0);
   const call = await handleMessage(
     { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_trip", arguments: {} } },

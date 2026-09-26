@@ -1,4 +1,5 @@
-// The assistant connection: an MCP endpoint that reads, and checks off packing.
+// The assistant connection: an MCP endpoint that reads, checks things off, and
+// adds packing items, reminders and bucket-list places (lib/mcp/writeTools.js).
 //
 // Step two of the plan in research/assistant-surface-implementation-spec.md.
 // Step one's credential was a developer key standing for one hard-coded

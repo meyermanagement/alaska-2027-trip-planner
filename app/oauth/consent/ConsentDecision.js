@@ -148,7 +148,7 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
     <div className="mx-auto max-w-md">
       <h1 className="text-xl font-semibold">Allow {name} to connect?</h1>
       <p className="mt-2 text-sm text-ink-soft">
-        {name} is asking to read your trips and travel details, and check off packing items, through Alyeska, using the account you&rsquo;re signed in with now.
+        {name} is asking to read your trips and travel details through Alyeska, check off packing, day pack items and reminders, and add packing items, reminders and bucket-list places, using the account you&rsquo;re signed in with now. It can&rsquo;t delete or rewrite anything, or change your itinerary, budget or preferences.
       </p>
       {returnsTo && (
         <p className="mt-2 text-sm text-ink-soft">
@@ -186,7 +186,7 @@ export default function ConsentDecision({ authorizationId, liveGrantsEnabled }) 
       <p className="mt-4 text-xs text-ink-soft">
         You can remove this later from Settings. {name} never sees health or allergy details; ID, member, or policy
         numbers; typed notes; or anything about a child on this account except, for a parent, the child&rsquo;s
-        packing and day pack items.
+        packing items, day pack items and reminders.
       </p>
     </div>
   );
